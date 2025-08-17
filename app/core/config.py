@@ -2,7 +2,9 @@ import os
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-DOTENV = os.path.join(os.path.dirname(__file__), ".env")
+DOTENV = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "secret", ".env"  # core -> app
+)
 
 
 class Settings(BaseSettings):

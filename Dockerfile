@@ -10,7 +10,7 @@ RUN apt-get update \
 WORKDIR /app
 
 # 3) Copy dependency manifests first for cache
-COPY requirements.txt* /app/ 2>/dev/null || true
+COPY requirements.txt .
 
 # 4) Install deps
 RUN pip install --no-cache-dir --upgrade pip \
