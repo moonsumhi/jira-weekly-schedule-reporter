@@ -6,6 +6,7 @@ from typing import List, Optional
 import uvicorn
 from datetime import datetime, timezone
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.cors import CORSMiddleware
 
 from app.routers import health, issues
 from app.services.jira_service import JiraTaskService
@@ -13,8 +14,16 @@ from app.utils.time import KST
 
 app = FastAPI(title="Jira Task Viewer API", version="1.3.0")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:9000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(issues.router, prefix="/issues", tags=["issues"])
 app.include_router(health.router, prefix="/health", tags=["health"])
+
 
 _service = JiraTaskService()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -103,4 +112,4 @@ async def ui(
 
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)

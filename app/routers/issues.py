@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from app.models.issue import GroupedResponse
 from app.services.jira_service import JiraTaskService
+from app.core.consts import ALLOWED_STATUSES
 
 router = APIRouter()
 service = JiraTaskService()
@@ -58,3 +59,40 @@ async def get_issues_advanced(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/today-tasks")
+async def today_tasks(
+    start: str = Query(..., description="Start date YYYY-MM-DD"),
+    end: str = Query(..., description="End date YYYY-MM-DD"),
+    assignees: Optional[List[str]] = Query(None, description="Filter by assignee"),
+    status: Optional[List[str]] = Query(
+        None,
+        description="Filter by status",
+    ),
+):
+    """
+    Returns Jira tasks grouped by assignee, filtered by start/end date, assignees, and status.
+    """
+    # Validate statuses
+    if status:
+        invalid_status = [s for s in status if s not in ALLOWED_STATUSES]
+        if invalid_status:
+            return {"error": f"Invalid status: {invalid_status}"}
+
+    status_filter = None
+    if status:
+        # Wrap each status in double quotes
+        quoted_statuses = ",".join(f'"{s}"' for s in status)
+        status_filter = f"status in ({quoted_statuses})"
+
+    # Fetch tasks from JiraTaskService
+    response = await service.fetch_grouped(
+        start=start,
+        end=end,
+        assignees=assignees,
+        date_field="due",
+        extra_filters=[status_filter] if status_filter else None,
+    )
+
+    return response
