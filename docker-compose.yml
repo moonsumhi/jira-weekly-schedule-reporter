@@ -15,7 +15,7 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ./frontend/optool
       dockerfile: Dockerfile
     container_name: jira-frontend
     ports:
