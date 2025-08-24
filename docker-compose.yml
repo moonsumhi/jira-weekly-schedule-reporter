@@ -17,8 +17,6 @@ services:
     build:
       context: ./frontend/optool
       dockerfile: Dockerfile
-      args:
-        VITE_API_URL: http://backend:8000
     container_name: jira-frontend
     ports:
       - "9000:80"

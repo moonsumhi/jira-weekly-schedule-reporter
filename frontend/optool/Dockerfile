@@ -7,10 +7,6 @@ WORKDIR /app
 # Copy everything from the Quasar project
 COPY . .
 
-# Build with environment variable
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
-
 # Install global Quasar CLI
 RUN npm install -g @quasar/cli
 
@@ -28,6 +24,8 @@ RUN rm -rf /usr/share/nginx/html/*
 
 # Copy built SPA from builder
 COPY --from=builder /app/dist/spa /usr/share/nginx/html
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
