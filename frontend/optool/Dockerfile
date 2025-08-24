@@ -1,28 +1,30 @@
-# Stage 1: Build the Quasar app
+# Stage 1: Build Quasar app
 FROM node:20-alpine AS builder
 
-# Set working directory
+# Set working directory inside container
 WORKDIR /app
 
-# Copy package files first (for caching)
-COPY package*.json ./
-COPY quasar.config.* ./
-
-# Install dependencies (this will run postinstall)
-RUN npm install
-RUN npm install -g @quasar/cli
-
-# Copy the rest of the project
+# Copy everything from the Quasar project
 COPY . .
 
-# Build Quasar
-RUN npm run build
+# Install global Quasar CLI
+RUN npm install -g @quasar/cli
+
+# Install dependencies
+RUN npm install
+
+# Build production version
+RUN npx quasar build
 
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
 
+# Remove default Nginx files
 RUN rm -rf /usr/share/nginx/html/*
+
+# Copy built SPA from builder
 COPY --from=builder /app/dist/spa /usr/share/nginx/html
 
 EXPOSE 80
+
 CMD ["nginx", "-g", "daemon off;"]
