@@ -1,23 +1,23 @@
 # Stage 1: Build the Quasar app
 FROM node:20-alpine AS builder
 
-# Set working directory
+# Set working directory to Quasar project
 WORKDIR /app
 
-# Install dependencies
+# Copy package.json and package-lock.json for dependency install
 COPY frontend/optool/package*.json ./
 
+# Install dependencies
 RUN npm install
 
+# Install Quasar CLI globally
 RUN npm install -g @quasar/cli
 
-# Copy source code
+# Copy the rest of the frontend source code
 COPY frontend/optool/ .
 
-RUN cd frontend/optool/
-
 # Build the production version
-RUN npm run build
+RUN quasar build
 
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
@@ -27,9 +27,6 @@ RUN rm -rf /usr/share/nginx/html/*
 
 # Copy built files from builder
 COPY --from=builder /app/dist/spa /usr/share/nginx/html
-
-# Copy custom Nginx config if needed (optional)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80
