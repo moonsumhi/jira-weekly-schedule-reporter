@@ -84,8 +84,16 @@
       </q-btn>
     </div>
 
-    <!-- Calendar -->
+    <!-- Calendar & Download -->
     <div class="q-mt-lg">
+      <div class="row justify-end q-mb-sm">
+        <q-btn
+          label="JSON 다운로드"
+          color="secondary"
+          @click="downloadJSON"
+          :disable="!filteredTasks.length"
+        />
+      </div>
       <FullCalendar
         ref="calendarRef"
         :options="calendarOptions"
@@ -107,9 +115,7 @@ import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
-
 import type {EventInput} from '@fullcalendar/core'
-
 
 const startDate = ref('')
 const endDate = ref('')
@@ -122,52 +128,39 @@ const loading = ref(false)
 const selectedAssigneeFilter = ref('all')
 const showAssigneeButtons = ref(false)
 
-const assigneeList = computed(() => {
-  return tasks.value.map(group => group.assignee)
-})
+const statusOptions = ["To Do", "In Progress", "Done", "Blocked"]
+
+const assigneeList = computed(() => tasks.value.map(group => group.assignee))
 
 const filteredTasks = computed(() => {
   if (selectedAssigneeFilter.value === 'all') return tasks.value
   return tasks.value.filter(group => group.assignee === selectedAssigneeFilter.value)
 })
 
-const statusOptions = ["To Do", "In Progress", "Done", "Blocked"]
-
-
 // Calendar Config
-const calendarRef = ref()
+const calendarRef = ref<InstanceType<typeof FullCalendar> | null>(null)
 const calendarOptions = ref({
   plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
   initialView: 'dayGridMonth',
-  headerToolbar: {
-    left: 'prev,next today',
-    center: 'title',
-    right: 'dayGridMonth,timeGridWeek'
-  },
+  headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
   displayEventTime: false,
   events: []
 })
 
 function statusColor(status: string) {
   switch (status) {
-    case "To Do":
-      return "#FFC107" // amber
-    case "In Progress":
-      return "#2196F3" // blue
-    case "Done":
-      return "#4CAF50" // green
-    case "Blocked":
-      return "#F44336" // red
-    default:
-      return "#9E9E9E"
+    case "To Do": return "#FFC107"
+    case "In Progress": return "#2196F3"
+    case "Done": return "#4CAF50"
+    case "Blocked": return "#F44336"
+    default: return "#9E9E9E"
   }
 }
 
-// Refresh calendar events dynamically
 function refreshCalendar() {
+  if (!calendarRef.value) return
   const calendarApi = calendarRef.value.getApi()
   calendarApi.removeAllEvents()
-
 
   const events: EventInput[] = []
   filteredTasks.value.forEach(group => {
@@ -175,15 +168,10 @@ function refreshCalendar() {
       const event: EventInput = {
         title: `${group.assignee}: ${issue.summary} (${issue.key})`,
         url: issue.url,
-        color: statusColor(issue.status)
+        color: statusColor(issue.status),
+        start: toKSTDay(issue.start),
+        end: toKSTPlusOneDay(issue.duedate) || toKSTDay(issue.start)
       }
-
-      const startVal = toKSTDay(issue.start)
-      if (startVal) event.start = startVal
-
-      const endVal = toKSTPlusOneDay(issue.duedate) || toKSTDay(issue.start)
-      if (endVal) event.end = endVal
-
       events.push(event)
     })
   })
@@ -198,26 +186,35 @@ async function fetchTasks() {
   }
 
   loading.value = true
+  try {
+    const assignees = assigneesInput.value
+      ? assigneesInput.value.split(",").map(a => a.trim()).filter(a => a)
+      : undefined
 
-  const assignees = assigneesInput.value
-    ? assigneesInput.value.split(",").map(a => a.trim()).filter(a => a)
-    : undefined
+    const res = await api.get("/issues/today-tasks", {
+      params: { start: startDate.value, end: endDate.value, assignees, status: selectedStatuses.value },
+      paramsSerializer: params => qs.stringify(params, { arrayFormat: 'repeat' })
+    })
 
-  const res = await api.get("/issues/today-tasks", {
-    params: {
-      start: startDate.value,
-      end: endDate.value,
-      assignees,
-      status: selectedStatuses.value
-    },
-    paramsSerializer: params => qs.stringify(params, {arrayFormat: 'repeat'})
-  })
+    tasks.value = res.data.groups
+    showAssigneeButtons.value = true
+    selectedAssigneeFilter.value = 'all'
+    refreshCalendar()
+  } finally {
+    loading.value = false
+  }
+}
 
-  tasks.value = res.data.groups
-  showAssigneeButtons.value = true
-  selectedAssigneeFilter.value = 'all'
-  loading.value = false;
-  refreshCalendar()
+// --- Download filtered tasks as JSON ---
+function downloadJSON() {
+  const dataStr = JSON.stringify(filteredTasks.value, null, 2)
+  const blob = new Blob([dataStr], { type: "application/json" })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = `tasks_${selectedAssigneeFilter.value}_${new Date().toISOString().slice(0,10)}.json`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 </script>
 
