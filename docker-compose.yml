@@ -4,7 +4,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: dockerfile  # <-- your backend Dockerfile path
+      dockerfile: Dockerfile  # <-- your backend Dockerfile path
     container_name: jira-backend
     ports:
       - "8000:8000"
@@ -16,7 +16,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
     container_name: jira-frontend
     ports:
       - "9000:80"
