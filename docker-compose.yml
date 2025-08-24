@@ -14,7 +14,9 @@ services:
       - /home/moonsumhi/volume/jira-simple-pj:/app/app/secret:ro
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
     container_name: jira-frontend
     ports:
       - "9000:80"
