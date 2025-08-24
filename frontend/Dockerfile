@@ -8,13 +8,11 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-RUN npm install -g @quasar/cli
-
 # Copy source code
 COPY . .
 
 # Build the production version
-RUN npx quasar build
+RUN npm run build
 
 # Stage 2: Serve with Nginx
 FROM nginx:alpine
