@@ -1,10 +1,9 @@
 <template>
   <div class="q-pa-md">
-    <!-- Filter Card -->
+    <!-- Filters -->
     <q-card flat bordered>
       <q-card-section>
         <div class="row q-col-gutter-md">
-
           <!-- Start Date -->
           <div class="col-12 col-md-3">
             <q-input v-model="startDate" label="Start Date" readonly>
@@ -54,12 +53,12 @@
         </div>
 
         <div class="q-mt-md">
-          <q-btn label="검색" color="primary" @click="fetchTasks"/>
+          <q-btn label="검색" color="primary" :loading="loading" @click="fetchTasks"/>
         </div>
       </q-card-section>
     </q-card>
 
-    <!-- Assignee Buttons -->
+    <!-- Assignee Filter -->
     <div v-if="showAssigneeButtons" class="q-mt-md row q-gutter-sm q-wrap">
       <q-btn
         outline
@@ -67,12 +66,10 @@
         size="md"
         rounded
         :flat="selectedAssigneeFilter === 'all'"
-        @click="selectedAssigneeFilter = 'all'"
-        class="q-mb-sm q-mr-sm"
+        @click="selectedAssigneeFilter = 'all'; refreshCalendar()"
       >
         All
       </q-btn>
-
       <q-btn
         v-for="assignee in assigneeList"
         :key="assignee"
@@ -81,34 +78,19 @@
         size="md"
         rounded
         :flat="selectedAssigneeFilter === assignee"
-        @click="selectedAssigneeFilter = assignee"
-        class="q-mb-sm q-mr-sm"
+        @click="selectedAssigneeFilter = assignee; refreshCalendar()"
       >
         {{ assignee }}
       </q-btn>
     </div>
 
-
-    <!-- Task List -->
+    <!-- Calendar -->
     <div class="q-mt-lg">
-      <div v-for="group in filteredTasks" :key="group.assignee" class="q-mb-md">
-        <q-card flat bordered>
-          <q-card-section>
-            <div class="text-h6">{{ group.assignee }} · {{ group.count }} tasks</div>
-            <q-separator spaced/>
-            <div v-for="issue in group.issues" :key="issue.key">
-              <div>
-                <a :href="issue.url" target="_blank">{{ issue.key }}</a>
-                {{ issue.summary }}
-                <q-badge :color="statusColor(issue.status)" class="q-ml-sm">{{ issue.status }}</q-badge>
-              </div>
-              <div class="text-subtitle2 text-grey">
-                Created: {{ issue.created }} · Due: {{ issue.duedate }}
-              </div>
-            </div>
-          </q-card-section>
-        </q-card>
-      </div>
+      <FullCalendar
+        ref="calendarRef"
+        :options="calendarOptions"
+        style="max-width: 100%; margin: auto;"
+      />
     </div>
   </div>
 </template>
@@ -118,6 +100,16 @@ import {ref, computed} from 'vue'
 import qs from 'qs'
 import {api} from 'boot/axios'
 import type {AssigneeGroup} from 'src/types/jira'
+import {toKSTPlusOneDay, toKSTDay} from 'src/utils/time'
+
+// FullCalendar imports
+import FullCalendar from '@fullcalendar/vue3'
+import dayGridPlugin from '@fullcalendar/daygrid'
+import timeGridPlugin from '@fullcalendar/timegrid'
+import interactionPlugin from '@fullcalendar/interaction'
+
+import type {EventInput} from '@fullcalendar/core'
+
 
 const startDate = ref('')
 const endDate = ref('')
@@ -125,18 +117,15 @@ const assigneesInput = ref('')
 const selectedStatuses = ref<string[]>([])
 const tasks = ref<AssigneeGroup[]>([])
 
-// Assignee filter & visibility
+const loading = ref(false)
+
 const selectedAssigneeFilter = ref('all')
 const showAssigneeButtons = ref(false)
 
-// Computed assignee list from input
 const assigneeList = computed(() => {
-  return assigneesInput.value
-    ? assigneesInput.value.split(',').map(a => a.trim()).filter(a => a)
-    : []
+  return tasks.value.map(group => group.assignee)
 })
 
-// Filtered tasks based on selected assignee
 const filteredTasks = computed(() => {
   if (selectedAssigneeFilter.value === 'all') return tasks.value
   return tasks.value.filter(group => group.assignee === selectedAssigneeFilter.value)
@@ -144,19 +133,62 @@ const filteredTasks = computed(() => {
 
 const statusOptions = ["To Do", "In Progress", "Done", "Blocked"]
 
+
+// Calendar Config
+const calendarRef = ref()
+const calendarOptions = ref({
+  plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
+  initialView: 'dayGridMonth',
+  headerToolbar: {
+    left: 'prev,next today',
+    center: 'title',
+    right: 'dayGridMonth,timeGridWeek'
+  },
+  displayEventTime: false,
+  events: []
+})
+
 function statusColor(status: string) {
   switch (status) {
     case "To Do":
-      return "amber"
+      return "#FFC107" // amber
     case "In Progress":
-      return "blue"
+      return "#2196F3" // blue
     case "Done":
-      return "green"
+      return "#4CAF50" // green
     case "Blocked":
-      return "red"
+      return "#F44336" // red
     default:
-      return "grey"
+      return "#9E9E9E"
   }
+}
+
+// Refresh calendar events dynamically
+function refreshCalendar() {
+  const calendarApi = calendarRef.value.getApi()
+  calendarApi.removeAllEvents()
+
+
+  const events: EventInput[] = []
+  filteredTasks.value.forEach(group => {
+    group.issues.forEach(issue => {
+      const event: EventInput = {
+        title: `${group.assignee}: ${issue.summary} (${issue.key})`,
+        url: issue.url,
+        color: statusColor(issue.status)
+      }
+
+      const startVal = toKSTDay(issue.start)
+      if (startVal) event.start = startVal
+
+      const endVal = toKSTPlusOneDay(issue.duedate) || toKSTDay(issue.start)
+      if (endVal) event.end = endVal
+
+      events.push(event)
+    })
+  })
+
+  calendarApi.addEventSource(events)
 }
 
 async function fetchTasks() {
@@ -164,6 +196,8 @@ async function fetchTasks() {
     alert("Please select start and end dates")
     return
   }
+
+  loading.value = true
 
   const assignees = assigneesInput.value
     ? assigneesInput.value.split(",").map(a => a.trim()).filter(a => a)
@@ -180,10 +214,13 @@ async function fetchTasks() {
   })
 
   tasks.value = res.data.groups
-  showAssigneeButtons.value = true  // Show buttons after fetch
-  selectedAssigneeFilter.value = 'all' // Reset filter
+  showAssigneeButtons.value = true
+  selectedAssigneeFilter.value = 'all'
+  loading.value = false;
+  refreshCalendar()
 }
 </script>
+
 <style scoped>
 .q-btn:hover {
   transform: scale(1.05);

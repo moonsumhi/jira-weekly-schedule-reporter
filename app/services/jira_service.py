@@ -25,6 +25,7 @@ class JiraTaskService:
             "created",
             "updated",
             "duedate",
+            "customfield_10015",
         ]
 
     @staticmethod
@@ -48,6 +49,7 @@ class JiraTaskService:
             created=self._parse_dt(f.get("created")),
             updated=self._parse_dt(f.get("updated")),
             duedate=self._parse_dt(f.get("duedate")),
+            start=self._parse_dt(f.get("customfield_10015")),
             url=self.client.issue_url(raw.get("key")),
         )
 

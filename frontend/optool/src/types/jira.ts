@@ -5,6 +5,7 @@ export interface Issue {
   url: string
   created: string
   duedate: string
+  start: string
 }
 
 export interface AssigneeGroup {

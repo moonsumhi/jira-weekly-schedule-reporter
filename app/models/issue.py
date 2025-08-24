@@ -12,6 +12,7 @@ class Issue(BaseModel):
     created: Optional[datetime] = None
     updated: Optional[datetime] = None
     duedate: Optional[datetime] = None
+    start: Optional[datetime] = None
     url: str
 
 
