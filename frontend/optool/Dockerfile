@@ -5,12 +5,16 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
-COPY package*.json ./
+COPY frontend/optool/package*.json ./
 
 RUN npm install
 
+RUN npm install -g @quasar/cli
+
 # Copy source code
-COPY . .
+COPY frontend/optool/ .
+
+RUN cd frontend/optool/
 
 # Build the production version
 RUN npm run build
