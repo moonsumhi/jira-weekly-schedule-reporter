@@ -5,12 +5,12 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
-COPY frontend/optool/package*.json ./
+COPY package*.json ./
 
 RUN npm install
 
 # Copy source code
-COPY frontend/optool/ ./
+COPY . .
 
 # Build the production version
 RUN npm run build
