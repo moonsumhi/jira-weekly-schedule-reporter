@@ -7,6 +7,10 @@ WORKDIR /app
 # Copy everything from the Quasar project
 COPY . .
 
+# Build with environment variable
+ARG VITE_API_URL
+RUN VITE_API_URL=$VITE_API_URL npm run build
+
 # Install global Quasar CLI
 RUN npm install -g @quasar/cli
 
