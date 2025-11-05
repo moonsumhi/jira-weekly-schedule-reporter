@@ -22,3 +22,37 @@ services:
       - "9000:80"
     depends_on:
       - backend
+
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    ports:
+      # Expose only if you want to connect from host tools (Compass, etc.)
+      - "27017:27017"
+    volumes:
+      # Persistent data on host filesystem
+      - /home/moonsumhi/volume/mongodb:/data/db
+      # One-time initialization scripts (create app db + user)
+      - ./scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    container_name: jira-mongo-express
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      ME_CONFIG_MONGODB_SERVER: mongodb
