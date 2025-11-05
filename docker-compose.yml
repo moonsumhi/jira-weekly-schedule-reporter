@@ -38,11 +38,6 @@ services:
       - /home/moonsumhi/volume/mongodb:/data/db
       # One-time initialization scripts (create app db + user)
       - ./scripts:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
   mongo-express:
     image: mongo-express:1.0.2-20
