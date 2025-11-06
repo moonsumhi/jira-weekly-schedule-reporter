@@ -2,10 +2,16 @@
 set -e
 
 echo "Creating application database and user…"
+
+# Read env with sane defaults
+DB_NAME="${APP_DB_NAME}"
+DB_USER="${APP_DB_USER}"
+DB_PASS="${APP_DB_PASS}"
+
 mongosh --username "$MONGO_INITDB_ROOT_USERNAME" --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin <<'EOF'
-const dbName = ${APP_DB_NAME} || "appdb";
-const user   = ${APP_DB_USER} || "appuser";
-const pass   = ${APP_DB_PASS} || "apppass";
+const dbName = "$DB_NAME";
+const user   = "$DB_USER";
+const pass   = "$DB_PASS";
 
 db.getSiblingDB(dbName).createUser({
   user: user,
