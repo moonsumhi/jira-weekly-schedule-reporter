@@ -41,7 +41,7 @@ services:
 
   mongo-express:
     image: mongo-express:1.0.2-20
-    container_name: jira-mongo-express
+    container_name: mongo-express
     restart: unless-stopped
     depends_on:
       - mongodb
