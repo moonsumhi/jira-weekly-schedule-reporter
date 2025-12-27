@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   backend:
     build:
@@ -8,8 +6,12 @@ services:
     container_name: jira-backend
     ports:
       - "8000:8000"
+    env_file:
+      - /app/secret/.env
     environment:
       - PYTHONUNBUFFERED=1
+      - MONGO_URI=mongodb://${APP_DB_USER}:${APP_DB_PASS}@mongo:27017/?authSource=${APP_DB_NAME}
+      - APP_DB_NAME=${APP_DB_NAME}
     volumes:
       - /home/moonsumhi/volume/jira-simple-pj:/app/app/secret:ro
 
@@ -23,16 +25,15 @@ services:
     depends_on:
       - backend
 
-  mongodb:
+  mongo:
     image: mongo:7
-    container_name: mongodb
+    container_name: mongo
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      APP_DB_NAME: ${APP_DB_NAME}
-      APP_DB_USER: ${APP_DB_USER}
-      APP_DB_PASS: ${APP_DB_PASS}
     ports:
       # Expose only if you want to connect from host tools (Compass, etc.)
       - "27017:27017"
@@ -47,7 +48,7 @@ services:
     container_name: mongo-express
     restart: unless-stopped
     depends_on:
-      - mongodb
+      - mongo
     ports:
       - "8081:8081"
     environment:
@@ -55,4 +56,4 @@ services:
       ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_SERVER: mongo

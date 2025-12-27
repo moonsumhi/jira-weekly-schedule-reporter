@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     JIRA_BASE_URL: str = Field(..., description="https://moonsumhi.atlassian.net")
     JIRA_EMAIL: str = Field(..., description="Jira account email")
     JIRA_API_TOKEN: str = Field(..., description="Jira API token")
+    MONGO_URI: str = Field(..., description="MongoDB URI")
+    JWT_SECRET_KEY: str = Field(..., description="JWT Secret Key")
+    JWT_ALGORITHM: str = Field(..., description="JWT Algorithm")
+    ACCESS_TOKEN_EXPIRE_MINUTES: str = Field(
+        ..., description="Access Token Expire Minutes"
+    )
+    APP_DB_NAME: str = Field(..., description="Mongo DB Name")
 
     model_config = SettingsConfigDict(
         env_file=DOTENV,

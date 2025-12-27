@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-DB_NAME="${APP_DB_NAME:-appdb}"
-DB_USER="${APP_DB_USER:-appuser}"
-DB_PASS="${APP_DB_PASS:-apppass}"
+DB_NAME="${APP_DB_NAME}"
+DB_USER="${APP_DB_USER}"
+DB_PASS="${APP_DB_PASS}"
 
 mongosh \
   -u "$MONGO_INITDB_ROOT_USERNAME" \
