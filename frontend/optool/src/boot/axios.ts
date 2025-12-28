@@ -1,34 +1,68 @@
-import { defineBoot } from '#q-app/wrappers';
-import axios, { type AxiosInstance } from 'axios';
+import { defineBoot } from '#q-app/wrappers'
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
+import { useAuthStore } from 'stores/auth'
 
 declare module 'vue' {
   interface ComponentCustomProperties {
-    $axios: AxiosInstance;
-    $api: AxiosInstance;
+    $axios: AxiosInstance
+    $api: AxiosInstance
   }
 }
 
-// Be careful when using SSR for cross-request state pollution
-// due to creating a Singleton instance here;
-// If any client changes this (global) instance, it might be a
-// good idea to move this instance creation inside of the
-// "export default () => {}" function below (which runs individually
-// for each client)
+/**
+ * Axios instance for API calls
+ */
 const api = axios.create({
   baseURL: '/api',
-  timeout: 20000
-});
+  timeout: 20000,
+})
 
 export default defineBoot(({ app }) => {
-  // for use inside Vue files (Options API) through this.$axios and this.$api
+  const auth = useAuthStore()
 
-  app.config.globalProperties.$axios = axios;
-  // ^ ^ ^ this will allow you to use this.$axios (for Vue Options API form)
-  //       so you won't necessarily have to import axios in each vue file
+  /**
+   * Attach Authorization header automatically
+   */
+  const attachAuth = (config: InternalAxiosRequestConfig) => {
+    if (auth.token) {
+      config.headers = config.headers ?? {}
+      config.headers.Authorization = `Bearer ${auth.token}`
+    }
+    return config
+  }
 
-  app.config.globalProperties.$api = api;
-  // ^ ^ ^ this will allow you to use this.$api (for Vue Options API form)
-  //       so you can easily perform requests against your app's API
-});
+  /**
+   * Request interceptors
+   */
+  axios.interceptors.request.use(attachAuth)
+  api.interceptors.request.use(attachAuth)
 
-export { api };
+  /**
+   * Optional: handle 401 globally (token expired, revoked, etc.)
+   */
+  api.interceptors.response.use(
+    (res) => res,
+    (err: unknown) => {
+      // AxiosError is an Error, but keep lint happy even if it's unknown
+      const error = err instanceof Error ? err : new Error(String(err))
+
+      // If you need status check, you can safely narrow a bit:
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const status = (err as any)?.response?.status
+
+      if (status === 401) {
+        // If logout() is async, change your store typing so it returns Promise<void>,
+        // then you can restore `return auth.logout().finally(() => Promise.reject(error))`
+        auth.logout()
+      }
+
+      return Promise.reject(error)
+    }
+  )
+
+  // Make available in Options API
+  app.config.globalProperties.$axios = axios
+  app.config.globalProperties.$api = api
+})
+
+export { api }

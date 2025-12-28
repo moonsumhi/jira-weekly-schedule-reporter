@@ -28,6 +28,7 @@
                 type="email"
                 outlined
                 dense
+                autocomplete="username"
                 :rules="[val => !!val || 'Email is required']"
               />
 
@@ -37,13 +38,14 @@
                 type="password"
                 outlined
                 dense
+                autocomplete="current-password"
                 :rules="[val => !!val || 'Password is required']"
               />
 
               <div class="row items-center q-mt-md">
                 <q-space />
                 <q-btn
-                  :loading="loading"
+                  :loading="auth.loading"
                   type="submit"
                   color="primary"
                   label="Login"
@@ -61,6 +63,7 @@
                 type="email"
                 outlined
                 dense
+                autocomplete="username"
                 :rules="[val => !!val || 'Email is required']"
               />
 
@@ -69,6 +72,7 @@
                 label="Full name"
                 outlined
                 dense
+                autocomplete="name"
               />
 
               <q-input
@@ -77,13 +81,14 @@
                 type="password"
                 outlined
                 dense
+                autocomplete="new-password"
                 :rules="[val => (val && val.length >= 6) || 'Min 6 characters']"
               />
 
               <div class="row items-center q-mt-md">
                 <q-space />
                 <q-btn
-                  :loading="loading"
+                  :loading="auth.loading"
                   type="submit"
                   color="primary"
                   label="Register"
@@ -96,7 +101,8 @@
 
       <q-separator />
 
-      <q-card-section>
+      <!-- Optional debug area: show only when logged in -->
+      <q-card-section v-if="auth.isLoggedIn">
         <div class="row items-center q-gutter-sm">
           <q-btn
             flat
@@ -115,13 +121,13 @@
           />
         </div>
 
-        <div v-if="me" class="q-mt-md">
+        <div v-if="auth.me" class="q-mt-md">
           <div class="text-caption text-grey-7">Current user</div>
           <q-card flat bordered class="q-pa-sm q-mt-xs">
-            <div class="text-body2"><b>ID:</b> {{ me.id }}</div>
-            <div class="text-body2"><b>Email:</b> {{ me.email }}</div>
+            <div class="text-body2"><b>ID:</b> {{ auth.me.id }}</div>
+            <div class="text-body2"><b>Email:</b> {{ auth.me.email }}</div>
             <div class="text-body2">
-              <b>Name:</b> {{ me.full_name || '-' }}
+              <b>Name:</b> {{ auth.me.full_name || '-' }}
             </div>
           </q-card>
         </div>
@@ -131,127 +137,94 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
-import axios, { type AxiosError } from 'axios'
 import { useRoute, useRouter } from 'vue-router'
-
-type UserMe = {
-  id: string | number
-  email: string
-  full_name?: string | null
-}
-
-type ApiErrorBody = {
-  detail?: string
-  message?: string
-}
+import { useAuthStore } from 'stores/auth'
 
 const $q = useQuasar()
 const router = useRouter()
 const route = useRoute()
+const auth = useAuthStore()
 
 const mode = ref<'login' | 'register'>('login')
-const email = ref<string>('')
-const password = ref<string>('')
-const fullName = ref<string>('')
-const loading = ref<boolean>(false)
-const me = ref<UserMe | null>(null)
+const email = ref('')
+const password = ref('')
+const fullName = ref('')
 
-function saveToken(token: string) {
-  localStorage.setItem('access_token', token)
+/**
+ * Only allow internal redirects ("/something").
+ * This prevents open-redirect attacks like redirect=https://evil.com
+ */
+const safeRedirect = computed<string | null>(() => {
+  const r = route.query.redirect
+  if (typeof r !== 'string') return null
+  if (!r.startsWith('/')) return null
+  return r
+})
+
+function goAfterAuth() {
+  // router.replace returns a Promise -> mark as intentionally ignored
+  void router.replace(safeRedirect.value || { name: 'app-home' })
 }
 
-function getToken(): string | null {
-  return localStorage.getItem('access_token')
-}
+onMounted(() => {
+  if (auth.isLoggedIn) {
+    goAfterAuth()
+  }
+})
 
-function clearToken() {
-  localStorage.removeItem('access_token')
-}
-
-function getErrorMessage(err: unknown, fallback: string) {
-  const e = err as AxiosError<ApiErrorBody>
-  return e.response?.data?.detail || e.response?.data?.message || e.message || fallback
-}
-
-async function fetchMe() {
-  const token = getToken()
-  if (!token) {
-    me.value = null
+async function onSubmitLogin() {
+  const ok = await auth.login(email.value, password.value)
+  if (!ok) {
+    $q.notify({ type: 'negative', message: auth.lastError || 'Login failed' })
     return
   }
 
-  const res = await axios.get<UserMe>('/auth/me', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  me.value = res.data
-}
-
-async function onSubmitLogin() {
-  loading.value = true
-  try {
-    const formData = new URLSearchParams()
-    formData.append('username', email.value)
-    formData.append('password', password.value)
-
-    const res = await axios.post<{ access_token: string }>('/auth/login', formData, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    })
-
-    saveToken(res.data.access_token)
-    $q.notify({ type: 'positive', message: 'Login success' })
-
-    await fetchMe()
-
-    // ✅ support redirect query (?redirect=/jira/search)
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
-    await router.replace(redirect || { name: 'app-home' })
-  } catch (err) {
-    $q.notify({ type: 'negative', message: getErrorMessage(err, 'Login failed') })
-  } finally {
-    loading.value = false
-  }
+  $q.notify({ type: 'positive', message: 'Login success' })
+  goAfterAuth()
 }
 
 async function onSubmitRegister() {
-  loading.value = true
-  try {
-    await axios.post('/auth/register', {
-      email: email.value,
-      password: password.value,
-      full_name: fullName.value || null,
-    })
-
-    $q.notify({ type: 'positive', message: 'Registered. Logging in...' })
-
-    // auto-login
-    await onSubmitLogin()
-  } catch (err) {
-    $q.notify({ type: 'negative', message: getErrorMessage(err, 'Register failed') })
-  } finally {
-    loading.value = false
+  const registered = await auth.register(email.value, password.value, fullName.value)
+  if (!registered) {
+    $q.notify({ type: 'negative', message: auth.lastError || 'Register failed' })
+    return
   }
+
+  $q.notify({ type: 'positive', message: 'Registered. Logging in...' })
+
+  const ok = await auth.login(email.value, password.value)
+  if (!ok) {
+    $q.notify({ type: 'negative', message: auth.lastError || 'Login failed' })
+    return
+  }
+
+  mode.value = 'login'
+  goAfterAuth()
 }
 
 async function onCheckMe() {
   try {
-    await fetchMe()
-    if (!me.value) {
+    const me = await auth.fetchMe()
+    if (!me) {
       $q.notify({ type: 'warning', message: 'No token / not logged in' })
+    } else {
+      $q.notify({ type: 'positive', message: `Hello, ${me.email}` })
     }
-  } catch (err) {
-    $q.notify({ type: 'negative', message: getErrorMessage(err, 'Failed to fetch /auth/me') })
+  } catch {
+    $q.notify({
+      type: 'negative',
+      message: auth.lastError || 'Failed to fetch /auth/me',
+    })
   }
 }
 
-async function onLogout() {
-  clearToken()
-  me.value = null
+function onLogout() {
+  auth.logout()
   $q.notify({ type: 'info', message: 'Logged out' })
-  await router.replace({ name: 'auth' })
+  // router.replace returns a Promise -> mark as intentionally ignored
+  void router.replace({ name: 'auth' })
 }
 </script>
 
-<style scoped>
-</style>

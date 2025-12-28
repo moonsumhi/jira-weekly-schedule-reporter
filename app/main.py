@@ -5,7 +5,7 @@ from fastapi import FastAPI
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
 
-from app.routers import health, issues, jira_ui, auth
+from app.routers import health, issues, jira_ui, auth, admin
 
 from app.db.mongo import MongoClientManager
 
@@ -32,6 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(auth.router, prefix="/auth", tags=["issues"])
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(issues.router, prefix="/issues", tags=["issues"])
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(jira_ui.router, prefix="/jira", tags=["jira"])

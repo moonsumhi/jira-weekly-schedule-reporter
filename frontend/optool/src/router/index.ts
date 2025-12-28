@@ -1,54 +1,51 @@
-import { defineRouter } from '#q-app/wrappers';
+import { defineRouter } from '#q-app/wrappers'
 import {
   createMemoryHistory,
   createRouter,
   createWebHashHistory,
   createWebHistory,
-} from 'vue-router';
-import routes from './routes';
+} from 'vue-router'
+import routes from './routes'
+import { useAuthStore } from 'stores/auth'
 
-/*
- * If not building with SSR mode, you can
- * directly export the Router instantiation;
- *
- * The function below can be async too; either use
- * async/await or return a Promise which resolves
- * with the Router instance.
- */
-
-export default defineRouter(function (/* { store, ssrContext } */) {
+export default defineRouter(function () {
   const createHistory = process.env.SERVER
     ? createMemoryHistory
     : process.env.VUE_ROUTER_MODE === 'history'
       ? createWebHistory
-      : createWebHashHistory;
+      : createWebHashHistory
 
   const Router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
     routes,
-
-    // Leave this as is and make changes in quasar.conf.js instead!
-    // quasar.conf.js -> build -> vueRouterMode
-    // quasar.conf.js -> build -> publicPath
     history: createHistory(process.env.VUE_ROUTER_BASE),
-  });
+  })
 
-  Router.beforeEach((to, from, next) => {
-    const token = localStorage.getItem('access_token');
+  // Ensure bootstrap runs once at most
+  let bootstrapped = false
 
-    // 1) 로그인 필요한데 토큰 없음 → / (auth)로
-    if (to.meta.requiresAuth && !token) {
-      return next({ name: 'auth' });
+  Router.beforeEach(async (to) => {
+    const auth = useAuthStore()
+
+    // Restore session once (if token exists) so guards use real state
+    if (!bootstrapped) {
+      bootstrapped = true
+      // bootstrap() already checks token internally
+      await auth.bootstrap()
     }
 
-    // 2) 이미 로그인했는데 / (auth) 가려고 하면 → /app 으로
-    if (to.meta.guestOnly && token) {
-      return next({ name: 'app-home' });
+    // 1) requiresAuth but not logged in -> go to auth(login) page
+    if (to.meta.requiresAuth && !auth.isLoggedIn) {
+      return { name: 'auth', query: { redirect: to.fullPath } }
     }
 
-    // 3) 그 외엔 통과
-    next();
-  });
+    // 2) guestOnly but already logged in -> go to app home
+    if (to.meta.guestOnly && auth.isLoggedIn) {
+      return { name: 'app-home' }
+    }
 
-  return Router;
-});
+    return true
+  })
+
+  return Router
+})

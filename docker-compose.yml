@@ -7,7 +7,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - /app/secret/.env
+      - ./app/secret/.env
     environment:
       - PYTHONUNBUFFERED=1
       - MONGO_URI=mongodb://${APP_DB_USER}:${APP_DB_PASS}@mongo:27017/?authSource=${APP_DB_NAME}
