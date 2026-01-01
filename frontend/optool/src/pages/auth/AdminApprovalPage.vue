@@ -183,7 +183,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 
-import { getErrorMessage } from 'src/utils/helper'
+import { getErrorMessage } from 'src/utils/http/error'
 
 import type { QTableProps } from 'quasar'
 

@@ -40,6 +40,14 @@ class MongoClientManager:
         return db["pending_users"]
 
     @classmethod
+    def get_assets_servers_collection(cls):
+        return cls.get_db()["assets_servers"]
+
+    @classmethod
+    def get_assets_server_history_collection(cls):
+        return cls.get_db()["assets_server_history"]
+
+    @classmethod
     async def close_client(cls) -> None:
         if cls._client is not None:
             cls._client.close()

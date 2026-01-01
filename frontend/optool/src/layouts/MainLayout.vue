@@ -83,6 +83,13 @@ const linksList: EssentialLinkProps[] = [
     ],
   },
   {
+    title: '자산',
+    icon: 'fa-solid fa-computer',
+    children: [
+      { title: '목록', icon: 'fa-solid fa-list', link: '/asset/list' },
+    ],
+  },
+  {
     title: 'Admin',
     icon: 'fa-solid fa-hammer',
     children: [

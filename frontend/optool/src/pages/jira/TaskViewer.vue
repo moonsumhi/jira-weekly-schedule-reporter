@@ -108,7 +108,7 @@ import {ref, computed} from 'vue'
 import qs from 'qs'
 import {api} from 'boot/axios'
 import type {AssigneeGroup} from 'src/types/jira'
-import {toKSTPlusOneDay, toKSTDay} from 'src/utils/time'
+import {toKSTPlusOneDay, toKSTDay} from 'src/utils/time/kst'
 
 // FullCalendar imports
 import FullCalendar from '@fullcalendar/vue3'

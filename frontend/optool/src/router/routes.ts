@@ -28,6 +28,16 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'asset',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'list',
+            component: () => import('pages/asset/ServerAssetPage.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requireAdmin: true },
         children: [

@@ -30,3 +30,7 @@ class TimeUtil:
     @staticmethod
     def ensure_utc(s: str) -> datetime:
         return TimeUtil.provider.to_utc(TimeUtil.provider.parse(s))
+
+    @staticmethod
+    def now_utc() -> datetime:
+        return datetime.now(timezone.utc)
