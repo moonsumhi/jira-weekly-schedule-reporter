@@ -34,7 +34,7 @@ class MongoClientManager:
         db = cls.get_db()
         return db["users"]
 
-    @staticmethod
+    @classmethod
     def get_pending_users_collection(cls):
         db = cls.get_db()
         return db["pending_users"]

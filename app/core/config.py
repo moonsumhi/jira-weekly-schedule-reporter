@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     MONGO_URI: str = Field(..., description="MongoDB URI")
     JWT_SECRET_KEY: str = Field(..., description="JWT Secret Key")
     JWT_ALGORITHM: str = Field(..., description="JWT Algorithm")
-    ACCESS_TOKEN_EXPIRE_MINUTES: str = Field(
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
         ..., description="Access Token Expire Minutes"
     )
     APP_DB_NAME: str = Field(..., description="Mongo DB Name")

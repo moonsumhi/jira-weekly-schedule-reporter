@@ -7,11 +7,11 @@ import bcrypt
 from app.core.config import settings
 
 
-def hash_password(password):
+def hash_password(password: str) -> str:
     return bcrypt.hashpw(
-        bytes(password, encoding="utf-8"),
+        password.encode("utf-8"),
         bcrypt.gensalt(),
-    )
+    ).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

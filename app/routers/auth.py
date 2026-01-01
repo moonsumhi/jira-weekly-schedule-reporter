@@ -16,7 +16,7 @@ from app.core.security import (
 )
 from app.core.config import settings
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -89,15 +89,13 @@ async def register(user: UserCreate):
             raise HTTPException(
                 status_code=400, detail="Registration is already pending admin approval"
             )
-        if st == "REJECTED":
-            raise HTTPException(
-                status_code=403, detail="Registration request was rejected by admin"
-            )
         if st == "APPROVED":
             raise HTTPException(
                 status_code=409,
                 detail="Request is approved but account not created; contact admin",
             )
+
+    # reject 당한거면 해당 이메일로 다시 신청할 수 있도록 함
 
     doc = {
         "email": user.email,

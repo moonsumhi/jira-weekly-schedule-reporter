@@ -44,6 +44,13 @@ export default defineRouter(function () {
       return { name: 'app-home' }
     }
 
+    // 3) 관리자
+    if (to.meta.requiresAdmin){
+      if (!auth.me || !auth.me.isAdmin) {
+        return { name: 'app-home' }
+      }
+    }
+
     return true
   })
 

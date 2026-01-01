@@ -127,7 +127,7 @@
             <div class="text-body2"><b>ID:</b> {{ auth.me.id }}</div>
             <div class="text-body2"><b>Email:</b> {{ auth.me.email }}</div>
             <div class="text-body2">
-              <b>Name:</b> {{ auth.me.full_name || '-' }}
+              <b>Name:</b> {{ auth.me?.fullName || '-' }}
             </div>
           </q-card>
         </div>

@@ -1,5 +1,7 @@
 import { defineBoot } from '#q-app/wrappers'
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
+import camelcaseKeys from 'camelcase-keys'
+
 import { useAuthStore } from 'stores/auth'
 
 declare module 'vue' {
@@ -41,7 +43,10 @@ export default defineBoot(({ app }) => {
    * Optional: handle 401 globally (token expired, revoked, etc.)
    */
   api.interceptors.response.use(
-    (res) => res,
+    (res) => {
+      res.data = camelcaseKeys(res.data, { deep: true })
+      return res
+    },
     (err: unknown) => {
       // AxiosError is an Error, but keep lint happy even if it's unknown
       const error = err instanceof Error ? err : new Error(String(err))

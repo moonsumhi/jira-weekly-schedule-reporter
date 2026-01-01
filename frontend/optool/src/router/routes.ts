@@ -26,6 +26,16 @@ const routes: RouteRecordRaw[] = [
             component: () => import('pages/jira/TaskViewer.vue')
           }
         ]
+      },
+      {
+        path: 'admin',
+        meta: { requiresAuth: true, requireAdmin: true },
+        children: [
+          {
+            path: 'approvals',
+            component: () => import('pages/auth/AdminApprovalPage.vue')
+          }
+        ]
       }
     ]
   },

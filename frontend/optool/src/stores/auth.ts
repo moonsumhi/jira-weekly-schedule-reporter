@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios, { type AxiosError } from 'axios'
+import { api } from 'boot/axios'
+import type { AxiosError } from 'axios'
 
 export type UserMe = {
   id: string | number
   email: string
-  full_name?: string | null
+  fullName?: string | null
+  isAdmin? : boolean
 }
 
 type ApiErrorBody = {
@@ -19,7 +21,7 @@ function getErrorMessage(err: unknown, fallback: string) {
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string | null>(localStorage.getItem('access_token'))
+  const token = ref<string | null>(localStorage.getItem('accessToken'))
   const me = ref<UserMe | null>(null)
   const loading = ref(false)
   const lastError = ref<string | null>(null)
@@ -28,8 +30,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   function setToken(t: string | null) {
     token.value = t
-    if (t) localStorage.setItem('access_token', t)
-    else localStorage.removeItem('access_token')
+    if (t) localStorage.setItem('accessToken', t)
+    else localStorage.removeItem('accessToken')
   }
 
   function authHeader() {
@@ -41,7 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
       me.value = null
       return null
     }
-    const res = await axios.get<UserMe>('/auth/me', {
+    const res = await api.get<UserMe>('/auth/me', {
       headers: authHeader(),
     })
     me.value = res.data
@@ -56,13 +58,13 @@ export const useAuthStore = defineStore('auth', () => {
       formData.append('username', email)
       formData.append('password', password)
 
-      const res = await axios.post<{ access_token: string }>(
+      const res = await api.post<{ accessToken: string }>(
         '/auth/login',
         formData,
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       )
 
-      setToken(res.data.access_token)
+      setToken(res.data.accessToken)
       await fetchMe()
       return true
     } catch (err) {
@@ -80,7 +82,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     lastError.value = null
     try {
-      await axios.post('/auth/register', {
+      await api.post('/auth/register', {
         email,
         password,
         full_name: fullName || null,
