@@ -15,7 +15,7 @@
 
         <q-toolbar-title>OPTOOL</q-toolbar-title>
 
-        <div>Quasar v{{ $q.version }}</div>
+        <div>OPTOOL v1.0</div>
       </q-toolbar>
     </q-header>
 

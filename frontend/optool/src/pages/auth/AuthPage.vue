@@ -2,9 +2,9 @@
   <q-page class="flex flex-center bg-grey-2">
     <q-card class="q-pa-lg" style="width: 420px; max-width: 95vw;">
       <q-card-section>
-        <div class="text-h6 text-center">Welcome</div>
+        <div class="text-h6 text-center">데이터운영팀 OPTOOL</div>
         <div class="text-subtitle2 text-center text-grey-7">
-          Login or create a new account
+          로그인하거나 새 계정을 만들어 주세요.
         </div>
       </q-card-section>
 
@@ -12,8 +12,8 @@
 
       <q-card-section>
         <q-tabs v-model="mode" class="text-primary" align="justify">
-          <q-tab name="login" label="Login" />
-          <q-tab name="register" label="Register" />
+          <q-tab name="login" label="로그인" />
+          <q-tab name="register" label="회원가입" />
         </q-tabs>
 
         <q-separator />
@@ -24,22 +24,22 @@
             <q-form @submit.prevent="onSubmitLogin" class="q-gutter-md">
               <q-input
                 v-model="email"
-                label="Email"
+                label="이메일"
                 type="email"
                 outlined
                 dense
                 autocomplete="username"
-                :rules="[val => !!val || 'Email is required']"
+                :rules="[val => !!val || '이메일을 입력해 주세요.']"
               />
 
               <q-input
                 v-model="password"
-                label="Password"
+                label="비밀번호"
                 type="password"
                 outlined
                 dense
                 autocomplete="current-password"
-                :rules="[val => !!val || 'Password is required']"
+                :rules="[val => !!val || '비밀번호를 입력해 주세요.']"
               />
 
               <div class="row items-center q-mt-md">
@@ -48,7 +48,7 @@
                   :loading="auth.loading"
                   type="submit"
                   color="primary"
-                  label="Login"
+                  label="로그인"
                 />
               </div>
             </q-form>
@@ -59,17 +59,17 @@
             <q-form @submit.prevent="onSubmitRegister" class="q-gutter-md">
               <q-input
                 v-model="email"
-                label="Email"
+                label="이메일"
                 type="email"
                 outlined
                 dense
                 autocomplete="username"
-                :rules="[val => !!val || 'Email is required']"
+                :rules="[val => !!val || '이메일을 입력해 주세요.']"
               />
 
               <q-input
                 v-model="fullName"
-                label="Full name"
+                label="이름"
                 outlined
                 dense
                 autocomplete="name"
@@ -77,12 +77,12 @@
 
               <q-input
                 v-model="password"
-                label="Password"
+                label="비밀번호"
                 type="password"
                 outlined
                 dense
                 autocomplete="new-password"
-                :rules="[val => (val && val.length >= 6) || 'Min 6 characters']"
+                :rules="[val => (val && val.length >= 6) || '비밀번호는 6자 이상 입력해 주세요.']"
               />
 
               <div class="row items-center q-mt-md">
@@ -91,7 +91,7 @@
                   :loading="auth.loading"
                   type="submit"
                   color="primary"
-                  label="Register"
+                  label="회원가입"
                 />
               </div>
             </q-form>
@@ -108,7 +108,7 @@
             flat
             dense
             icon="person"
-            label="Check /auth/me"
+            label="/auth/me 확인"
             @click="onCheckMe"
           />
           <q-btn
@@ -116,18 +116,18 @@
             dense
             color="negative"
             icon="logout"
-            label="Logout"
+            label="로그아웃"
             @click="onLogout"
           />
         </div>
 
         <div v-if="auth.me" class="q-mt-md">
-          <div class="text-caption text-grey-7">Current user</div>
+          <div class="text-caption text-grey-7">현재 사용자</div>
           <q-card flat bordered class="q-pa-sm q-mt-xs">
             <div class="text-body2"><b>ID:</b> {{ auth.me.id }}</div>
-            <div class="text-body2"><b>Email:</b> {{ auth.me.email }}</div>
+            <div class="text-body2"><b>이메일:</b> {{ auth.me.email }}</div>
             <div class="text-body2">
-              <b>Name:</b> {{ auth.me?.fullName || '-' }}
+              <b>이름:</b> {{ auth.me?.fullName || '-' }}
             </div>
           </q-card>
         </div>
@@ -177,26 +177,26 @@ onMounted(() => {
 async function onSubmitLogin() {
   const ok = await auth.login(email.value, password.value)
   if (!ok) {
-    $q.notify({ type: 'negative', message: auth.lastError || 'Login failed' })
+    $q.notify({ type: 'negative', message: auth.lastError || '로그인에 실패했어요.' })
     return
   }
 
-  $q.notify({ type: 'positive', message: 'Login success' })
+  $q.notify({ type: 'positive', message: '로그인되었습니다.' })
   goAfterAuth()
 }
 
 async function onSubmitRegister() {
   const registered = await auth.register(email.value, password.value, fullName.value)
   if (!registered) {
-    $q.notify({ type: 'negative', message: auth.lastError || 'Register failed' })
+    $q.notify({ type: 'negative', message: auth.lastError || '회원가입에 실패했어요.' })
     return
   }
 
-  $q.notify({ type: 'positive', message: 'Registered. Logging in...' })
+  $q.notify({ type: 'positive', message: '회원가입이 완료되어 자동으로 로그인합니다.' })
 
   const ok = await auth.login(email.value, password.value)
   if (!ok) {
-    $q.notify({ type: 'negative', message: auth.lastError || 'Login failed' })
+    $q.notify({ type: 'negative', message: auth.lastError || '로그인에 실패했어요.' })
     return
   }
 
@@ -208,23 +208,22 @@ async function onCheckMe() {
   try {
     const me = await auth.fetchMe()
     if (!me) {
-      $q.notify({ type: 'warning', message: 'No token / not logged in' })
+      $q.notify({ type: 'warning', message: '로그인이 필요합니다.' })
     } else {
-      $q.notify({ type: 'positive', message: `Hello, ${me.email}` })
+      $q.notify({ type: 'positive', message: `${me.email} 님, 안녕하세요.` })
     }
   } catch {
     $q.notify({
       type: 'negative',
-      message: auth.lastError || 'Failed to fetch /auth/me',
+      message: auth.lastError || '/auth/me 조회에 실패했어요.',
     })
   }
 }
 
 function onLogout() {
   auth.logout()
-  $q.notify({ type: 'info', message: 'Logged out' })
+  $q.notify({ type: 'info', message: '로그아웃되었습니다.' })
   // router.replace returns a Promise -> mark as intentionally ignored
   void router.replace({ name: 'auth' })
 }
 </script>
-
