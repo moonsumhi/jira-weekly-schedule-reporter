@@ -43,6 +43,22 @@ services:
       # One-time initialization scripts (create app db + user)
       - ./scripts:/docker-entrypoint-initdb.d:ro
 
+  pilot:
+    build:
+      context: ./pilot
+      dockerfile: Dockerfile
+    container_name: pilot
+    ports:
+      - "9090:9090"
+    env_file:
+      - ./app/secret/.env
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - JIRA_WEBHOOK_SECRET=${JIRA_WEBHOOK_SECRET}
+    volumes:
+      - .:/workspace:ro
+
   mongo-express:
     image: mongo-express:1.0.2-20
     container_name: mongo-express

@@ -1,0 +1,44 @@
+version: "1.0"
+
+gateway:
+  host: "0.0.0.0"
+  port: 9090
+
+auth:
+  type: "claude-code"
+
+adapters:
+  jira:
+    enabled: true
+    platform: "cloud"
+    base_url: "${JIRA_BASE_URL}"
+    username: "${JIRA_EMAIL}"
+    api_token: "${JIRA_API_TOKEN}"
+    webhook_secret: "${JIRA_WEBHOOK_SECRET}"
+    pilot_label: "pilot"
+    transitions:
+      in_progress: "21"
+      done: "31"
+
+  github:
+    enabled: true
+    token: "${GITHUB_TOKEN}"
+    webhook_secret: "${GITHUB_WEBHOOK_SECRET}"
+    pilot_label: "pilot"
+
+  slack:
+    enabled: false
+
+orchestrator:
+  model: "claude-sonnet-4-20250514"
+  max_concurrent: 2
+
+projects:
+  - name: "jira-schedule-reporter"
+    path: "/workspace"
+    navigator: true
+    default_branch: "main"
+
+dashboard:
+  refresh_interval: 1000
+  show_logs: true

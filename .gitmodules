@@ -1,0 +1,3 @@
+[submodule "pilot/pilot-src"]
+	path = pilot/pilot-src
+	url = https://github.com/alekspetrov/pilot.git
