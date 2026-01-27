@@ -1,23 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from 'boot/axios'
-import type { AxiosError } from 'axios'
+import { getErrorMessage } from 'src/utils/http/error'
 
 export type UserMe = {
   id: string | number
   email: string
   fullName?: string | null
   isAdmin? : boolean
-}
-
-type ApiErrorBody = {
-  detail?: string
-  message?: string
-}
-
-function getErrorMessage(err: unknown, fallback: string) {
-  const e = err as AxiosError<ApiErrorBody>
-  return e.response?.data?.detail || e.response?.data?.message || e.message || fallback
 }
 
 export const useAuthStore = defineStore('auth', () => {

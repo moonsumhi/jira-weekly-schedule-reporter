@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from bson import ObjectId
+from bson.errors import InvalidId
 from fastapi import HTTPException
 from typing import Any, Dict
 
@@ -9,7 +10,7 @@ from typing import Any, Dict
 def oid(s: str) -> ObjectId:
     try:
         return ObjectId(s)
-    except Exception:
+    except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid id")
 
 

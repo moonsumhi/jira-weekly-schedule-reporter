@@ -129,6 +129,7 @@ import type FullCalendarComponent from '@fullcalendar/vue3'
 
 import { listWatch, createWatch, patchWatch, deleteWatch, type WatchRow } from 'src/services/watch'
 import { dateToKstDateTimeLocal, kstDateTimeLocalToUtcIso } from 'src/utils/time/kst'
+import { isRecord, getErrorMessage } from 'src/utils/http/error'
 
 const busy = ref(false)
 
@@ -173,10 +174,6 @@ const calendarRef = ref<InstanceType<typeof FullCalendarComponent> | null>(null)
 function refetchCalendar() {
   const api = calendarRef.value?.getApi?.()
   api?.refetchEvents()
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null
 }
 
 function mapRowsToEvents(rows: WatchRow[]): EventInput[] {
@@ -257,15 +254,6 @@ function closeDialog() {
   dialog.value.error = ''
 }
 
-function extractErrorMessage(e: unknown): string {
-  if (isRecord(e) && isRecord(e.response) && isRecord(e.response.data)) {
-    const detail = e.response.data.detail
-    if (typeof detail === 'string') return detail
-  }
-  if (e instanceof Error) return e.message
-  return 'Failed'
-}
-
 async function saveDialog() {
   try {
     busy.value = true
@@ -299,7 +287,7 @@ async function saveDialog() {
     refetchCalendar()
     Notify.create({ type: 'positive', message: 'Saved' })
   } catch (e: unknown) {
-    dialog.value.error = extractErrorMessage(e)
+    dialog.value.error = getErrorMessage(e, 'Failed')
     Notify.create({ type: 'negative', message: dialog.value.error })
   } finally {
     busy.value = false
@@ -315,7 +303,7 @@ async function removeDialog() {
     refetchCalendar()
     Notify.create({ type: 'positive', message: 'Deleted' })
   } catch (e: unknown) {
-    dialog.value.error = extractErrorMessage(e)
+    dialog.value.error = getErrorMessage(e, 'Failed')
     Notify.create({ type: 'negative', message: dialog.value.error })
   } finally {
     busy.value = false
@@ -398,7 +386,7 @@ async function createBulk() {
     refetchCalendar()
     Notify.create({ type: 'positive', message: 'Bulk created' })
   } catch (e: unknown) {
-    Notify.create({ type: 'negative', message: extractErrorMessage(e) })
+    Notify.create({ type: 'negative', message: getErrorMessage(e, 'Failed') })
   } finally {
     busy.value = false
   }
@@ -438,4 +426,3 @@ const calendarOptions = ref<CalendarOptions>({
   eventResize: (info) => { void onMoveOrResize(info as MoveResizeArg)}
 })
 </script>
-df

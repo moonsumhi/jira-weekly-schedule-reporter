@@ -35,7 +35,7 @@ class WatchAssignmentOut(BaseModel):
     assignee: str
     start: datetime
     end: datetime
-    fields: Dict[str, Any] = {}
+    fields: Dict[str, Any] = Field(default_factory=dict)
 
     created_at: datetime
     created_by: str

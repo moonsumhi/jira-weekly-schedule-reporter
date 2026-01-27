@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
-from fastapi import HTTPException
 
 from app.db.mongo import MongoClientManager
 from app.utils.time import TimeUtil
@@ -27,7 +26,7 @@ class WatchTimetableService:
     @staticmethod
     def _validate_range(start: datetime, end: datetime):
         if end <= start:
-            raise HTTPException(status_code=400, detail="end must be after start")
+            raise ValueError("end must be after start")
 
     async def _check_overlap(
         self,
@@ -55,7 +54,7 @@ class WatchTimetableService:
             msg = "Overlaps existing assignment"
             if self.enforce_no_overlap_per_assignee:
                 msg += " for the same assignee"
-            raise HTTPException(status_code=409, detail=msg)
+            raise ValueError(msg)
 
     async def list(
         self,
@@ -123,7 +122,7 @@ class WatchTimetableService:
 
         existing = await self._col().find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise HTTPException(status_code=404, detail="Not found")
+            raise KeyError("Not found")
 
         await self._check_overlap(
             assignee=assignee, start=start, end=end, exclude_id=_id
@@ -157,13 +156,13 @@ class WatchTimetableService:
     ) -> Dict[str, Any]:
         existing = await self._col().find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise HTTPException(status_code=404, detail="Not found")
+            raise KeyError("Not found")
 
         if (
             expected_version is not None
             and int(existing.get("version", 1)) != expected_version
         ):
-            raise HTTPException(status_code=409, detail="Version conflict")
+            raise ValueError("Version conflict")
 
         update: Dict[str, Any] = {}
         for k in ("assignee", "start", "end", "fields"):
@@ -195,7 +194,7 @@ class WatchTimetableService:
     async def delete(self, *, _id: ObjectId, actor_email: str) -> None:
         existing = await self._col().find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise HTTPException(status_code=404, detail="Not found")
+            raise KeyError("Not found")
 
         update = {
             "is_deleted": True,

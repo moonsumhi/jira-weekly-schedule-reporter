@@ -18,6 +18,7 @@ class Settings(BaseSettings):
         ..., description="Access Token Expire Minutes"
     )
     APP_DB_NAME: str = Field(..., description="Mongo DB Name")
+    CORS_ORIGINS: list[str] = Field(default=["http://localhost:9000"], description="Allowed CORS origins")
 
     model_config = SettingsConfigDict(
         env_file=DOTENV,

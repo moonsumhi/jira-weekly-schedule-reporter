@@ -45,8 +45,15 @@ export default defineRouter(function () {
     }
 
     // 3) 관리자
-    if (to.meta.requiresAdmin){
-      if (!auth.me || !auth.me.isAdmin) {
+    if (to.meta.requiresAdmin) {
+      if (!auth.me && auth.isLoggedIn) {
+        try {
+          await auth.fetchMe()
+        } catch {
+          // token invalid
+        }
+      }
+      if (!auth.me?.isAdmin) {
         return { name: 'app-home' }
       }
     }

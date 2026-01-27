@@ -42,7 +42,3 @@ def decode_token(token: str) -> Optional[str]:
         return email
     except JWTError:
         return None
-
-
-if __name__ == "__main__":
-    print(hash_password("nccrekr1!"))

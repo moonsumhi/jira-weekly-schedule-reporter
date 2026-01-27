@@ -6,6 +6,13 @@ from app.core.config import settings
 class MongoClientManager:
     _client: Optional[AsyncIOMotorClient] = None
 
+    # Collection name constants
+    USERS = "users"
+    PENDING_USERS = "pending_users"
+    ASSETS_SERVERS = "assets_servers"
+    ASSETS_SERVER_HISTORY = "assets_server_history"
+    WATCH_ASSIGNMENTS = "watch_assignments"
+
     @classmethod
     def init_client(cls) -> None:
         """
@@ -32,24 +39,24 @@ class MongoClientManager:
     @classmethod
     def get_users_collection(cls):
         db = cls.get_db()
-        return db["users"]
+        return db[cls.USERS]
 
     @classmethod
     def get_pending_users_collection(cls):
         db = cls.get_db()
-        return db["pending_users"]
+        return db[cls.PENDING_USERS]
 
     @classmethod
     def get_assets_servers_collection(cls):
-        return cls.get_db()["assets_servers"]
+        return cls.get_db()[cls.ASSETS_SERVERS]
 
     @classmethod
     def get_assets_server_history_collection(cls):
-        return cls.get_db()["assets_server_history"]
+        return cls.get_db()[cls.ASSETS_SERVER_HISTORY]
 
-    @staticmethod
-    def get_watch_assignments_collection():
-        return MongoClientManager.get_db()["watch_assignments"]
+    @classmethod
+    def get_watch_assignments_collection(cls):
+        return cls.get_db()[cls.WATCH_ASSIGNMENTS]
 
     @classmethod
     async def close_client(cls) -> None:

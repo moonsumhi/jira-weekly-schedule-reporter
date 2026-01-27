@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.models.user import UserPublic
 from app.models.watch import (
@@ -37,13 +37,16 @@ async def create_assignment(
     body: WatchAssignmentCreate,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    out = await svc.create(
-        assignee=body.assignee,
-        start=body.start,
-        end=body.end,
-        fields=body.fields,
-        actor_email=current_user.email,
-    )
+    try:
+        out = await svc.create(
+            assignee=body.assignee,
+            start=body.start,
+            end=body.end,
+            fields=body.fields,
+            actor_email=current_user.email,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return WatchAssignmentOut(**out)
 
 
@@ -53,14 +56,19 @@ async def replace_assignment(
     body: WatchAssignmentReplace,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    out = await svc.replace(
-        _id=oid(assignment_id),
-        assignee=body.assignee,
-        start=body.start,
-        end=body.end,
-        fields=body.fields,
-        actor_email=current_user.email,
-    )
+    try:
+        out = await svc.replace(
+            _id=oid(assignment_id),
+            assignee=body.assignee,
+            start=body.start,
+            end=body.end,
+            fields=body.fields,
+            actor_email=current_user.email,
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return WatchAssignmentOut(**out)
 
 
@@ -70,12 +78,17 @@ async def patch_assignment(
     body: WatchAssignmentPatch,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    out = await svc.patch(
-        _id=oid(assignment_id),
-        patch=body.model_dump(),
-        expected_version=body.version,
-        actor_email=current_user.email,
-    )
+    try:
+        out = await svc.patch(
+            _id=oid(assignment_id),
+            patch=body.model_dump(),
+            expected_version=body.version,
+            actor_email=current_user.email,
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return WatchAssignmentOut(**out)
 
 
@@ -84,5 +97,8 @@ async def delete_assignment(
     assignment_id: str,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    await svc.delete(_id=oid(assignment_id), actor_email=current_user.email)
+    try:
+        await svc.delete(_id=oid(assignment_id), actor_email=current_user.email)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     return
