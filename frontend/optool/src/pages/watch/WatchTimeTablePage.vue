@@ -124,6 +124,7 @@ import FullCalendar from '@fullcalendar/vue3'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
+import luxonPlugin from '@fullcalendar/luxon'
 import type { CalendarOptions, EventInput, EventSourceFuncArg } from '@fullcalendar/core'
 import type FullCalendarComponent from '@fullcalendar/vue3'
 
@@ -393,7 +394,7 @@ async function createBulk() {
 }
 
 const calendarOptions = ref<CalendarOptions>({
-  plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
+  plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin, luxonPlugin],
   timeZone: 'Asia/Seoul',
   initialView: 'timeGridWeek',
   selectable: true,
