@@ -324,8 +324,8 @@ async function onMoveOrResize(info: MoveResizeArg) {
     const ev = info.event
     if (!ev.start || !ev.end) return
 
-    const startIso = DateTime.fromJSDate(ev.start).toUTC().toISO()
-    const endIso = DateTime.fromJSDate(ev.end).toUTC().toISO()
+    const startIso = DateTime.fromJSDate(ev.start, { zone: 'utc' }).toISO()
+    const endIso = DateTime.fromJSDate(ev.end, { zone: 'utc' }).toISO()
     if (!startIso || !endIso) return
 
     const ext = isRecord(ev.extendedProps) ? ev.extendedProps : {}
@@ -394,6 +394,7 @@ async function createBulk() {
 
 const calendarOptions = ref<CalendarOptions>({
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin],
+  timeZone: 'Asia/Seoul',
   initialView: 'timeGridWeek',
   selectable: true,
   editable: true,
