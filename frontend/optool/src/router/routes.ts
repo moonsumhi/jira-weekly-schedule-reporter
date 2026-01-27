@@ -18,6 +18,16 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true }
       },
       {
+        path: 'watch',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'timetable',
+            component: () => import('pages/watch/WatchTimeTablePage.vue')
+          }
+        ]
+      },
+      {
         path: 'jira',
         meta: { requiresAuth: true },
         children: [

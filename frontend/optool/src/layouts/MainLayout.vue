@@ -96,6 +96,13 @@ const linksList: EssentialLinkProps[] = [
       { title: '회원가입 승인', icon: 'fa-regular fa-thumbs-up', link: '/admin/approvals' },
     ],
   },
+  {
+    title: 'Timetable',
+    icon: 'fa-solid fa-clock',
+    children: [
+      { title: '당직 시간표', icon: 'fa-regular fa-thumbs-up', link: '/watch/timetable' },
+    ],
+  },
 ]
 
 const leftDrawerOpen = ref(false)

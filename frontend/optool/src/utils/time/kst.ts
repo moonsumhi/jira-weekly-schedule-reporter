@@ -29,3 +29,23 @@ export function isDateSoon(dateVal: unknown, days: number): boolean {
   const leftDays = (d.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   return leftDays <= days
 }
+
+/**
+ * Convert JS Date -> datetime-local string in Asia/Seoul
+ * Output: "YYYY-MM-DDTHH:mm"
+ */
+export function dateToKstDateTimeLocal(d: Date): string {
+  return DateTime.fromJSDate(d)
+    .setZone('Asia/Seoul')
+    .toFormat("yyyy-LL-dd'T'HH:mm")
+}
+
+/**
+ * Convert datetime-local string (interpreted as KST) -> ISO UTC string
+ */
+export function kstDateTimeLocalToUtcIso(local: string): string {
+  // local: "YYYY-MM-DDTHH:mm"
+  const dt = DateTime.fromFormat(local, "yyyy-LL-dd'T'HH:mm", { zone: 'Asia/Seoul' })
+  if (!dt.isValid) throw new Error('Invalid date/time')
+  return dt.toUTC().toISO()
+}

@@ -47,6 +47,10 @@ class MongoClientManager:
     def get_assets_server_history_collection(cls):
         return cls.get_db()["assets_server_history"]
 
+    @staticmethod
+    def get_watch_assignments_collection():
+        return MongoClientManager.get_db()["watch_assignments"]
+
     @classmethod
     async def close_client(cls) -> None:
         if cls._client is not None:

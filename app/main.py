@@ -5,7 +5,7 @@ from fastapi import FastAPI
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
 
-from app.routers import health, issues, jira_ui, auth, admin, assets
+from app.routers import health, issues, jira_ui, auth, admin, assets, watch
 
 from app.db.mongo import MongoClientManager
 
@@ -16,6 +16,11 @@ async def lifespan(app: FastAPI):
     MongoClientManager.init_client()
     users = MongoClientManager.get_users_collection()
     await users.create_index("email", unique=True)
+
+    watch = MongoClientManager.get_watch_assignments_collection()
+    await watch.create_index("start")
+    await watch.create_index("end")
+    await watch.create_index("assignee")
     yield
 
     # ---- shutdown ----
@@ -37,6 +42,7 @@ app.include_router(issues.router, prefix="/issues", tags=["issues"])
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(jira_ui.router, prefix="/jira", tags=["jira"])
 app.include_router(assets.router, prefix="/assets", tags=["assets"])
+app.include_router(watch.router, prefix="/watch", tags=["watch"])
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
