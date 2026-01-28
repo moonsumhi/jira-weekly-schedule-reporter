@@ -33,9 +33,10 @@ export function isDateSoon(dateVal: unknown, days: number): boolean {
 /**
  * Convert JS Date -> datetime-local string in Asia/Seoul
  * Output: "YYYY-MM-DDTHH:mm"
+ * Note: FullCalendar passes UTC Date objects, so we explicitly interpret as UTC
  */
 export function dateToKstDateTimeLocal(d: Date): string {
-  return DateTime.fromJSDate(d)
+  return DateTime.fromJSDate(d, { zone: 'utc' })
     .setZone('Asia/Seoul')
     .toFormat("yyyy-LL-dd'T'HH:mm")
 }

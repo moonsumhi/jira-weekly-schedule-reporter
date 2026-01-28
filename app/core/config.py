@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     APP_DB_NAME: str = Field(..., description="Mongo DB Name")
     CORS_ORIGINS: list[str] = Field(default=["http://localhost:9000"], description="Allowed CORS origins")
 
+    PILOT_ENABLED: bool = Field(default=False, description="Enable Jira→Pilot polling")
+    PILOT_GATEWAY_URL: str = Field(default="http://pilot:9090", description="Pilot gateway URL")
+    PILOT_POLL_INTERVAL: int = Field(default=300, description="Polling interval in seconds")
+    PILOT_LABEL: str = Field(default="pilot", description="Jira label to filter")
+
     model_config = SettingsConfigDict(
         env_file=DOTENV,
         env_file_encoding="utf-8",

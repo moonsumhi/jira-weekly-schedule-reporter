@@ -9,6 +9,7 @@ from app.routers import health, issues, jira_ui, auth, admin, assets, watch
 
 from app.core.config import settings
 from app.db.mongo import MongoClientManager
+from app.services.jira_poller import JiraPollerService
 
 
 @asynccontextmanager
@@ -29,9 +30,17 @@ async def lifespan(app: FastAPI):
     history = MongoClientManager.get_assets_server_history_collection()
     await history.create_index("asset_id")
     await history.create_index("changed_at")
+
+    poller = None
+    if settings.PILOT_ENABLED:
+        poller = JiraPollerService()
+        poller.start()
+
     yield
 
     # ---- shutdown ----
+    if poller:
+        poller.stop()
     await MongoClientManager.close_client()
 
 
