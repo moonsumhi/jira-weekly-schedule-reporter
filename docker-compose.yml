@@ -55,7 +55,6 @@ services:
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
-      - JIRA_WEBHOOK_SECRET=${JIRA_WEBHOOK_SECRET}
     volumes:
       - .:/workspace:ro
 

@@ -14,7 +14,6 @@ adapters:
     base_url: "${JIRA_BASE_URL}"
     username: "${JIRA_EMAIL}"
     api_token: "${JIRA_API_TOKEN}"
-    webhook_secret: "${JIRA_WEBHOOK_SECRET}"
     pilot_label: "pilot"
     transitions:
       in_progress: "21"
