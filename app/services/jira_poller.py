@@ -57,7 +57,7 @@ class JiraPollerService:
 
         issues = await self.jira.search(
             jql,
-            fields=["summary", "description", "status", "labels", "assignee", "project"],
+            fields=["summary", "description", "status", "labels", "assignee", "project", "updated"],
         )
 
         for issue in issues:
