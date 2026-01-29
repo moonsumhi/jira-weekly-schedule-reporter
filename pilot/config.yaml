@@ -15,6 +15,7 @@ adapters:
     username: "${JIRA_EMAIL}"
     api_token: "${JIRA_API_TOKEN}"
     pilot_label: "pilot"
+    callback_url: "http://jira-backend:8000/pilot/callback"
     transitions:
       in_progress: "21"
       done: "31"
