@@ -45,6 +45,7 @@ class JiraPollerService:
             await asyncio.sleep(self.interval)
 
     async def _poll_once(self) -> None:
+        print(f"[Poller] Starting poll...")
         col = MongoClientManager.get_pilot_poll_state_collection()
         now = datetime.now(timezone.utc)
 
@@ -55,23 +56,28 @@ class JiraPollerService:
             fmt = last_checked.strftime("%Y-%m-%d %H:%M")
             jql += f' AND updated >= "{fmt}"'
 
+        print(f"[Poller] JQL: {jql}")
         issues = await self.jira.search(
             jql,
             fields=["summary", "description", "status", "labels", "assignee", "project", "updated"],
         )
+        print(f"[Poller] Found {len(issues)} issues")
 
         for issue in issues:
             issue_key = issue["key"]
-            updated = issue["fields"]["updated"]
-            if not await self._is_already_sent(col, issue_key, updated):
-                await self._forward_to_pilot(issue)
-                await self._mark_sent(col, issue_key, updated)
+            # 이미 Pilot에 전달된 이슈는 건너뛰기
+            if await self._is_processed(col, issue_key):
+                print(f"[Poller] Skipping {issue_key} (already processed)")
+                continue
+            await self._forward_to_pilot(issue)
+            await self._mark_pending(col, issue_key)
 
         await self._set_last_checked(col, now)
 
     async def _forward_to_pilot(self, issue: dict) -> None:
+        # jira:issue_created 사용 - issue_updated는 changelog 검사로 인해 스킵됨
         payload = {
-            "webhookEvent": "jira:issue_updated",
+            "webhookEvent": "jira:issue_created",
             "issue": issue,
         }
         url = f"{self.gateway_url}/webhooks/jira"
@@ -95,15 +101,19 @@ class JiraPollerService:
             upsert=True,
         )
 
-    async def _is_already_sent(self, col, issue_key: str, updated: str) -> bool:
-        doc = await col.find_one({"_id": f"sent:{issue_key}"})
-        if doc and doc.get("updated") == updated:
-            return True
-        return False
+    async def _is_processed(self, col, issue_key: str) -> bool:
+        """이슈가 이미 Pilot에 전달되었는지 확인 (pending 또는 completed)"""
+        doc = await col.find_one({"_id": f"processed:{issue_key}"})
+        return doc is not None
 
-    async def _mark_sent(self, col, issue_key: str, updated: str) -> None:
+    async def _mark_pending(self, col, issue_key: str) -> None:
+        """이슈를 pending으로 마킹 (Pilot에 전달됨, 완료 대기 중)"""
         await col.update_one(
-            {"_id": f"sent:{issue_key}"},
-            {"$set": {"updated": updated, "sent_at": datetime.now(timezone.utc)}},
+            {"_id": f"processed:{issue_key}"},
+            {"$set": {
+                "status": "pending",
+                "sent_at": datetime.now(timezone.utc),
+            }},
             upsert=True,
         )
+        print(f"[Poller] Marked {issue_key} as pending (waiting for Pilot callback)")

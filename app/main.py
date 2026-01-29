@@ -5,7 +5,7 @@ from fastapi import FastAPI
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
 
-from app.routers import health, issues, jira_ui, auth, admin, assets, watch
+from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot
 
 from app.core.config import settings
 from app.db.mongo import MongoClientManager
@@ -32,9 +32,11 @@ async def lifespan(app: FastAPI):
     await history.create_index("changed_at")
 
     poller = None
+    print(f"PILOT_ENABLED: {settings.PILOT_ENABLED}")
     if settings.PILOT_ENABLED:
         poller = JiraPollerService()
         poller.start()
+        print("JiraPollerService started")
 
     yield
 
@@ -60,6 +62,7 @@ app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(jira_ui.router, prefix="/jira", tags=["jira"])
 app.include_router(assets.router, prefix="/assets", tags=["assets"])
 app.include_router(watch.router, prefix="/watch", tags=["watch"])
+app.include_router(pilot.router, prefix="/pilot", tags=["pilot"])
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
