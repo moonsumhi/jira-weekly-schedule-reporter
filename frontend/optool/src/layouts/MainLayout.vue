@@ -83,6 +83,13 @@ const linksList: EssentialLinkProps[] = [
     ],
   },
   {
+    title: 'Pilot',
+    icon: 'fa-solid fa-robot',
+    children: [
+      { title: '일감 현황', icon: 'fa-solid fa-tasks', link: '/pilot/tasks' },
+    ],
+  },
+  {
     title: '자산',
     icon: 'fa-solid fa-computer',
     children: [

@@ -48,6 +48,16 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'pilot',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'tasks',
+            component: () => import('pages/pilot/PilotTasksPage.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requireAdmin: true },
         children: [
