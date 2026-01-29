@@ -18,19 +18,36 @@ RUN apk add --no-cache \
     git \
     github-cli \
     bash \
-    openssh-client
+    openssh-client \
+    shadow \
+    su-exec
 
 # Install Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
+# Create non-root user for Claude Code execution
+RUN addgroup -g 1000 pilot && \
+    adduser -D -u 1000 -G pilot pilot
+
 # Copy pilot binary and config
 COPY --from=builder /pilot /usr/local/bin/pilot
 COPY --from=builder /src/orchestrator /usr/local/lib/pilot/orchestrator
-COPY config.yaml /root/.pilot/config.yaml
 
-# Git config (will be overridden by environment if needed)
-RUN git config --global user.name "Pilot AI" && \
-    git config --global user.email "pilot@localhost"
+# Setup directories with correct permissions
+RUN mkdir -p /home/pilot/.pilot /home/pilot/.claude && \
+    chown -R pilot:pilot /home/pilot
+
+COPY config.yaml /home/pilot/.pilot/config.yaml
+RUN chown pilot:pilot /home/pilot/.pilot/config.yaml
+
+# Git config for pilot user
+RUN su-exec pilot git config --global user.name "Pilot AI" && \
+    su-exec pilot git config --global user.email "pilot@localhost" && \
+    su-exec pilot git config --global --add safe.directory /workspace
 
 EXPOSE 9090
+
+# Run as non-root user
+USER pilot
+WORKDIR /home/pilot
 CMD ["pilot", "start"]

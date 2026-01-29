@@ -60,10 +60,11 @@ services:
       - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-pilot@localhost}
       - GIT_COMMITTER_NAME=${GIT_AUTHOR_NAME:-Pilot AI}
       - GIT_COMMITTER_EMAIL=${GIT_AUTHOR_EMAIL:-pilot@localhost}
+      - HOME=/home/pilot
     volumes:
       - .:/workspace  # rw for code modifications
-      - ${CLAUDE_CONFIG_PATH:-~/.claude}:/root/.claude  # Claude CLI auth (rw for debug logs)
-      - ${SSH_KEY_PATH:-~/.ssh}:/root/.ssh:ro  # SSH keys for git push
+      - ${CLAUDE_CONFIG_PATH:-~/.claude}:/home/pilot/.claude  # Claude CLI auth (rw for debug logs)
+      - ${SSH_KEY_PATH:-~/.ssh}:/home/pilot/.ssh:ro  # SSH keys for git push
 
   mongo-express:
     image: mongo-express:1.0.2-20
