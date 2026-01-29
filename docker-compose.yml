@@ -1,3 +1,5 @@
+name: jira-reporter
+
 services:
   backend:
     build:
