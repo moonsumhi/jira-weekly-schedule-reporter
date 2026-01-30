@@ -5,7 +5,7 @@ from fastapi import FastAPI
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
 
-from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot
+from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot, inspection
 
 from app.core.config import settings
 from app.db.mongo import MongoClientManager
@@ -30,6 +30,14 @@ async def lifespan(app: FastAPI):
     history = MongoClientManager.get_assets_server_history_collection()
     await history.create_index("asset_id")
     await history.create_index("changed_at")
+
+    inspection_checklists = MongoClientManager.get_inspection_checklists_collection()
+    await inspection_checklists.create_index("inspection_month", unique=True)
+    await inspection_checklists.create_index("person_in_charge")
+
+    inspection_history = MongoClientManager.get_inspection_history_collection()
+    await inspection_history.create_index("checklist_id")
+    await inspection_history.create_index("changed_at")
 
     poller = None
     print(f"PILOT_ENABLED: {settings.PILOT_ENABLED}")
@@ -63,6 +71,7 @@ app.include_router(jira_ui.router, prefix="/jira", tags=["jira"])
 app.include_router(assets.router, prefix="/assets", tags=["assets"])
 app.include_router(watch.router, prefix="/watch", tags=["watch"])
 app.include_router(pilot.router, prefix="/pilot", tags=["pilot"])
+app.include_router(inspection.router, prefix="/inspection", tags=["inspection"])
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
