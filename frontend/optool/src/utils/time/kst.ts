@@ -31,9 +31,11 @@ export function isDateSoon(dateVal: unknown, days: number): boolean {
 }
 
 /**
- * Convert JS Date -> datetime-local string in Asia/Seoul
+ * Convert JS Date -> datetime-local string in Asia/Seoul timezone
  * Output: "YYYY-MM-DDTHH:mm"
- * Note: FullCalendar passes UTC Date objects, so we explicitly interpret as UTC
+ *
+ * FullCalendar passes Date objects representing actual UTC moments.
+ * We convert from UTC to KST to display the correct wall-clock time.
  */
 export function dateToKstDateTimeLocal(d: Date): string {
   return DateTime.fromJSDate(d, { zone: 'utc' })
