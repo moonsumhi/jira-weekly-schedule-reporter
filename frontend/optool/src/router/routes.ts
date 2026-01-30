@@ -58,6 +58,16 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'inspection',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'checklist',
+            component: () => import('pages/inspection/ServerRoomInspectionPage.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requireAdmin: true },
         children: [
