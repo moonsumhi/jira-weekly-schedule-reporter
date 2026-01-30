@@ -1,12 +1,22 @@
 """Pilot callback endpoints for task completion notifications."""
 
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, PlainSerializer
 
 from app.db.mongo import MongoClientManager
+
+
+# MongoDB returns naive datetime. Serialize as UTC ISO with 'Z' suffix.
+def _serialize_utc(dt: datetime) -> str:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+UtcDatetime = Annotated[datetime, PlainSerializer(_serialize_utc)]
 
 router = APIRouter()
 
@@ -25,10 +35,13 @@ class TaskOut(BaseModel):
     """Task status output."""
 
     issue_key: str
+    issue_url: str | None = None
+    summary: str | None = None
+    project_key: str | None = None
     status: str
-    sent_at: datetime | None = None
-    completed_at: datetime | None = None
-    failed_at: datetime | None = None
+    sent_at: UtcDatetime | None = None
+    completed_at: UtcDatetime | None = None
+    failed_at: UtcDatetime | None = None
     pr_url: str | None = None
     error: str | None = None
 
@@ -44,10 +57,17 @@ async def list_tasks():
     tasks = []
     async for doc in cursor:
         issue_key = doc["_id"].replace("processed:", "")
+        # status가 없는 오래된 데이터는 "legacy"로 표시
+        status = doc.get("status")
+        if status is None:
+            status = "legacy"
         tasks.append(
             TaskOut(
                 issue_key=issue_key,
-                status=doc.get("status", "unknown"),
+                issue_url=doc.get("issue_url"),
+                summary=doc.get("summary"),
+                project_key=doc.get("project_key"),
+                status=status,
                 sent_at=doc.get("sent_at"),
                 completed_at=doc.get("completed_at"),
                 failed_at=doc.get("failed_at"),
@@ -97,3 +117,5 @@ async def task_callback(payload: TaskCallbackRequest):
         print(f"[Pilot Callback] Task {payload.issue_key} failed: {payload.error}")
 
     return {"ok": True}
+
+
