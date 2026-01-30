@@ -70,7 +70,7 @@ class JiraPollerService:
                 print(f"[Poller] Skipping {issue_key} (already processed)")
                 continue
             await self._forward_to_pilot(issue)
-            await self._mark_pending(col, issue_key)
+            await self._mark_pending(col, issue_key, issue)
 
         await self._set_last_checked(col, now)
 
@@ -106,13 +106,18 @@ class JiraPollerService:
         doc = await col.find_one({"_id": f"processed:{issue_key}"})
         return doc is not None
 
-    async def _mark_pending(self, col, issue_key: str) -> None:
+    async def _mark_pending(self, col, issue_key: str, issue: dict) -> None:
         """이슈를 pending으로 마킹 (Pilot에 전달됨, 완료 대기 중)"""
+        fields = issue.get("fields", {})
+        jira_base = settings.JIRA_BASE_URL.rstrip("/")
         await col.update_one(
             {"_id": f"processed:{issue_key}"},
             {"$set": {
                 "status": "pending",
                 "sent_at": datetime.now(timezone.utc),
+                "summary": fields.get("summary", ""),
+                "project_key": fields.get("project", {}).get("key", ""),
+                "issue_url": f"{jira_base}/browse/{issue_key}",
             }},
             upsert=True,
         )

@@ -3,6 +3,9 @@ import { api } from 'src/boot/axios'
 
 export type PilotTask = {
   issue_key: string
+  issue_url: string | null
+  summary: string | null
+  project_key: string | null
   status: string
   sent_at: string | null
   completed_at: string | null

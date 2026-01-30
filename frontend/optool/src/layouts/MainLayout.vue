@@ -97,17 +97,17 @@ const linksList: EssentialLinkProps[] = [
     ],
   },
   {
-    title: 'Admin',
-    icon: 'fa-solid fa-hammer',
-    children: [
-      { title: '회원가입 승인', icon: 'fa-regular fa-thumbs-up', link: '/admin/approvals' },
-    ],
-  },
-  {
     title: 'Timetable',
     icon: 'fa-solid fa-clock',
     children: [
       { title: '당직 시간표', icon: 'fa-regular fa-thumbs-up', link: '/watch/timetable' },
+    ],
+  },
+  {
+    title: 'Admin',
+    icon: 'fa-solid fa-hammer',
+    children: [
+      { title: '회원가입 승인', icon: 'fa-regular fa-thumbs-up', link: '/admin/approvals' },
     ],
   },
 ]
