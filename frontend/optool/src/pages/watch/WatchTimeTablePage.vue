@@ -395,6 +395,9 @@ async function createBulk() {
 
 const calendarOptions = ref<CalendarOptions>({
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin, luxonPlugin],
+  // timeZone: 'UTC' — keeps wall-clock times unchanged (no KST↔UTC offset).
+  // Times entered by the user (KST) are stored as-is in UTC, and FullCalendar
+  // displays them at the same wall-clock value. This avoids double conversion.
   timeZone: 'UTC',
   initialView: 'timeGridWeek',
   selectable: true,
