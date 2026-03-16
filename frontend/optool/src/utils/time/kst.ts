@@ -44,11 +44,19 @@ export function dateToKstDateTimeLocal(d: Date): string {
 }
 
 /**
- * Convert datetime-local string (interpreted as KST) -> ISO UTC string
+ * Convert datetime-local string (interpreted as KST) -> ISO UTC string with 'Z' suffix.
+ *
+ * The datetime-local input always represents KST wall-clock time in this app.
+ * This ensures the value is correctly stored as UTC on the backend.
+ *
+ * Bug reference (NCDC-490): Without explicit KST→UTC conversion, entering
+ * "2026-01-12 00:00 KST" would register as "2026-01-11 15:00" (UTC leaked through).
  */
 export function kstDateTimeLocalToUtcIso(local: string): string {
-  // local: "YYYY-MM-DDTHH:mm"
+  // local: "YYYY-MM-DDTHH:mm" — always treated as KST regardless of browser locale
   const dt = DateTime.fromFormat(local, "yyyy-LL-dd'T'HH:mm", { zone: 'Asia/Seoul' })
   if (!dt.isValid) throw new Error('Invalid date/time')
-  return dt.toUTC().toISO()
+  const iso = dt.toUTC().toISO({ suppressMilliseconds: true })
+  if (!iso) throw new Error('Failed to serialize datetime')
+  return iso
 }
