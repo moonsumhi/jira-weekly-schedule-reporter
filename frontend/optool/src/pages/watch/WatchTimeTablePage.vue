@@ -57,6 +57,16 @@
                 @click="createBulk"
               />
             </div>
+
+            <div class="col-12 col-md-2">
+              <q-btn
+                color="negative"
+                class="full-width"
+                label="전체 삭제"
+                :loading="busy"
+                @click="confirmDeleteAll"
+              />
+            </div>
           </q-card-section>
         </q-card>
       </div>
@@ -117,7 +127,7 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Notify } from 'quasar'
+import { Notify, Dialog } from 'quasar'
 import { DateTime } from 'luxon'
 
 import FullCalendar from '@fullcalendar/vue3'
@@ -128,7 +138,7 @@ import luxonPlugin from '@fullcalendar/luxon'
 import type { CalendarOptions, EventInput, EventSourceFuncArg } from '@fullcalendar/core'
 import type FullCalendarComponent from '@fullcalendar/vue3'
 
-import { listWatch, createWatch, patchWatch, deleteWatch, type WatchRow } from 'src/services/watch'
+import { listWatch, createWatch, patchWatch, deleteWatch, deleteAllWatch, type WatchRow } from 'src/services/watch'
 import { dateToKstDateTimeLocal, kstDateTimeLocalToUtcIso } from 'src/utils/time/kst'
 import { isRecord, getErrorMessage } from 'src/utils/http/error'
 
@@ -338,6 +348,26 @@ async function onMoveOrResize(info: MoveResizeArg) {
     info.revert?.()
     Notify.create({ type: 'negative', message: 'Update failed. Reverted.' })
   }
+}
+
+function confirmDeleteAll() {
+  Dialog.create({
+    title: '전체 삭제',
+    message: '당직 시간표의 모든 일정을 삭제하시겠습니까?',
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    try {
+      busy.value = true
+      await deleteAllWatch()
+      refetchCalendar()
+      Notify.create({ type: 'positive', message: '모든 일정이 삭제되었습니다.' })
+    } catch (e: unknown) {
+      Notify.create({ type: 'negative', message: getErrorMessage(e, 'Failed') })
+    } finally {
+      busy.value = false
+    }
+  })
 }
 
 // Bulk create using Luxon in KST (no JS Date weekday math headaches)

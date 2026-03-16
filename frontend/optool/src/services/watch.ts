@@ -48,3 +48,7 @@ export async function patchWatch(id: string, payload: WatchPatch) {
 export async function deleteWatch(id: string) {
   await api.delete(`/watch/${id}`)
 }
+
+export async function deleteAllWatch() {
+  await api.delete('/watch')
+}
