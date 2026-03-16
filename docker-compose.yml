@@ -16,7 +16,7 @@ services:
       - APP_DB_NAME=${APP_DB_NAME}
       - PILOT_ENABLED=${PILOT_ENABLED}
     volumes:
-      - /home/moonsumhi/volume/jira-simple-pj:/app/app/secret:ro
+      - ./app/secret:/app/app/secret:ro
 
   frontend:
     build:
@@ -42,7 +42,7 @@ services:
       - "27017:27017"
     volumes:
       # Persistent data on host filesystem
-      - /home/moonsumhi/volume/mongodb:/data/db
+      - ./data/mongodb:/data/db
       # One-time initialization scripts (create app db + user)
       - ./scripts:/docker-entrypoint-initdb.d:ro
 
@@ -52,7 +52,7 @@ services:
       dockerfile: Dockerfile
     container_name: pilot
     ports:
-      - "9090:9090"
+      - "9091:9090"
     env_file:
       - ./app/secret/.env
     environment:
@@ -63,6 +63,9 @@ services:
       - GIT_COMMITTER_NAME=${GIT_AUTHOR_NAME:-Pilot AI}
       - GIT_COMMITTER_EMAIL=${GIT_AUTHOR_EMAIL:-pilot@localhost}
       - HOME=/home/pilot
+      - GIT_CONFIG_COUNT=1
+      - GIT_CONFIG_KEY_0=url.https://x-access-token:${GITHUB_TOKEN}@github.com/.insteadOf
+      - GIT_CONFIG_VALUE_0=https://github.com/
     volumes:
       - .:/workspace  # rw for code modifications
       - ${CLAUDE_CONFIG_PATH:-~/.claude}:/home/pilot/.claude  # Claude CLI auth (rw for debug logs)
