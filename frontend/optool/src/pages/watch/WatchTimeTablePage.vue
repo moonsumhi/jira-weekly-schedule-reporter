@@ -369,8 +369,8 @@ async function createBulk() {
         return
       }
 
-      const startIso = startKst.toUTC().toISO()
-      const endIso = endKst.toUTC().toISO()
+      const startIso = startKst.setZone('utc', { keepLocalTime: true }).toISO()
+      const endIso = endKst.setZone('utc', { keepLocalTime: true }).toISO()
 
       if (!startIso || !endIso) {
         throw new Error('Invalid datetime')
@@ -395,7 +395,10 @@ async function createBulk() {
 
 const calendarOptions = ref<CalendarOptions>({
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin, luxonPlugin],
-  timeZone: 'Asia/Seoul',
+  // timeZone: 'UTC' — keeps wall-clock times unchanged (no KST↔UTC offset).
+  // Times entered by the user (KST) are stored as-is in UTC, and FullCalendar
+  // displays them at the same wall-clock value. This avoids double conversion.
+  timeZone: 'UTC',
   initialView: 'timeGridWeek',
   selectable: true,
   editable: true,
