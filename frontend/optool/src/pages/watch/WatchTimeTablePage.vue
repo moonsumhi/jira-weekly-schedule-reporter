@@ -369,8 +369,8 @@ async function createBulk() {
         return
       }
 
-      const startIso = startKst.toUTC().toISO()
-      const endIso = endKst.toUTC().toISO()
+      const startIso = startKst.setZone('utc', { keepLocalTime: true }).toISO()
+      const endIso = endKst.setZone('utc', { keepLocalTime: true }).toISO()
 
       if (!startIso || !endIso) {
         throw new Error('Invalid datetime')

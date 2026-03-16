@@ -31,24 +31,24 @@ export function isDateSoon(dateVal: unknown, days: number): boolean {
 }
 
 /**
- * Convert JS Date -> datetime-local string in Asia/Seoul timezone
+ * Convert JS Date -> datetime-local string (UTC wall-clock time)
  * Output: "YYYY-MM-DDTHH:mm"
  *
- * FullCalendar passes Date objects representing actual UTC moments.
- * We convert from UTC to KST to display the correct wall-clock time.
+ * FullCalendar displays times in UTC (timezone conversion is not applied),
+ * so we use the UTC value directly as the display time.
  */
 export function dateToKstDateTimeLocal(d: Date): string {
   return DateTime.fromJSDate(d, { zone: 'utc' })
-    .setZone('Asia/Seoul')
     .toFormat("yyyy-LL-dd'T'HH:mm")
 }
 
 /**
- * Convert datetime-local string (interpreted as KST) -> ISO UTC string
+ * Convert datetime-local string -> ISO UTC string
+ * The input value is treated as a UTC wall-clock time (no KST offset applied).
  */
 export function kstDateTimeLocalToUtcIso(local: string): string {
   // local: "YYYY-MM-DDTHH:mm"
-  const dt = DateTime.fromFormat(local, "yyyy-LL-dd'T'HH:mm", { zone: 'Asia/Seoul' })
+  const dt = DateTime.fromFormat(local, "yyyy-LL-dd'T'HH:mm", { zone: 'utc' })
   if (!dt.isValid) throw new Error('Invalid date/time')
-  return dt.toUTC().toISO()
+  return dt.toISO()!
 }
