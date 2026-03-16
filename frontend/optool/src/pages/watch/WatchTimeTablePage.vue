@@ -57,6 +57,16 @@
                 @click="createBulk"
               />
             </div>
+
+            <div class="col-12 col-md-2">
+              <q-btn
+                color="negative"
+                class="full-width"
+                label="전체 삭제"
+                :loading="busy"
+                @click="removeAll"
+              />
+            </div>
           </q-card-section>
         </q-card>
       </div>
@@ -128,7 +138,7 @@ import luxonPlugin from '@fullcalendar/luxon'
 import type { CalendarOptions, EventInput, EventSourceFuncArg } from '@fullcalendar/core'
 import type FullCalendarComponent from '@fullcalendar/vue3'
 
-import { listWatch, createWatch, patchWatch, deleteWatch, type WatchRow } from 'src/services/watch'
+import { listWatch, createWatch, patchWatch, deleteWatch, deleteAllWatch, type WatchRow } from 'src/services/watch'
 import { dateToKstDateTimeLocal, kstDateTimeLocalToUtcIso } from 'src/utils/time/kst'
 import { isRecord, getErrorMessage } from 'src/utils/http/error'
 
@@ -337,6 +347,19 @@ async function onMoveOrResize(info: MoveResizeArg) {
   } catch {
     info.revert?.()
     Notify.create({ type: 'negative', message: 'Update failed. Reverted.' })
+  }
+}
+
+async function removeAll() {
+  try {
+    busy.value = true
+    await deleteAllWatch()
+    refetchCalendar()
+    Notify.create({ type: 'positive', message: '전체 삭제 완료' })
+  } catch (e: unknown) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, 'Failed') })
+  } finally {
+    busy.value = false
   }
 }
 

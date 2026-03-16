@@ -92,6 +92,14 @@ async def patch_assignment(
     return WatchAssignmentOut(**out)
 
 
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_all_assignments(
+    current_user: UserPublic = Depends(get_current_user),
+):
+    await svc.delete_all(actor_email=current_user.email)
+    return
+
+
 @router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_assignment(
     assignment_id: str,

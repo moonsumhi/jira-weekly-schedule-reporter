@@ -203,3 +203,11 @@ class WatchTimetableService:
             "version": int(existing.get("version", 1)) + 1,
         }
         await self._col().update_one({"_id": _id}, {"$set": update})
+
+    async def delete_all(self, *, actor_email: str) -> int:
+        now = TimeUtil.now_utc()
+        result = await self._col().update_many(
+            {"is_deleted": {"$ne": True}},
+            {"$set": {"is_deleted": True, "updated_at": now, "updated_by": actor_email}},
+        )
+        return result.modified_count
