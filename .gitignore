@@ -3,3 +3,5 @@ app/secret/*
 frontend/node_modules/*
 .idea
 .env
+data/
+.agent/
