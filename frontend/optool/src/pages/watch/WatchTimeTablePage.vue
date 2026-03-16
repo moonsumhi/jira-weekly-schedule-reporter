@@ -395,7 +395,7 @@ async function createBulk() {
 
 const calendarOptions = ref<CalendarOptions>({
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin, luxonPlugin],
-  timeZone: 'Asia/Seoul',
+  timeZone: 'UTC',
   initialView: 'timeGridWeek',
   selectable: true,
   editable: true,
