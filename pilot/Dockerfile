@@ -45,9 +45,13 @@ RUN su-exec pilot git config --global user.name "Pilot AI" && \
     su-exec pilot git config --global user.email "pilot@localhost" && \
     su-exec pilot git config --global --add safe.directory /workspace
 
+# Entrypoint: normalize git remote URL so GIT_CONFIG auth always applies
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 EXPOSE 9090
 
 # Run as non-root user
 USER pilot
 WORKDIR /home/pilot
-CMD ["pilot", "start"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
