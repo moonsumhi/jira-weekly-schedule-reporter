@@ -92,6 +92,15 @@ async def patch_assignment(
     return WatchAssignmentOut(**out)
 
 
+@router.delete("/bulk", status_code=status.HTTP_200_OK)
+async def delete_assignments_by_assignee(
+    assignee: str = Query(..., min_length=1),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    count = await svc.delete_by_assignee(assignee=assignee, actor_email=current_user.email)
+    return {"deleted": count}
+
+
 @router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_assignment(
     assignment_id: str,
