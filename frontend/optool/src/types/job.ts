@@ -82,7 +82,7 @@ export type ServiceWorkPlanPatch = {
   rollback_duration?: string | null
   status?: JobStatus
   result_notes?: string | null
-  version?: number
+  version?: number | undefined
 }
 
 export type JobHistoryDiff = { path: string; before: unknown; after: unknown }
