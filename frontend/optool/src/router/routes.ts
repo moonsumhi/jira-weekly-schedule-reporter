@@ -68,6 +68,16 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'job',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'service-work-plan',
+            component: () => import('pages/job/ServiceWorkPlanPage.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requireAdmin: true },
         children: [
