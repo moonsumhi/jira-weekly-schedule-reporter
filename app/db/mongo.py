@@ -15,6 +15,8 @@ class MongoClientManager:
     PILOT_POLL_STATE = "pilot_poll_state"
     INSPECTION_CHECKLISTS = "inspection_checklists"
     INSPECTION_HISTORY = "inspection_history"
+    JOB_PLANS = "job_plans"
+    JOB_PLANS_HISTORY = "job_plans_history"
 
     @classmethod
     def init_client(cls) -> None:
@@ -72,6 +74,14 @@ class MongoClientManager:
     @classmethod
     def get_inspection_history_collection(cls):
         return cls.get_db()[cls.INSPECTION_HISTORY]
+
+    @classmethod
+    def get_job_plans_collection(cls):
+        return cls.get_db()[cls.JOB_PLANS]
+
+    @classmethod
+    def get_job_plans_history_collection(cls):
+        return cls.get_db()[cls.JOB_PLANS_HISTORY]
 
     @classmethod
     async def close_client(cls) -> None:
