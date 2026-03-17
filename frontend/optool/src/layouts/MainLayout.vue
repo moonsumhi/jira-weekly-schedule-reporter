@@ -104,6 +104,13 @@ const linksList: EssentialLinkProps[] = [
     ],
   },
   {
+    title: 'Job',
+    icon: 'fa-solid fa-file-alt',
+    children: [
+      { title: '작업계획서 (서비스)', icon: 'fa-solid fa-clipboard-list', link: '/job/service-work-plan' },
+    ],
+  },
+  {
     title: 'Admin',
     icon: 'fa-solid fa-hammer',
     children: [
