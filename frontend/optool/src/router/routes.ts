@@ -78,6 +78,10 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'service-work-result',
             component: () => import('pages/job/ServiceWorkResultPage.vue')
+          },
+          {
+            path: 'non-service-work-plan',
+            component: () => import('pages/job/NonServiceWorkPlanPage.vue')
           }
         ]
       },
