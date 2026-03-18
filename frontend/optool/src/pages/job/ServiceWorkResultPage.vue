@@ -205,7 +205,7 @@
 
           <!-- 작업 절차 결과 -->
           <div class="row items-center q-mb-xs">
-            <div class="text-subtitle1 text-weight-bold">작업 절차 결과</div>
+            <div class="text-subtitle1 text-weight-bold">세부 절차 결과</div>
             <q-space />
             <q-btn flat dense icon="add" label="단계 추가" @click="addStepResult" />
           </div>
@@ -213,7 +213,7 @@
             <q-item v-for="(step, i) in form.step_results" :key="i">
               <q-item-section>
                 <div class="row items-center q-mb-xs">
-                  <div class="col text-caption text-grey-7 text-weight-medium">단계 {{ i + 1 }}</div>
+                  <div class="col text-caption text-grey-7 text-weight-medium">세부 절차 {{ i + 1 }}</div>
                   <q-btn flat dense icon="delete" color="negative" @click="removeStepResult(i)" />
                 </div>
                 <q-input
@@ -221,8 +221,8 @@
                   outlined
                   dense
                   type="textarea"
-                  :rows="3"
-                  label="작업 내용 *"
+                  autogrow
+                  label="세부 작업 내용 *"
                   class="q-mb-xs"
                 />
                 <div class="row q-gutter-xs items-center">
@@ -410,7 +410,7 @@
           <q-separator class="q-my-sm" />
 
           <!-- 작업 절차 결과 -->
-          <div class="text-subtitle2 text-weight-bold q-mb-xs">작업 절차 결과</div>
+          <div class="text-subtitle2 text-weight-bold q-mb-xs">세부 절차 결과</div>
           <q-list bordered separator dense>
             <q-item v-for="(step, i) in detailRow.step_results" :key="i">
               <q-item-section avatar>
@@ -430,7 +430,7 @@
               </q-item-section>
             </q-item>
             <q-item v-if="!detailRow.step_results?.length">
-              <q-item-section class="text-grey-6 text-caption">절차 결과 없음</q-item-section>
+              <q-item-section class="text-grey-6 text-caption">세부 절차 결과 없음</q-item-section>
             </q-item>
           </q-list>
 
@@ -677,7 +677,7 @@ function validateForm(): boolean {
   }
   for (const step of form.step_results) {
     if (!step.task.trim() || !step.person.trim()) {
-      $q.notify({ type: 'warning', message: '작업 절차 결과의 작업 내용과 담당자를 모두 입력해주세요.' })
+      $q.notify({ type: 'warning', message: '세부 절차 결과의 세부 작업 내용과 담당자를 모두 입력해주세요.' })
       return false
     }
   }
