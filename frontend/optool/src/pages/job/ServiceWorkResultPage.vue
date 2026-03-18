@@ -212,31 +212,35 @@
           <q-list bordered separator>
             <q-item v-for="(step, i) in form.step_results" :key="i">
               <q-item-section>
-                <div class="row q-gutter-xs items-start">
-                  <div class="col-auto text-caption text-grey-7 q-mt-xs">{{ i + 1 }}.</div>
-                  <q-input
-                    v-model="step.task"
-                    outlined
-                    dense
-                    label="작업 내용 *"
-                    class="col"
-                  />
+                <div class="row items-center q-mb-xs">
+                  <div class="col text-caption text-grey-7 text-weight-medium">단계 {{ i + 1 }}</div>
+                  <q-btn flat dense icon="delete" color="negative" @click="removeStepResult(i)" />
+                </div>
+                <q-input
+                  v-model="step.task"
+                  outlined
+                  dense
+                  type="textarea"
+                  :rows="3"
+                  label="작업 내용 *"
+                  class="q-mb-xs"
+                />
+                <div class="row q-gutter-xs items-center">
                   <q-input
                     v-model="step.person"
                     outlined
                     dense
                     label="담당자 *"
-                    style="width: 120px"
+                    class="col"
                   />
-                  <q-toggle v-model="step.completed" label="완료" dense class="q-mt-xs" />
+                  <q-toggle v-model="step.completed" label="완료" dense />
                   <q-input
                     v-model="step.notes"
                     outlined
                     dense
                     label="비고"
-                    style="width: 140px"
+                    class="col"
                   />
-                  <q-btn flat dense icon="delete" color="negative" @click="removeStepResult(i)" />
                 </div>
               </q-item-section>
             </q-item>
