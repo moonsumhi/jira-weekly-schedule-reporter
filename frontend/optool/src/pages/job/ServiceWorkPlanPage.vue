@@ -114,6 +114,8 @@
           <q-btn flat dense icon="close" v-close-popup />
         </q-card-section>
 
+        <q-separator />
+
         <q-card-section class="col scroll">
           <!-- 기본 정보 -->
           <div class="text-subtitle1 text-weight-bold q-mt-sm q-mb-xs">기본 정보</div>
