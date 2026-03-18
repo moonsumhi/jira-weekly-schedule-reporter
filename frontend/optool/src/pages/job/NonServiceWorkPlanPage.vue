@@ -123,7 +123,23 @@
               label="작업 일시 * (YYYY-MM-DD HH:MM)"
               mask="####-##-## ##:##"
               class="col-12 col-sm-6"
-            />
+            >
+              <template #append>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                    <q-date
+                      :model-value="form.work_date ? form.work_date.slice(0, 10) : ''"
+                      @update:model-value="(val: string) => { const time = form.work_date && form.work_date.length > 10 ? form.work_date.slice(10) : ' 00:00'; form.work_date = val + time }"
+                      mask="YYYY-MM-DD"
+                    >
+                      <div class="row items-center justify-end">
+                        <q-btn v-close-popup label="닫기" color="primary" flat />
+                      </div>
+                    </q-date>
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+            </q-input>
             <q-select
               v-model="form.category"
               :options="categoryOptions"
