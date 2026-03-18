@@ -188,28 +188,33 @@
 
           <!-- 작업 절차 -->
           <div class="row items-center q-mb-xs">
-            <div class="text-subtitle1 text-weight-bold">작업 절차</div>
+            <div class="text-subtitle1 text-weight-bold">세부 절차</div>
             <q-space />
             <q-btn flat dense icon="add" label="단계 추가" @click="addStep" />
           </div>
           <q-list bordered separator>
             <q-item v-for="(step, i) in form.steps" :key="i">
               <q-item-section>
-                <div class="row q-gutter-xs items-start">
-                  <div class="col-auto text-caption text-grey-7 q-mt-xs">{{ i + 1 }}.</div>
-                  <q-input
-                    v-model="step.task"
-                    outlined
-                    dense
-                    label="작업 내용 *"
-                    class="col"
-                  />
+                <div class="row items-center q-mb-xs">
+                  <div class="col text-caption text-grey-7 text-weight-medium">세부 절차 {{ i + 1 }}</div>
+                  <q-btn flat dense icon="delete" color="negative" @click="removeStep(i)" />
+                </div>
+                <q-input
+                  v-model="step.task"
+                  outlined
+                  dense
+                  type="textarea"
+                  autogrow
+                  label="세부 작업 내용 *"
+                  class="q-mb-xs"
+                />
+                <div class="row q-gutter-xs items-center">
                   <q-input
                     v-model="step.person"
                     outlined
                     dense
                     label="담당자 *"
-                    style="width: 120px"
+                    class="col"
                   />
                   <q-input
                     v-model="step.duration"
@@ -218,13 +223,12 @@
                     label="소요 시간"
                     style="width: 100px"
                   />
-                  <q-btn flat dense icon="delete" color="negative" @click="removeStep(i)" />
                 </div>
               </q-item-section>
             </q-item>
             <q-item v-if="form.steps.length === 0">
               <q-item-section class="text-grey-6 text-caption q-pa-sm">
-                작업 절차가 없습니다. 단계를 추가하세요.
+                세부 절차가 없습니다. 단계를 추가하세요.
               </q-item-section>
             </q-item>
           </q-list>
@@ -362,7 +366,7 @@
           </div>
 
           <q-separator class="q-my-sm" />
-          <div class="text-subtitle2 text-weight-bold q-mb-xs">작업 절차</div>
+          <div class="text-subtitle2 text-weight-bold q-mb-xs">세부 절차</div>
           <q-list bordered separator dense>
             <q-item v-for="(step, i) in detailRow.steps" :key="i">
               <q-item-section avatar>
@@ -379,7 +383,7 @@
               </q-item-section>
             </q-item>
             <q-item v-if="!detailRow.steps?.length">
-              <q-item-section class="text-grey-6 text-caption">절차 없음</q-item-section>
+              <q-item-section class="text-grey-6 text-caption">세부 절차 없음</q-item-section>
             </q-item>
           </q-list>
 
@@ -596,7 +600,7 @@ function validateForm(): boolean {
   }
   for (const step of form.steps) {
     if (!step.task.trim() || !step.person.trim()) {
-      $q.notify({ type: 'warning', message: '작업 절차의 작업 내용과 담당자를 모두 입력해주세요.' })
+      $q.notify({ type: 'warning', message: '세부 절차의 세부 작업 내용과 담당자를 모두 입력해주세요.' })
       return false
     }
   }
