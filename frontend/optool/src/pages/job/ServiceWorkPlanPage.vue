@@ -354,6 +354,8 @@
           <q-btn flat dense icon="close" v-close-popup />
         </q-card-section>
 
+        <q-separator />
+
         <q-card-section class="col scroll">
           <div class="row q-gutter-x-md q-mb-sm">
             <div class="col">
