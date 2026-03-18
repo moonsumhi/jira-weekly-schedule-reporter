@@ -8,6 +8,10 @@ import type {
   ServiceWorkResultCreate,
   ServiceWorkResultPatch,
   ServiceWorkResultHistory,
+  NonServiceWorkPlan,
+  NonServiceWorkPlanCreate,
+  NonServiceWorkPlanPatch,
+  NonServiceWorkPlanHistory,
 } from 'src/types/job'
 
 const ENDPOINT = '/job'
@@ -93,5 +97,49 @@ export async function getServiceWorkResultHistory(
   id: string
 ): Promise<ServiceWorkResultHistory[]> {
   const res = await api.get<ServiceWorkResultHistory[]>(`${RESULT_ENDPOINT}/${id}/history`)
+  return res.data
+}
+
+// ─── 작업계획서(서비스 외) API ────────────────────────────────────────────────
+
+const NON_SERVICE_ENDPOINT = '/job-non-service'
+
+export async function listNonServiceWorkPlans(
+  includeDeleted: boolean
+): Promise<NonServiceWorkPlan[]> {
+  const res = await api.get<NonServiceWorkPlan[]>(NON_SERVICE_ENDPOINT, {
+    params: { include_deleted: includeDeleted },
+  })
+  return res.data
+}
+
+export async function getNonServiceWorkPlan(id: string): Promise<NonServiceWorkPlan> {
+  const res = await api.get<NonServiceWorkPlan>(`${NON_SERVICE_ENDPOINT}/${id}`)
+  return res.data
+}
+
+export async function createNonServiceWorkPlan(
+  payload: NonServiceWorkPlanCreate
+): Promise<NonServiceWorkPlan> {
+  const res = await api.post<NonServiceWorkPlan>(NON_SERVICE_ENDPOINT, payload)
+  return res.data
+}
+
+export async function patchNonServiceWorkPlan(
+  id: string,
+  payload: NonServiceWorkPlanPatch
+): Promise<NonServiceWorkPlan> {
+  const res = await api.patch<NonServiceWorkPlan>(`${NON_SERVICE_ENDPOINT}/${id}`, payload)
+  return res.data
+}
+
+export async function deleteNonServiceWorkPlan(id: string): Promise<void> {
+  await api.delete(`${NON_SERVICE_ENDPOINT}/${id}`)
+}
+
+export async function getNonServiceWorkPlanHistory(
+  id: string
+): Promise<NonServiceWorkPlanHistory[]> {
+  const res = await api.get<NonServiceWorkPlanHistory[]>(`${NON_SERVICE_ENDPOINT}/${id}/history`)
   return res.data
 }
