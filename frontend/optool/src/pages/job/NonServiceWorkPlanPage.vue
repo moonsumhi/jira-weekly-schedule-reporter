@@ -98,7 +98,7 @@
 
     <!-- Create / Edit Dialog -->
     <q-dialog v-model="formDialog" persistent>
-      <q-card style="width: 800px; max-width: 95vw; max-height: 90vh" class="column">
+      <q-card style="width: 800px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">{{ isEdit ? '작업계획서 수정' : '작업계획서 추가' }}</div>
           <q-space />
