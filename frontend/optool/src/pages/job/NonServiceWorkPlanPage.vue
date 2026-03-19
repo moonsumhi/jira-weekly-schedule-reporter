@@ -107,7 +107,7 @@
 
         <q-separator />
 
-        <q-card-section class="col scroll">
+        <q-card-section class="col scroll" style="min-height: 0;">
           <!-- 기본 정보 -->
           <div class="text-subtitle1 text-weight-bold q-mt-sm q-mb-xs">기본 정보</div>
           <div class="row q-gutter-sm">
