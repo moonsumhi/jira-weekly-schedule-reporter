@@ -1,9 +1,12 @@
 # app/routers/job.py
 from __future__ import annotations
 
+import os
+import subprocess
+import tempfile
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 
 from app.models.job import (
     ServiceWorkPlanCreate,
@@ -100,6 +103,56 @@ async def get_ns_history(
 ):
     items = await ns_svc.get_history(plan_id=plan_id)
     return [NonServiceWorkPlanHistoryOut(**x) for x in items]
+
+
+# ─── 첨부파일 텍스트 추출 (작업test3용) ─────────────────────────────────────
+
+SUPPORTED_EXTENSIONS = {"hwp", "txt", "md"}
+
+
+def _extract_hwp_bytes(data: bytes) -> str | None:
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".hwp", delete=False) as f:
+            f.write(data)
+            tmp_path = f.name
+        result = subprocess.run(
+            ["hwp5txt", tmp_path],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+        return None
+    except Exception:
+        return None
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
+@router.post("/result3/extract-attachment")
+async def extract_attachment_text(
+    file: UploadFile = File(...),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """업로드된 첨부파일(HWP/txt/md)에서 텍스트를 추출하여 반환."""
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"지원하지 않는 파일 형식입니다. 지원 형식: {', '.join(SUPPORTED_EXTENSIONS)}",
+        )
+    data = await file.read()
+    if ext == "hwp":
+        text = _extract_hwp_bytes(data)
+        if text is None:
+            raise HTTPException(status_code=422, detail="HWP 파일 텍스트 추출에 실패했습니다.")
+    else:
+        text = data.decode("utf-8", errors="replace")
+    return {"filename": filename, "text": text}
 
 
 # ─── 작업결과서 — must come BEFORE /{plan_id} ────────────────────────────────
