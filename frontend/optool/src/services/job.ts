@@ -176,3 +176,12 @@ export async function patchJobResult(
 export async function deleteJobResult(id: string): Promise<void> {
   await api.delete(`${JOB_RESULTS_ENDPOINT}/${id}`)
 }
+
+export async function extractAttachmentText(file: File): Promise<{ filename: string; text: string }> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await api.post<{ filename: string; text: string }>('/job/result3/extract-attachment', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}

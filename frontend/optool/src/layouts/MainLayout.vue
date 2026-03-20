@@ -112,6 +112,7 @@ const linksList: EssentialLinkProps[] = [
       { title: '작업 결과서', icon: 'fa-solid fa-file-circle-check', link: '/job/service-work-result' },
       { title: '작업test', icon: 'fa-solid fa-file-lines', link: '/job/job-result' },
       { title: '작업test2', icon: 'fa-solid fa-file-lines', link: '/job/job-result2' },
+      { title: '작업test3', icon: 'fa-solid fa-file-lines', link: '/job/job-result3' },
     ],
   },
   {

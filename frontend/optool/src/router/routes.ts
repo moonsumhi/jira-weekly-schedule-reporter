@@ -90,6 +90,10 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'job-result2',
             component: () => import('pages/job/JobResult2Page.vue')
+          },
+          {
+            path: 'job-result3',
+            component: () => import('pages/job/JobResult3Page.vue')
           }
         ]
       },
