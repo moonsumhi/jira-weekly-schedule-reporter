@@ -2,11 +2,11 @@
   <q-page class="q-pa-md">
     <!-- Header -->
     <div class="row items-center q-gutter-sm q-mb-md">
-      <div class="text-h6">작업계획서 (서비스)</div>
+      <div class="text-h6">작업 결과서</div>
       <q-space />
       <q-toggle v-model="includeDeleted" label="삭제 포함" dense />
       <q-btn outline icon="refresh" label="새로고침" :loading="loading" @click="load" />
-      <q-btn color="primary" icon="add" label="작업계획서 추가" @click="openCreate" />
+      <q-btn color="primary" icon="add" label="작업 결과서 추가" @click="openCreate" />
     </div>
 
     <q-card bordered>
@@ -22,13 +22,13 @@
           class="col"
         />
         <q-select
-          v-model="statusFilter"
-          :options="statusOptions"
+          v-model="resultFilter"
+          :options="resultOptions"
           dense
           outlined
           clearable
-          label="상태 필터"
-          style="min-width: 120px"
+          label="결과 필터"
+          style="min-width: 130px"
         />
       </q-card-section>
 
@@ -46,11 +46,11 @@
           flat
           bordered
         >
-          <!-- 상태 badge -->
-          <template #body-cell-status="props">
+          <!-- 작업 결과 badge -->
+          <template #body-cell-result="props">
             <q-td :props="props">
-              <q-badge :color="statusColor(props.row.status)" outline>
-                {{ props.row.status }}
+              <q-badge :color="resultColor(props.row.result)" outline>
+                {{ props.row.result }}
               </q-badge>
             </q-td>
           </template>
@@ -109,7 +109,7 @@
     <q-dialog v-model="formDialog" persistent>
       <q-card style="width: 800px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column">
         <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">{{ isEdit ? '작업계획서 수정' : '작업계획서 추가' }}</div>
+          <div class="text-h6">{{ isEdit ? '작업 결과서 수정' : '작업 결과서 추가' }}</div>
           <q-space />
           <q-btn flat dense icon="close" v-close-popup />
         </q-card-section>
@@ -168,85 +168,71 @@
 
           <q-separator class="q-my-md" />
 
-          <!-- 작업 내용 -->
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">작업 내용</div>
-          <q-input
-            v-model="form.purpose"
-            outlined
-            dense
-            type="textarea"
-            autogrow
-            label="작업 목적 *"
-            class="q-mb-sm"
-          />
-          <q-input
-            v-model="form.scope"
-            outlined
-            dense
-            type="textarea"
-            autogrow
-            label="작업 범위 *"
-            class="q-mb-sm"
-          />
-          <q-input
-            v-model="form.detail"
-            outlined
-            dense
-            type="textarea"
-            autogrow
-            label="작업 상세 내용 *"
-          />
-
-          <q-separator class="q-my-md" />
-
-          <!-- 영향도 분석 -->
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">영향도 분석</div>
-          <q-toggle v-model="form.service_affected" label="서비스 영향 여부" class="q-mb-sm" />
+          <!-- 작업 결과 -->
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">작업 결과</div>
           <div class="row q-gutter-sm">
-            <q-input
-              v-model="form.downtime"
+            <q-select
+              v-model="form.result"
+              :options="resultOptions"
               outlined
               dense
-              label="서비스 중단 시간"
+              label="작업 최종 결과 *"
               class="col-12 col-sm-5"
             />
             <q-input
-              v-model="form.impact_scope"
+              v-model="form.actual_start_time"
               outlined
               dense
-              label="영향 범위"
-              class="col-12 col-sm-6"
+              label="실제 시작 시간 (HH:MM)"
+              mask="##:##"
+              class="col-12 col-sm-3"
+            />
+            <q-input
+              v-model="form.actual_end_time"
+              outlined
+              dense
+              label="실제 종료 시간 (HH:MM)"
+              mask="##:##"
+              class="col-12 col-sm-3"
             />
           </div>
-
-          <q-separator class="q-my-md" />
-
-          <!-- 사전 준비 -->
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">사전 준비</div>
-          <q-toggle v-model="form.backup_done" label="백업 완료" class="q-mb-sm" />
           <q-input
-            v-model="form.backup_details"
+            v-model="form.summary"
             outlined
             dense
             type="textarea"
             autogrow
-            label="백업 내용"
+            label="작업 결과 요약 *"
+            class="q-mt-sm"
           />
 
           <q-separator class="q-my-md" />
 
-          <!-- 작업 절차 -->
+          <!-- 서비스 영향 결과 -->
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">서비스 영향 결과</div>
+          <q-toggle v-model="form.service_affected" label="서비스 영향 여부" class="q-mb-sm" />
+          <q-input
+            v-model="form.actual_downtime"
+            outlined
+            dense
+            label="실제 서비스 중단 시간"
+            class="col-12 col-sm-5"
+          />
+
+          <q-separator class="q-my-md" />
+
+          <!-- 작업 절차 결과 -->
           <div class="row items-center q-mb-xs">
-            <div class="text-subtitle1 text-weight-bold">세부 절차</div>
+            <div class="text-subtitle1 text-weight-bold">세부 절차 결과</div>
             <q-space />
-            <q-btn flat dense icon="add" label="단계 추가" @click="addStep" />
+            <q-btn flat dense icon="add" label="단계 추가" @click="addStepResult" />
           </div>
           <q-list bordered separator>
-            <q-item v-for="(step, i) in form.steps" :key="i">
+            <q-item v-for="(step, i) in form.step_results" :key="i">
               <q-item-section>
                 <div class="row items-center q-mb-xs">
                   <div class="col text-caption text-grey-7 text-weight-medium">세부 절차 {{ i + 1 }}</div>
-                  <q-btn flat dense icon="delete" color="negative" @click="removeStep(i)" />
+                  <q-btn flat dense icon="delete" color="negative" @click="removeStepResult(i)" />
                 </div>
                 <q-input
                   v-model="step.task"
@@ -265,115 +251,82 @@
                     label="담당자 *"
                     class="col"
                   />
+                  <q-toggle v-model="step.completed" label="완료" dense />
                   <q-input
-                    v-model="step.duration"
+                    v-model="step.notes"
                     outlined
                     dense
-                    label="소요 시간"
-                    style="width: 100px"
+                    label="비고"
+                    class="col"
                   />
                 </div>
               </q-item-section>
             </q-item>
-            <q-item v-if="form.steps.length === 0">
+            <q-item v-if="form.step_results.length === 0">
               <q-item-section class="text-grey-6 text-caption q-pa-sm">
-                세부 절차가 없습니다. 단계를 추가하세요.
+                작업 절차 결과가 없습니다. 단계를 추가하세요.
               </q-item-section>
             </q-item>
           </q-list>
 
           <q-separator class="q-my-md" />
 
-          <!-- 롤백 계획 -->
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">롤백 계획</div>
-          <q-toggle v-model="form.rollback_possible" label="롤백 가능" class="q-mb-sm" />
-          <div class="row q-gutter-sm">
+          <!-- 이슈 및 특이 사항 -->
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">이슈 및 특이 사항</div>
+          <q-toggle v-model="form.issues_occurred" label="이슈 발생 여부" class="q-mb-sm" />
+          <div v-if="form.issues_occurred" class="q-gutter-sm">
             <q-input
-              v-model="form.rollback_steps"
+              v-model="form.issue_details"
               outlined
               dense
               type="textarea"
               autogrow
-              label="롤백 절차"
-              class="col-12 col-sm-7"
+              label="이슈 내용"
+              class="q-mb-sm"
             />
             <q-input
-              v-model="form.rollback_duration"
+              v-model="form.action_taken"
               outlined
               dense
-              label="롤백 소요 시간"
-              class="col-12 col-sm-4"
+              type="textarea"
+              autogrow
+              label="이슈 조치 내용"
             />
           </div>
 
           <q-separator class="q-my-md" />
 
-          <!-- 작업 결과 -->
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">작업 결과</div>
-          <div class="row q-gutter-sm q-mb-sm">
-            <q-select
-              v-model="form.outcome"
-              :options="outcomeOptions"
-              outlined
-              dense
-              clearable
-              label="결과"
-              class="col-12 col-sm-5"
-            />
-          </div>
+          <!-- 사후 확인 -->
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">사후 확인</div>
+          <q-toggle v-model="form.post_check_done" label="사후 확인 완료" class="q-mb-sm" />
           <q-input
-            v-model="form.work_summary"
+            v-model="form.post_check_details"
             outlined
             dense
             type="textarea"
             autogrow
-            label="수행 작업 요약"
-            class="q-mb-sm"
-          />
-          <q-input
-            v-model="form.result_notes"
-            outlined
-            dense
-            type="textarea"
-            autogrow
-            label="작업 결과 특이 사항"
+            label="사후 확인 내용"
           />
 
           <q-separator class="q-my-md" />
 
-          <!-- 발생 문제 및 조치 -->
-          <div class="text-subtitle1 text-weight-bold q-mb-xs">발생 문제 및 조치</div>
+          <!-- 기타 -->
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">기타</div>
           <q-input
-            v-model="form.issues_found"
+            v-model="form.notes"
             outlined
             dense
             type="textarea"
             autogrow
-            label="발생 문제"
+            label="기타 특이 사항"
             class="q-mb-sm"
           />
           <q-input
-            v-model="form.resolution"
+            v-model="form.plan_id"
             outlined
             dense
-            type="textarea"
-            autogrow
-            label="조치 내용"
+            label="참조 작업계획서 ID (선택)"
           />
-
-          <!-- Status (edit only) -->
-          <template v-if="isEdit">
-            <q-separator class="q-my-md" />
-            <div class="text-subtitle1 text-weight-bold q-mb-xs">상태</div>
-            <q-select
-              v-model="form.status"
-              :options="statusOptions"
-              outlined
-              dense
-              label="작업 상태"
-              class="col-12 col-sm-5"
-            />
-          </template>
         </q-card-section>
 
         <q-separator />
@@ -391,9 +344,9 @@
 
     <!-- Detail Dialog -->
     <q-dialog v-model="detailDialog">
-      <q-card v-if="detailRow" style="width: 700px; max-width: 95vw; max-height: 90vh" class="column">
+      <q-card v-if="detailRow" style="width: 720px; max-width: 95vw; max-height: 90vh" class="column">
         <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">작업계획서 상세</div>
+          <div class="text-h6">작업 결과서 상세</div>
           <q-space />
           <q-btn flat dense icon="close" v-close-popup />
         </q-card-section>
@@ -401,14 +354,15 @@
         <q-separator />
 
         <q-card-section class="col scroll">
+          <!-- 기본 정보 -->
           <div class="row q-gutter-x-md q-mb-sm">
             <div class="col">
               <div class="text-caption text-grey-7">작업명</div>
               <div class="text-body1 text-weight-medium">{{ detailRow.title }}</div>
             </div>
             <div class="col-auto">
-              <q-badge :color="statusColor(detailRow.status)" outline>
-                {{ detailRow.status }}
+              <q-badge :color="resultColor(detailRow.result)" outline>
+                {{ detailRow.result }}
               </q-badge>
             </div>
           </div>
@@ -439,49 +393,46 @@
           </div>
 
           <q-separator class="q-my-sm" />
-          <div class="text-subtitle2 text-weight-bold q-mb-xs">작업 내용</div>
-          <div class="q-mb-xs">
-            <span class="text-caption text-grey-7">목적: </span>{{ detailRow.purpose }}
+
+          <!-- 작업 결과 -->
+          <div class="text-subtitle2 text-weight-bold q-mb-xs">작업 결과</div>
+          <div class="row q-col-gutter-sm q-mb-xs">
+            <div v-if="detailRow.actual_start_time" class="col-6">
+              <div class="text-caption text-grey-7">실제 시작 시간</div>
+              <div>{{ detailRow.actual_start_time }}</div>
+            </div>
+            <div v-if="detailRow.actual_end_time" class="col-6">
+              <div class="text-caption text-grey-7">실제 종료 시간</div>
+              <div>{{ detailRow.actual_end_time }}</div>
+            </div>
           </div>
           <div class="q-mb-xs">
-            <span class="text-caption text-grey-7">범위: </span>{{ detailRow.scope }}
-          </div>
-          <div>
-            <span class="text-caption text-grey-7">상세: </span>
-            <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.detail }}</div>
+            <div class="text-caption text-grey-7">결과 요약</div>
+            <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.summary }}</div>
           </div>
 
           <q-separator class="q-my-sm" />
-          <div class="text-subtitle2 text-weight-bold q-mb-xs">영향도 분석</div>
-          <div class="row q-col-gutter-sm">
+
+          <!-- 서비스 영향 결과 -->
+          <div class="text-subtitle2 text-weight-bold q-mb-xs">서비스 영향 결과</div>
+          <div class="row q-col-gutter-sm q-mb-xs">
             <div class="col-12">
               <q-badge :color="detailRow.service_affected ? 'negative' : 'positive'" outline>
                 {{ detailRow.service_affected ? '서비스 영향 있음' : '서비스 영향 없음' }}
               </q-badge>
             </div>
-            <div v-if="detailRow.downtime" class="col-6">
-              <div class="text-caption text-grey-7">중단 시간</div>
-              <div>{{ detailRow.downtime }}</div>
-            </div>
-            <div v-if="detailRow.impact_scope" class="col-6">
-              <div class="text-caption text-grey-7">영향 범위</div>
-              <div>{{ detailRow.impact_scope }}</div>
+            <div v-if="detailRow.actual_downtime" class="col-6">
+              <div class="text-caption text-grey-7">실제 중단 시간</div>
+              <div>{{ detailRow.actual_downtime }}</div>
             </div>
           </div>
 
           <q-separator class="q-my-sm" />
-          <div class="text-subtitle2 text-weight-bold q-mb-xs">사전 준비</div>
-          <q-badge :color="detailRow.backup_done ? 'positive' : 'warning'" outline>
-            {{ detailRow.backup_done ? '백업 완료' : '백업 미완료' }}
-          </q-badge>
-          <div v-if="detailRow.backup_details" class="q-mt-xs text-body2">
-            {{ detailRow.backup_details }}
-          </div>
 
-          <q-separator class="q-my-sm" />
-          <div class="text-subtitle2 text-weight-bold q-mb-xs">세부 절차</div>
+          <!-- 작업 절차 결과 -->
+          <div class="text-subtitle2 text-weight-bold q-mb-xs">세부 절차 결과</div>
           <q-list bordered separator dense>
-            <q-item v-for="(step, i) in detailRow.steps" :key="i">
+            <q-item v-for="(step, i) in detailRow.step_results" :key="i">
               <q-item-section avatar>
                 <q-avatar size="24px" color="grey-4" text-color="grey-9" font-size="12px">
                   {{ step.order }}
@@ -489,58 +440,58 @@
               </q-item-section>
               <q-item-section>
                 <q-item-label>{{ step.task }}</q-item-label>
-                <q-item-label caption>
-                  담당: {{ step.person }}
-                  <span v-if="step.duration"> / {{ step.duration }}</span>
-                </q-item-label>
+                <q-item-label caption>담당: {{ step.person }}</q-item-label>
+                <q-item-label v-if="step.notes" caption>비고: {{ step.notes }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-badge :color="step.completed ? 'positive' : 'negative'" outline>
+                  {{ step.completed ? '완료' : '미완료' }}
+                </q-badge>
               </q-item-section>
             </q-item>
-            <q-item v-if="!detailRow.steps?.length">
-              <q-item-section class="text-grey-6 text-caption">세부 절차 없음</q-item-section>
+            <q-item v-if="!detailRow.step_results?.length">
+              <q-item-section class="text-grey-6 text-caption">세부 절차 결과 없음</q-item-section>
             </q-item>
           </q-list>
 
           <q-separator class="q-my-sm" />
-          <div class="text-subtitle2 text-weight-bold q-mb-xs">롤백 계획</div>
-          <q-badge :color="detailRow.rollback_possible ? 'positive' : 'negative'" outline>
-            {{ detailRow.rollback_possible ? '롤백 가능' : '롤백 불가' }}
-          </q-badge>
-          <div v-if="detailRow.rollback_steps" class="q-mt-xs text-body2">
-            {{ detailRow.rollback_steps }}
-          </div>
-          <div v-if="detailRow.rollback_duration" class="text-caption text-grey-7">
-            소요 시간: {{ detailRow.rollback_duration }}
-          </div>
 
-          <template v-if="detailRow.work_summary || detailRow.outcome || detailRow.result_notes">
-            <q-separator class="q-my-sm" />
-            <div class="text-subtitle2 text-weight-bold q-mb-xs">작업 결과</div>
-            <div v-if="detailRow.outcome" class="q-mb-xs">
-              <q-badge :color="detailRow.outcome === '성공' ? 'positive' : detailRow.outcome === '부분성공' ? 'orange' : 'negative'" outline>
-                {{ detailRow.outcome }}
-              </q-badge>
+          <!-- 이슈 -->
+          <div class="text-subtitle2 text-weight-bold q-mb-xs">이슈 및 특이 사항</div>
+          <q-badge :color="detailRow.issues_occurred ? 'negative' : 'positive'" outline>
+            {{ detailRow.issues_occurred ? '이슈 발생' : '이슈 없음' }}
+          </q-badge>
+          <template v-if="detailRow.issues_occurred">
+            <div v-if="detailRow.issue_details" class="q-mt-xs">
+              <div class="text-caption text-grey-7">이슈 내용</div>
+              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.issue_details }}</div>
             </div>
-            <div v-if="detailRow.work_summary" class="q-mb-xs">
-              <div class="text-caption text-grey-7">수행 작업 요약</div>
-              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.work_summary }}</div>
-            </div>
-            <div v-if="detailRow.result_notes">
-              <div class="text-caption text-grey-7">작업 결과 특이 사항</div>
-              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.result_notes }}</div>
+            <div v-if="detailRow.action_taken" class="q-mt-xs">
+              <div class="text-caption text-grey-7">조치 내용</div>
+              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.action_taken }}</div>
             </div>
           </template>
 
-          <template v-if="detailRow.issues_found || detailRow.resolution">
+          <q-separator class="q-my-sm" />
+
+          <!-- 사후 확인 -->
+          <div class="text-subtitle2 text-weight-bold q-mb-xs">사후 확인</div>
+          <q-badge :color="detailRow.post_check_done ? 'positive' : 'warning'" outline>
+            {{ detailRow.post_check_done ? '사후 확인 완료' : '사후 확인 미완료' }}
+          </q-badge>
+          <div v-if="detailRow.post_check_details" class="q-mt-xs text-body2">
+            {{ detailRow.post_check_details }}
+          </div>
+
+          <template v-if="detailRow.notes">
             <q-separator class="q-my-sm" />
-            <div class="text-subtitle2 text-weight-bold q-mb-xs">발생 문제 및 조치</div>
-            <div v-if="detailRow.issues_found" class="q-mb-xs">
-              <div class="text-caption text-grey-7">발생 문제</div>
-              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.issues_found }}</div>
-            </div>
-            <div v-if="detailRow.resolution">
-              <div class="text-caption text-grey-7">조치 내용</div>
-              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.resolution }}</div>
-            </div>
+            <div class="text-subtitle2 text-weight-bold q-mb-xs">기타 특이 사항</div>
+            <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.notes }}</div>
+          </template>
+
+          <template v-if="detailRow.plan_id">
+            <q-separator class="q-my-sm" />
+            <div class="text-caption text-grey-6">참조 작업계획서 ID: {{ detailRow.plan_id }}</div>
           </template>
 
           <q-separator class="q-my-sm" />
@@ -561,19 +512,18 @@ import { computed, onMounted, ref, reactive } from 'vue'
 import { useQuasar, type QTableProps } from 'quasar'
 
 import type {
-  ServiceWorkPlan,
-  ServiceWorkPlanCreate,
+  ServiceWorkResult,
+  ServiceWorkResultCreate,
   JobCategory,
-  JobStatus,
-  JobOutcome,
-  JobWorkStep,
+  JobResult,
+  JobWorkStepResult,
 } from 'src/types/job'
 
 import {
-  listServiceWorkPlans,
-  createServiceWorkPlan,
-  patchServiceWorkPlan,
-  deleteServiceWorkPlan,
+  listServiceWorkResults,
+  createServiceWorkResult,
+  patchServiceWorkResult,
+  deleteServiceWorkResult,
 } from 'src/services/job'
 
 import { getErrorMessage } from 'src/utils/http/error'
@@ -582,14 +532,13 @@ import { formatKst } from 'src/utils/time/kst'
 const $q = useQuasar()
 
 const loading = ref(false)
-const rows = ref<ServiceWorkPlan[]>([])
+const rows = ref<ServiceWorkResult[]>([])
 const includeDeleted = ref(false)
 const filter = ref('')
-const statusFilter = ref<string | null>(null)
+const resultFilter = ref<string | null>(null)
 
 const categoryOptions: JobCategory[] = ['정기', '긴급', '임시']
-const statusOptions: JobStatus[] = ['초안', '승인대기', '승인됨', '완료', '취소']
-const outcomeOptions: JobOutcome[] = ['성공', '부분성공', '실패']
+const resultOptions: JobResult[] = ['성공', '부분성공', '실패']
 
 const pagination = ref<NonNullable<QTableProps['pagination']>>({
   page: 1,
@@ -609,14 +558,14 @@ const columns: NonNullable<QTableProps['columns']> = [
   { name: 'system_name', label: '시스템명', field: 'system_name', align: 'left', sortable: true },
   { name: 'category', label: '구분', field: 'category', align: 'center', sortable: true },
   { name: 'service_affected', label: '서비스 영향', field: 'service_affected', align: 'center', sortable: true },
-  { name: 'status', label: '상태', field: 'status', align: 'center', sortable: true },
+  { name: 'result', label: '결과', field: 'result', align: 'center', sortable: true },
   { name: 'actions', label: 'Actions', field: 'actions', align: 'right' },
 ]
 
 const filteredRows = computed(() => {
   let result = rows.value
-  if (statusFilter.value) {
-    result = result.filter((r) => r.status === statusFilter.value)
+  if (resultFilter.value) {
+    result = result.filter((r) => r.result === resultFilter.value)
   }
   const q = filter.value.trim().toLowerCase()
   if (!q) return result
@@ -629,21 +578,19 @@ const filteredRows = computed(() => {
   })
 })
 
-function statusColor(s: JobStatus): string {
-  const map: Record<JobStatus, string> = {
-    '초안': 'grey',
-    '승인대기': 'orange',
-    '승인됨': 'blue',
-    '완료': 'positive',
-    '취소': 'negative',
+function resultColor(r: JobResult): string {
+  const map: Record<JobResult, string> = {
+    '성공': 'positive',
+    '부분성공': 'orange',
+    '실패': 'negative',
   }
-  return map[s] ?? 'grey'
+  return map[r] ?? 'grey'
 }
 
 async function load() {
   loading.value = true
   try {
-    rows.value = await listServiceWorkPlans(includeDeleted.value)
+    rows.value = await listServiceWorkResults(includeDeleted.value)
   } catch (err: unknown) {
     $q.notify({ type: 'negative', message: getErrorMessage(err, '조회 실패') })
   } finally {
@@ -654,11 +601,11 @@ async function load() {
 // ─── Form state ────────────────────────────────────────────────────────────
 const formDialog = ref(false)
 const isEdit = ref(false)
-const selectedRow = ref<ServiceWorkPlan | null>(null)
+const selectedRow = ref<ServiceWorkResult | null>(null)
 const actingId = ref<string | null>(null)
 const actingType = ref<'create' | 'edit' | 'delete' | null>(null)
 
-function emptyForm(): ServiceWorkPlanCreate & { status: JobStatus; result_notes: string | null; work_summary: string | null; outcome: JobOutcome | null; issues_found: string | null; resolution: string | null; version?: number } {
+function emptyForm(): ServiceWorkResultCreate & { version?: number } {
   return {
     title: '',
     work_date: '',
@@ -666,24 +613,20 @@ function emptyForm(): ServiceWorkPlanCreate & { status: JobStatus; result_notes:
     requester: '',
     system_name: '',
     category: '정기',
-    purpose: '',
-    scope: '',
-    detail: '',
+    result: '성공',
+    actual_start_time: null,
+    actual_end_time: null,
+    summary: '',
     service_affected: false,
-    downtime: null,
-    impact_scope: null,
-    backup_done: false,
-    backup_details: null,
-    steps: [],
-    rollback_possible: true,
-    rollback_steps: null,
-    rollback_duration: null,
-    result_notes: null,
-    work_summary: null,
-    outcome: null,
-    issues_found: null,
-    resolution: null,
-    status: '초안',
+    actual_downtime: null,
+    step_results: [],
+    issues_occurred: false,
+    issue_details: null,
+    action_taken: null,
+    post_check_done: false,
+    post_check_details: null,
+    plan_id: null,
+    notes: null,
   }
 }
 
@@ -695,7 +638,7 @@ function openCreate() {
   formDialog.value = true
 }
 
-function openEdit(row: ServiceWorkPlan) {
+function openEdit(row: ServiceWorkResult) {
   isEdit.value = true
   selectedRow.value = row
   Object.assign(form, {
@@ -705,37 +648,38 @@ function openEdit(row: ServiceWorkPlan) {
     requester: row.requester,
     system_name: row.system_name,
     category: row.category,
-    purpose: row.purpose,
-    scope: row.scope,
-    detail: row.detail,
+    result: row.result,
+    actual_start_time: row.actual_start_time ?? null,
+    actual_end_time: row.actual_end_time ?? null,
+    summary: row.summary,
     service_affected: row.service_affected,
-    downtime: row.downtime ?? null,
-    impact_scope: row.impact_scope ?? null,
-    backup_done: row.backup_done,
-    backup_details: row.backup_details ?? null,
-    steps: row.steps.map((s) => ({ ...s })),
-    rollback_possible: row.rollback_possible,
-    rollback_steps: row.rollback_steps ?? null,
-    rollback_duration: row.rollback_duration ?? null,
-    status: row.status,
-    result_notes: row.result_notes ?? null,
-    work_summary: row.work_summary ?? null,
-    outcome: row.outcome ?? null,
-    issues_found: row.issues_found ?? null,
-    resolution: row.resolution ?? null,
+    actual_downtime: row.actual_downtime ?? null,
+    step_results: row.step_results.map((s) => ({ ...s })),
+    issues_occurred: row.issues_occurred,
+    issue_details: row.issue_details ?? null,
+    action_taken: row.action_taken ?? null,
+    post_check_done: row.post_check_done,
+    post_check_details: row.post_check_details ?? null,
+    plan_id: row.plan_id ?? null,
+    notes: row.notes ?? null,
     version: row.version ?? undefined,
   })
   formDialog.value = true
 }
 
-// Step management
-function addStep() {
-  form.steps.push({ order: form.steps.length + 1, task: '', person: '', duration: null })
+function addStepResult() {
+  form.step_results.push({
+    order: form.step_results.length + 1,
+    task: '',
+    person: '',
+    completed: true,
+    notes: null,
+  })
 }
 
-function removeStep(i: number) {
-  form.steps.splice(i, 1)
-  form.steps.forEach((s, idx) => { s.order = idx + 1 })
+function removeStepResult(i: number) {
+  form.step_results.splice(i, 1)
+  form.step_results.forEach((s, idx) => { s.order = idx + 1 })
 }
 
 function validateForm(): boolean {
@@ -745,17 +689,15 @@ function validateForm(): boolean {
     form.worker.trim(),
     form.requester.trim(),
     form.system_name.trim(),
-    form.purpose.trim(),
-    form.scope.trim(),
-    form.detail.trim(),
+    form.summary.trim(),
   ]
   if (required.some((v) => !v)) {
     $q.notify({ type: 'warning', message: '필수 항목을 모두 입력해주세요.' })
     return false
   }
-  for (const step of form.steps) {
+  for (const step of form.step_results) {
     if (!step.task.trim() || !step.person.trim()) {
-      $q.notify({ type: 'warning', message: '세부 절차의 세부 작업 내용과 담당자를 모두 입력해주세요.' })
+      $q.notify({ type: 'warning', message: '세부 절차 결과의 세부 작업 내용과 담당자를 모두 입력해주세요.' })
       return false
     }
   }
@@ -766,40 +708,38 @@ async function doCreate() {
   if (!validateForm()) return
   actingType.value = 'create'
   try {
-    const payload: ServiceWorkPlanCreate = {
+    const payload: ServiceWorkResultCreate = {
       title: form.title.trim(),
       work_date: form.work_date.trim(),
       worker: form.worker.trim(),
       requester: form.requester.trim(),
       system_name: form.system_name.trim(),
       category: form.category,
-      purpose: form.purpose.trim(),
-      scope: form.scope.trim(),
-      detail: form.detail.trim(),
+      result: form.result,
+      actual_start_time: form.actual_start_time || null,
+      actual_end_time: form.actual_end_time || null,
+      summary: form.summary.trim(),
       service_affected: form.service_affected,
-      downtime: form.downtime || null,
-      impact_scope: form.impact_scope || null,
-      backup_done: form.backup_done,
-      backup_details: form.backup_details || null,
-      steps: form.steps.map((s, i) => ({
+      actual_downtime: form.actual_downtime || null,
+      step_results: form.step_results.map((s, i) => ({
         order: i + 1,
         task: s.task.trim(),
         person: s.person.trim(),
-        duration: s.duration || null,
-      } as JobWorkStep)),
-      rollback_possible: form.rollback_possible,
-      rollback_steps: form.rollback_steps || null,
-      rollback_duration: form.rollback_duration || null,
-      result_notes: form.result_notes || null,
-      work_summary: form.work_summary || null,
-      outcome: form.outcome || null,
-      issues_found: form.issues_found || null,
-      resolution: form.resolution || null,
+        completed: s.completed,
+        notes: s.notes || null,
+      } as JobWorkStepResult)),
+      issues_occurred: form.issues_occurred,
+      issue_details: form.issue_details || null,
+      action_taken: form.action_taken || null,
+      post_check_done: form.post_check_done,
+      post_check_details: form.post_check_details || null,
+      plan_id: form.plan_id || null,
+      notes: form.notes || null,
     }
-    const created = await createServiceWorkPlan(payload)
+    const created = await createServiceWorkResult(payload)
     rows.value = [created, ...rows.value]
     formDialog.value = false
-    $q.notify({ type: 'positive', message: '작업계획서가 생성되었습니다.' })
+    $q.notify({ type: 'positive', message: '작업 결과서가 생성되었습니다.' })
   } catch (err: unknown) {
     $q.notify({ type: 'negative', message: getErrorMessage(err, '생성 실패') })
   } finally {
@@ -812,36 +752,33 @@ async function doEdit() {
   actingId.value = selectedRow.value.id
   actingType.value = 'edit'
   try {
-    const updated = await patchServiceWorkPlan(selectedRow.value.id, {
+    const updated = await patchServiceWorkResult(selectedRow.value.id, {
       title: form.title.trim(),
       work_date: form.work_date.trim(),
       worker: form.worker.trim(),
       requester: form.requester.trim(),
       system_name: form.system_name.trim(),
       category: form.category,
-      purpose: form.purpose.trim(),
-      scope: form.scope.trim(),
-      detail: form.detail.trim(),
+      result: form.result,
+      actual_start_time: form.actual_start_time || null,
+      actual_end_time: form.actual_end_time || null,
+      summary: form.summary.trim(),
       service_affected: form.service_affected,
-      downtime: form.downtime || null,
-      impact_scope: form.impact_scope || null,
-      backup_done: form.backup_done,
-      backup_details: form.backup_details || null,
-      steps: form.steps.map((s, i) => ({
+      actual_downtime: form.actual_downtime || null,
+      step_results: form.step_results.map((s, i) => ({
         order: i + 1,
         task: s.task.trim(),
         person: s.person.trim(),
-        duration: s.duration || null,
-      } as JobWorkStep)),
-      rollback_possible: form.rollback_possible,
-      rollback_steps: form.rollback_steps || null,
-      rollback_duration: form.rollback_duration || null,
-      status: form.status,
-      result_notes: form.result_notes || null,
-      work_summary: form.work_summary || null,
-      outcome: form.outcome || null,
-      issues_found: form.issues_found || null,
-      resolution: form.resolution || null,
+        completed: s.completed,
+        notes: s.notes || null,
+      } as JobWorkStepResult)),
+      issues_occurred: form.issues_occurred,
+      issue_details: form.issue_details || null,
+      action_taken: form.action_taken || null,
+      post_check_done: form.post_check_done,
+      post_check_details: form.post_check_details || null,
+      plan_id: form.plan_id || null,
+      notes: form.notes || null,
       version: 'version' in form ? (form as { version?: number }).version : undefined,
     })
     rows.value = rows.value.map((r) =>
@@ -857,8 +794,7 @@ async function doEdit() {
   }
 }
 
-/** Delete */
-function confirmDelete(row: ServiceWorkPlan) {
+function confirmDelete(row: ServiceWorkResult) {
   $q.dialog({
     title: '삭제',
     message: `정말 삭제하시겠습니까?\n${row.title}`,
@@ -867,11 +803,11 @@ function confirmDelete(row: ServiceWorkPlan) {
   }).onOk(() => void doDelete(row))
 }
 
-async function doDelete(row: ServiceWorkPlan) {
+async function doDelete(row: ServiceWorkResult) {
   actingId.value = String(row.id)
   actingType.value = 'delete'
   try {
-    await deleteServiceWorkPlan(row.id)
+    await deleteServiceWorkResult(row.id)
     rows.value = rows.value.map((r) =>
       r.id === row.id ? { ...r, is_deleted: true } : r
     )
@@ -884,11 +820,10 @@ async function doDelete(row: ServiceWorkPlan) {
   }
 }
 
-/** Detail */
 const detailDialog = ref(false)
-const detailRow = ref<ServiceWorkPlan | null>(null)
+const detailRow = ref<ServiceWorkResult | null>(null)
 
-function openDetail(row: ServiceWorkPlan) {
+function openDetail(row: ServiceWorkResult) {
   detailRow.value = row
   detailDialog.value = true
 }
