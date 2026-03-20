@@ -8,6 +8,7 @@ import httpx
 
 from app.core.config import settings
 from app.db.mongo import MongoClientManager
+from app.jira.attachment import extract_text_from_attachment
 from app.jira.client import JiraClient
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ class JiraPollerService:
         print(f"[Poller] JQL: {jql}")
         issues = await self.jira.search(
             jql,
-            fields=["summary", "description", "status", "labels", "assignee", "project", "updated"],
+            fields=["summary", "description", "status", "labels", "assignee", "project", "updated", "attachment"],
         )
         print(f"[Poller] Found {len(issues)} issues")
 
@@ -69,10 +70,45 @@ class JiraPollerService:
             if await self._is_processed(col, issue_key):
                 print(f"[Poller] Skipping {issue_key} (already processed)")
                 continue
-            await self._forward_to_pilot(issue)
+            enriched = await self._enrich_with_attachments(issue)
+            await self._forward_to_pilot(enriched)
             await self._mark_pending(col, issue_key, issue)
 
         await self._set_last_checked(col, now)
+
+    async def _enrich_with_attachments(self, issue: dict) -> dict:
+        """첨부파일 텍스트를 description에 추가하여 반환."""
+        fields = issue.get("fields", {})
+        attachments = fields.get("attachment", [])
+        issue_key = issue.get("key", "?")
+        if not attachments:
+            print(f"[Poller] [{issue_key}] 첨부파일 없음")
+            return issue
+        print(f"[Poller] [{issue_key}] 첨부파일 {len(attachments)}개 발견: {[a.get('filename') for a in attachments]}")
+        texts = []
+        for att in attachments:
+            filename = att.get("filename", "")
+            print(f"[Poller] [{issue_key}] 첨부파일 처리 중: {filename}")
+            text = await extract_text_from_attachment(att, self.jira.auth)
+            if text:
+                texts.append(text)
+                print(f"[Poller] [{issue_key}] ✓ 첨부파일 텍스트 추출 완료: {filename} ({len(text)}자)")
+            else:
+                print(f"[Poller] [{issue_key}] ✗ 첨부파일 텍스트 추출 실패 (지원하지 않는 형식이거나 변환 오류): {filename}")
+        if not texts:
+            print(f"[Poller] [{issue_key}] 추출된 텍스트 없음 — description 그대로 전달")
+            return issue
+        print(f"[Poller] [{issue_key}] 총 {len(texts)}개 첨부파일 텍스트를 description에 추가")
+        import copy
+        enriched = copy.deepcopy(issue)
+        desc = enriched["fields"].get("description") or {"type": "doc", "version": 1, "content": []}
+        for text in texts:
+            desc["content"].append({
+                "type": "paragraph",
+                "content": [{"type": "text", "text": text}],
+            })
+        enriched["fields"]["description"] = desc
+        return enriched
 
     async def _forward_to_pilot(self, issue: dict) -> None:
         # jira:issue_created 사용 - issue_updated는 changelog 검사로 인해 스킵됨
