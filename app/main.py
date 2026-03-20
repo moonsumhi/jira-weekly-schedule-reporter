@@ -48,6 +48,24 @@ async def lifespan(app: FastAPI):
     await job_plans_history.create_index("plan_id")
     await job_plans_history.create_index("changed_at")
 
+    job_plans_ns = MongoClientManager.get_job_plans_non_service_collection()
+    await job_plans_ns.create_index("work_date")
+    await job_plans_ns.create_index("worker")
+    await job_plans_ns.create_index("status")
+
+    job_plans_ns_history = MongoClientManager.get_job_plans_non_service_history_collection()
+    await job_plans_ns_history.create_index("plan_id")
+    await job_plans_ns_history.create_index("changed_at")
+
+    job_results = MongoClientManager.get_job_results_collection()
+    await job_results.create_index("work_date")
+    await job_results.create_index("worker")
+    await job_results.create_index("status")
+
+    job_results_history = MongoClientManager.get_job_results_history_collection()
+    await job_results_history.create_index("plan_id")
+    await job_results_history.create_index("changed_at")
+
     poller = None
     print(f"PILOT_ENABLED: {settings.PILOT_ENABLED}")
     if settings.PILOT_ENABLED:
