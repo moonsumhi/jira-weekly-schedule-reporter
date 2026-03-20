@@ -110,6 +110,7 @@ const linksList: EssentialLinkProps[] = [
       { title: '작업계획서 (서비스)', icon: 'fa-solid fa-clipboard-list', link: '/job/service-work-plan' },
       { title: '작업계획서 (서비스 외)', icon: 'fa-solid fa-clipboard', link: '/job/non-service-work-plan' },
       { title: '작업 결과서', icon: 'fa-solid fa-file-circle-check', link: '/job/service-work-result' },
+      { title: '작업test', icon: 'fa-solid fa-file-lines', link: '/job/job-result' },
     ],
   },
   {
