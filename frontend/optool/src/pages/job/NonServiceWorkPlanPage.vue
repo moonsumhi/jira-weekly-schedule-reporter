@@ -98,14 +98,16 @@
 
     <!-- Create / Edit Dialog -->
     <q-dialog v-model="formDialog" persistent>
-
+      <q-card style="width: 800px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">{{ isEdit ? '작업계획서 수정' : '작업계획서 추가' }}</div>
           <q-space />
           <q-btn flat dense icon="close" v-close-popup />
         </q-card-section>
 
+        <q-separator />
 
+        <q-card-section class="col scroll" style="min-height: 0;">
           <!-- 기본 정보 -->
           <div class="text-subtitle1 text-weight-bold q-mt-sm q-mb-xs">기본 정보</div>
           <div class="row q-gutter-sm">
@@ -123,7 +125,23 @@
               label="작업 일시 * (YYYY-MM-DD HH:MM)"
               mask="####-##-## ##:##"
               class="col-12 col-sm-6"
-
+            >
+              <template #append>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                    <q-date
+                      :model-value="form.work_date ? form.work_date.slice(0, 10) : ''"
+                      @update:model-value="(val: string) => { const time = form.work_date && form.work_date.length > 10 ? form.work_date.slice(10) : ' 00:00'; form.work_date = val + time }"
+                      mask="YYYY-MM-DD"
+                    >
+                      <div class="row items-center justify-end">
+                        <q-btn v-close-popup label="닫기" color="primary" flat />
+                      </div>
+                    </q-date>
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+            </q-input>
             <q-select
               v-model="form.category"
               :options="categoryOptions"
@@ -136,7 +154,7 @@
           <div class="row q-gutter-sm q-mt-xs">
             <q-input v-model="form.worker" outlined dense label="작업자 *" class="col-12 col-sm-5" />
             <q-input v-model="form.requester" outlined dense label="신청자 *" class="col-12 col-sm-5" />
-
+            <q-input v-model="form.system_name" outlined dense label="시스템명 *" class="col-12" />
           </div>
 
           <q-separator class="q-my-md" />
@@ -188,20 +206,33 @@
 
           <!-- 작업 절차 -->
           <div class="row items-center q-mb-xs">
-
+            <div class="text-subtitle1 text-weight-bold">세부 절차</div>
             <q-space />
             <q-btn flat dense icon="add" label="단계 추가" @click="addStep" />
           </div>
           <q-list bordered separator>
             <q-item v-for="(step, i) in form.steps" :key="i">
               <q-item-section>
-
+                <div class="row items-center q-mb-xs">
+                  <div class="col text-caption text-grey-7 text-weight-medium">세부 절차 {{ i + 1 }}</div>
+                  <q-btn flat dense icon="delete" color="negative" @click="removeStep(i)" />
+                </div>
+                <q-input
+                  v-model="step.task"
+                  outlined
+                  dense
+                  type="textarea"
+                  autogrow
+                  label="세부 작업 내용 *"
+                  class="q-mb-xs"
+                />
+                <div class="row q-gutter-xs items-center">
                   <q-input
                     v-model="step.person"
                     outlined
                     dense
                     label="담당자 *"
-
+                    class="col"
                   />
                   <q-input
                     v-model="step.duration"
@@ -210,13 +241,12 @@
                     label="소요 시간"
                     style="width: 100px"
                   />
-
                 </div>
               </q-item-section>
             </q-item>
             <q-item v-if="form.steps.length === 0">
               <q-item-section class="text-grey-6 text-caption q-pa-sm">
-
+                세부 절차가 없습니다. 단계를 추가하세요.
               </q-item-section>
             </q-item>
           </q-list>
@@ -250,7 +280,14 @@
           <template v-if="isEdit">
             <q-separator class="q-my-md" />
             <div class="text-subtitle1 text-weight-bold q-mb-xs">상태</div>
-
+            <q-select
+              v-model="form.status"
+              :options="statusOptions"
+              outlined
+              dense
+              label="작업 상태"
+              class="col-12 col-sm-5"
+            />
           </template>
         </q-card-section>
 
@@ -276,6 +313,7 @@
           <q-btn flat dense icon="close" v-close-popup />
         </q-card-section>
 
+        <q-separator />
 
         <q-card-section class="col scroll">
           <div class="row q-gutter-x-md q-mb-sm">
@@ -310,7 +348,7 @@
               <div>{{ detailRow.requester }}</div>
             </div>
             <div class="col-12">
-
+              <div class="text-caption text-grey-7">시스템명</div>
               <div>{{ detailRow.system_name }}</div>
             </div>
           </div>
@@ -338,7 +376,7 @@
           </div>
 
           <q-separator class="q-my-sm" />
-
+          <div class="text-subtitle2 text-weight-bold q-mb-xs">세부 절차</div>
           <q-list bordered separator dense>
             <q-item v-for="(step, i) in detailRow.steps" :key="i">
               <q-item-section avatar>
@@ -355,7 +393,7 @@
               </q-item-section>
             </q-item>
             <q-item v-if="!detailRow.steps?.length">
-
+              <q-item-section class="text-grey-6 text-caption">세부 절차 없음</q-item-section>
             </q-item>
           </q-list>
 
@@ -370,9 +408,6 @@
           <div v-if="detailRow.rollback_duration" class="text-caption text-grey-7">
             소요 시간: {{ detailRow.rollback_duration }}
           </div>
-
-
-          </template>
 
           <q-separator class="q-my-sm" />
           <div class="text-caption text-grey-6">
@@ -488,26 +523,26 @@ const selectedRow = ref<NonServiceWorkPlan | null>(null)
 const actingId = ref<string | null>(null)
 const actingType = ref<'create' | 'edit' | 'delete' | null>(null)
 
-
+function emptyForm(): NonServiceWorkPlanCreate & { status: JobStatus; version?: number } {
   return {
     title: '',
     work_date: '',
     worker: '',
     requester: '',
     system_name: '',
-    category: '정기',
+    category: '정기' as JobCategory,
     purpose: '',
     scope: '',
     detail: '',
     backup_done: false,
     backup_details: null,
-    steps: [],
+    steps: [] as JobWorkStep[],
     rollback_possible: true,
     rollback_steps: null,
     rollback_duration: null,
     result_notes: null,
 
-    status: '초안',
+    status: '초안' as JobStatus,
   }
 }
 
