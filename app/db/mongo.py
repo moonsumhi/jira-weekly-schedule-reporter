@@ -17,10 +17,7 @@ class MongoClientManager:
     INSPECTION_HISTORY = "inspection_history"
     JOB_PLANS = "job_plans"
     JOB_PLANS_HISTORY = "job_plans_history"
-    JOB_RESULTS = "job_results"
-    JOB_RESULTS_HISTORY = "job_results_history"
-    JOB_NON_SERVICE_PLANS = "job_non_service_plans"
-    JOB_NON_SERVICE_PLANS_HISTORY = "job_non_service_plans_history"
+
 
     @classmethod
     def init_client(cls) -> None:
@@ -88,6 +85,7 @@ class MongoClientManager:
         return cls.get_db()[cls.JOB_PLANS_HISTORY]
 
     @classmethod
+
     def get_job_results_collection(cls):
         return cls.get_db()[cls.JOB_RESULTS]
 
@@ -96,14 +94,7 @@ class MongoClientManager:
         return cls.get_db()[cls.JOB_RESULTS_HISTORY]
 
     @classmethod
-    def get_job_non_service_plans_collection(cls):
-        return cls.get_db()[cls.JOB_NON_SERVICE_PLANS]
 
-    @classmethod
-    def get_job_non_service_plans_history_collection(cls):
-        return cls.get_db()[cls.JOB_NON_SERVICE_PLANS_HISTORY]
-
-    @classmethod
     async def close_client(cls) -> None:
         if cls._client is not None:
             cls._client.close()
