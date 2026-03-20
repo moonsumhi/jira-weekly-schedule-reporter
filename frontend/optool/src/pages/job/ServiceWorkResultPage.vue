@@ -515,7 +515,7 @@ import type {
   ServiceWorkResult,
   ServiceWorkResultCreate,
   JobCategory,
-  JobResult,
+  JobOutcome,
   JobWorkStepResult,
 } from 'src/types/job'
 
@@ -538,7 +538,7 @@ const filter = ref('')
 const resultFilter = ref<string | null>(null)
 
 const categoryOptions: JobCategory[] = ['정기', '긴급', '임시']
-const resultOptions: JobResult[] = ['성공', '부분성공', '실패']
+const resultOptions: JobOutcome[] = ['성공', '부분성공', '실패']
 
 const pagination = ref<NonNullable<QTableProps['pagination']>>({
   page: 1,
@@ -578,8 +578,8 @@ const filteredRows = computed(() => {
   })
 })
 
-function resultColor(r: JobResult): string {
-  const map: Record<JobResult, string> = {
+function resultColor(r: JobOutcome): string {
+  const map: Record<JobOutcome, string> = {
     '성공': 'positive',
     '부분성공': 'orange',
     '실패': 'negative',
@@ -612,14 +612,14 @@ function emptyForm(): ServiceWorkResultCreate & { version?: number } {
     worker: '',
     requester: '',
     system_name: '',
-    category: '정기',
-    result: '성공',
+    category: '정기' as JobCategory,
+    result: '성공' as JobOutcome,
     actual_start_time: null,
     actual_end_time: null,
     summary: '',
     service_affected: false,
     actual_downtime: null,
-    step_results: [],
+    step_results: [] as JobWorkStepResult[],
     issues_occurred: false,
     issue_details: null,
     action_taken: null,
