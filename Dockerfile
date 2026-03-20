@@ -3,7 +3,10 @@ FROM python:3.12-slim AS base
 
 # 1) System deps (build + runtime) — keep minimal
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential \
+ && apt-get install -y --no-install-recommends \
+    build-essential \
+    libxml2-dev \
+    libxslt-dev \
  && rm -rf /var/lib/apt/lists/*
 
 # 2) Workdir
