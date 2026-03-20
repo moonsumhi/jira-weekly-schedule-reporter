@@ -13,6 +13,9 @@ JobStatus = Literal["초안", "승인대기", "승인됨", "완료", "취소"]
 # 이력 액션
 JobAction = Literal["CREATE", "UPDATE", "DELETE"]
 
+# 작업 결과
+JobOutcome = Literal["성공", "부분성공", "실패"]
+
 
 class JobWorkStep(BaseModel):
     """작업 절차 단계"""
@@ -57,6 +60,12 @@ class ServiceWorkPlanBase(BaseModel):
     # 결과 (작업 완료 후 기록)
     result_notes: Optional[str] = Field(default=None, description="작업 결과 특이 사항")
 
+    # 작업 결과 상세
+    work_summary: Optional[str] = Field(default=None, description="수행 작업 요약")
+    outcome: Optional[JobOutcome] = Field(default=None, description="작업 결과")
+    issues_found: Optional[str] = Field(default=None, description="발생 문제")
+    resolution: Optional[str] = Field(default=None, description="조치 내용")
+
 
 class ServiceWorkPlanCreate(ServiceWorkPlanBase):
     pass
@@ -83,6 +92,10 @@ class ServiceWorkPlanPatch(BaseModel):
     rollback_duration: Optional[str] = None
     status: Optional[JobStatus] = None
     result_notes: Optional[str] = None
+    work_summary: Optional[str] = None
+    outcome: Optional[JobOutcome] = None
+    issues_found: Optional[str] = None
+    resolution: Optional[str] = None
     version: Optional[int] = None
 
 
@@ -108,6 +121,10 @@ class ServiceWorkPlanOut(BaseModel):
     rollback_duration: Optional[str] = None
     status: JobStatus = "초안"
     result_notes: Optional[str] = None
+    work_summary: Optional[str] = None
+    outcome: Optional[JobOutcome] = None
+    issues_found: Optional[str] = None
+    resolution: Optional[str] = None
 
     created_at: Optional[datetime] = None
     created_by: Optional[str] = None
@@ -153,6 +170,12 @@ class NonServiceWorkPlanBase(BaseModel):
 
     result_notes: Optional[str] = Field(default=None, description="작업 결과 특이 사항")
 
+    # 작업 결과 상세
+    work_summary: Optional[str] = Field(default=None, description="수행 작업 요약")
+    outcome: Optional[JobOutcome] = Field(default=None, description="작업 결과")
+    issues_found: Optional[str] = Field(default=None, description="발생 문제")
+    resolution: Optional[str] = Field(default=None, description="조치 내용")
+
 
 class NonServiceWorkPlanCreate(NonServiceWorkPlanBase):
     pass
@@ -176,6 +199,10 @@ class NonServiceWorkPlanPatch(BaseModel):
     rollback_duration: Optional[str] = None
     status: Optional[JobStatus] = None
     result_notes: Optional[str] = None
+    work_summary: Optional[str] = None
+    outcome: Optional[JobOutcome] = None
+    issues_found: Optional[str] = None
+    resolution: Optional[str] = None
     version: Optional[int] = None
 
 
@@ -198,6 +225,10 @@ class NonServiceWorkPlanOut(BaseModel):
     rollback_duration: Optional[str] = None
     status: JobStatus = "초안"
     result_notes: Optional[str] = None
+    work_summary: Optional[str] = None
+    outcome: Optional[JobOutcome] = None
+    issues_found: Optional[str] = None
+    resolution: Optional[str] = None
 
     created_at: Optional[datetime] = None
     created_by: Optional[str] = None
@@ -218,9 +249,6 @@ class NonServiceWorkPlanHistoryOut(BaseModel):
 
 
 # ─── 작업결과서 ───────────────────────────────────────────────────────────────
-
-JobOutcome = Literal["성공", "부분성공", "실패"]
-
 
 class JobResultBase(BaseModel):
     """작업결과서 기본 필드"""
