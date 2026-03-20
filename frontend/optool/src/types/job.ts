@@ -1,6 +1,7 @@
 export type JobCategory = '정기' | '긴급' | '임시'
 export type JobStatus = '초안' | '승인대기' | '승인됨' | '완료' | '취소'
 export type JobAction = 'CREATE' | 'UPDATE' | 'DELETE'
+export type JobOutcome = '성공' | '부분성공' | '실패'
 
 export type JobWorkStep = {
   order: number
@@ -31,6 +32,10 @@ export type ServiceWorkPlan = {
   rollback_duration?: string | null
   status: JobStatus
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
   created_at?: string | null
   created_by?: string | null
   updated_at?: string | null
@@ -59,6 +64,10 @@ export type ServiceWorkPlanCreate = {
   rollback_steps?: string | null
   rollback_duration?: string | null
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
 }
 
 export type ServiceWorkPlanPatch = {
@@ -82,6 +91,10 @@ export type ServiceWorkPlanPatch = {
   rollback_duration?: string | null
   status?: JobStatus
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
   version?: number | undefined
 }
 
@@ -96,20 +109,6 @@ export type ServiceWorkPlanHistory = {
   patch?: Record<string, unknown> | null
   diff?: JobHistoryDiff[] | null
 }
-
-// ─── 작업 결과서 ──────────────────────────────────────────────────────────────
-
-export type JobResult = '성공' | '부분성공' | '실패'
-
-export type JobWorkStepResult = {
-  order: number
-  task: string
-  person: string
-  completed: boolean
-  notes?: string | null
-}
-
-export type ServiceWorkResult = {
   id: string
   title: string
   work_date: string
@@ -117,20 +116,7 @@ export type ServiceWorkResult = {
   requester: string
   system_name: string
   category: JobCategory
-  result: JobResult
-  actual_start_time?: string | null
-  actual_end_time?: string | null
-  summary: string
-  service_affected: boolean
-  actual_downtime?: string | null
-  step_results: JobWorkStepResult[]
-  issues_occurred: boolean
-  issue_details?: string | null
-  action_taken?: string | null
-  post_check_done: boolean
-  post_check_details?: string | null
-  plan_id?: string | null
-  notes?: string | null
+
   created_at?: string | null
   created_by?: string | null
   updated_at?: string | null
@@ -139,56 +125,21 @@ export type ServiceWorkResult = {
   is_deleted?: boolean | null
 }
 
-export type ServiceWorkResultCreate = {
+
   title: string
   work_date: string
   worker: string
   requester: string
   system_name: string
   category: JobCategory
-  result: JobResult
-  actual_start_time?: string | null
-  actual_end_time?: string | null
-  summary: string
-  service_affected: boolean
-  actual_downtime?: string | null
-  step_results: JobWorkStepResult[]
-  issues_occurred: boolean
-  issue_details?: string | null
-  action_taken?: string | null
-  post_check_done: boolean
-  post_check_details?: string | null
-  plan_id?: string | null
-  notes?: string | null
-}
 
-export type ServiceWorkResultPatch = {
   title?: string
   work_date?: string
   worker?: string
   requester?: string
   system_name?: string
   category?: JobCategory
-  result?: JobResult
-  actual_start_time?: string | null
-  actual_end_time?: string | null
-  summary?: string
-  service_affected?: boolean
-  actual_downtime?: string | null
-  step_results?: JobWorkStepResult[]
-  issues_occurred?: boolean
-  issue_details?: string | null
-  action_taken?: string | null
-  post_check_done?: boolean
-  post_check_details?: string | null
-  plan_id?: string | null
-  notes?: string | null
-  version?: number | undefined
-}
 
-export type ServiceWorkResultHistory = {
-  id: string
-  result_id: string
   action: JobAction
   changed_at: string
   changed_by?: string | null
@@ -196,9 +147,7 @@ export type ServiceWorkResultHistory = {
   diff?: JobHistoryDiff[] | null
 }
 
-// ─── 작업계획서(서비스 외) ──────────────────────────────────────────────────────
 
-export type NonServiceWorkPlan = {
   id: string
   title: string
   work_date: string
@@ -206,17 +155,7 @@ export type NonServiceWorkPlan = {
   requester: string
   system_name: string
   category: JobCategory
-  purpose: string
-  scope: string
-  detail: string
-  backup_done: boolean
-  backup_details?: string | null
-  steps: JobWorkStep[]
-  rollback_possible: boolean
-  rollback_steps?: string | null
-  rollback_duration?: string | null
-  status: JobStatus
-  result_notes?: string | null
+
   created_at?: string | null
   created_by?: string | null
   updated_at?: string | null
@@ -225,47 +164,21 @@ export type NonServiceWorkPlan = {
   is_deleted?: boolean | null
 }
 
-export type NonServiceWorkPlanCreate = {
+
   title: string
   work_date: string
   worker: string
   requester: string
   system_name: string
   category: JobCategory
-  purpose: string
-  scope: string
-  detail: string
-  backup_done: boolean
-  backup_details?: string | null
-  steps: JobWorkStep[]
-  rollback_possible: boolean
-  rollback_steps?: string | null
-  rollback_duration?: string | null
-  result_notes?: string | null
-}
 
-export type NonServiceWorkPlanPatch = {
   title?: string
   work_date?: string
   worker?: string
   requester?: string
   system_name?: string
   category?: JobCategory
-  purpose?: string
-  scope?: string
-  detail?: string
-  backup_done?: boolean
-  backup_details?: string | null
-  steps?: JobWorkStep[]
-  rollback_possible?: boolean
-  rollback_steps?: string | null
-  rollback_duration?: string | null
-  status?: JobStatus
-  result_notes?: string | null
-  version?: number | undefined
-}
 
-export type NonServiceWorkPlanHistory = {
   id: string
   plan_id: string
   action: JobAction
