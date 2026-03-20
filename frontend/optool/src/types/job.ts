@@ -1,6 +1,7 @@
 export type JobCategory = '정기' | '긴급' | '임시'
 export type JobStatus = '초안' | '승인대기' | '승인됨' | '완료' | '취소'
 export type JobAction = 'CREATE' | 'UPDATE' | 'DELETE'
+export type JobOutcome = '성공' | '부분성공' | '실패'
 
 export type JobWorkStep = {
   order: number
@@ -31,6 +32,10 @@ export type ServiceWorkPlan = {
   rollback_duration?: string | null
   status: JobStatus
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
   created_at?: string | null
   created_by?: string | null
   updated_at?: string | null
@@ -59,6 +64,10 @@ export type ServiceWorkPlanCreate = {
   rollback_steps?: string | null
   rollback_duration?: string | null
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
 }
 
 export type ServiceWorkPlanPatch = {
@@ -82,6 +91,10 @@ export type ServiceWorkPlanPatch = {
   rollback_duration?: string | null
   status?: JobStatus
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
   version?: number | undefined
 }
 
@@ -118,6 +131,10 @@ export type NonServiceWorkPlan = {
   rollback_duration?: string | null
   status: JobStatus
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
   created_at?: string | null
   created_by?: string | null
   updated_at?: string | null
@@ -143,6 +160,10 @@ export type NonServiceWorkPlanCreate = {
   rollback_steps?: string | null
   rollback_duration?: string | null
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
 }
 
 export type NonServiceWorkPlanPatch = {
@@ -163,6 +184,10 @@ export type NonServiceWorkPlanPatch = {
   rollback_duration?: string | null
   status?: JobStatus
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
   version?: number | undefined
 }
 
@@ -177,8 +202,6 @@ export type NonServiceWorkPlanHistory = {
 }
 
 // ─── 작업결과서 ───────────────────────────────────────────────────────────────
-
-export type JobOutcome = '성공' | '부분성공' | '실패'
 
 export type JobResult = {
   id: string

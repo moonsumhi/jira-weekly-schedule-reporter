@@ -253,29 +253,73 @@
             />
           </div>
 
+          <q-separator class="q-my-md" />
+
+          <!-- 작업 결과 -->
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">작업 결과</div>
+          <div class="row q-gutter-sm q-mb-sm">
+            <q-select
+              v-model="form.outcome"
+              :options="outcomeOptions"
+              outlined
+              dense
+              clearable
+              label="결과"
+              class="col-12 col-sm-5"
+            />
+          </div>
+          <q-input
+            v-model="form.work_summary"
+            outlined
+            dense
+            type="textarea"
+            autogrow
+            label="수행 작업 요약"
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="form.result_notes"
+            outlined
+            dense
+            type="textarea"
+            autogrow
+            label="작업 결과 특이 사항"
+          />
+
+          <q-separator class="q-my-md" />
+
+          <!-- 발생 문제 및 조치 -->
+          <div class="text-subtitle1 text-weight-bold q-mb-xs">발생 문제 및 조치</div>
+          <q-input
+            v-model="form.issues_found"
+            outlined
+            dense
+            type="textarea"
+            autogrow
+            label="발생 문제"
+            class="q-mb-sm"
+          />
+          <q-input
+            v-model="form.resolution"
+            outlined
+            dense
+            type="textarea"
+            autogrow
+            label="조치 내용"
+          />
+
           <!-- Status (edit only) -->
           <template v-if="isEdit">
             <q-separator class="q-my-md" />
             <div class="text-subtitle1 text-weight-bold q-mb-xs">상태</div>
-            <div class="row q-gutter-sm">
-              <q-select
-                v-model="form.status"
-                :options="statusOptions"
-                outlined
-                dense
-                label="작업 상태"
-                class="col-12 col-sm-5"
-              />
-              <q-input
-                v-model="form.result_notes"
-                outlined
-                dense
-                type="textarea"
-                autogrow
-                label="작업 결과 특이 사항"
-                class="col-12 col-sm-6"
-              />
-            </div>
+            <q-select
+              v-model="form.status"
+              :options="statusOptions"
+              outlined
+              dense
+              label="작업 상태"
+              class="col-12 col-sm-5"
+            />
           </template>
         </q-card-section>
 
@@ -395,10 +439,35 @@
             소요 시간: {{ detailRow.rollback_duration }}
           </div>
 
-          <template v-if="detailRow.result_notes">
+          <template v-if="detailRow.work_summary || detailRow.outcome || detailRow.result_notes">
             <q-separator class="q-my-sm" />
             <div class="text-subtitle2 text-weight-bold q-mb-xs">작업 결과</div>
-            <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.result_notes }}</div>
+            <div v-if="detailRow.outcome" class="q-mb-xs">
+              <q-badge :color="detailRow.outcome === '성공' ? 'positive' : detailRow.outcome === '부분성공' ? 'orange' : 'negative'" outline>
+                {{ detailRow.outcome }}
+              </q-badge>
+            </div>
+            <div v-if="detailRow.work_summary" class="q-mb-xs">
+              <div class="text-caption text-grey-7">수행 작업 요약</div>
+              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.work_summary }}</div>
+            </div>
+            <div v-if="detailRow.result_notes">
+              <div class="text-caption text-grey-7">작업 결과 특이 사항</div>
+              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.result_notes }}</div>
+            </div>
+          </template>
+
+          <template v-if="detailRow.issues_found || detailRow.resolution">
+            <q-separator class="q-my-sm" />
+            <div class="text-subtitle2 text-weight-bold q-mb-xs">발생 문제 및 조치</div>
+            <div v-if="detailRow.issues_found" class="q-mb-xs">
+              <div class="text-caption text-grey-7">발생 문제</div>
+              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.issues_found }}</div>
+            </div>
+            <div v-if="detailRow.resolution">
+              <div class="text-caption text-grey-7">조치 내용</div>
+              <div class="text-body2" style="white-space: pre-wrap">{{ detailRow.resolution }}</div>
+            </div>
           </template>
 
           <q-separator class="q-my-sm" />
@@ -423,6 +492,7 @@ import type {
   NonServiceWorkPlanCreate,
   JobCategory,
   JobStatus,
+  JobOutcome,
   JobWorkStep,
 } from 'src/types/job'
 
@@ -446,6 +516,7 @@ const statusFilter = ref<string | null>(null)
 
 const categoryOptions: JobCategory[] = ['정기', '긴급', '임시']
 const statusOptions: JobStatus[] = ['초안', '승인대기', '승인됨', '완료', '취소']
+const outcomeOptions: JobOutcome[] = ['성공', '부분성공', '실패']
 
 const pagination = ref<NonNullable<QTableProps['pagination']>>({
   page: 1,
@@ -513,7 +584,7 @@ const selectedRow = ref<NonServiceWorkPlan | null>(null)
 const actingId = ref<string | null>(null)
 const actingType = ref<'create' | 'edit' | 'delete' | null>(null)
 
-function emptyForm(): NonServiceWorkPlanCreate & { status: JobStatus; result_notes: string | null; version?: number } {
+function emptyForm(): NonServiceWorkPlanCreate & { status: JobStatus; result_notes: string | null; work_summary: string | null; outcome: JobOutcome | null; issues_found: string | null; resolution: string | null; version?: number } {
   return {
     title: '',
     work_date: '',
@@ -531,6 +602,10 @@ function emptyForm(): NonServiceWorkPlanCreate & { status: JobStatus; result_not
     rollback_steps: null,
     rollback_duration: null,
     result_notes: null,
+    work_summary: null,
+    outcome: null,
+    issues_found: null,
+    resolution: null,
     status: '초안',
   }
 }
@@ -564,6 +639,10 @@ function openEdit(row: NonServiceWorkPlan) {
     rollback_duration: row.rollback_duration ?? null,
     status: row.status,
     result_notes: row.result_notes ?? null,
+    work_summary: row.work_summary ?? null,
+    outcome: row.outcome ?? null,
+    issues_found: row.issues_found ?? null,
+    resolution: row.resolution ?? null,
     version: row.version ?? undefined,
   })
   formDialog.value = true
@@ -628,6 +707,10 @@ async function doCreate() {
       rollback_steps: form.rollback_steps || null,
       rollback_duration: form.rollback_duration || null,
       result_notes: form.result_notes || null,
+      work_summary: form.work_summary || null,
+      outcome: form.outcome || null,
+      issues_found: form.issues_found || null,
+      resolution: form.resolution || null,
     }
     const created = await createNonServiceWorkPlan(payload)
     rows.value = [created, ...rows.value]
@@ -668,6 +751,10 @@ async function doEdit() {
       rollback_duration: form.rollback_duration || null,
       status: form.status,
       result_notes: form.result_notes || null,
+      work_summary: form.work_summary || null,
+      outcome: form.outcome || null,
+      issues_found: form.issues_found || null,
+      resolution: form.resolution || null,
       version: 'version' in form ? (form as { version?: number }).version : undefined,
     })
     rows.value = rows.value.map((r) =>
