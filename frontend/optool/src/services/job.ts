@@ -15,10 +15,6 @@ import type {
   ServiceWorkResultPatch,
   ServiceWorkResultHistory,
 
-  JobResult,
-  JobResultCreate,
-  JobResultPatch,
-
 } from 'src/types/job'
 
 const ENDPOINT = '/job'
@@ -147,41 +143,3 @@ export async function getServiceWorkResultHistory(
   return res.data
 }
 
-const JOB_RESULTS_ENDPOINT = '/job/result'
-
-export async function listJobResults(
-  includeDeleted: boolean
-): Promise<JobResult[]> {
-  const res = await api.get<JobResult[]>(JOB_RESULTS_ENDPOINT, {
-    params: { include_deleted: includeDeleted },
-  })
-  return res.data
-}
-
-export async function createJobResult(
-  payload: JobResultCreate
-): Promise<JobResult> {
-  const res = await api.post<JobResult>(JOB_RESULTS_ENDPOINT, payload)
-  return res.data
-}
-
-export async function patchJobResult(
-  id: string,
-  payload: JobResultPatch
-): Promise<JobResult> {
-  const res = await api.patch<JobResult>(`${JOB_RESULTS_ENDPOINT}/${id}`, payload)
-  return res.data
-}
-
-export async function deleteJobResult(id: string): Promise<void> {
-  await api.delete(`${JOB_RESULTS_ENDPOINT}/${id}`)
-}
-
-export async function extractAttachmentText(file: File): Promise<{ filename: string; text: string }> {
-  const form = new FormData()
-  form.append('file', file)
-  const res = await api.post<{ filename: string; text: string }>('/job/result3/extract-attachment', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-  return res.data
-}
