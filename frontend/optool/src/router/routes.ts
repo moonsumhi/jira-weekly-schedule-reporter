@@ -83,14 +83,6 @@ const routes: RouteRecordRaw[] = [
             path: 'service-work-result',
             component: () => import('pages/job/ServiceWorkResultPage.vue')
           },
-          {
-            path: 'job-result',
-            component: () => import('pages/job/JobResultPage.vue')
-          },
-          {
-            path: 'job-result2',
-            component: () => import('pages/job/JobResult2Page.vue')
-          }
         ]
       },
       {
