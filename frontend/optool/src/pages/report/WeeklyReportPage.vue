@@ -115,6 +115,51 @@
                   <a :href="props.row.url" target="_blank" class="text-primary text-weight-medium">
                     {{ props.row.key }}
                   </a>
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    size="xs"
+                    icon="attach_file"
+                    color="grey-6"
+                    class="q-ml-xs"
+                    :loading="loadingAttachments[props.row.key]"
+                    @click="toggleAttachments(props.row.key)"
+                  >
+                    <q-tooltip>첨부파일 보기</q-tooltip>
+                  </q-btn>
+                </q-td>
+              </template>
+
+              <template #body-cell-summary="props">
+                <q-td :props="props">
+                  <div>{{ props.row.summary }}</div>
+                  <div
+                    v-if="attachmentsMap[props.row.key] && attachmentsMap[props.row.key].length > 0"
+                    class="q-mt-xs"
+                  >
+                    <q-expansion-item
+                      v-for="att in attachmentsMap[props.row.key]"
+                      :key="att.filename"
+                      dense
+                      :label="att.filename"
+                      icon="description"
+                      class="bg-grey-1 rounded-borders q-mb-xs"
+                      header-class="text-caption text-grey-7"
+                    >
+                      <q-card flat>
+                        <q-card-section class="q-pa-sm">
+                          <pre class="text-caption" style="white-space: pre-wrap; word-break: break-word; margin: 0;">{{ att.text }}</pre>
+                        </q-card-section>
+                      </q-card>
+                    </q-expansion-item>
+                  </div>
+                  <div
+                    v-else-if="attachmentsMap[props.row.key] !== undefined && attachmentsMap[props.row.key].length === 0"
+                    class="text-caption text-grey-5 q-mt-xs"
+                  >
+                    첨부파일 없음
+                  </div>
                 </q-td>
               </template>
 
@@ -176,6 +221,10 @@ const loading = ref(false)
 const searched = ref(false)
 const groups = ref<AssigneeGroup[]>([])
 
+interface AttachmentItem { filename: string; text: string }
+const attachmentsMap = ref<Record<string, AttachmentItem[]>>({})
+const loadingAttachments = ref<Record<string, boolean>>({})
+
 const issueColumns = [
   { name: 'key', label: '이슈 키', field: 'key', align: 'left' as const, style: 'width: 120px' },
   { name: 'summary', label: '업무 내용', field: 'summary', align: 'left' as const },
@@ -205,6 +254,7 @@ const summaryStats = computed(() => {
     { label: '완료', value: done, color: 'text-positive' },
     { label: '진행 중', value: inProgress, color: 'text-info' },
     { label: '대기', value: todo, color: 'text-warning' },
+    { label: '차단', value: blocked, color: 'text-negative' },
   ]
 })
 
@@ -258,6 +308,7 @@ async function fetchReport() {
   }
   loading.value = true
   searched.value = false
+  attachmentsMap.value = {}
   try {
     const assignees = assigneesInput.value
       ? assigneesInput.value.split(',').map(a => a.trim()).filter(a => a)
@@ -274,6 +325,26 @@ async function fetchReport() {
   } finally {
     loading.value = false
     searched.value = true
+  }
+}
+
+async function toggleAttachments(issueKey: string) {
+  if (attachmentsMap.value[issueKey] !== undefined) {
+    delete attachmentsMap.value[issueKey]
+    return
+  }
+  loadingAttachments.value[issueKey] = true
+  try {
+    const res = await api.get(`/issues/${issueKey}/attachments`)
+    attachmentsMap.value[issueKey] = res.data.attachments as AttachmentItem[]
+    if (attachmentsMap.value[issueKey].length === 0) {
+      Notify.create({ type: 'info', message: '첨부파일이 없습니다.' })
+    }
+  } catch {
+    Notify.create({ type: 'negative', message: '첨부파일을 불러오지 못했습니다.' })
+    attachmentsMap.value[issueKey] = []
+  } finally {
+    loadingAttachments.value[issueKey] = false
   }
 }
 
