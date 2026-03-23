@@ -92,6 +92,10 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'weekly',
             component: () => import('pages/report/WeeklyReportPage.vue')
+          },
+          {
+            path: 'attachment-test4',
+            component: () => import('pages/report/AttachmentTest4Page.vue')
           }
         ]
       },
