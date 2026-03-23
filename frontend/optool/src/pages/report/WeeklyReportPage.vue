@@ -126,7 +126,7 @@
                     :loading="loadingAttachments[props.row.key]"
                     @click="toggleAttachments(props.row.key)"
                   >
-                    <q-tooltip>첨부파일 보기</q-tooltip>
+                    <q-tooltip>첨부파일 새로고침</q-tooltip>
                   </q-btn>
                 </q-td>
               </template>
@@ -135,7 +135,7 @@
                 <q-td :props="props">
                   <div>{{ props.row.summary }}</div>
                   <div
-                    v-if="attachmentsMap[props.row.key] && attachmentsMap[props.row.key].length > 0"
+                    v-if="attachmentsMap[props.row.key] && attachmentsMap[props.row.key]!.length > 0"
                     class="q-mt-xs"
                   >
                     <q-expansion-item
@@ -155,7 +155,7 @@
                     </q-expansion-item>
                   </div>
                   <div
-                    v-else-if="attachmentsMap[props.row.key] !== undefined && attachmentsMap[props.row.key].length === 0"
+                    v-else-if="attachmentsMap[props.row.key] !== undefined && attachmentsMap[props.row.key]!.length === 0"
                     class="text-caption text-grey-5 q-mt-xs"
                   >
                     첨부파일 없음
@@ -319,6 +319,10 @@ async function fetchReport() {
       paramsSerializer: (params) => qs.stringify(params, { arrayFormat: 'repeat' }),
     })
     groups.value = res.data.groups
+
+    // 모든 이슈의 첨부파일을 자동으로 로드
+    const allIssueKeys = groups.value.flatMap(g => g.issues.map(i => i.key))
+    await loadAllAttachments(allIssueKeys)
   } catch {
     Notify.create({ type: 'negative', message: '데이터를 불러오지 못했습니다.' })
     groups.value = []
@@ -328,11 +332,23 @@ async function fetchReport() {
   }
 }
 
+async function loadAllAttachments(issueKeys: string[]) {
+  await Promise.all(
+    issueKeys.map(async (key) => {
+      loadingAttachments.value[key] = true
+      try {
+        const res = await api.get(`/issues/${key}/attachments`)
+        attachmentsMap.value[key] = res.data.attachments as AttachmentItem[]
+      } catch {
+        attachmentsMap.value[key] = []
+      } finally {
+        loadingAttachments.value[key] = false
+      }
+    })
+  )
+}
+
 async function toggleAttachments(issueKey: string) {
-  if (attachmentsMap.value[issueKey] !== undefined) {
-    delete attachmentsMap.value[issueKey]
-    return
-  }
   loadingAttachments.value[issueKey] = true
   try {
     const res = await api.get(`/issues/${issueKey}/attachments`)
