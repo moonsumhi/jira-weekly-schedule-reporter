@@ -117,6 +117,7 @@ const linksList: EssentialLinkProps[] = [
     icon: 'fa-solid fa-chart-bar',
     children: [
       { title: '주간보고', icon: 'fa-solid fa-calendar-week', link: '/report/weekly' },
+      { title: '[pilot]첨부파일 test4', icon: 'fa-solid fa-paperclip', link: '/report/attachment-test4' },
     ],
   },
   {
