@@ -4,9 +4,12 @@ from typing import List, Optional
 from app.models.issue import GroupedResponse
 from app.services.jira_service import JiraTaskService
 from app.core.consts import ALLOWED_STATUSES
+from app.jira.client import JiraClient
+from app.jira.attachment import extract_text_from_attachment
 
 router = APIRouter()
 service = JiraTaskService()
+jira_client = JiraClient()
 
 
 @router.get("/", response_model=GroupedResponse, summary="담당자별 Issue 뽑기")
@@ -96,3 +99,24 @@ async def today_tasks(
     )
 
     return response
+
+
+@router.get("/{issue_key}/attachments", summary="이슈 첨부파일 텍스트 추출")
+async def get_issue_attachments(issue_key: str):
+    """
+    Jira 이슈의 첨부파일을 다운로드하여 텍스트를 추출해 반환합니다.
+    지원 형식: hwp, txt, md
+    """
+    try:
+        issue = await jira_client.get_issue(issue_key, fields=["attachment"])
+    except RuntimeError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    attachments = (issue.get("fields") or {}).get("attachment") or []
+    results = []
+    for att in attachments:
+        text = await extract_text_from_attachment(att, jira_client.auth)
+        if text is not None:
+            results.append({"filename": att.get("filename", ""), "text": text})
+
+    return {"issue_key": issue_key, "attachments": results}
