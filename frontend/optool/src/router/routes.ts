@@ -86,6 +86,16 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'report',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'weekly',
+            component: () => import('pages/report/WeeklyReportPage.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requireAdmin: true },
         children: [

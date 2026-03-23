@@ -113,6 +113,13 @@ const linksList: EssentialLinkProps[] = [
     ],
   },
   {
+    title: '보고서',
+    icon: 'fa-solid fa-chart-bar',
+    children: [
+      { title: '주간보고', icon: 'fa-solid fa-calendar-week', link: '/report/weekly' },
+    ],
+  },
+  {
     title: 'Admin',
     icon: 'fa-solid fa-hammer',
     children: [
