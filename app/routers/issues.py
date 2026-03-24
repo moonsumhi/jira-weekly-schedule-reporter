@@ -101,6 +101,35 @@ async def today_tasks(
     return response
 
 
+@router.get("/assignees", summary="담당자 목록 조회")
+async def get_assignees():
+    """
+    최근 90일 이슈에서 고유 담당자 목록을 반환합니다.
+    """
+    from datetime import timedelta
+    from app.utils.time import TimeUtil
+    import datetime as dt
+
+    end = dt.datetime.now(tz=dt.timezone.utc)
+    start = end - timedelta(days=90)
+    start_str = start.strftime("%Y-%m-%d")
+    end_str = end.strftime("%Y-%m-%d")
+
+    try:
+        response = await service.fetch_grouped(
+            start=start_str,
+            end=end_str,
+            assignees=None,
+            date_field="updated",
+        )
+        names = sorted(
+            {g.assignee for g in response.groups if g.assignee and g.assignee != "Unassigned"}
+        )
+        return {"assignees": names}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{issue_key}/attachments", summary="이슈 첨부파일 텍스트 추출")
 async def get_issue_attachments(issue_key: str):
     """
