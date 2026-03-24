@@ -36,10 +36,14 @@
                 </q-input>
               </div>
               <div class="col-12 col-md-3">
-                <q-input
-                  v-model="assigneesInput"
-                  label="담당자 (쉼표 구분)"
-                  placeholder="홍길동,김철수"
+                <q-select
+                  v-model="selectedAssignees"
+                  :options="assigneeOptions"
+                  label="담당자"
+                  multiple
+                  use-chips
+                  clearable
+                  :loading="loadingAssignees"
                 />
               </div>
               <div class="col-12 col-md-3">
@@ -216,7 +220,9 @@ import type { AssigneeGroup, Issue } from 'src/types/jira'
 
 const startDate = ref('')
 const endDate = ref('')
-const assigneesInput = ref('')
+const selectedAssignees = ref<string[]>([])
+const assigneeOptions = ref<string[]>([])
+const loadingAssignees = ref(false)
 const loading = ref(false)
 const searched = ref(false)
 const groups = ref<AssigneeGroup[]>([])
@@ -301,6 +307,18 @@ function isOverdue(issue: Issue): boolean {
   return due < today && issue.status !== 'Done'
 }
 
+async function fetchAssignees() {
+  loadingAssignees.value = true
+  try {
+    const res = await api.get('/issues/assignees')
+    assigneeOptions.value = res.data.assignees as string[]
+  } catch {
+    // silently ignore; user can still type manually
+  } finally {
+    loadingAssignees.value = false
+  }
+}
+
 async function fetchReport() {
   if (!startDate.value || !endDate.value) {
     Notify.create({ type: 'warning', message: '시작일과 종료일을 선택해주세요.' })
@@ -310,9 +328,7 @@ async function fetchReport() {
   searched.value = false
   attachmentsMap.value = {}
   try {
-    const assignees = assigneesInput.value
-      ? assigneesInput.value.split(',').map(a => a.trim()).filter(a => a)
-      : undefined
+    const assignees = selectedAssignees.value.length > 0 ? selectedAssignees.value : undefined
 
     const res = await api.get('/issues/today-tasks', {
       params: { start: startDate.value, end: endDate.value, assignees },
@@ -370,6 +386,7 @@ function printReport() {
 
 onMounted(() => {
   setCurrentWeek()
+  void fetchAssignees()
 })
 </script>
 
