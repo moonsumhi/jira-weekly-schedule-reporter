@@ -82,5 +82,20 @@ class JiraClient:
                     break
         return all_issues
 
+    async def get_issue(
+        self, key: str, fields: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        url = f"{self.base_url}/rest/api/3/issue/{key}"
+        params: Dict[str, Any] = {}
+        if fields:
+            params["fields"] = ",".join(fields)
+        async with httpx.AsyncClient(timeout=30.0, auth=self.auth) as client:
+            r = await client.get(url, params=params)
+            if r.status_code == 404:
+                raise RuntimeError(f"Issue {key} not found.")
+            if r.status_code >= 400:
+                raise RuntimeError(f"Jira error {r.status_code}: {r.text}")
+            return r.json()
+
     def issue_url(self, key: str) -> str:
         return f"{self.base_url}/browse/{key}"
