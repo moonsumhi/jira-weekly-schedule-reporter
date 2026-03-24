@@ -161,7 +161,16 @@ class NonServiceWorkPlanBase(BaseModel):
     rollback_possible: bool = Field(default=True, description="롤백 가능 여부")
     rollback_steps: Optional[str] = Field(default=None, description="롤백 절차")
     rollback_duration: Optional[str] = Field(default=None, description="롤백 소요 시간")
+
+    # 영향도 분석
+    impact_scope: Optional[str] = Field(default=None, description="영향 범위")
+
+    # 결과 (작업 완료 후 기록)
     result_notes: Optional[str] = Field(default=None, description="작업 결과 특이 사항")
+    work_summary: Optional[str] = Field(default=None, description="수행 작업 요약")
+    outcome: Optional[JobOutcome] = Field(default=None, description="작업 결과")
+    issues_found: Optional[str] = Field(default=None, description="발생 문제")
+    resolution: Optional[str] = Field(default=None, description="조치 내용")
 
 
 class NonServiceWorkPlanCreate(NonServiceWorkPlanBase):
@@ -184,8 +193,13 @@ class NonServiceWorkPlanPatch(BaseModel):
     rollback_possible: Optional[bool] = None
     rollback_steps: Optional[str] = None
     rollback_duration: Optional[str] = None
+    impact_scope: Optional[str] = None
     status: Optional[JobStatus] = None
     result_notes: Optional[str] = None
+    work_summary: Optional[str] = None
+    outcome: Optional[JobOutcome] = None
+    issues_found: Optional[str] = None
+    resolution: Optional[str] = None
     version: Optional[int] = None
 
 
@@ -206,8 +220,13 @@ class NonServiceWorkPlanOut(BaseModel):
     rollback_possible: bool
     rollback_steps: Optional[str] = None
     rollback_duration: Optional[str] = None
+    impact_scope: Optional[str] = None
     status: JobStatus = "초안"
     result_notes: Optional[str] = None
+    work_summary: Optional[str] = None
+    outcome: Optional[JobOutcome] = None
+    issues_found: Optional[str] = None
+    resolution: Optional[str] = None
     created_at: Optional[datetime] = None
     created_by: Optional[str] = None
     updated_at: Optional[datetime] = None

@@ -127,8 +127,13 @@ export type NonServiceWorkPlan = {
   rollback_possible: boolean
   rollback_steps?: string | null
   rollback_duration?: string | null
+  impact_scope?: string | null
   status: JobStatus
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
   created_at?: string | null
   created_by?: string | null
   updated_at?: string | null
@@ -153,7 +158,12 @@ export type NonServiceWorkPlanCreate = {
   rollback_possible: boolean
   rollback_steps?: string | null
   rollback_duration?: string | null
+  impact_scope?: string | null
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
 }
 
 export type NonServiceWorkPlanPatch = {
@@ -172,8 +182,13 @@ export type NonServiceWorkPlanPatch = {
   rollback_possible?: boolean
   rollback_steps?: string | null
   rollback_duration?: string | null
+  impact_scope?: string | null
   status?: JobStatus
   result_notes?: string | null
+  work_summary?: string | null
+  outcome?: JobOutcome | null
+  issues_found?: string | null
+  resolution?: string | null
   version?: number | undefined
 }
 
