@@ -140,6 +140,19 @@
                     </q-date>
                   </q-popup-proxy>
                 </q-icon>
+                <q-icon name="access_time" class="cursor-pointer q-ml-xs">
+                  <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                    <q-time
+                      :model-value="form.work_date && form.work_date.length >= 16 ? form.work_date.slice(11, 16) : '00:00'"
+                      @update:model-value="(val: string) => { form.work_date = (form.work_date ? form.work_date.slice(0, 10) : '') + ' ' + val }"
+                      format24h
+                    >
+                      <div class="row items-center justify-end">
+                        <q-btn v-close-popup label="닫기" color="primary" flat />
+                      </div>
+                    </q-time>
+                  </q-popup-proxy>
+                </q-icon>
               </template>
             </q-input>
             <q-select
