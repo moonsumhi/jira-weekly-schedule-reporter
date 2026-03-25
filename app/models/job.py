@@ -163,6 +163,8 @@ class NonServiceWorkPlanBase(BaseModel):
     rollback_duration: Optional[str] = Field(default=None, description="롤백 소요 시간")
 
     # 영향도 분석
+    service_affected: bool = Field(default=False, description="서비스 영향 여부")
+    downtime: Optional[str] = Field(default=None, description="서비스 중단 시간")
     impact_scope: Optional[str] = Field(default=None, description="영향 범위")
 
     # 결과 (작업 완료 후 기록)
@@ -187,6 +189,8 @@ class NonServiceWorkPlanPatch(BaseModel):
     purpose: Optional[str] = None
     scope: Optional[str] = None
     detail: Optional[str] = None
+    service_affected: Optional[bool] = None
+    downtime: Optional[str] = None
     backup_done: Optional[bool] = None
     backup_details: Optional[str] = None
     steps: Optional[List[JobWorkStep]] = None
@@ -214,6 +218,8 @@ class NonServiceWorkPlanOut(BaseModel):
     purpose: str
     scope: str
     detail: str
+    service_affected: bool = False
+    downtime: Optional[str] = None
     backup_done: bool
     backup_details: Optional[str] = None
     steps: List[JobWorkStep] = Field(default_factory=list)

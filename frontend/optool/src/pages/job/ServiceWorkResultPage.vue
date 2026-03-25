@@ -153,7 +153,7 @@
                   <q-popup-proxy cover transition-show="scale" transition-hide="scale">
                     <q-time
                       :model-value="form.work_date && form.work_date.length >= 16 ? form.work_date.slice(11, 16) : '00:00'"
-                      @update:model-value="(val: string) => { form.work_date = (form.work_date ? form.work_date.slice(0, 10) : '') + ' ' + val }"
+                      @update:model-value="(val: string | null) => { if (val) form.work_date = (form.work_date ? form.work_date.slice(0, 10) : '') + ' ' + val }"
                       format24h
                     >
                       <div class="row items-center justify-end">
