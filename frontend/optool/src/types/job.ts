@@ -121,6 +121,8 @@ export type NonServiceWorkPlan = {
   purpose: string
   scope: string
   detail: string
+  service_affected: boolean
+  downtime?: string | null
   backup_done: boolean
   backup_details?: string | null
   steps: JobWorkStep[]
@@ -152,6 +154,8 @@ export type NonServiceWorkPlanCreate = {
   purpose: string
   scope: string
   detail: string
+  service_affected: boolean
+  downtime?: string | null
   backup_done: boolean
   backup_details?: string | null
   steps: JobWorkStep[]
@@ -176,6 +180,8 @@ export type NonServiceWorkPlanPatch = {
   purpose?: string
   scope?: string
   detail?: string
+  service_affected?: boolean
+  downtime?: string | null
   backup_done?: boolean
   backup_details?: string | null
   steps?: JobWorkStep[]

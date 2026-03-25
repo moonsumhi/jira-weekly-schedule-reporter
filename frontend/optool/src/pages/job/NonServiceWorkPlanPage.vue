@@ -55,6 +55,15 @@
             </q-td>
           </template>
 
+          <!-- 서비스 영향 -->
+          <template #body-cell-service_affected="props">
+            <q-td :props="props">
+              <q-badge :color="props.row.service_affected ? 'negative' : 'positive'" outline>
+                {{ props.row.service_affected ? '영향있음' : '영향없음' }}
+              </q-badge>
+            </q-td>
+          </template>
+
           <!-- Actions -->
           <template #body-cell-actions="props">
             <q-td :props="props">
@@ -144,7 +153,7 @@
                   <q-popup-proxy cover transition-show="scale" transition-hide="scale">
                     <q-time
                       :model-value="form.work_date && form.work_date.length >= 16 ? form.work_date.slice(11, 16) : '00:00'"
-                      @update:model-value="(val: string) => { form.work_date = (form.work_date ? form.work_date.slice(0, 10) : '') + ' ' + val }"
+                      @update:model-value="(val: string | null) => { if (val) form.work_date = (form.work_date ? form.work_date.slice(0, 10) : '') + ' ' + val }"
                       format24h
                     >
                       <div class="row items-center justify-end">
@@ -205,13 +214,21 @@
 
           <!-- 영향도 분석 -->
           <div class="text-subtitle1 text-weight-bold q-mb-xs">영향도 분석</div>
+          <q-toggle v-model="form.service_affected" label="서비스 영향 여부" class="q-mb-sm" />
           <div class="row q-gutter-sm">
+            <q-input
+              v-model="form.downtime"
+              outlined
+              dense
+              label="서비스 중단 시간"
+              class="col-12 col-sm-5"
+            />
             <q-input
               v-model="form.impact_scope"
               outlined
               dense
               label="영향 범위"
-              class="col-12"
+              class="col-12 col-sm-6"
             />
           </div>
 
@@ -450,13 +467,21 @@
 
           <q-separator class="q-my-sm" />
           <div class="text-subtitle2 text-weight-bold q-mb-xs">영향도 분석</div>
-          <div v-if="detailRow.impact_scope" class="row q-col-gutter-sm">
+          <div class="row q-col-gutter-sm">
             <div class="col-12">
+              <q-badge :color="detailRow.service_affected ? 'negative' : 'positive'" outline>
+                {{ detailRow.service_affected ? '서비스 영향 있음' : '서비스 영향 없음' }}
+              </q-badge>
+            </div>
+            <div v-if="detailRow.downtime" class="col-6">
+              <div class="text-caption text-grey-7">중단 시간</div>
+              <div>{{ detailRow.downtime }}</div>
+            </div>
+            <div v-if="detailRow.impact_scope" class="col-6">
               <div class="text-caption text-grey-7">영향 범위</div>
               <div>{{ detailRow.impact_scope }}</div>
             </div>
           </div>
-          <div v-else class="text-caption text-grey-6">영향 범위 미입력</div>
 
           <q-separator class="q-my-sm" />
           <div class="text-subtitle2 text-weight-bold q-mb-xs">사전 준비</div>
@@ -596,8 +621,9 @@ const columns: NonNullable<QTableProps['columns']> = [
   { name: 'title', label: '작업명', field: 'title', align: 'left', sortable: true },
   { name: 'work_date', label: '작업 일시', field: 'work_date', align: 'left', sortable: true },
   { name: 'worker', label: '작업자', field: 'worker', align: 'left', sortable: true },
-
+  { name: 'system_name', label: '시스템명', field: 'system_name', align: 'left', sortable: true },
   { name: 'category', label: '구분', field: 'category', align: 'center', sortable: true },
+  { name: 'service_affected', label: '서비스 영향', field: 'service_affected', align: 'center', sortable: true },
   { name: 'status', label: '상태', field: 'status', align: 'center', sortable: true },
   { name: 'actions', label: 'Actions', field: 'actions', align: 'right' },
 ]
@@ -658,6 +684,8 @@ function emptyForm(): NonServiceWorkPlanCreate & { status: JobStatus; work_summa
     purpose: '',
     scope: '',
     detail: '',
+    service_affected: false,
+    downtime: null,
     backup_done: false,
     backup_details: null,
     steps: [] as JobWorkStep[],
@@ -695,6 +723,8 @@ function openEdit(row: NonServiceWorkPlan) {
     purpose: row.purpose,
     scope: row.scope,
     detail: row.detail,
+    service_affected: row.service_affected,
+    downtime: row.downtime ?? null,
     backup_done: row.backup_done,
     backup_details: row.backup_details ?? null,
     steps: row.steps.map((s) => ({ ...s })),
@@ -761,6 +791,8 @@ async function doCreate() {
       purpose: form.purpose.trim(),
       scope: form.scope.trim(),
       detail: form.detail.trim(),
+      service_affected: form.service_affected,
+      downtime: form.downtime || null,
       backup_done: form.backup_done,
       backup_details: form.backup_details || null,
       steps: form.steps.map((s, i) => ({
@@ -805,6 +837,8 @@ async function doEdit() {
       purpose: form.purpose.trim(),
       scope: form.scope.trim(),
       detail: form.detail.trim(),
+      service_affected: form.service_affected,
+      downtime: form.downtime || null,
       backup_done: form.backup_done,
       backup_details: form.backup_details || null,
       steps: form.steps.map((s, i) => ({

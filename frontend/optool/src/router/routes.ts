@@ -100,6 +100,16 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'test',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'test1',
+            component: () => import('pages/test/Test1Page.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requireAdmin: true },
         children: [
