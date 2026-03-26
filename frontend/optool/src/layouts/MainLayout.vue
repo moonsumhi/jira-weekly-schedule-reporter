@@ -114,6 +114,14 @@ const linksList: EssentialLinkProps[] = [
     ],
   },
   {
+    title: 'test',
+    icon: 'fa-solid fa-flask',
+    children: [
+      { title: 'test1', icon: 'fa-solid fa-vial', link: '/test/test1' },
+      { title: 'test2', icon: 'fa-solid fa-vial-circle-check', link: '/test/test2' },
+    ],
+  },
+  {
     title: 'Admin',
     icon: 'fa-solid fa-hammer',
     children: [
