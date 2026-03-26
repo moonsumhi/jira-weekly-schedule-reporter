@@ -122,6 +122,7 @@ const linksList: EssentialLinkProps[] = [
       { title: 'test3', icon: 'fa-solid fa-file-pdf', link: '/test/test3' },
       { title: 'test4', icon: 'fa-solid fa-file-lines', link: '/test/test4' },
       { title: 'test5', icon: 'fa-solid fa-wand-magic-sparkles', link: '/test/test5' },
+      { title: 'test6', icon: 'fa-solid fa-file-pen', link: '/test/test6' },
     ],
   },
   {
