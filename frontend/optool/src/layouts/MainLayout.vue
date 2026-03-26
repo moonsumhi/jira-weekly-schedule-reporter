@@ -81,6 +81,7 @@ const linksList: EssentialLinkProps[] = [
     children: [
       { title: '검색', icon: 'fa-solid fa-list', link: '/jira/search' },
       { title: '주간보고', icon: 'fa-solid fa-calendar-week', link: '/report/weekly' },
+      { title: '폼 템플릿', icon: 'article', link: '/jira/forms' },
     ],
   },
   {
@@ -123,6 +124,7 @@ const linksList: EssentialLinkProps[] = [
       { title: 'test4', icon: 'fa-solid fa-file-lines', link: '/test/test4' },
       { title: 'test5', icon: 'fa-solid fa-wand-magic-sparkles', link: '/test/test5' },
       { title: 'test6', icon: 'fa-solid fa-file-pen', link: '/test/test6' },
+      { title: 'test7', icon: 'fa-solid fa-database', link: '/test/test7' },
     ],
   },
   {
