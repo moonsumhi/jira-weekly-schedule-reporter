@@ -34,14 +34,6 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'search',
             component: () => import('pages/jira/TaskViewer.vue')
-          },
-          {
-            path: 'forms',
-            component: () => import('pages/pilot/FormTemplateListPage.vue')
-          },
-          {
-            path: 'forms/:id',
-            component: () => import('pages/pilot/FormTemplatePage.vue')
           }
         ]
       },
