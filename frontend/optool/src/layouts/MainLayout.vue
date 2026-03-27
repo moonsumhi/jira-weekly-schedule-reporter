@@ -34,8 +34,15 @@
           <q-list>
             <q-item-label header>데이터운영팀</q-item-label>
 
+            <!-- Jira 섹션 -->
+            <q-expansion-item icon="fa-brands fa-jira" label="Jira" expand-separator>
+              <EssentialLink title="검색" icon="fa-solid fa-list" link="/jira/search" />
+              <EssentialLink title="주간보고" icon="fa-solid fa-calendar-week" link="/report/weekly" />
+            </q-expansion-item>
+
+            <!-- 나머지 메뉴 -->
             <EssentialLink
-              v-for="link in linksList"
+              v-for="link in staticLinks"
               :key="link.title"
               v-bind="link"
             />
@@ -74,16 +81,7 @@ import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink
 const auth = useAuthStore()
 const router = useRouter()
 
-const linksList: EssentialLinkProps[] = [
-  {
-    title: 'Jira',
-    icon: 'fa-brands fa-jira',
-    children: [
-      { title: '검색', icon: 'fa-solid fa-list', link: '/jira/search' },
-      { title: '주간보고', icon: 'fa-solid fa-calendar-week', link: '/report/weekly' },
-      { title: '폼 템플릿', icon: 'article', link: '/jira/forms' },
-    ],
-  },
+const staticLinks: EssentialLinkProps[] = [
   {
     title: 'Pilot',
     icon: 'fa-solid fa-robot',
@@ -155,4 +153,5 @@ watch(
     if (!loggedIn) leftDrawerOpen.value = false
   }
 )
+
 </script>
