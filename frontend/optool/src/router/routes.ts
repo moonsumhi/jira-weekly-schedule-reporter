@@ -34,7 +34,7 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'search',
             component: () => import('pages/jira/TaskViewer.vue')
-          }
+          },
         ]
       },
       {
@@ -96,40 +96,6 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'attachment-test4',
             component: () => import('pages/report/AttachmentTest4Page.vue')
-          }
-        ]
-      },
-      {
-        path: 'test',
-        meta: { requiresAuth: true },
-        children: [
-          {
-            path: 'test1',
-            component: () => import('pages/test/Test1Page.vue')
-          },
-          {
-            path: 'test2',
-            component: () => import('pages/test/Test2Page.vue')
-          },
-          {
-            path: 'test3',
-            component: () => import('pages/test/Test3Page.vue')
-          },
-          {
-            path: 'test4',
-            component: () => import('pages/test/Test4Page.vue')
-          },
-          {
-            path: 'test5',
-            component: () => import('pages/test/Test5Page.vue')
-          },
-          {
-            path: 'test6',
-            component: () => import('pages/test/Test6Page.vue')
-          },
-          {
-            path: 'test7',
-            component: () => import('pages/test/Test7Page.vue')
           }
         ]
       },

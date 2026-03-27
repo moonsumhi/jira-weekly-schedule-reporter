@@ -113,19 +113,6 @@ const staticLinks: EssentialLinkProps[] = [
     ],
   },
   {
-    title: 'test',
-    icon: 'fa-solid fa-flask',
-    children: [
-      { title: 'test1', icon: 'fa-solid fa-vial', link: '/test/test1' },
-      { title: 'test2', icon: 'fa-solid fa-vial-circle-check', link: '/test/test2' },
-      { title: 'test3', icon: 'fa-solid fa-file-pdf', link: '/test/test3' },
-      { title: 'test4', icon: 'fa-solid fa-file-lines', link: '/test/test4' },
-      { title: 'test5', icon: 'fa-solid fa-wand-magic-sparkles', link: '/test/test5' },
-      { title: 'test6', icon: 'fa-solid fa-file-pen', link: '/test/test6' },
-      { title: 'test7', icon: 'fa-solid fa-database', link: '/test/test7' },
-    ],
-  },
-  {
     title: 'Admin',
     icon: 'fa-solid fa-hammer',
     children: [
