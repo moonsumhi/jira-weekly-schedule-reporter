@@ -34,8 +34,15 @@
           <q-list>
             <q-item-label header>데이터운영팀</q-item-label>
 
+            <!-- Jira 섹션 -->
+            <q-expansion-item icon="fa-brands fa-jira" label="Jira" expand-separator>
+              <EssentialLink title="검색" icon="fa-solid fa-list" link="/jira/search" />
+              <EssentialLink title="주간보고" icon="fa-solid fa-calendar-week" link="/report/weekly" />
+            </q-expansion-item>
+
+            <!-- 나머지 메뉴 -->
             <EssentialLink
-              v-for="link in linksList"
+              v-for="link in staticLinks"
               :key="link.title"
               v-bind="link"
             />
@@ -74,15 +81,7 @@ import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink
 const auth = useAuthStore()
 const router = useRouter()
 
-const linksList: EssentialLinkProps[] = [
-  {
-    title: 'Jira',
-    icon: 'fa-brands fa-jira',
-    children: [
-      { title: '검색', icon: 'fa-solid fa-list', link: '/jira/search' },
-      { title: '주간보고', icon: 'fa-solid fa-calendar-week', link: '/report/weekly' },
-    ],
-  },
+const staticLinks: EssentialLinkProps[] = [
   {
     title: 'Pilot',
     icon: 'fa-solid fa-robot',
@@ -114,6 +113,19 @@ const linksList: EssentialLinkProps[] = [
     ],
   },
   {
+    title: 'test',
+    icon: 'fa-solid fa-flask',
+    children: [
+      { title: 'test1', icon: 'fa-solid fa-vial', link: '/test/test1' },
+      { title: 'test2', icon: 'fa-solid fa-vial-circle-check', link: '/test/test2' },
+      { title: 'test3', icon: 'fa-solid fa-file-pdf', link: '/test/test3' },
+      { title: 'test4', icon: 'fa-solid fa-file-lines', link: '/test/test4' },
+      { title: 'test5', icon: 'fa-solid fa-wand-magic-sparkles', link: '/test/test5' },
+      { title: 'test6', icon: 'fa-solid fa-file-pen', link: '/test/test6' },
+      { title: 'test7', icon: 'fa-solid fa-database', link: '/test/test7' },
+    ],
+  },
+  {
     title: 'Admin',
     icon: 'fa-solid fa-hammer',
     children: [
@@ -141,4 +153,5 @@ watch(
     if (!loggedIn) leftDrawerOpen.value = false
   }
 )
+
 </script>
