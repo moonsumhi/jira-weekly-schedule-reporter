@@ -34,7 +34,7 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'search',
             component: () => import('pages/jira/TaskViewer.vue')
-          }
+          },
         ]
       },
       {
