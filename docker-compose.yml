@@ -67,6 +67,7 @@ services:
       - GIT_CONFIG_COUNT=1
       - GIT_CONFIG_KEY_0=url.https://x-access-token:${GITHUB_TOKEN}@github.com/.insteadOf
       - GIT_CONFIG_VALUE_0=https://github.com/
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}
     volumes:
       - .:/workspace  # rw for code modifications
       - ${CLAUDE_CONFIG_PATH:-~/.claude}:/home/pilot/.claude  # Claude CLI auth (rw for debug logs)
