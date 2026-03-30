@@ -68,11 +68,6 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
-        path: 'job',
-        meta: { requiresAuth: true },
-        children: []
-      },
-      {
         path: 'report',
         meta: { requiresAuth: true },
         children: [
@@ -99,17 +94,6 @@ const routes: RouteRecordRaw[] = [
     ]
   },
 
-  {
-    path: '/job/forms/:id',
-    component: () => import('layouts/MainLayout.vue'),
-    children: [
-      {
-        path: '',
-        component: () => import('pages/jira/FormTemplatePage.vue'),
-        meta: { requiresAuth: true }
-      }
-    ]
-  },
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue')

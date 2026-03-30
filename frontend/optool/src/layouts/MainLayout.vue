@@ -64,15 +64,6 @@
               ]"
             />
 
-            <!-- Job -->
-            <EssentialLink
-              title="Job"
-              icon="fa-solid fa-file-alt"
-              :children="[
-                ...dynamicMenuItems('Job'),
-              ]"
-            />
-
             <!-- Admin -->
             <EssentialLink
               title="Admin"
