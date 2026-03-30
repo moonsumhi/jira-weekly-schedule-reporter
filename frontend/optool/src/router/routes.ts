@@ -70,20 +70,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'job',
         meta: { requiresAuth: true },
-        children: [
-          {
-            path: 'service-work-plan',
-            component: () => import('pages/job/ServiceWorkPlanPage.vue')
-          },
-          {
-            path: 'non-service-work-plan',
-            component: () => import('pages/job/NonServiceWorkPlanPage.vue')
-          },
-          {
-            path: 'service-work-result',
-            component: () => import('pages/job/ServiceWorkResultPage.vue')
-          },
-        ]
+        children: []
       },
       {
         path: 'report',
@@ -112,6 +99,17 @@ const routes: RouteRecordRaw[] = [
     ]
   },
 
+  {
+    path: '/job/forms/:id',
+    component: () => import('layouts/MainLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/jira/FormTemplatePage.vue'),
+        meta: { requiresAuth: true }
+      }
+    ]
+  },
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue')
