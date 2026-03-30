@@ -34,7 +34,7 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'search',
             component: () => import('pages/jira/TaskViewer.vue')
-          }
+          },
         ]
       },
       {
@@ -65,24 +65,6 @@ const routes: RouteRecordRaw[] = [
             path: 'checklist',
             component: () => import('pages/inspection/ServerRoomInspectionPage.vue')
           }
-        ]
-      },
-      {
-        path: 'job',
-        meta: { requiresAuth: true },
-        children: [
-          {
-            path: 'service-work-plan',
-            component: () => import('pages/job/ServiceWorkPlanPage.vue')
-          },
-          {
-            path: 'non-service-work-plan',
-            component: () => import('pages/job/NonServiceWorkPlanPage.vue')
-          },
-          {
-            path: 'service-work-result',
-            component: () => import('pages/job/ServiceWorkResultPage.vue')
-          },
         ]
       },
       {
