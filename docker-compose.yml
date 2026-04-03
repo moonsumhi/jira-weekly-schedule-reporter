@@ -70,6 +70,7 @@ services:
     volumes:
       - .:/workspace  # rw for code modifications
       - ${CLAUDE_CONFIG_PATH:-~/.claude}:/home/pilot/.claude  # Claude CLI auth (rw for debug logs)
+      - ${CLAUDE_JSON_PATH:-~/.claude.json}:/home/pilot/.claude.json  # Claude CLI config
       - ${SSH_KEY_PATH:-~/.ssh}:/home/pilot/.ssh:ro  # SSH keys for git push
 
   mongo-express:

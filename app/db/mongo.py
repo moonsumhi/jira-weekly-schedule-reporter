@@ -21,6 +21,8 @@ class MongoClientManager:
     JOB_NON_SERVICE_PLANS_HISTORY = "job_non_service_plans_history"
     JOB_RESULTS = "job_results"
     JOB_RESULTS_HISTORY = "job_results_history"
+    FORM_TEMPLATES = "form_templates"
+    FORM_ENTRIES = "form_entries"
 
 
     @classmethod
@@ -103,6 +105,14 @@ class MongoClientManager:
     @classmethod
     def get_job_results_history_collection(cls):
         return cls.get_db()[cls.JOB_RESULTS_HISTORY]
+
+    @classmethod
+    def get_form_templates_collection(cls):
+        return cls.get_db()[cls.FORM_TEMPLATES]
+
+    @classmethod
+    def get_form_entries_collection(cls):
+        return cls.get_db()[cls.FORM_ENTRIES]
 
     @classmethod
     async def close_client(cls) -> None:
