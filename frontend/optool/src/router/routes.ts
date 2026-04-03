@@ -34,7 +34,7 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'search',
             component: () => import('pages/jira/TaskViewer.vue')
-          }
+          },
         ]
       },
       {
@@ -68,24 +68,6 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
-        path: 'job',
-        meta: { requiresAuth: true },
-        children: [
-          {
-            path: 'service-work-plan',
-            component: () => import('pages/job/ServiceWorkPlanPage.vue')
-          },
-          {
-            path: 'non-service-work-plan',
-            component: () => import('pages/job/NonServiceWorkPlanPage.vue')
-          },
-          {
-            path: 'service-work-result',
-            component: () => import('pages/job/ServiceWorkResultPage.vue')
-          },
-        ]
-      },
-      {
         path: 'report',
         meta: { requiresAuth: true },
         children: [
@@ -96,6 +78,16 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'attachment-test4',
             component: () => import('pages/report/AttachmentTest4Page.vue')
+          }
+        ]
+      },
+      {
+        path: 'job',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'forms/:id',
+            component: () => import('pages/jira/FormTemplatePage.vue')
           }
         ]
       },

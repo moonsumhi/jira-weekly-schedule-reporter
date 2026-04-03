@@ -13,6 +13,7 @@ FROM alpine:3.20
 RUN apk add --no-cache \
     ca-certificates \
     python3 \
+    py3-pip \
     nodejs \
     npm \
     git \
@@ -24,6 +25,9 @@ RUN apk add --no-cache \
 
 # Install Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
+
+# Install Python packages for attachment extraction
+RUN pip3 install pypdf python-docx pyhwp six beautifulsoup4 lxml --break-system-packages
 
 # Create non-root user for Claude Code execution
 RUN addgroup -g 1000 pilot && \
@@ -44,6 +48,8 @@ RUN chown pilot:pilot /home/pilot/.pilot/config.yaml
 RUN su-exec pilot git config --global user.name "Pilot AI" && \
     su-exec pilot git config --global user.email "pilot@localhost" && \
     su-exec pilot git config --global --add safe.directory /workspace
+
+ENV PILOT_ORCHESTRATOR_DIR=/usr/local/lib/pilot/orchestrator
 
 EXPOSE 9090
 
