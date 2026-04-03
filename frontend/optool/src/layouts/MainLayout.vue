@@ -44,10 +44,14 @@
             <EssentialLink
               title="Pilot"
               icon="fa-solid fa-robot"
-              :children="[
-                { title: '일감 현황', icon: 'fa-solid fa-tasks', link: '/pilot/tasks' },
-                { title: 'Job', icon: 'fa-solid fa-file-alt', children: dynamicMenuItems('Job') },
-              ]"
+              :children="[{ title: '일감 현황', icon: 'fa-solid fa-tasks', link: '/pilot/tasks' }]"
+            />
+
+            <!-- Job -->
+            <EssentialLink
+              title="Job"
+              icon="fa-solid fa-briefcase"
+              :children="dynamicMenuItems('Job')"
             />
 
             <!-- 자산 -->

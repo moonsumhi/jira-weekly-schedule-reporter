@@ -5,7 +5,7 @@
       <!-- 헤더 -->
       <div class="col-12">
         <div class="text-h5">[pilot]파일테스트2</div>
-        <div class="text-caption text-grey-7">PDF 내용 파악 및 폼 틀 자동 생성</div>
+        <div class="text-caption text-grey-7">PDF / HWP / DOCX 내용 파악 및 폼 틀 자동 생성</div>
       </div>
 
       <!-- 파일 선택 -->
@@ -16,14 +16,14 @@
               <div class="col-12 col-md-8">
                 <q-file
                   v-model="selectedFile"
-                  label="PDF 파일 선택"
-                  accept=".pdf"
+                  :label="'파일 선택 (PDF / HWP / DOCX)'"
+                  accept=".pdf,.hwp,.docx,.doc"
                   outlined
                   clearable
                   @update:model-value="onFileSelected"
                 >
                   <template v-slot:prepend>
-                    <q-icon name="picture_as_pdf" color="red-7" />
+                    <q-icon :name="fileIcon" :color="fileIconColor" />
                   </template>
                 </q-file>
               </div>
@@ -114,6 +114,7 @@
                   <!-- text / number / date -->
                   <q-input
                     v-if="['text', 'number', 'date'].includes(field.type)"
+                    model-value=""
                     :label="field.label + (field.required ? ' *' : '')"
                     :placeholder="field.placeholder"
                     :type="field.type === 'date' ? 'date' : (field.type as 'text' | 'number')"
@@ -125,6 +126,7 @@
                   <!-- textarea -->
                   <q-input
                     v-else-if="field.type === 'textarea'"
+                    model-value=""
                     :label="field.label + (field.required ? ' *' : '')"
                     :placeholder="field.placeholder"
                     type="textarea"
@@ -137,6 +139,7 @@
                   <!-- select -->
                   <q-select
                     v-else-if="field.type === 'select'"
+                    :model-value="null"
                     :label="field.label + (field.required ? ' *' : '')"
                     :options="field.options"
                     outlined
@@ -147,8 +150,8 @@
                   <!-- checkbox -->
                   <q-checkbox
                     v-else-if="field.type === 'checkbox'"
+                    :model-value="false"
                     :label="field.label"
-                    :hint="fieldTypeHint(field.type)"
                   />
                 </div>
               </div>
@@ -164,9 +167,9 @@
         <q-card flat bordered>
           <q-card-section class="text-center q-py-xl text-grey-6">
             <q-icon name="auto_awesome" size="64px" color="deep-purple-2" class="q-mb-md" />
-            <div class="text-h6 text-grey-5">PDF 파일을 선택해주세요</div>
+            <div class="text-h6 text-grey-5">파일을 선택해주세요</div>
             <div class="text-caption q-mt-sm">
-              PDF 파일을 선택한 후 "내용 분석" 버튼을 클릭하면<br />
+              PDF, HWP, DOCX 파일을 선택한 후 "내용 분석" 버튼을 클릭하면<br />
               AI가 문서 내용을 파악하여 자동으로 폼 틀을 생성합니다.
             </div>
           </q-card-section>
@@ -220,6 +223,31 @@ const totalFieldCount = computed(() =>
   result.value?.sections.reduce((sum, s) => sum + s.fields.length, 0) ?? 0
 )
 
+const fileExt = computed(() => {
+  const name = selectedFile.value?.name ?? ''
+  return name.includes('.') ? name.split('.').pop()?.toLowerCase() ?? '' : ''
+})
+
+const fileIcon = computed(() => {
+  switch (fileExt.value) {
+    case 'pdf': return 'picture_as_pdf'
+    case 'hwp': return 'description'
+    case 'docx':
+    case 'doc': return 'article'
+    default: return 'attach_file'
+  }
+})
+
+const fileIconColor = computed(() => {
+  switch (fileExt.value) {
+    case 'pdf': return 'red-7'
+    case 'hwp': return 'blue-7'
+    case 'docx':
+    case 'doc': return 'indigo-7'
+    default: return 'grey-7'
+  }
+})
+
 function onFileSelected(file: File | null) {
   result.value = null
   if (!file) return
@@ -244,6 +272,15 @@ async function extractPdfText(file: File): Promise<string> {
   return texts.join('\n')
 }
 
+async function extractServerText(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await api.post('/test/extract-text', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data.text as string
+}
+
 async function analyzeContent() {
   if (!selectedFile.value) return
 
@@ -251,11 +288,19 @@ async function analyzeContent() {
   result.value = null
 
   try {
-    statusMessage.value = 'PDF 텍스트 추출 중...'
-    const text = await extractPdfText(selectedFile.value)
+    let text = ''
+    const ext = selectedFile.value.name.split('.').pop()?.toLowerCase() ?? ''
+
+    if (ext === 'pdf') {
+      statusMessage.value = 'PDF 텍스트 추출 중...'
+      text = await extractPdfText(selectedFile.value)
+    } else {
+      statusMessage.value = `${ext.toUpperCase()} 텍스트 추출 중...`
+      text = await extractServerText(selectedFile.value)
+    }
 
     if (!text.trim()) {
-      $q.notify({ type: 'warning', message: 'PDF에서 텍스트를 추출할 수 없습니다.' })
+      $q.notify({ type: 'warning', message: '파일에서 텍스트를 추출할 수 없습니다.' })
       return
     }
 

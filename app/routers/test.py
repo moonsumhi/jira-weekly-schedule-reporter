@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel
 
 from app.core.config import settings
-from app.core.security import get_current_user
+from app.routers.auth import get_current_user
 
 router = APIRouter()
 
@@ -10,6 +10,11 @@ router = APIRouter()
 class AnalyzePdfRequest(BaseModel):
     text: str
     filename: str = ""
+
+
+class ExtractTextResponse(BaseModel):
+    text: str
+    filename: str
 
 
 class TemplateField(BaseModel):
@@ -30,6 +35,63 @@ class AnalyzePdfResponse(BaseModel):
     description: str
     sections: list[TemplateSection]
     raw_summary: str
+
+
+@router.post("/extract-text", response_model=ExtractTextResponse)
+async def extract_file_text(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """PDF, HWP, DOCX 파일에서 텍스트를 추출합니다."""
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    if ext not in ("pdf", "hwp", "docx", "doc"):
+        raise HTTPException(status_code=400, detail="PDF, HWP, DOCX 파일만 지원합니다.")
+
+    data = await file.read()
+
+    try:
+        if ext == "pdf":
+            text = _extract_pdf(data)
+        elif ext == "hwp":
+            text = _extract_hwp(data)
+        else:
+            text = _extract_docx(data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"텍스트 추출 실패: {str(e)}")
+
+    return ExtractTextResponse(text=text, filename=filename)
+
+
+def _extract_pdf(data: bytes) -> str:
+    import io
+    import pypdf
+    reader = pypdf.PdfReader(io.BytesIO(data))
+    texts = []
+    for page in reader.pages:
+        t = page.extract_text()
+        if t:
+            texts.append(t)
+    return "\n".join(texts)
+
+
+def _extract_hwp(data: bytes) -> str:
+    import io
+    import olefile
+    ole = olefile.OleFileIO(io.BytesIO(data))
+    if ole.exists("PrvText"):
+        raw = ole.openstream("PrvText").read()
+        return raw.decode("utf-16-le", errors="ignore")
+    raise ValueError("HWP 파일에서 텍스트를 추출할 수 없습니다.")
+
+
+def _extract_docx(data: bytes) -> str:
+    import io
+    import docx
+    doc = docx.Document(io.BytesIO(data))
+    texts = [p.text for p in doc.paragraphs if p.text.strip()]
+    return "\n".join(texts)
 
 
 @router.post("/analyze-pdf", response_model=AnalyzePdfResponse)

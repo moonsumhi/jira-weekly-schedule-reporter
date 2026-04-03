@@ -26,9 +26,13 @@ class TaskCallbackRequest(BaseModel):
 
     task_id: str
     issue_key: str
-    status: Literal["completed", "failed"]
+    status: Literal["pending", "completed", "failed"]
     pr_url: str | None = None
     error: str | None = None
+    # Optional metadata (provided on pending)
+    summary: str | None = None
+    project_key: str | None = None
+    issue_url: str | None = None
 
 
 class TaskOut(BaseModel):
@@ -89,7 +93,24 @@ async def task_callback(payload: TaskCallbackRequest):
     """
     col = MongoClientManager.get_pilot_poll_state_collection()
 
-    if payload.status == "completed":
+    if payload.status == "pending":
+        update: dict = {
+            "status": "pending",
+            "sent_at": datetime.now(timezone.utc),
+        }
+        if payload.summary is not None:
+            update["summary"] = payload.summary
+        if payload.project_key is not None:
+            update["project_key"] = payload.project_key
+        if payload.issue_url is not None:
+            update["issue_url"] = payload.issue_url
+        await col.update_one(
+            {"_id": f"processed:{payload.issue_key}"},
+            {"$set": update},
+            upsert=True,
+        )
+        print(f"[Pilot Callback] Task {payload.issue_key} pending")
+    elif payload.status == "completed":
         await col.update_one(
             {"_id": f"processed:{payload.issue_key}"},
             {

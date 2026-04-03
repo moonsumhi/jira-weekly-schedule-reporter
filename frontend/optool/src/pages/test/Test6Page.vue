@@ -103,7 +103,7 @@
                     <!-- text / number -->
                     <q-input
                       v-if="['text', 'number'].includes(field.type)"
-                      v-model="formData[fieldKey(sIdx, fIdx)]"
+                      v-model="(formData[fieldKey(sIdx, fIdx)] as string | number | null | undefined)"
                       :label="field.label + (field.required ? ' *' : '')"
                       :placeholder="field.placeholder"
                       :type="(field.type as 'text' | 'number')"
@@ -115,7 +115,7 @@
                     <!-- date -->
                     <q-input
                       v-else-if="field.type === 'date'"
-                      v-model="formData[fieldKey(sIdx, fIdx)]"
+                      v-model="(formData[fieldKey(sIdx, fIdx)] as string | null | undefined)"
                       :label="field.label + (field.required ? ' *' : '')"
                       :rules="field.required ? [requiredRule] : []"
                       outlined
@@ -140,7 +140,7 @@
                     <!-- textarea -->
                     <q-input
                       v-else-if="field.type === 'textarea'"
-                      v-model="formData[fieldKey(sIdx, fIdx)]"
+                      v-model="(formData[fieldKey(sIdx, fIdx)] as string | null | undefined)"
                       :label="field.label + (field.required ? ' *' : '')"
                       :placeholder="field.placeholder"
                       :rules="field.required ? [requiredRule] : []"
@@ -272,7 +272,7 @@ interface AnalysisResult {
 }
 
 const result = ref<AnalysisResult | null>(null)
-const formData = reactive<Record<string, unknown>>({})
+const formData = reactive<Record<string, string | number | boolean | null | undefined>>({})
 
 function fieldKey(sIdx: number, fIdx: number): string {
   return `s${sIdx}_f${fIdx}`
