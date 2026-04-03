@@ -10,8 +10,8 @@ Changes applied:
     - "작업 실적" section     → removed
     - "작업 대상" section     → inserted (multiple=true) if missing; made multiple if present
     - "작업 내용" section     → inserted (multiple=true) if missing; made multiple if present
-    - "항목 추가" section     → inserted (multiple=true) if missing; made multiple if present
-                                add fields: 담당자, 테스트 결과, 테스트 실패 분석
+
+Note: "항목 추가" section is removed by remove_item_section.py (TASK-NCDC-618).
 
 Usage:
     cd /workspace
@@ -20,7 +20,6 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import sys
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -41,14 +40,7 @@ PLAN_MULTIPLE_SECTIONS = {"세부작업 절차", "사전 작업"}
 
 RESULT_TITLE = "작업결과서"
 RESULT_REMOVE_SECTIONS = {"작업 실적"}
-RESULT_MULTIPLE_SECTIONS = {"작업 대상", "작업 내용", "항목 추가"}
-
-# Fields to add to "항목 추가" section (only if not already present)
-ITEM_SECTION_NEW_FIELDS = [
-    {"label": "담당자", "type": "text", "required": False, "placeholder": "담당자 입력"},
-    {"label": "테스트 결과", "type": "textarea", "required": False, "placeholder": "테스트 결과 입력"},
-    {"label": "테스트 실패 분석", "type": "textarea", "required": False, "placeholder": "테스트 실패 분석 입력"},
-]
+RESULT_MULTIPLE_SECTIONS = {"작업 대상", "작업 내용"}
 
 # New sections to insert into 작업결과서 if missing.
 # Each entry: (section_title, insert_after_title, section_definition)
@@ -86,19 +78,6 @@ RESULT_NEW_SECTIONS = [
             ],
         },
     ),
-    (
-        "항목 추가",
-        "작업 내용",
-        {
-            "title": "항목 추가",
-            "multiple": True,
-            "fields": [
-                {"label": "담당자", "type": "text", "required": False, "placeholder": "담당자 입력"},
-                {"label": "테스트 결과", "type": "textarea", "required": False, "placeholder": "테스트 결과 입력"},
-                {"label": "테스트 실패 분석", "type": "textarea", "required": False, "placeholder": "테스트 실패 분석 입력"},
-            ],
-        },
-    ),
 ]
 
 
@@ -118,9 +97,8 @@ def _update_plan_sections(sections: list) -> list:
 def _update_result_sections(sections: list) -> list:
     """
     - Remove 작업 실적
-    - Mark 작업 대상 / 작업 내용 / 항목 추가 as multiple=true (if present)
-    - Ensure 항목 추가 has 담당자, 테스트 결과, 테스트 실패 분석 fields (if present)
-    - Insert 작업 대상 / 작업 내용 / 항목 추가 if they are missing
+    - Mark 작업 대상 / 작업 내용 as multiple=true (if present)
+    - Insert 작업 대상 / 작업 내용 if they are missing
     """
     # First pass: remove deleted sections and update existing ones
     updated = []
@@ -137,18 +115,6 @@ def _update_result_sections(sections: list) -> list:
 
         if title in RESULT_MULTIPLE_SECTIONS:
             section = {**section, "multiple": True}
-
-        if title == "항목 추가":
-            fields = list(section.get("fields", []))
-            existing_labels = {
-                f.get("label")
-                for f in fields
-                if isinstance(f, dict)
-            }
-            for new_field in ITEM_SECTION_NEW_FIELDS:
-                if new_field["label"] not in existing_labels:
-                    fields.append(new_field)
-            section = {**section, "fields": fields}
 
         updated.append(section)
 
