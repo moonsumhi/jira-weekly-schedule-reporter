@@ -1,10 +1,13 @@
 // src/services/formEntries.ts
 import { api } from 'src/boot/axios'
 
+type SectionValue = Record<string, string> | Record<string, string>[]
+type EntryData = Record<string, SectionValue>
+
 export type FormEntry = {
   id: string
   template_id: string
-  data: Record<string, any>
+  data: EntryData
   version: number
   is_deleted: boolean
   created_at?: string | null
@@ -21,7 +24,7 @@ export const formEntryService = {
     return data
   },
 
-  async create(templateId: string, entryData: Record<string, any>): Promise<FormEntry> {
+  async create(templateId: string, entryData: EntryData): Promise<FormEntry> {
     const { data } = await api.post<FormEntry>('/form-entries', {
       template_id: templateId,
       data: entryData,
@@ -29,7 +32,7 @@ export const formEntryService = {
     return data
   },
 
-  async patch(id: string, entryData: Record<string, any>, version: number): Promise<FormEntry> {
+  async patch(id: string, entryData: EntryData, version: number): Promise<FormEntry> {
     const { data } = await api.patch<FormEntry>(`/form-entries/${id}`, {
       data: entryData,
       version,
@@ -39,5 +42,13 @@ export const formEntryService = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`/form-entries/${id}`)
+  },
+
+  async importFromFile(templateId: string, file: File): Promise<EntryData> {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('template_id', templateId)
+    const { data } = await api.post<{ data: EntryData }>('/form-entries/import', formData)
+    return data.data
   },
 }

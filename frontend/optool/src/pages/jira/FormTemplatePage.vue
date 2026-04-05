@@ -12,6 +12,8 @@
         <q-space />
         <q-toggle v-model="includeDeleted" label="삭제 포함" dense @update:model-value="load" />
         <q-btn outline icon="refresh" label="새로고침" :loading="tableLoading" @click="load" />
+        <q-btn outline icon="upload_file" label="Import" :loading="importing" @click="triggerImport" />
+        <input ref="fileInput" type="file" accept=".pdf,.hwp" style="display:none" @change="handleFileImport" />
         <q-btn color="primary" icon="add" :label="`${template.title} 추가`" @click="openCreate" />
       </div>
 
@@ -236,7 +238,7 @@
                   <q-item v-for="field in section.fields" :key="field.label">
                     <q-item-section>
                       <q-item-label caption>{{ field.label }}</q-item-label>
-                      <q-item-label>{{ detailRow.data[section.title]?.[field.label] || '-' }}</q-item-label>
+                      <q-item-label>{{ (detailRow.data[section.title] as Record<string, string>)?.[field.label] || '-' }}</q-item-label>
                     </q-item-section>
                   </q-item>
                 </q-list>
@@ -274,6 +276,10 @@ const includeDeleted = ref(false)
 const template = ref<FormTemplate | null>(null)
 const rows = ref<FormEntry[]>([])
 
+// import
+const importing = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+
 // dialogs
 const formDialog = ref(false)
 const detailDialog = ref(false)
@@ -283,8 +289,9 @@ const actingId = ref<string | null>(null)
 const editingId = ref<string | null>(null)
 const editingVersion = ref(1)
 
+type SectionValue = Record<string, string> | Record<string, string>[]
 // formValues: single section → Record<string,string>, multiple section → Array<Record<string,string>>
-const formValues = ref<Record<string, any>>({})
+const formValues = ref<Record<string, SectionValue>>({})
 
 const sections = computed<FormSection[]>(() =>
   template.value ? (template.value.sections as FormSection[]) : []
@@ -317,15 +324,18 @@ function entryPreview(row: FormEntry): string {
 
 function getVal(sectionTitle: string, fieldLabel: string): string {
   const sec = formValues.value[sectionTitle]
-  if (!sec || typeof sec !== 'object' || Array.isArray(sec)) return ''
-  return (sec as Record<string, string>)[fieldLabel] ?? ''
+  if (!sec || Array.isArray(sec)) return ''
+  return sec[fieldLabel] ?? ''
 }
 
 function setVal(sectionTitle: string, fieldLabel: string, val: string | number | null): void {
   if (!formValues.value[sectionTitle] || Array.isArray(formValues.value[sectionTitle])) {
     formValues.value[sectionTitle] = {}
   }
-  ;(formValues.value[sectionTitle] as Record<string, string>)[fieldLabel] = val == null ? '' : String(val)
+  const sec = formValues.value[sectionTitle]
+  if (!Array.isArray(sec)) {
+    sec[fieldLabel] = val == null ? '' : String(val)
+  }
 }
 
 // ── Multiple section helpers ────────────────────────────────────────────────
@@ -390,7 +400,7 @@ function inputType(type: string): 'text' | 'textarea' | 'date' | 'datetime-local
 // ── Form state management ───────────────────────────────────────────────────
 
 function resetForm() {
-  const init: Record<string, any> = {}
+  const init: Record<string, SectionValue> = {}
   for (const section of sections.value) {
     if (section.multiple) {
       init[section.title] = [emptyRow(section)]
@@ -399,6 +409,43 @@ function resetForm() {
     }
   }
   formValues.value = init
+}
+
+function triggerImport() {
+  fileInput.value?.click()
+}
+
+async function handleFileImport(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !template.value) return
+  importing.value = true
+  try {
+    const importedData = await formEntryService.importFromFile(template.value.id, file)
+    const init: Record<string, SectionValue> = {}
+    for (const section of sections.value) {
+      const imported = importedData[section.title]
+      if (section.multiple) {
+        if (Array.isArray(imported) && imported.length > 0) {
+          init[section.title] = (imported as Record<string, string>[]).map((r) => ({ ...r }))
+        } else {
+          init[section.title] = [emptyRow(section)]
+        }
+      } else {
+        init[section.title] = { ...(imported as Record<string, string> ?? {}) }
+      }
+    }
+    formValues.value = init
+    isEdit.value = false
+    editingId.value = null
+    formDialog.value = true
+    $q.notify({ type: 'positive', message: 'Import 완료. 내용을 확인 후 저장하세요.' })
+  } catch {
+    $q.notify({ type: 'negative', message: 'Import 실패. 파일을 확인하세요.' })
+  } finally {
+    importing.value = false
+    input.value = ''
+  }
 }
 
 function openCreate() {
@@ -412,7 +459,7 @@ function openEdit(row: FormEntry) {
   isEdit.value = true
   editingId.value = row.id
   editingVersion.value = row.version
-  const copy: Record<string, any> = {}
+  const copy: Record<string, SectionValue> = {}
   for (const section of sections.value) {
     const saved = row.data[section.title]
     if (section.multiple) {
