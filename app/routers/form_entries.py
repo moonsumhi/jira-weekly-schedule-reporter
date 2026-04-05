@@ -1,12 +1,20 @@
 """Form entry CRUD endpoints — stores submitted data for a form template."""
 
+import asyncio
+import io
+import json
+import os
+import re
+import tempfile
 from datetime import datetime, timezone
 from typing import Any
 
+import anthropic
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 
+from app.core.config import settings
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.routers.auth import get_current_user
@@ -59,6 +67,97 @@ def _to_out(doc: dict) -> FormEntryOut:
         updated_at=_fmt(doc.get("updated_at")),
         updated_by=doc.get("updated_by"),
     )
+
+
+def _extract_pdf_text(content: bytes) -> str:
+    import pypdf
+    reader = pypdf.PdfReader(io.BytesIO(content))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+
+async def _extract_hwp_text(content: bytes) -> str:
+    with tempfile.NamedTemporaryFile(suffix=".hwp", delete=False) as f:
+        f.write(content)
+        tmppath = f.name
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "hwp5txt", tmppath,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
+        return stdout.decode("utf-8", errors="replace")
+    except Exception:
+        return ""
+    finally:
+        try:
+            os.unlink(tmppath)
+        except OSError:
+            pass
+
+
+async def _extract_form_data_with_claude(text: str, sections: list) -> dict:
+    sections_desc = json.dumps(sections, ensure_ascii=False, indent=2)
+    prompt = (
+        "다음 작업계획서 문서에서 폼 데이터를 추출해주세요.\n\n"
+        f"폼 구조:\n{sections_desc}\n\n"
+        f"문서 내용:\n{text}\n\n"
+        "위 폼 구조에 맞춰 JSON으로 데이터를 추출해주세요. "
+        "각 섹션의 각 필드에 해당하는 값을 찾아서 채워주세요. "
+        "multiple이 true인 섹션은 배열로, 아닌 경우는 객체로 반환하세요.\n\n"
+        "반드시 다음 형식으로만 응답하세요 (JSON만, 설명 없이):\n"
+        "{\"섹션제목\": {\"필드명\": \"값\"}, \"multiple섹션제목\": [{\"필드명\": \"값\"}]}"
+    )
+    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    message = await client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    response_text = message.content[0].text  # type: ignore[union-attr]
+    match = re.search(r"\{.*\}", response_text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+    return {}
+
+
+@router.post("/import")
+async def import_entry_from_file(
+    file: UploadFile = File(...),
+    template_id: str = Form(...),
+    current_user: UserPublic = Depends(get_current_user),
+) -> dict:
+    """Parse a HWP/PDF file and extract form data using Claude AI."""
+    tmpl_col = MongoClientManager.get_form_templates_collection()
+    try:
+        tmpl_oid = ObjectId(template_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid template_id")
+    tmpl = await tmpl_col.find_one({"_id": tmpl_oid})
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    content = await file.read()
+    filename = (file.filename or "").lower()
+
+    if filename.endswith(".pdf"):
+        text = _extract_pdf_text(content)
+    elif filename.endswith(".hwp"):
+        text = await _extract_hwp_text(content)
+    else:
+        raise HTTPException(status_code=415, detail="지원하지 않는 파일 형식입니다. PDF 또는 HWP 파일을 업로드하세요.")
+
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="파일에서 텍스트를 추출할 수 없습니다.")
+
+    if not settings.ANTHROPIC_API_KEY:
+        raise HTTPException(status_code=503, detail="AI 추출 기능이 설정되지 않았습니다.")
+
+    extracted = await _extract_form_data_with_claude(text, tmpl.get("sections", []))
+    return {"data": extracted}
 
 
 @router.get("", response_model=list[FormEntryOut])
