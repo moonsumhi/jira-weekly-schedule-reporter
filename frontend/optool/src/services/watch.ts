@@ -48,3 +48,8 @@ export async function patchWatch(id: string, payload: WatchPatch) {
 export async function deleteWatch(id: string) {
   await api.delete(`/watch/${id}`)
 }
+
+export async function deleteWatchByAssignee(assignee: string): Promise<{ deleted: number }> {
+  const { data } = await api.delete<{ deleted: number }>('/watch/bulk', { params: { assignee } })
+  return data
+}

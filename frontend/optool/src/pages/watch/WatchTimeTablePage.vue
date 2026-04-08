@@ -61,6 +61,26 @@
         </q-card>
       </div>
 
+      <!-- 담당자별 일괄 삭제 -->
+      <div class="col-12">
+        <q-card flat bordered>
+          <q-card-section class="row items-center q-col-gutter-sm">
+            <div class="col-12 col-md-4">
+              <q-input dense v-model="bulkDelete.assignee" label="삭제할 담당자" />
+            </div>
+            <div class="col-12 col-md-2">
+              <q-btn
+                color="negative"
+                class="full-width"
+                label="일괄 삭제"
+                :loading="busy"
+                @click="deleteByAssignee"
+              />
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+
       <!-- 캘린더 -->
       <div class="col-12">
         <q-card flat bordered>
@@ -128,7 +148,7 @@ import luxonPlugin from '@fullcalendar/luxon'
 import type { CalendarOptions, EventInput, EventSourceFuncArg } from '@fullcalendar/core'
 import type FullCalendarComponent from '@fullcalendar/vue3'
 
-import { listWatch, createWatch, patchWatch, deleteWatch, type WatchRow } from 'src/services/watch'
+import { listWatch, createWatch, patchWatch, deleteWatch, deleteWatchByAssignee, type WatchRow } from 'src/services/watch'
 import { dateToKstDateTimeLocal, kstDateTimeLocalToUtcIso } from 'src/utils/time/kst'
 import { isRecord, getErrorMessage } from 'src/utils/http/error'
 
@@ -143,6 +163,27 @@ const days = [
   { key: 'sat', label: 'Sat' },
   { key: 'sun', label: 'Sun' }
 ] as const
+
+const bulkDelete = ref({ assignee: '' })
+
+async function deleteByAssignee() {
+  const assignee = bulkDelete.value.assignee.trim()
+  if (!assignee) {
+    Notify.create({ type: 'negative', message: '담당자를 입력해주세요.' })
+    return
+  }
+  try {
+    busy.value = true
+    const { deleted } = await deleteWatchByAssignee(assignee)
+    refetchCalendar()
+    Notify.create({ type: 'positive', message: `${deleted}개의 일정이 삭제되었습니다.` })
+    bulkDelete.value.assignee = ''
+  } catch (e: unknown) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, 'Failed') })
+  } finally {
+    busy.value = false
+  }
+}
 
 const bulk = ref({
   assignee: '문수미',
