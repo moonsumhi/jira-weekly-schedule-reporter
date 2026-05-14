@@ -10,20 +10,15 @@ function toUpperString(v: unknown): string {
 
 export function eosStatusLabel(v: unknown): string {
   const s = toUpperString(v)
-  if (s === 'NONE') return '미조치'
-  if (s === 'PLAN') return '계획'
-  if (s === 'DOING') return '진행'
-  if (s === 'DONE') return '완료'
-  if (s === 'EXCEPTION') return '예외'
-  return '-'
+  if (s === 'ACTIVE') return '지원 기간 중'
+  if (s === 'EOS') return 'EoS 지남'
+  return '확인 불가'
 }
 
 export function eosStatusColor(v: unknown): string {
   const s = toUpperString(v)
-  if (s === 'DONE') return 'positive'
-  if (s === 'DOING' || s === 'PLAN') return 'warning'
-  if (s === 'EXCEPTION') return 'grey'
-  if (s === 'NONE') return 'negative'
+  if (s === 'ACTIVE') return 'positive'
+  if (s === 'EOS') return 'negative'
   return 'grey'
 }
 

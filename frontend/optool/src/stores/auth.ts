@@ -7,7 +7,8 @@ export type UserMe = {
   id: string | number
   email: string
   fullName?: string | null
-  isAdmin? : boolean
+  isAdmin?: boolean
+  permissions?: string[]
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -15,6 +16,16 @@ export const useAuthStore = defineStore('auth', () => {
   const me = ref<UserMe | null>(null)
   const loading = ref(false)
   const lastError = ref<string | null>(null)
+  const pendingCount = ref(0)
+
+  async function fetchPendingCount() {
+    try {
+      const { data } = await api.get<{ id: string }[]>('/admin/users/pending', { params: { status: 'PENDING' } })
+      pendingCount.value = Array.isArray(data) ? data.length : 0
+    } catch {
+      pendingCount.value = 0
+    }
+  }
 
   const isLoggedIn = computed(() => !!token.value)
 
@@ -106,10 +117,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     // state
-    token, me, loading, lastError,
+    token, me, loading, lastError, pendingCount,
     // getters
     isLoggedIn,
     // actions
-    login, register, fetchMe, logout, bootstrap,
+    login, register, fetchMe, logout, bootstrap, fetchPendingCount,
   }
 })
