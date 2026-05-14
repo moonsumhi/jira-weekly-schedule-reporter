@@ -33,6 +33,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'search',
+            meta: { requiresPermission: 'jira_search' },
             component: () => import('pages/jira/TaskViewer.vue')
           },
         ]
@@ -43,6 +44,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'list',
+            meta: { requiresPermission: 'asset_list' },
             component: () => import('pages/asset/ServerAssetPage.vue')
           }
         ]
@@ -53,6 +55,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'tasks',
+            meta: { requiresPermission: 'pilot_tasks' },
             component: () => import('pages/pilot/PilotTasksPage.vue')
           }
         ]
@@ -63,6 +66,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'checklist',
+            meta: { requiresPermission: 'inspection_checklist' },
             component: () => import('pages/inspection/ServerRoomInspectionPage.vue')
           }
         ]
@@ -73,11 +77,8 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'weekly',
+            meta: { requiresPermission: 'weekly_report' },
             component: () => import('pages/report/WeeklyReportPage.vue')
-          },
-          {
-            path: 'attachment-test4',
-            component: () => import('pages/report/AttachmentTest4Page.vue')
           }
         ]
       },
@@ -92,12 +93,40 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'account',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'settings',
+            component: () => import('pages/account/AccountSettingsPage.vue')
+          }
+        ]
+      },
+      {
+        path: 'board',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: ':boardId',
+            component: () => import('pages/board/BoardPage.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
-        meta: { requiresAuth: true, requireAdmin: true },
+        meta: { requiresAuth: true, requiresAdmin: true },
         children: [
           {
             path: 'approvals',
             component: () => import('pages/auth/AdminApprovalPage.vue')
+          },
+          {
+            path: 'users',
+            component: () => import('pages/auth/AdminUserListPage.vue')
+          },
+          {
+            path: 'menus',
+            component: () => import('pages/admin/MenuManagePage.vue')
           }
         ]
       }

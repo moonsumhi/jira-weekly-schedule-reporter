@@ -3,63 +3,84 @@
     <div class="row q-col-gutter-md">
 
       <div class="col-12">
-        <div class="text-h5">당직 근무 일정표</div>
-        <div class="text-caption text-grey-7">
-          드래그/리사이즈로 수정할 수 있습니다.
-          빈 시간대를 클릭하면 생성할 수 있고,
-          이벤트를 클릭하면 수정/삭제할 수 있습니다.
+        <div class="row items-start">
+          <div>
+            <div class="text-h5">당직 근무 일정표</div>
+            <div class="text-caption text-grey-7">
+              드래그/리사이즈로 수정할 수 있습니다.
+              빈 시간대를 클릭하면 생성할 수 있고,
+              이벤트를 클릭하면 수정/삭제할 수 있습니다.
+            </div>
+          </div>
+          <q-space />
+          <div class="row items-center q-gutter-sm">
+            <q-btn flat dense icon="download" label="템플릿 다운로드" @click="downloadTemplate" />
+            <q-btn color="teal" icon="upload" label="Import" :loading="importing" @click="triggerImport" />
+            <input ref="importInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onImportFile" />
+          </div>
         </div>
       </div>
 
       <!-- 일괄 생성 -->
       <div class="col-12">
         <q-card flat bordered>
-          <q-card-section class="row items-center q-col-gutter-sm">
-            <div class="col-12 col-md-3">
-              <q-input dense v-model="bulk.assignee" label="담당자" />
-            </div>
+          <q-card-section>
+            <div class="text-subtitle2 q-mb-sm">일괄 생성</div>
+            <div class="row q-col-gutter-sm">
 
-            <div class="col-6 col-md-2">
-              <q-input
-                dense
-                v-model="bulk.startTime"
-                label="시작 시간 (HH:MM)"
-                placeholder="12:00"
-              />
-            </div>
+              <!-- A타임 -->
+              <div class="col-12">
+                <q-card flat bordered class="q-pa-sm">
+                  <div class="row items-center q-gutter-xs q-mb-xs">
+                    <q-badge color="blue" label="A타임" />
+                    <span class="text-caption text-grey-7">11:00 ~ 12:00</span>
+                  </div>
+                  <div class="row items-center q-col-gutter-sm">
+                    <div class="col-12 col-sm-4">
+                      <q-input dense v-model="bulkA.assignee" label="담당자" />
+                    </div>
+                    <div class="col-6 col-sm-3">
+                      <q-input dense v-model="bulkA.fromDate" label="시작일" type="date" />
+                    </div>
+                    <div class="col-6 col-sm-3">
+                      <q-input dense v-model="bulkA.toDate" label="종료일" type="date" />
+                    </div>
+                    <div class="col-12 col-sm-2">
+                      <q-btn color="blue" class="full-width" label="생성" :loading="busy" @click="createBulkA" />
+                    </div>
+                  </div>
+                </q-card>
+              </div>
 
-            <div class="col-6 col-md-2">
-              <q-input
-                dense
-                v-model="bulk.endTime"
-                label="종료 시간 (HH:MM)"
-                placeholder="12:30"
-              />
-            </div>
+              <!-- B타임 -->
+              <div class="col-12">
+                <q-card flat bordered class="q-pa-sm">
+                  <div class="row items-center q-gutter-xs q-mb-xs">
+                    <q-badge color="purple" label="B타임" />
+                    <span class="text-caption text-grey-7">12:00 ~ 13:00</span>
+                  </div>
+                  <div class="row items-center q-col-gutter-sm">
+                    <div class="col-12 col-sm-4">
+                      <q-input dense v-model="bulkB.assignee" label="담당자" />
+                    </div>
+                    <div class="col-6 col-sm-3">
+                      <q-input dense v-model="bulkB.fromDate" label="시작일" type="date" />
+                    </div>
+                    <div class="col-6 col-sm-3">
+                      <q-input dense v-model="bulkB.toDate" label="종료일" type="date" />
+                    </div>
+                    <div class="col-12 col-sm-2">
+                      <q-btn color="purple" class="full-width" label="생성" :loading="busy" @click="createBulkB" />
+                    </div>
+                  </div>
+                </q-card>
+              </div>
 
-            <div class="col-12 col-md-3 row items-center q-gutter-sm">
-              <q-checkbox
-                v-for="d in days"
-                :key="d.key"
-                dense
-                v-model="bulk.dayKeys"
-                :val="d.key"
-                :label="d.label"
-              />
-            </div>
-
-            <div class="col-12 col-md-2">
-              <q-btn
-                color="primary"
-                class="full-width"
-                label="일괄 생성"
-                :loading="busy"
-                @click="createBulk"
-              />
             </div>
           </q-card-section>
         </q-card>
       </div>
+
 
       <!-- 캘린더 -->
       <div class="col-12">
@@ -73,24 +94,45 @@
 
     <!-- 생성 / 수정 다이얼로그 -->
     <q-dialog v-model="dialog.open" persistent>
-      <q-card style="width:min(560px, 92vw);">
+      <q-card style="width:min(480px, 92vw);">
         <q-card-section>
           <div class="text-h6">
             {{ dialog.mode === 'create' ? '근무 일정 생성' : '근무 일정 수정' }}
+          </div>
+          <div v-if="dialog.mode === 'create'" class="text-caption text-grey-7 q-mt-xs">
+            {{ dialog.date }}
           </div>
         </q-card-section>
 
         <q-separator />
 
-        <q-card-section class="q-gutter-md">
-          <q-input v-model="dialog.assignee" label="담당자" />
-          <q-input v-model="dialog.startLocal" label="시작 시간" type="datetime-local" />
-          <q-input v-model="dialog.endLocal" label="종료 시간" type="datetime-local" />
-          <q-input v-model="dialog.note" label="메모 (선택)" />
-
-          <div v-if="dialog.error" class="text-negative text-caption">
-            {{ dialog.error }}
+        <!-- 생성 모드: A/B타임 담당자 -->
+        <q-card-section v-if="dialog.mode === 'create'" class="q-gutter-md">
+          <div class="row items-center q-col-gutter-sm">
+            <div class="col-auto">
+              <q-badge color="blue" label="A타임" style="font-size:13px;padding:4px 8px;" />
+            </div>
+            <div class="col">
+              <q-input v-model="dialog.assigneeA" label="담당자" dense />
+            </div>
           </div>
+          <div class="row items-center q-col-gutter-sm">
+            <div class="col-auto">
+              <q-badge color="purple" label="B타임" style="font-size:13px;padding:4px 8px;" />
+            </div>
+            <div class="col">
+              <q-input v-model="dialog.assigneeB" label="담당자" dense />
+            </div>
+          </div>
+          <q-input v-model="dialog.note" label="메모 (선택)" dense />
+          <div v-if="dialog.error" class="text-negative text-caption">{{ dialog.error }}</div>
+        </q-card-section>
+
+        <!-- 수정 모드: 단일 담당자 -->
+        <q-card-section v-else class="q-gutter-md">
+          <q-input v-model="dialog.assignee" label="담당자" />
+          <q-input v-model="dialog.note" label="메모 (선택)" />
+          <div v-if="dialog.error" class="text-negative text-caption">{{ dialog.error }}</div>
         </q-card-section>
 
         <q-separator />
@@ -116,9 +158,10 @@
   </q-page>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { Notify } from 'quasar'
 import { DateTime } from 'luxon'
+import * as XLSX from 'xlsx'
 
 import FullCalendar from '@fullcalendar/vue3'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -134,23 +177,9 @@ import { isRecord, getErrorMessage } from 'src/utils/http/error'
 
 const busy = ref(false)
 
-const days = [
-  { key: 'mon', label: 'Mon' },
-  { key: 'tue', label: 'Tue' },
-  { key: 'wed', label: 'Wed' },
-  { key: 'thu', label: 'Thu' },
-  { key: 'fri', label: 'Fri' },
-  { key: 'sat', label: 'Sat' },
-  { key: 'sun', label: 'Sun' }
-] as const
 
-const bulk = ref({
-  assignee: '문수미',
-  startTime: '12:00',
-  endTime: '12:30',
-  dayKeys: ['mon', 'tue', 'wed', 'thu'] as string[],
-  note: ''
-})
+const bulkA = ref({ assignee: '', fromDate: '', toDate: '' })
+const bulkB = ref({ assignee: '', fromDate: '', toDate: '' })
 
 const events = ref<EventInput[]>([])
 
@@ -177,15 +206,25 @@ function refetchCalendar() {
   api?.refetchEvents()
 }
 
+function slotColor(startIso: string): string {
+  const hour = DateTime.fromISO(startIso, { zone: 'Asia/Seoul' }).hour
+  if (hour === 11) return '#1976d2' // A타임 파란색
+  if (hour === 12) return '#7b1fa2' // B타임 보라색
+  return '#1976d2'
+}
+
 function mapRowsToEvents(rows: WatchRow[]): EventInput[] {
   return rows.map(r => {
     const note = (isRecord(r.fields) && typeof r.fields.note === 'string') ? r.fields.note : ''
     const ext: ExtendedProps = { assignee: r.assignee, note, version: r.version ?? 1 }
+    const color = slotColor(r.start)
     return {
       id: r.id,
       title: note ? `${r.assignee} — ${note}` : r.assignee,
       start: r.start,
       end: r.end,
+      backgroundColor: color,
+      borderColor: color,
       extendedProps: ext
     }
   })
@@ -208,23 +247,30 @@ const dialog = ref({
   open: false,
   mode: 'create' as 'create' | 'edit',
   id: '' as string,
-  assignee: '',
-  startLocal: '',
-  endLocal: '',
+  assignee: '',     // edit 모드 전용
+  assigneeA: '',    // create 모드 A타임
+  assigneeB: '',    // create 모드 B타임
+  date: '',         // create 모드 선택 날짜 (YYYY-MM-DD)
+  startLocal: '',   // edit 모드 전용
+  endLocal: '',     // edit 모드 전용
   note: '',
   version: 1 as number,
   error: ''
 })
 
-function openCreate(start: Date, end: Date) {
+function openCreate(start: Date) {
+  const dateStr = DateTime.fromJSDate(start, { zone: 'Asia/Seoul' }).toISODate() ?? ''
   dialog.value = {
     open: true,
     mode: 'create',
     id: '',
-    assignee: bulk.value.assignee,
-    startLocal: dateToKstDateTimeLocal(start),
-    endLocal: dateToKstDateTimeLocal(end),
-    note: bulk.value.note,
+    assignee: '',
+    assigneeA: '',
+    assigneeB: '',
+    date: dateStr,
+    startLocal: '',
+    endLocal: '',
+    note: '',
     version: 1,
     error: ''
   }
@@ -242,6 +288,9 @@ function openEdit(arg: ClickArg) {
     mode: 'edit',
     id: String(ev.id),
     assignee: typeof ext.assignee === 'string' ? ext.assignee : (ev.title ?? ''),
+    assigneeA: '',
+    assigneeB: '',
+    date: '',
     startLocal: dateToKstDateTimeLocal(start),
     endLocal: dateToKstDateTimeLocal(end),
     note: typeof ext.note === 'string' ? ext.note : '',
@@ -259,29 +308,38 @@ async function saveDialog() {
   try {
     busy.value = true
     dialog.value.error = ''
-
-    const assignee = dialog.value.assignee.trim()
-    if (!assignee) throw new Error('Assignee is required.')
-
-    const startIso = kstDateTimeLocalToUtcIso(dialog.value.startLocal)
-    const endIso = kstDateTimeLocalToUtcIso(dialog.value.endLocal)
-
-    const start = DateTime.fromISO(startIso)
-    const end = DateTime.fromISO(endIso)
-    if (!start.isValid || !end.isValid) throw new Error('Invalid date/time.')
-    if (end <= start) throw new Error('End must be after start.')
-
-    const payload = {
-      assignee,
-      start: startIso,
-      end: endIso,
-      fields: { note: dialog.value.note?.trim() || '' }
-    }
+    const note = dialog.value.note?.trim() || ''
 
     if (dialog.value.mode === 'create') {
-      await createWatch(payload)
+      const assigneeA = dialog.value.assigneeA.trim()
+      const assigneeB = dialog.value.assigneeB.trim()
+      if (!assigneeA && !assigneeB) throw new Error('A타임 또는 B타임 담당자를 입력해 주세요.')
+
+      const dt = DateTime.fromISO(dialog.value.date, { zone: 'Asia/Seoul' })
+      if (!dt.isValid) throw new Error('날짜가 올바르지 않습니다.')
+
+      if (assigneeA) {
+        const startIso = dt.set({ hour: 11, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
+        const endIso   = dt.set({ hour: 12, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
+        if (startIso && endIso) await createWatch({ assignee: assigneeA, start: startIso, end: endIso, fields: { note } })
+      }
+      if (assigneeB) {
+        const startIso = dt.set({ hour: 12, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
+        const endIso   = dt.set({ hour: 13, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
+        if (startIso && endIso) await createWatch({ assignee: assigneeB, start: startIso, end: endIso, fields: { note } })
+      }
     } else {
-      await patchWatch(dialog.value.id, { ...payload, version: dialog.value.version })
+      const assignee = dialog.value.assignee.trim()
+      if (!assignee) throw new Error('담당자를 입력해 주세요.')
+
+      const startIso = kstDateTimeLocalToUtcIso(dialog.value.startLocal)
+      const endIso   = kstDateTimeLocalToUtcIso(dialog.value.endLocal)
+      const start = DateTime.fromISO(startIso)
+      const end   = DateTime.fromISO(endIso)
+      if (!start.isValid || !end.isValid) throw new Error('Invalid date/time.')
+      if (end <= start) throw new Error('End must be after start.')
+
+      await patchWatch(dialog.value.id, { assignee, start: startIso, end: endIso, fields: { note }, version: dialog.value.version })
     }
 
     closeDialog()
@@ -340,58 +398,193 @@ async function onMoveOrResize(info: MoveResizeArg) {
   }
 }
 
-// Bulk create using Luxon in KST (no JS Date weekday math headaches)
-async function createBulk() {
-  try {
-    busy.value = true
+async function createBulkForSlot(assignee: string, fromDate: string, toDate: string, sh: number, sm: number, eh: number, em: number) {
+  if (!assignee.trim()) throw new Error('담당자를 입력해 주세요.')
+  if (!fromDate || !toDate) throw new Error('시작일과 종료일을 입력해 주세요.')
 
-    const [sh, sm] = bulk.value.startTime.split(':').map(Number)
-    const [eh, em] = bulk.value.endTime.split(':').map(Number)
-    if ([sh, sm, eh, em].some(n => Number.isNaN(n))) {
-      Notify.create({ type: 'negative', message: 'Invalid time format. Use HH:MM' })
-      return
-    }
+  let cursor = DateTime.fromISO(fromDate, { zone: 'Asia/Seoul' })
+  const end = DateTime.fromISO(toDate, { zone: 'Asia/Seoul' })
 
-    // Start of this week in KST (Monday 00:00)
-    const nowKst = DateTime.now().setZone('Asia/Seoul')
-    const mondayKst = nowKst.startOf('day').minus({ days: nowKst.weekday - 1 })
-    const keyToOffset: Record<string, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 }
+  if (cursor > end) throw new Error('종료일이 시작일보다 앞습니다.')
 
-    for (const key of bulk.value.dayKeys) {
-      const offset = keyToOffset[key]
-      if (offset === undefined) continue
-
-      const startKst = mondayKst.plus({ days: offset }).set({ hour: sh, minute: sm, second: 0, millisecond: 0 })
-      const endKst = mondayKst.plus({ days: offset }).set({ hour: eh, minute: em, second: 0, millisecond: 0 })
-
-      if (endKst <= startKst) {
-        Notify.create({ type: 'negative', message: 'End must be after start.' })
-        return
-      }
-
+  while ((cursor.toISODate() ?? '') <= (end.toISODate() ?? '')) {
+    // 평일(월~금)만 생성
+    if (cursor.weekday <= 5) {
+      const startKst = cursor.set({ hour: sh, minute: sm, second: 0, millisecond: 0 })
+      const endKst = cursor.set({ hour: eh, minute: em, second: 0, millisecond: 0 })
       const startIso = startKst.toUTC().toISO()
       const endIso = endKst.toUTC().toISO()
-
-      if (!startIso || !endIso) {
-        throw new Error('Invalid datetime')
-      }
-
-      await createWatch({
-        assignee: bulk.value.assignee.trim(),
-        start: startIso,
-        end: endIso,
-        fields: { note: bulk.value.note?.trim() || '' }
-      })
+      if (!startIso || !endIso) throw new Error('Invalid datetime')
+      await createWatch({ assignee: assignee.trim(), start: startIso, end: endIso, fields: { note: '' } })
     }
+    cursor = cursor.plus({ days: 1 })
+  }
+}
 
+async function createBulkA() {
+  try {
+    busy.value = true
+    await createBulkForSlot(bulkA.value.assignee, bulkA.value.fromDate, bulkA.value.toDate, 11, 0, 12, 0)
     refetchCalendar()
-    Notify.create({ type: 'positive', message: 'Bulk created' })
+    Notify.create({ type: 'positive', message: 'A타임 생성 완료' })
   } catch (e: unknown) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, 'Failed') })
   } finally {
     busy.value = false
   }
 }
+
+async function createBulkB() {
+  try {
+    busy.value = true
+    await createBulkForSlot(bulkB.value.assignee, bulkB.value.fromDate, bulkB.value.toDate, 12, 0, 13, 0)
+    refetchCalendar()
+    Notify.create({ type: 'positive', message: 'B타임 생성 완료' })
+  } catch (e: unknown) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, 'Failed') })
+  } finally {
+    busy.value = false
+  }
+}
+
+/** Import */
+const importInput = ref<HTMLInputElement | null>(null)
+const importing = ref(false)
+
+function triggerImport() {
+  importInput.value?.click()
+}
+
+function downloadTemplate() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['구분 (A/B)', '담당자', '시작일', '종료일', '※ 날짜는 YYYY-MM-DD 형식으로 입력 / 구분은 A 또는 B만 허용'],
+    ['A', '홍길동', '2026-05-01', '2026-05-31', ''],
+    ['B', '김철수', '2026-05-01', '2026-05-31', ''],
+  ])
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '점심당직')
+  XLSX.writeFile(wb, '점심당직_포맷.xlsx')
+}
+
+async function onImportFile(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  ;(e.target as HTMLInputElement).value = ''
+
+  importing.value = true
+  try {
+    const buf = await file.arrayBuffer()
+    const wb = XLSX.read(buf, { type: 'array', cellDates: false })
+    const ws = wb.Sheets[wb.SheetNames[0]!]
+    if (!ws) throw new Error('시트를 찾을 수 없습니다.')
+
+    // raw: true → 날짜 셀은 Excel 시리얼 숫자로 받음 (타임존 없이 직접 변환)
+    const allRows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' })
+    const dataRows = allRows.slice(1) // 첫 행(헤더) 제거
+
+    function toStr(val: unknown): string {
+      if (val === null || val === undefined) return ''
+      if (typeof val === 'string') return val
+      if (typeof val === 'number') return String(val)
+      return ''
+    }
+
+    function parseDateCell(val: unknown): string {
+      // Excel 시리얼 숫자 → YYYY-MM-DD (타임존 변환 없이)
+      if (typeof val === 'number') {
+        const d = XLSX.SSF.parse_date_code(val)
+        return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`
+      }
+      // 문자열인 경우 YYYY-MM-DD 추출
+      const s = toStr(val).trim().replace(/\//g, '-')
+      const m = s.match(/(\d{4}-\d{2}-\d{2})/)
+      return m ? m[1] ?? '' : ''
+    }
+
+    // 전체 기간의 기존 데이터를 미리 로드
+    const allDates = dataRows
+      .map(r => { const row = Array.isArray(r) ? r : []; return [parseDateCell(row[2]), parseDateCell(row[3])] })
+      .filter(([f, t]) => f && t)
+    const minDate = allDates.map(([f]) => f).sort()[0]
+    const maxDate = allDates.map(([, t]) => t).sort().slice(-1)[0]
+
+    const startParam = minDate ? (DateTime.fromISO(minDate, { zone: 'Asia/Seoul' }).startOf('day').toUTC().toISO() ?? undefined) : undefined
+    const endParam = maxDate ? (DateTime.fromISO(maxDate, { zone: 'Asia/Seoul' }).endOf('day').toUTC().toISO() ?? undefined) : undefined
+    const existingRows = startParam && endParam
+      ? await listWatch({ start: startParam, end: endParam })
+      : []
+
+    // startISO → id 맵 (덮어쓰기 대상 찾기용)
+    // ISO 형식 정규화 (Z vs +00:00, 밀리초 유무 차이 제거)
+    function normalizeIso(iso: string): string {
+      return DateTime.fromISO(iso, { zone: 'utc' }).toFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+    }
+    const existingByStart = new Map(existingRows.map(r => [normalizeIso(r.start), r.id]))
+
+    let created = 0
+    let skipped = 0
+
+    for (const rawRow of dataRows) {
+      const row = Array.isArray(rawRow) ? rawRow : []
+      const slot = toStr(row[0]).trim().toUpperCase()
+      const assignee = toStr(row[1]).trim()
+      const fromDate = parseDateCell(row[2])
+      const toDate = parseDateCell(row[3])
+
+      if (!slot || !assignee || !fromDate || !toDate) { skipped++; continue }
+      if (slot !== 'A' && slot !== 'B') { skipped++; continue }
+
+      const [sh, sm, eh, em] = slot === 'A' ? [11, 0, 12, 0] : [12, 0, 13, 0]
+
+      let cursor = DateTime.fromISO(fromDate, { zone: 'Asia/Seoul' })
+      const end = DateTime.fromISO(toDate, { zone: 'Asia/Seoul' })
+      if (!cursor.isValid || !end.isValid || cursor > end) { skipped++; continue }
+
+      while ((cursor.toISODate() ?? '') <= (end.toISODate() ?? '')) {
+        if (cursor.weekday <= 5) {
+          const startIso = cursor.set({ hour: sh, minute: sm, second: 0, millisecond: 0 }).toUTC().toISO()
+          const endIso = cursor.set({ hour: eh, minute: em, second: 0, millisecond: 0 }).toUTC().toISO()
+          if (startIso && endIso) {
+            const key = normalizeIso(startIso)
+            const existingId = existingByStart.get(key)
+            if (existingId) {
+              // 기존 항목이 있으면 담당자만 업데이트
+              const updated = await patchWatch(existingId, { assignee })
+              existingByStart.set(key, updated.id)
+            } else {
+              // 없으면 새로 생성
+              const created_ = await createWatch({ assignee, start: startIso, end: endIso, fields: { note: '' } })
+              existingByStart.set(key, created_.id)
+            }
+            created++
+          }
+        }
+        cursor = cursor.plus({ days: 1 })
+      }
+    }
+
+    refetchCalendar()
+    Notify.create({ type: 'positive', message: `Import 완료: ${created}건 생성${skipped ? `, ${skipped}행 건너뜀` : ''}` })
+  } catch (e: unknown) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, 'Import 실패') })
+  } finally {
+    importing.value = false
+  }
+}
+
+// 드로어 토글 시 캘린더 크기 재계산
+let resizeObserver: ResizeObserver | null = null
+onMounted(() => {
+  const el = document.querySelector('.q-page')
+  if (!el) return
+  resizeObserver = new ResizeObserver(() => {
+    calendarRef.value?.getApi?.()?.updateSize()
+  })
+  resizeObserver.observe(el)
+})
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+})
 
 const calendarOptions = ref<CalendarOptions>({
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin, luxonPlugin],
@@ -401,6 +594,9 @@ const calendarOptions = ref<CalendarOptions>({
   editable: true,
   nowIndicator: true,
   height: 'auto',
+  weekends: false,
+  slotMinTime: '11:00:00',
+  slotMaxTime: '13:00:00',
 
   headerToolbar: {
     left: 'prev,next today',
@@ -422,7 +618,7 @@ const calendarOptions = ref<CalendarOptions>({
       })
   },
 
-  select: (arg) => openCreate(arg.start, arg.end),
+  select: (arg) => openCreate(arg.start),
   eventClick: (arg) => openEdit(arg),
   eventDrop: (info) => { void onMoveOrResize(info as MoveResizeArg) },
   eventResize: (info) => { void onMoveOrResize(info as MoveResizeArg)}

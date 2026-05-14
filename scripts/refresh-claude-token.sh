@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-ENV_FILE="$(dirname "$0")/../.env"
+SCRIPT_DIR="$(dirname "$0")"
+ROOT_ENV_FILE="${SCRIPT_DIR}/../.env"
+BACKEND_ENV_FILE="${SCRIPT_DIR}/../app/secret/.env"
 
 # 키체인에서 최신 OAuth 토큰 추출
 NEW_TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null | \
@@ -12,10 +14,17 @@ if [ -z "$NEW_TOKEN" ]; then
   exit 1
 fi
 
-# .env 파일에서 토큰 교체
-sed -i '' "s|CLAUDE_CODE_OAUTH_TOKEN=.*|CLAUDE_CODE_OAUTH_TOKEN=${NEW_TOKEN}|" "$ENV_FILE"
+# 루트 .env 파일에서 토큰 교체
+if [ -f "$ROOT_ENV_FILE" ]; then
+  sed -i '' "s|CLAUDE_CODE_OAUTH_TOKEN=.*|CLAUDE_CODE_OAUTH_TOKEN=${NEW_TOKEN}|" "$ROOT_ENV_FILE"
+fi
 
-# pilot 컨테이너 재시작
-cd "$(dirname "$0")/.." && docker-compose up -d --force-recreate pilot > /dev/null 2>&1
+# 백엔드 .env 파일에서 토큰 교체
+if [ -f "$BACKEND_ENV_FILE" ]; then
+  sed -i '' "s|CLAUDE_CODE_OAUTH_TOKEN=.*|CLAUDE_CODE_OAUTH_TOKEN=${NEW_TOKEN}|" "$BACKEND_ENV_FILE"
+fi
+
+# backend, pilot 컨테이너 재시작
+cd "${SCRIPT_DIR}/.." && docker-compose up -d --force-recreate backend pilot > /dev/null 2>&1
 
 echo "[$(date)] 토큰 갱신 완료"

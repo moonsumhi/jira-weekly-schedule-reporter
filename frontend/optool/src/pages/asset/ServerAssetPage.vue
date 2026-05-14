@@ -353,6 +353,18 @@
               <q-input v-model="createFields['rack_no']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
+              <div class="field-label">Rack Unit No.</div>
+              <q-input v-model="createFields['rack_unit_no']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">자산관리번호</div>
+              <q-input v-model="createFields['자산관리번호']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">SN</div>
+              <q-input v-model="createFields['SN']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
               <div class="field-label">위치 <span class="req-star">*</span></div>
               <q-select
                 v-model="createLocationSelect"
@@ -530,6 +542,44 @@
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
             </div>
           </template>
+        </q-card-section>
+
+        <!-- 도입 정보 섹션 -->
+        <q-card-section class="q-py-sm">
+          <div class="section-title-row">
+            <span class="section-title">도입 정보</span>
+          </div>
+          <div class="section-divider" />
+          <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+            <div class="col-6 form-field">
+              <div class="field-label">용도(상세)</div>
+              <q-input v-model="createFields['용도']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">소속부서/사업</div>
+              <q-input v-model="createFields['소속부서']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">제품명(모델명)</div>
+              <q-input v-model="createFields['제품명']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">도입사업</div>
+              <q-input v-model="createFields['도입사업']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">납품회사</div>
+              <q-input v-model="createFields['납품회사']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">도입가격</div>
+              <q-input v-model="createFields['도입가격']" borderless dense class="field-input" type="number" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">도입일자(취득일자)</div>
+              <q-input v-model="createFields['도입일자']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+          </div>
         </q-card-section>
 
         <!-- 기타 정보 섹션 -->
@@ -855,6 +905,18 @@
               <q-input v-model="rowEditValues['rack_no']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
+              <div class="field-label">Rack Unit No.</div>
+              <q-input v-model="rowEditValues['rack_unit_no']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">자산관리번호</div>
+              <q-input v-model="rowEditValues['자산관리번호']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">SN</div>
+              <q-input v-model="rowEditValues['SN']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
               <div class="field-label">위치</div>
               <q-select
                 v-model="rowEditLocationSelect"
@@ -1012,6 +1074,44 @@
           </template>
         </q-card-section>
 
+        <!-- 도입 정보 섹션 -->
+        <q-card-section class="q-py-sm">
+          <div class="section-title-row">
+            <span class="section-title">도입 정보</span>
+          </div>
+          <div class="section-divider" />
+          <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+            <div class="col-6 form-field">
+              <div class="field-label">용도(상세)</div>
+              <q-input v-model="rowEditValues['용도']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">소속부서/사업</div>
+              <q-input v-model="rowEditValues['소속부서']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">제품명(모델명)</div>
+              <q-input v-model="rowEditValues['제품명']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">도입사업</div>
+              <q-input v-model="rowEditValues['도입사업']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">납품회사</div>
+              <q-input v-model="rowEditValues['납품회사']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">도입가격</div>
+              <q-input v-model="rowEditValues['도입가격']" borderless dense class="field-input" type="number" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">도입일자(취득일자)</div>
+              <q-input v-model="rowEditValues['도입일자']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+          </div>
+        </q-card-section>
+
         <!-- 기타 정보 섹션 -->
         <q-card-section class="q-py-sm">
           <div class="section-title-row">
@@ -1101,6 +1201,18 @@
                 <div class="detail-value">{{ displayValue(detailTarget.fields?.['rack_no']) }}</div>
               </div>
               <div class="col-6 form-field">
+                <div class="field-label">Rack Unit No.</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['rack_unit_no']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">자산관리번호</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['자산관리번호']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">SN</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['SN']) }}</div>
+              </div>
+              <div class="col-6 form-field">
                 <div class="field-label">위치</div>
                 <div class="detail-value">{{ displayValue(detailTarget.fields?.['위치']) }}</div>
               </div>
@@ -1174,6 +1286,44 @@
               <div class="col-4 form-field">
                 <div class="field-label">EoS 종료 일자</div>
                 <div class="detail-value">{{ detailTarget.fields?.[EOS_DATE_KEY] || '확인 불가' }}</div>
+              </div>
+            </div>
+          </q-card-section>
+
+          <!-- 도입 정보 -->
+          <q-card-section class="q-py-sm">
+            <div class="section-title-row">
+              <span class="section-title">도입 정보</span>
+            </div>
+            <div class="section-divider" />
+            <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+              <div class="col-6 form-field">
+                <div class="field-label">용도(상세)</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['용도']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">소속부서/사업</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['소속부서']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">제품명(모델명)</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['제품명']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">도입사업</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['도입사업']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">납품회사</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['납품회사']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">도입가격</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['도입가격']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">도입일자(취득일자)</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['도입일자']) }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1618,6 +1768,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
+import { api } from 'boot/axios'
 
 import type { ServerAsset, AssetHistory, FieldsMap, FieldValue, EosActionStatus } from 'src/types/assets'
 import { EOS_STATUS_KEY, EOS_DATE_KEY } from 'src/types/assets'
@@ -1658,21 +1809,31 @@ const eosSoonDays = 90
 // 표준 필드 키 순서 정의 (데이터에 없어도 표시 순서 보장)
 const PREFERRED_FIELD_KEYS = [
   'rack_no',
+  'rack_unit_no',
   '구분',
   '자산번호',
+  '자산관리번호',
+  'SN',
   '서버명',
   '설명',
   '운영체제',
   'version',
   '제조사',
   '수량',
+  '용도',
+  '소속부서',
   '위치',
   EOS_STATUS_KEY,
   EOS_DATE_KEY,
+  VADA_KEY,
+  '제품명',
+  '도입사업',
+  '납품회사',
+  '도입가격',
+  '도입일자',
   '수령일',
   '변경일',
   '변경사항',
-  VADA_KEY,
   '비고',
 ]
 
@@ -1684,23 +1845,33 @@ function fieldLabel(key: string): string {
 
 const FIELD_LABEL_MAP: Record<string, string> = {
   rack_no: 'RackNo.',
-  '구분': '구분',
+  rack_unit_no: 'Rack Unit No.',
+  '구분': '중분류(구분)',
   '자산번호': '자산번호',
+  '자산관리번호': '자산관리번호',
+  'SN': 'SN',
   '서버명': '자산명',
   '설명': '설명',
   '운영체제': '운영체제',
   version: 'Version',
+  '제조사': '제조사',
+  '수량': '수량',
+  '용도': '용도(상세)',
+  '소속부서': '소속부서/사업',
   '위치': '위치',
   [EOS_STATUS_KEY]: 'EoS 여부',
   [EOS_DATE_KEY]: 'EoS 현황',
+  [VADA_KEY]: 'VADA 설치여부',
+  '제품명': '제품명(모델명)',
+  '도입사업': '도입사업',
+  '납품회사': '납품회사',
+  '도입가격': '도입가격',
+  '도입일자': '도입일자(취득일자)',
   '수령일': '수령일',
   '변경일': '변경일',
   '변경사항': '변경사항(신규/변경/폐기)',
-  [VADA_KEY]: 'VADA 설치여부',
   [TAGS_KEY]: '태그',
   '비고': '비고',
-  '제조사': '제조사',
-  '수량': '수량',
 }
 
 const CHANGE_TYPE_OPTIONS = [
@@ -1828,8 +1999,8 @@ function colKey(col: unknown): string {
 
 // 컬럼 표시 순서 — '__ip__'/'__name__'은 IP/HostName 고정 컬럼 위치 마커
 const COLUMN_DISPLAY_ORDER = [
-  'rack_no', '구분', '자산번호', '서버명', '__name__', '설명', '운영체제', 'version', '제조사', '수량', '__ip__', '위치',
-  EOS_STATUS_KEY, EOS_DATE_KEY, '수령일', '변경일', '변경사항', VADA_KEY, TAGS_KEY, '비고',
+  'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
+  EOS_STATUS_KEY, EOS_DATE_KEY, VADA_KEY, '제품명', '도입사업', '납품회사', '도입가격', '도입일자', '수령일', '변경일', '변경사항', TAGS_KEY, '비고',
 ] as const
 
 // 컬럼 선택 다이얼로그
@@ -2560,7 +2731,7 @@ function openHistory(row: ServerAsset) {
 /** Export */
 const exportLoading = ref(false)
 
-function doExport() {
+async function doExport() {
   exportLoading.value = true
   try {
     const sourceRows = filteredRows.value
@@ -2595,7 +2766,23 @@ function doExport() {
     const ws = XLSX.utils.aoa_to_sheet([header, ...dataRows])
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '서버자산')
-    XLSX.writeFile(wb, `서버자산_${new Date().toISOString().slice(0, 10)}.xlsx`)
+
+    const filename = `서버자산_${new Date().toISOString().slice(0, 10)}.xlsx`
+    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+    const form = new FormData()
+    form.append('file', new Blob([buf]), filename)
+
+    const res = await api.post<Blob>('/assets/encrypt-xlsx', form, {
+      params: { filename },
+      responseType: 'blob',
+    })
+
+    const url = URL.createObjectURL(res.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
   } catch (err: unknown) {
     $q.notify({ type: 'negative', message: getErrorMessage(err, 'Export 실패') })
   } finally {
@@ -2608,105 +2795,159 @@ type TemplateCol = { key: string; label: string; sample?: string }
 
 const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
   '서버': [
-    { key: 'ip',          label: 'IP',           sample: '192.168.1.1' },
-    { key: 'name',        label: 'HostName',     sample: 'web-server-01' },
-    { key: '자산유형',    label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',     label: 'RackNo.',      sample: 'R01' },
-    { key: '구분',        label: '구분',         sample: '물리' },
-    { key: '자산번호',    label: '자산번호',     sample: 'SV-001' },
-    { key: '서버명',      label: '서버명 / 자산명',       sample: '웹서버' },
-    { key: '위치',        label: '위치',         sample: '암빅데이터센터' },
-    { key: '설명',        label: '설명',         sample: '메인 웹서버' },
-    { key: '운영체제',    label: '운영체제 / 배포판',       sample: 'Rocky Linux' },
-    { key: 'version',     label: '버전',         sample: '8.10' },
-    { key: EOS_STATUS_KEY, label: 'EoS여부',    sample: '' },
-    { key: EOS_DATE_KEY,  label: 'EoS종료일자',  sample: '' },
-    { key: '수령일',      label: '수령일',       sample: '2024-01-01' },
-    { key: '변경일',      label: '변경일',       sample: '' },
-    { key: '변경사항',    label: '변경사항',     sample: '' },
-    { key: VADA_KEY,      label: 'VADA설치여부', sample: 'O' },
-    { key: TAGS_KEY,      label: '태그',         sample: '' },
-    { key: '비고',        label: '비고',         sample: '' },
+    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
+    { key: 'name',          label: 'HostName',                                                        sample: 'web-server-01' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
+    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
+    { key: '구분',          label: '중분류(구분)',                                                    sample: '물리' },
+    { key: '자산번호',      label: '자산번호',                                                        sample: 'SV-001' },
+    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
+    { key: 'SN',            label: 'SN',                                                              sample: '' },
+    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: '웹서버' },
+    { key: '설명',          label: '설명',                                                            sample: '메인 웹서버' },
+    { key: '운영체제',      label: '운영체제 / 배포판',                                               sample: 'Rocky Linux' },
+    { key: 'version',       label: '버전',                                                            sample: '8.10' },
+    { key: '제조사',        label: '제조사',                                                          sample: '' },
+    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
+    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
+    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
+    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
+    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: VADA_KEY,        label: 'VADA설치여부',                                                    sample: 'O' },
+    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
+    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
+    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
+    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
+    { key: '변경일',        label: '변경일',                                                          sample: '' },
+    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
+    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
+    { key: '비고',          label: '비고',                                                            sample: '' },
   ],
   '네트워크': [
-    { key: 'ip',          label: 'IP',           sample: '192.168.1.1' },
-    { key: 'name',        label: 'HostName',     sample: 'sw-core-01' },
-    { key: '자산유형',    label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',     label: 'RackNo.',      sample: 'R01' },
-    { key: '구분',        label: '구분',         sample: 'Switch' },
-    { key: '자산번호',    label: '자산번호',     sample: 'NW-001' },
-    { key: '서버명',      label: '서버명 / 자산명',       sample: '코어스위치' },
-    { key: '위치',        label: '위치',         sample: '암빅데이터센터' },
-    { key: '설명',        label: '설명',         sample: '' },
-    { key: '운영체제',    label: '운영체제 / 기종',         sample: 'Cisco Nexus C93180YC-EX' },
-    { key: EOS_STATUS_KEY, label: 'EoS여부',    sample: '' },
-    { key: EOS_DATE_KEY,  label: 'EoS종료일자',  sample: '' },
-    { key: '수령일',      label: '수령일',       sample: '2024-01-01' },
-    { key: '변경일',      label: '변경일',       sample: '' },
-    { key: '변경사항',    label: '변경사항',     sample: '' },
-    { key: TAGS_KEY,      label: '태그',         sample: '' },
-    { key: '비고',        label: '비고',         sample: '' },
+    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
+    { key: 'name',          label: 'HostName',                                                        sample: 'sw-core-01' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
+    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
+    { key: '구분',          label: '중분류(구분)',                                                    sample: 'Switch' },
+    { key: '자산번호',      label: '자산번호',                                                        sample: 'NW-001' },
+    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
+    { key: 'SN',            label: 'SN',                                                              sample: '' },
+    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: '코어스위치' },
+    { key: '설명',          label: '설명',                                                            sample: '' },
+    { key: '운영체제',      label: '운영체제 / 기종',                                                 sample: 'Cisco Nexus C93180YC-EX' },
+    { key: '제조사',        label: '제조사',                                                          sample: '' },
+    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
+    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
+    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
+    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
+    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
+    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
+    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
+    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
+    { key: '변경일',        label: '변경일',                                                          sample: '' },
+    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
+    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
+    { key: '비고',          label: '비고',                                                            sample: '' },
   ],
   'DBMS': [
-    { key: 'ip',          label: 'IP',           sample: '192.168.1.1' },
-    { key: 'name',        label: 'HostName',     sample: 'db-server-01' },
-    { key: '자산유형',    label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',     label: 'RackNo.',      sample: 'R01' },
-    { key: '구분',        label: '구분',         sample: 'DB' },
-    { key: '자산번호',    label: '자산번호',     sample: 'DB-001' },
-    { key: '서버명',      label: '서버명 / 자산명',       sample: 'DB서버' },
-    { key: '위치',        label: '위치',         sample: '암빅데이터센터' },
-    { key: '설명',        label: '설명',         sample: '' },
-    { key: '운영체제',    label: '운영체제 / DB종류',       sample: 'MariaDB' },
-    { key: 'version',     label: '버전',         sample: '10.6.18' },
-    { key: EOS_STATUS_KEY, label: 'EoS여부',    sample: '' },
-    { key: EOS_DATE_KEY,  label: 'EoS종료일자',  sample: '' },
-    { key: '수령일',      label: '수령일',       sample: '2024-01-01' },
-    { key: '변경일',      label: '변경일',       sample: '' },
-    { key: '변경사항',    label: '변경사항',     sample: '' },
-    { key: TAGS_KEY,      label: '태그',         sample: '' },
-    { key: '비고',        label: '비고',         sample: '' },
+    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
+    { key: 'name',          label: 'HostName',                                                        sample: 'db-server-01' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
+    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
+    { key: '구분',          label: '중분류(구분)',                                                    sample: 'DB' },
+    { key: '자산번호',      label: '자산번호',                                                        sample: 'DB-001' },
+    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
+    { key: 'SN',            label: 'SN',                                                              sample: '' },
+    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: 'DB서버' },
+    { key: '설명',          label: '설명',                                                            sample: '' },
+    { key: '운영체제',      label: '운영체제 / DB종류',                                               sample: 'MariaDB' },
+    { key: 'version',       label: '버전',                                                            sample: '10.6.18' },
+    { key: '제조사',        label: '제조사',                                                          sample: '' },
+    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
+    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
+    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
+    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
+    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
+    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
+    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
+    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
+    { key: '변경일',        label: '변경일',                                                          sample: '' },
+    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
+    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
+    { key: '비고',          label: '비고',                                                            sample: '' },
   ],
   '정보보호시스템': [
-    { key: 'ip',          label: 'IP',           sample: '192.168.1.1' },
-    { key: 'name',        label: 'HostName',     sample: 'sec-device-01' },
-    { key: '자산유형',    label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',     label: 'RackNo.',      sample: 'R01' },
-    { key: '구분',        label: '구분',         sample: 'F/W' },
-    { key: '자산번호',    label: '자산번호',     sample: 'SEC-001' },
-    { key: '서버명',      label: '서버명 / 자산명',       sample: '방화벽' },
-    { key: '위치',        label: '위치',         sample: '암빅데이터센터' },
-    { key: '설명',        label: '설명',         sample: '' },
-    { key: '운영체제',    label: '운영체제 / 기종',         sample: 'Secure Gate' },
-    { key: '수량',        label: '수량',         sample: '1' },
-    { key: '제조사',      label: '제조사',       sample: '한싹' },
-    { key: EOS_STATUS_KEY, label: 'EoS여부',    sample: '' },
-    { key: EOS_DATE_KEY,  label: 'EoS종료일자',  sample: '' },
-    { key: '수령일',      label: '수령일',       sample: '2024-01-01' },
-    { key: '변경일',      label: '변경일',       sample: '' },
-    { key: '변경사항',    label: '변경사항',     sample: '' },
-    { key: TAGS_KEY,      label: '태그',         sample: '' },
-    { key: '비고',        label: '비고',         sample: '' },
+    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
+    { key: 'name',          label: 'HostName',                                                        sample: 'sec-device-01' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
+    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
+    { key: '구분',          label: '중분류(구분)',                                                    sample: 'F/W' },
+    { key: '자산번호',      label: '자산번호',                                                        sample: 'SEC-001' },
+    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
+    { key: 'SN',            label: 'SN',                                                              sample: '' },
+    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: '방화벽' },
+    { key: '설명',          label: '설명',                                                            sample: '' },
+    { key: '운영체제',      label: '운영체제 / 기종',                                                 sample: 'Secure Gate' },
+    { key: '수량',          label: '수량',                                                            sample: '1' },
+    { key: '제조사',        label: '제조사',                                                          sample: '한싹' },
+    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
+    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
+    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
+    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
+    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
+    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
+    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
+    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
+    { key: '변경일',        label: '변경일',                                                          sample: '' },
+    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
+    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
+    { key: '비고',          label: '비고',                                                            sample: '' },
   ],
   'VMware': [
-    { key: 'ip',          label: 'IP',           sample: '192.168.1.1' },
-    { key: 'name',        label: 'HostName',     sample: 'vm-host-01' },
-    { key: '자산유형',    label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',     label: 'RackNo.',      sample: 'R01' },
-    { key: '구분',        label: '구분',         sample: 'ESXi' },
-    { key: '자산번호',    label: '자산번호',     sample: 'VM-001' },
-    { key: '서버명',      label: '서버명 / 자산명',       sample: 'VM호스트' },
-    { key: '위치',        label: '위치',         sample: '암빅데이터센터' },
-    { key: '설명',        label: '설명',         sample: '' },
-    { key: '운영체제',    label: '운영체제 / 버전',         sample: 'ESXi 8.0' },
-    { key: 'version',     label: 'Version',      sample: '8.0' },
-    { key: EOS_STATUS_KEY, label: 'EoS여부',    sample: '' },
-    { key: EOS_DATE_KEY,  label: 'EoS종료일자',  sample: '' },
-    { key: '수령일',      label: '수령일',       sample: '2024-01-01' },
-    { key: '변경일',      label: '변경일',       sample: '' },
-    { key: '변경사항',    label: '변경사항',     sample: '' },
-    { key: TAGS_KEY,      label: '태그',         sample: '' },
-    { key: '비고',        label: '비고',         sample: '' },
+    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
+    { key: 'name',          label: 'HostName',                                                        sample: 'vm-host-01' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
+    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
+    { key: '구분',          label: '중분류(구분)',                                                    sample: 'ESXi' },
+    { key: '자산번호',      label: '자산번호',                                                        sample: 'VM-001' },
+    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
+    { key: 'SN',            label: 'SN',                                                              sample: '' },
+    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: 'VM호스트' },
+    { key: '설명',          label: '설명',                                                            sample: '' },
+    { key: '운영체제',      label: '운영체제 / 버전',                                                 sample: 'ESXi 8.0' },
+    { key: 'version',       label: 'Version',                                                         sample: '8.0' },
+    { key: '제조사',        label: '제조사',                                                          sample: '' },
+    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
+    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
+    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
+    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
+    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
+    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
+    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
+    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
+    { key: '변경일',        label: '변경일',                                                          sample: '' },
+    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
+    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
+    { key: '비고',          label: '비고',                                                            sample: '' },
   ],
 }
 
@@ -3062,6 +3303,12 @@ async function onImportFile(e: Event) {
       '운영체제 / 버전': '운영체제',
       '운영체제 / 배포판 / 기종 / DB종류': '운영체제',
       '서버명 / 자산명': '서버명',
+      '중분류(구분)': '구분',
+      '용도(상세)': '용도',
+      '소속부서/사업': '소속부서',
+      '제품명(모델명)': '제품명',
+      '도입일자(취득일자)': '도입일자',
+      'Rack Unit No.': 'rack_unit_no',
       // FIELD_LABEL_MAP 역방향 (현재 라벨 → 키)
       ...Object.fromEntries(Object.entries(FIELD_LABEL_MAP).map(([k, v]) => [v, k])),
     }

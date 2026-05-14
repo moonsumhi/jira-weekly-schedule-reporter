@@ -6,7 +6,8 @@ export function parseSmartValue(text: string): FieldValue {
   if (t === 'true') return true
   if (t === 'false') return false
 
-  if (!Number.isNaN(Number(t)) && /^-?\d+(\.\d+)?$/.test(t)) return Number(t)
+  const num = Number(t)
+  if (!Number.isNaN(num) && /^-?\d+(\.\d+)?$/.test(t) && String(num) === t) return num
 
   if ((t.startsWith('{') && t.endsWith('}')) || (t.startsWith('[') && t.endsWith(']'))) {
     try {

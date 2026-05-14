@@ -1,10 +1,15 @@
 # app/routers/assets.py
 from __future__ import annotations
 
+import io
 import logging
+import urllib.parse
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+import msoffcrypto
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, UploadFile, status
+
+from app.core.config import settings
 
 from app.models.assets import (
     AssetHistoryOut,
@@ -156,3 +161,22 @@ async def get_history(
 ):
     items = await _svc(category).get_history(server_id=server_id)
     return [AssetHistoryOut(**x) for x in items]
+
+
+@router.post("/encrypt-xlsx")
+async def encrypt_xlsx(
+    file: UploadFile,
+    filename: str = Query(default="export.xlsx"),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    if not settings.ASSET_EXPORT_PASSWORD:
+        raise HTTPException(status_code=503, detail="ASSET_EXPORT_PASSWORD가 설정되지 않았습니다.")
+    content = await file.read()
+    out = io.BytesIO()
+    msoffcrypto.OfficeFile(io.BytesIO(content)).encrypt(settings.ASSET_EXPORT_PASSWORD, out)
+    out.seek(0)
+    return Response(
+        content=out.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{urllib.parse.quote(filename)}"},
+    )

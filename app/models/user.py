@@ -1,11 +1,12 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 
 class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     is_admin: bool = False
+    permissions: List[str] = []
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)

@@ -101,37 +101,61 @@
 
       <q-separator />
 
-      <!-- Optional debug area: show only when logged in -->
+      <!-- 계정 설정: show only when logged in -->
       <q-card-section v-if="auth.isLoggedIn">
-        <div class="row items-center q-gutter-sm">
-          <q-btn
-            flat
-            dense
-            icon="person"
-            label="/auth/me 확인"
-            @click="onCheckMe"
-          />
-          <q-btn
-            flat
-            dense
-            color="negative"
-            icon="logout"
-            label="로그아웃"
-            @click="onLogout"
-          />
-        </div>
-
-        <div v-if="auth.me" class="q-mt-md">
-          <div class="text-caption text-grey-7">현재 사용자</div>
-          <q-card flat bordered class="q-pa-sm q-mt-xs">
-            <div class="text-body2"><b>ID:</b> {{ auth.me.id }}</div>
-            <div class="text-body2"><b>이메일:</b> {{ auth.me.email }}</div>
-            <div class="text-body2">
-              <b>이름:</b> {{ auth.me?.fullName || '-' }}
-            </div>
-          </q-card>
+        <div class="text-subtitle2 text-grey-7 q-mb-sm">계정 설정</div>
+        <q-card flat bordered class="q-pa-sm q-mb-md">
+          <div class="text-body2"><b>이메일:</b> {{ auth.me?.email }}</div>
+          <div class="text-body2"><b>이름:</b> {{ auth.me?.fullName || '-' }}</div>
+        </q-card>
+        <div class="row q-gutter-sm">
+          <q-btn flat dense icon="lock" label="비밀번호 변경" @click="pwDialog = true" />
+          <q-btn flat dense color="negative" icon="logout" label="로그아웃" @click="onLogout" />
         </div>
       </q-card-section>
+
+      <!-- 비밀번호 변경 다이얼로그 -->
+      <q-dialog v-model="pwDialog">
+        <q-card style="width: 400px; max-width: 95vw">
+          <q-card-section>
+            <div class="text-h6">비밀번호 변경</div>
+          </q-card-section>
+          <q-separator />
+          <q-card-section class="q-gutter-md">
+            <q-input
+              v-model="currentPw"
+              label="현재 비밀번호"
+              type="password"
+              outlined
+              dense
+              autocomplete="current-password"
+            />
+            <q-input
+              v-model="newPw"
+              label="새 비밀번호"
+              type="password"
+              outlined
+              dense
+              autocomplete="new-password"
+              :rules="[val => (val && val.length >= 6) || '6자 이상 입력해 주세요.']"
+            />
+            <q-input
+              v-model="newPwConfirm"
+              label="새 비밀번호 확인"
+              type="password"
+              outlined
+              dense
+              autocomplete="new-password"
+              :rules="[val => val === newPw || '비밀번호가 일치하지 않습니다.']"
+            />
+          </q-card-section>
+          <q-separator />
+          <q-card-actions align="right">
+            <q-btn flat label="취소" v-close-popup />
+            <q-btn color="primary" label="변경" :loading="pwLoading" @click="onChangePw" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
     </q-card>
   </q-page>
 </template>
@@ -141,6 +165,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
+import { api } from 'boot/axios'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -151,6 +176,12 @@ const mode = ref<'login' | 'register'>('login')
 const email = ref('')
 const password = ref('')
 const fullName = ref('')
+
+const pwDialog = ref(false)
+const currentPw = ref('')
+const newPw = ref('')
+const newPwConfirm = ref('')
+const pwLoading = ref(false)
 
 /**
  * Only allow internal redirects ("/something").
@@ -204,21 +235,30 @@ async function onSubmitRegister() {
   goAfterAuth()
 }
 
-async function onCheckMe() {
+async function onChangePw() {
+  if (newPw.value !== newPwConfirm.value) {
+    $q.notify({ type: 'negative', message: '새 비밀번호가 일치하지 않습니다.' })
+    return
+  }
+  pwLoading.value = true
   try {
-    const me = await auth.fetchMe()
-    if (!me) {
-      $q.notify({ type: 'warning', message: '로그인이 필요합니다.' })
-    } else {
-      $q.notify({ type: 'positive', message: `${me.email} 님, 안녕하세요.` })
-    }
-  } catch {
-    $q.notify({
-      type: 'negative',
-      message: auth.lastError || '/auth/me 조회에 실패했어요.',
+    await api.post('/auth/change-password', {
+      current_password: currentPw.value,
+      new_password: newPw.value,
     })
+    $q.notify({ type: 'positive', message: '비밀번호가 변경되었습니다.' })
+    pwDialog.value = false
+    currentPw.value = ''
+    newPw.value = ''
+    newPwConfirm.value = ''
+  } catch (e: unknown) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || '비밀번호 변경에 실패했습니다.'
+    $q.notify({ type: 'negative', message: msg })
+  } finally {
+    pwLoading.value = false
   }
 }
+
 
 function onLogout() {
   auth.logout()

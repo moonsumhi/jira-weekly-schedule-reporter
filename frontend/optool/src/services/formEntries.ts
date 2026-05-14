@@ -4,16 +4,27 @@ import { api } from 'src/boot/axios'
 type SectionValue = Record<string, string> | Record<string, string>[]
 type EntryData = Record<string, SectionValue>
 
+export type ImportSkipped = {
+  section: string
+  row: number
+  reason: string
+}
+
+export type ImportResult = {
+  data: EntryData
+  skipped: ImportSkipped[]
+}
+
 export type FormEntry = {
   id: string
-  template_id: string
+  templateId: string
   data: EntryData
   version: number
-  is_deleted: boolean
-  created_at?: string | null
-  created_by?: string | null
-  updated_at?: string | null
-  updated_by?: string | null
+  isDeleted: boolean
+  createdAt?: string | null
+  createdBy?: string | null
+  updatedAt?: string | null
+  updatedBy?: string | null
 }
 
 export const formEntryService = {
@@ -44,11 +55,11 @@ export const formEntryService = {
     await api.delete(`/form-entries/${id}`)
   },
 
-  async importFromFile(templateId: string, file: File): Promise<EntryData> {
+  async importFromFile(templateId: string, file: File): Promise<ImportResult> {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('template_id', templateId)
-    const { data } = await api.post<{ data: EntryData }>('/form-entries/import', formData)
-    return data.data
+    const { data } = await api.post<ImportResult>('/form-entries/import', formData)
+    return data
   },
 }
