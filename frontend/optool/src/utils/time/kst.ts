@@ -14,16 +14,26 @@ export function toKSTDay(utcString: string): string {
 }
 
 export function formatKst(iso: string): string {
-  const d = new Date(iso)
+  // 타임존 표기가 없으면 UTC로 강제 처리 (백엔드가 naive UTC 반환)
+  const normalized = /Z|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + 'Z'
+  const d = new Date(normalized)
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString('ko-KR')
+  return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
 }
 
 export function isDateSoon(dateVal: unknown, days: number): boolean {
   const s = typeof dateVal === 'string' ? dateVal : ''
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+  // YYYY-MM-DD 또는 YYYY-MM 포맷 모두 허용
+  let iso: string
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    iso = `${s}T00:00:00Z`
+  } else if (/^\d{4}-\d{2}$/.test(s)) {
+    iso = `${s}-01T00:00:00Z`
+  } else {
+    return false
+  }
 
-  const d = new Date(`${s}T00:00:00Z`)
+  const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return false
 
   const leftDays = (d.getTime() - Date.now()) / (1000 * 60 * 60 * 24)

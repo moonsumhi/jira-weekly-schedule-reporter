@@ -11,7 +11,24 @@ class MongoClientManager:
     PENDING_USERS = "pending_users"
     ASSETS_SERVERS = "assets_servers"
     ASSETS_SERVER_HISTORY = "assets_server_history"
+    ASSETS_NETWORK = "assets_network"
+    ASSETS_NETWORK_HISTORY = "assets_network_history"
+    ASSETS_SECURITY = "assets_security"
+    ASSETS_SECURITY_HISTORY = "assets_security_history"
+    ASSETS_DBMS = "assets_dbms"
+    ASSETS_DBMS_HISTORY = "assets_dbms_history"
+    ASSETS_VMWARE = "assets_vmware"
+    ASSETS_VMWARE_HISTORY = "assets_vmware_history"
     WATCH_ASSIGNMENTS = "watch_assignments"
+
+    # 카테고리 → (자산 컬렉션, 이력 컬렉션) 매핑
+    CATEGORY_COLLECTIONS: dict = {
+        "서버":         (ASSETS_SERVERS,  ASSETS_SERVER_HISTORY),
+        "네트워크":     (ASSETS_NETWORK,  ASSETS_NETWORK_HISTORY),
+        "정보보호시스템": (ASSETS_SECURITY, ASSETS_SECURITY_HISTORY),
+        "DBMS":        (ASSETS_DBMS,     ASSETS_DBMS_HISTORY),
+        "VMware":      (ASSETS_VMWARE,   ASSETS_VMWARE_HISTORY),
+    }
     PILOT_POLL_STATE = "pilot_poll_state"
     INSPECTION_CHECKLISTS = "inspection_checklists"
     INSPECTION_HISTORY = "inspection_history"
@@ -23,6 +40,9 @@ class MongoClientManager:
     JOB_RESULTS_HISTORY = "job_results_history"
     FORM_TEMPLATES = "form_templates"
     FORM_ENTRIES = "form_entries"
+    MENUS = "menus"
+    BOARDS = "boards"
+    BOARD_POSTS = "board_posts"
 
 
     @classmethod
@@ -65,6 +85,16 @@ class MongoClientManager:
     @classmethod
     def get_assets_server_history_collection(cls):
         return cls.get_db()[cls.ASSETS_SERVER_HISTORY]
+
+    @classmethod
+    def get_asset_collection(cls, category: str):
+        col_name, _ = cls.CATEGORY_COLLECTIONS.get(category, (cls.ASSETS_SERVERS, cls.ASSETS_SERVER_HISTORY))
+        return cls.get_db()[col_name]
+
+    @classmethod
+    def get_asset_history_collection(cls, category: str):
+        _, hist_name = cls.CATEGORY_COLLECTIONS.get(category, (cls.ASSETS_SERVERS, cls.ASSETS_SERVER_HISTORY))
+        return cls.get_db()[hist_name]
 
     @classmethod
     def get_watch_assignments_collection(cls):
@@ -113,6 +143,18 @@ class MongoClientManager:
     @classmethod
     def get_form_entries_collection(cls):
         return cls.get_db()[cls.FORM_ENTRIES]
+
+    @classmethod
+    def get_menus_collection(cls):
+        return cls.get_db()[cls.MENUS]
+
+    @classmethod
+    def get_boards_collection(cls):
+        return cls.get_db()[cls.BOARDS]
+
+    @classmethod
+    def get_board_posts_collection(cls):
+        return cls.get_db()[cls.BOARD_POSTS]
 
     @classmethod
     async def close_client(cls) -> None:
