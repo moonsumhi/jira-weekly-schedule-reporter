@@ -2,7 +2,6 @@
 from datetime import datetime, timezone
 from typing import Optional, Literal
 
-from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr
 
@@ -10,6 +9,7 @@ from app.core.config import settings
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.routers.auth import get_current_user
+from app.utils.mongo import oid as parse_oid
 
 router = APIRouter()
 
@@ -39,6 +39,79 @@ class PendingUserPublic(BaseModel):
 
 class RejectRequest(BaseModel):
     reason: Optional[str] = None
+
+
+class UserListItem(BaseModel):
+    id: str
+    email: EmailStr
+    full_name: Optional[str] = None
+    is_admin: bool = False
+    is_blocked: bool = False
+    permissions: list[str] = []
+    created_at: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
+
+
+class UserUpdateRequest(BaseModel):
+    is_admin: Optional[bool] = None
+    permissions: Optional[list[str]] = None
+
+
+@router.get("/users", response_model=list[UserListItem])
+async def list_users(
+    admin: UserPublic = Depends(require_admin),
+):
+    users = MongoClientManager.get_users_collection()
+    items: list[UserListItem] = []
+    async for doc in users.find().sort("created_at", 1):
+        items.append(
+            UserListItem(
+                id=str(doc["_id"]),
+                email=doc["email"],
+                full_name=doc.get("full_name"),
+                is_admin=bool(doc.get("is_admin", False)),
+                is_blocked=bool(doc.get("is_blocked", False)),
+                permissions=doc.get("permissions", []),
+                created_at=doc.get("created_at"),
+                last_login_at=doc.get("last_login_at"),
+            )
+        )
+    return items
+
+
+@router.patch("/users/{user_id}", response_model=UserListItem)
+async def update_user(
+    user_id: str,
+    body: UserUpdateRequest,
+    admin: UserPublic = Depends(require_admin),
+):
+    users = MongoClientManager.get_users_collection()
+    _id = parse_oid(user_id, "Invalid user id")
+
+    doc = await users.find_one({"_id": _id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update: dict = {}
+    if body.is_admin is not None:
+        update["is_admin"] = body.is_admin
+    if body.permissions is not None:
+        update["permissions"] = body.permissions
+
+    if update:
+        await users.update_one({"_id": _id}, {"$set": update})
+        doc = await users.find_one({"_id": _id})
+
+    return UserListItem(
+        id=str(doc["_id"]),
+        email=doc["email"],
+        full_name=doc.get("full_name"),
+        is_admin=bool(doc.get("is_admin", False)),
+        is_blocked=bool(doc.get("is_blocked", False)),
+        permissions=doc.get("permissions", []),
+        created_at=doc.get("created_at"),
+        last_login_at=doc.get("last_login_at"),
+    )
 
 
 @router.get("/users/pending", response_model=list[PendingUserPublic])
@@ -78,11 +151,7 @@ async def approve_pending_user(
 ):
     users = MongoClientManager.get_users_collection()
     pending = MongoClientManager.get_pending_users_collection()
-
-    try:
-        _id = ObjectId(request_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid request id")
+    _id = parse_oid(request_id, "Invalid request id")
 
     p = await pending.find_one({"_id": _id})
     if not p:
@@ -110,6 +179,10 @@ async def approve_pending_user(
         "approved_by": admin.email,
         "approved_at": now,
         "is_admin": False,
+        "permissions": [
+            "jira_search", "weekly_report", "asset_list",
+            "watch_timetable", "inspection_checklist", "pilot_tasks",
+        ],
     }
     result = await users.insert_one(user_doc)
 
@@ -132,6 +205,42 @@ async def approve_pending_user(
     )
 
 
+@router.post("/users/{user_id}/block", response_model=UserListItem)
+async def block_user(user_id: str, admin: UserPublic = Depends(require_admin)):
+    users = MongoClientManager.get_users_collection()
+    _id = parse_oid(user_id, "Invalid user id")
+    doc = await users.find_one({"_id": _id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    if bool(doc.get("is_admin", False)):
+        raise HTTPException(status_code=400, detail="관리자 계정은 차단할 수 없습니다.")
+    await users.update_one({"_id": _id}, {"$set": {"is_blocked": True}})
+    doc = await users.find_one({"_id": _id})
+    return UserListItem(
+        id=str(doc["_id"]), email=doc["email"], full_name=doc.get("full_name"),
+        is_admin=bool(doc.get("is_admin", False)), is_blocked=True,
+        permissions=doc.get("permissions", []),
+        created_at=doc.get("created_at"), last_login_at=doc.get("last_login_at"),
+    )
+
+
+@router.post("/users/{user_id}/unblock", response_model=UserListItem)
+async def unblock_user(user_id: str, admin: UserPublic = Depends(require_admin)):
+    users = MongoClientManager.get_users_collection()
+    _id = parse_oid(user_id, "Invalid user id")
+    doc = await users.find_one({"_id": _id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    await users.update_one({"_id": _id}, {"$set": {"is_blocked": False}})
+    doc = await users.find_one({"_id": _id})
+    return UserListItem(
+        id=str(doc["_id"]), email=doc["email"], full_name=doc.get("full_name"),
+        is_admin=bool(doc.get("is_admin", False)), is_blocked=False,
+        permissions=doc.get("permissions", []),
+        created_at=doc.get("created_at"), last_login_at=doc.get("last_login_at"),
+    )
+
+
 @router.post("/users/{request_id}/reject", status_code=status.HTTP_204_NO_CONTENT)
 async def reject_pending_user(
     request_id: str,
@@ -139,11 +248,7 @@ async def reject_pending_user(
     admin: UserPublic = Depends(require_admin),
 ):
     pending = MongoClientManager.get_pending_users_collection()
-
-    try:
-        _id = ObjectId(request_id)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid request id")
+    _id = parse_oid(request_id, "Invalid request id")
 
     p = await pending.find_one({"_id": _id})
     if not p:

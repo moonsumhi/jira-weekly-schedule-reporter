@@ -1,14 +1,17 @@
-import os
+import logging
 from contextlib import asynccontextmanager
+
+logging.basicConfig(level=logging.INFO)
 
 from fastapi import FastAPI
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
 
-from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot, inspection, job, job_result, job_non_service, test, form_templates, form_entries
+from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot, inspection, job, job_result, job_non_service, test, form_templates, form_entries, menus, boards
 
 from app.core.config import settings
 from app.db.mongo import MongoClientManager
+from app.db.startup import run_startup
 from app.services.jira_poller import JiraPollerService
 
 
@@ -16,49 +19,13 @@ from app.services.jira_poller import JiraPollerService
 async def lifespan(app: FastAPI):
     # ---- startup ----
     MongoClientManager.init_client()
-    users = MongoClientManager.get_users_collection()
-    await users.create_index("email", unique=True)
-
-    watch = MongoClientManager.get_watch_assignments_collection()
-    await watch.create_index("start")
-    await watch.create_index("end")
-    await watch.create_index("assignee")
-
-    assets = MongoClientManager.get_assets_servers_collection()
-    await assets.create_index("ip")
-
-    history = MongoClientManager.get_assets_server_history_collection()
-    await history.create_index("asset_id")
-    await history.create_index("changed_at")
-
-    inspection_checklists = MongoClientManager.get_inspection_checklists_collection()
-    await inspection_checklists.create_index("inspection_month", unique=True)
-    await inspection_checklists.create_index("person_in_charge")
-
-    inspection_history = MongoClientManager.get_inspection_history_collection()
-    await inspection_history.create_index("checklist_id")
-    await inspection_history.create_index("changed_at")
-
-    job_plans = MongoClientManager.get_job_plans_collection()
-    await job_plans.create_index("work_date")
-    await job_plans.create_index("worker")
-    await job_plans.create_index("status")
-
-    job_plans_history = MongoClientManager.get_job_plans_history_collection()
-    await job_plans_history.create_index("plan_id")
-    await job_plans_history.create_index("changed_at")
-
-
-    form_entries_col = MongoClientManager.get_form_entries_collection()
-    await form_entries_col.create_index("template_id")
-    await form_entries_col.create_index("created_at")
+    await run_startup()
 
     poller = None
-    print(f"PILOT_ENABLED: {settings.PILOT_ENABLED}")
     if settings.PILOT_ENABLED:
         poller = JiraPollerService()
         poller.start()
-        print("JiraPollerService started")
+        logging.getLogger(__name__).info("JiraPollerService started")
 
     yield
 
@@ -73,6 +40,7 @@ app = FastAPI(title="Jira Task Viewer API", version="1.3.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"https://.*\.trycloudflare\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -92,6 +60,8 @@ app.include_router(job_non_service.router, prefix="/job-non-service", tags=["job
 app.include_router(test.router, prefix="/test", tags=["test"])
 app.include_router(form_templates.router, prefix="/form-templates", tags=["form-templates"])
 app.include_router(form_entries.router, prefix="/form-entries", tags=["form-entries"])
+app.include_router(menus.router, prefix="/menus", tags=["menus"])
+app.include_router(boards.router, prefix="/boards", tags=["boards"])
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)

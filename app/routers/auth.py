@@ -58,6 +58,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserPublic:
         email=user["email"],
         full_name=user.get("full_name"),
         is_admin=bool(user.get("is_admin", False)),
+        permissions=user.get("permissions", []),
     )
 
 
@@ -122,6 +123,8 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     password = form_data.password
 
     user = await authenticate_user(email, password)
+    if user and user.get("is_blocked"):
+        raise HTTPException(status_code=403, detail="차단된 계정입니다. 관리자에게 문의하세요.")
     if not user:
         # users에 없으면 pending 상태 확인해서 더 친절한 에러
         p = await get_pending_by_email(email)
@@ -140,6 +143,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
         raise HTTPException(status_code=400, detail="Incorrect email or password")
 
+    users = MongoClientManager.get_users_collection()
+    await users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"last_login_at": datetime.now(timezone.utc)}},
+    )
+
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         subject=user["email"],
@@ -151,3 +160,27 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 @router.get("/me", response_model=UserPublic)
 async def read_me(current_user: UserPublic = Depends(get_current_user)):
     return current_user
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="새 비밀번호는 6자 이상이어야 합니다.")
+
+    users = MongoClientManager.get_users_collection()
+    user = await get_user_by_email(current_user.email)
+    if not user or not verify_password(body.current_password, user["hashed_password"]):
+        raise HTTPException(status_code=400, detail="현재 비밀번호가 올바르지 않습니다.")
+
+    await users.update_one(
+        {"email": current_user.email},
+        {"$set": {"hashed_password": hash_password(body.new_password)}}
+    )

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = Field(default=["http://localhost:9000"], description="Allowed CORS origins")
 
     ANTHROPIC_API_KEY: str = Field(default="", description="Anthropic Claude API key")
+    CLAUDE_CODE_OAUTH_TOKEN: str = Field(default="", description="Claude Code OAuth token for CLI auth")
 
     PILOT_ENABLED: bool = Field(default=False, description="Enable Jira→Pilot polling")
     PILOT_GATEWAY_URL: str = Field(default="http://pilot:9090", description="Pilot gateway URL")
