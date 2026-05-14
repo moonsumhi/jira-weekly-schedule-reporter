@@ -58,6 +58,17 @@ export default defineRouter(function () {
       }
     }
 
+    // 4) 메뉴 권한 체크
+    if (to.meta.requiresPermission) {
+      if (!auth.me && auth.isLoggedIn) {
+        try { await auth.fetchMe() } catch { /* ignore */ }
+      }
+      const perm = to.meta.requiresPermission as string
+      if (auth.me && !auth.me.isAdmin && !(auth.me.permissions ?? []).includes(perm)) {
+        return { name: 'app-home' }
+      }
+    }
+
     return true
   })
 

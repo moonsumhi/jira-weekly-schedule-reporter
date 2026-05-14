@@ -7,7 +7,15 @@ RUN apt-get update \
     build-essential \
     libxml2-dev \
     libxslt-dev \
- && rm -rf /var/lib/apt/lists/*
+    libxml2-utils \
+    nodejs \
+    npm \
+ && rm -rf /var/lib/apt/lists/* \
+ && printf '#!/bin/sh\ncat\n' > /usr/bin/xmllint \
+ && chmod +x /usr/bin/xmllint
+
+# Install Claude Code CLI
+RUN npm install -g @anthropic-ai/claude-code
 
 # 2) Workdir
 WORKDIR /app

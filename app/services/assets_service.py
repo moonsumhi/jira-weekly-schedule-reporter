@@ -36,8 +36,9 @@ async def _write_history(
     before: Optional[dict],
     after: Optional[dict],
     patch: Optional[dict],
+    history_col=None,
 ):
-    h = MongoClientManager.get_assets_server_history_collection()
+    h = history_col if history_col is not None else MongoClientManager.get_assets_server_history_collection()
     doc = {
         "asset_id": asset_id,
         "action": action,
@@ -55,11 +56,59 @@ async def _write_history(
     await h.insert_one(doc)
 
 
+async def _check_asset_id(col, asset_id: Optional[str], exclude_id=None) -> None:
+    """asset_id 중복 체크 (유형별 PK). 비어있으면 스킵."""
+    if not asset_id:
+        return
+    q: dict = {"asset_id": asset_id, "is_deleted": {"$ne": True}}
+    if exclude_id is not None:
+        q["_id"] = {"$ne": exclude_id}
+    if await col.find_one(q):
+        raise ValueError(f"asset_id '{asset_id}'이(가) 이미 사용 중입니다.")
+
+
+
+def _ip_asset_type_query(ip: str, asset_type: str) -> dict:
+    """IP + 자산유형 조합 중복 체크 쿼리. 서버(기본값)는 필드 미설정 도큐먼트도 포함."""
+    base = {"ip": ip, "is_deleted": {"$ne": True}}
+    if asset_type == "서버":
+        return {**base, "$or": [{"fields.자산유형": "서버"}, {"fields.자산유형": {"$exists": False}}]}
+    return {**base, "fields.자산유형": asset_type}
+
+
+async def list_all_assets(*, include_deleted: bool) -> List[Dict[str, Any]]:
+    """모든 자산 컬렉션을 $unionWith로 합쳐 반환."""
+    db = MongoClientManager.get_db()
+    all_cols = list(MongoClientManager.CATEGORY_COLLECTIONS.values())
+    primary_col_name = all_cols[0][0]
+    union_cols = [pair[0] for pair in all_cols[1:]]
+
+    q = {} if include_deleted else {"is_deleted": {"$ne": True}}
+    pipeline: List[Dict[str, Any]] = [{"$match": q}]
+    for col_name in union_cols:
+        pipeline.append({"$unionWith": {"coll": col_name, "pipeline": [{"$match": q}]}})
+    pipeline.append({"$sort": {"ip": 1}})
+
+    items: List[Dict[str, Any]] = []
+    async for doc in db[primary_col_name].aggregate(pipeline):
+        items.append(to_out(doc))
+    return items
+
+
 class AssetsService:
 
-    @staticmethod
-    def _col():
-        return MongoClientManager.get_assets_servers_collection()
+    def __init__(self, category: str = "서버"):
+        col_name, hist_name = MongoClientManager.CATEGORY_COLLECTIONS.get(
+            category, MongoClientManager.CATEGORY_COLLECTIONS["서버"]
+        )
+        self._col_name = col_name
+        self._hist_col_name = hist_name
+
+    def _col(self):
+        return MongoClientManager.get_db()[self._col_name]
+
+    def _hist(self):
+        return MongoClientManager.get_db()[self._hist_col_name]
 
     async def list(self, *, include_deleted: bool) -> List[Dict[str, Any]]:
         q = {} if include_deleted else {"is_deleted": {"$ne": True}}
@@ -73,13 +122,14 @@ class AssetsService:
         *,
         ip: str,
         name: str,
+        asset_id: Optional[str] = None,
+        asset_no: Optional[str] = None,
         fields: Optional[Dict[str, Any]],
         actor_email: str,
     ) -> Dict[str, Any]:
         col = self._col()
 
-        if await col.find_one({"ip": ip, "is_deleted": {"$ne": True}}):
-            raise ValueError("IP already exists")
+        await _check_asset_id(col, asset_id)
 
         now = TimeUtil.now_utc()
         doc = {
@@ -93,6 +143,10 @@ class AssetsService:
             "version": 1,
             "is_deleted": False,
         }
+        if asset_id:
+            doc["asset_id"] = asset_id
+        if asset_no:
+            doc["asset_no"] = asset_no
         res = await col.insert_one(doc)
         doc["_id"] = res.inserted_id
 
@@ -104,6 +158,7 @@ class AssetsService:
             before=None,
             after=out,
             patch=None,
+            history_col=self._hist(),
         )
         return out
 
@@ -113,6 +168,8 @@ class AssetsService:
         _id: ObjectId,
         ip: str,
         name: str,
+        asset_id: Optional[str] = None,
+        asset_no: Optional[str] = None,
         fields: Optional[Dict[str, Any]],
         actor_email: str,
     ) -> Dict[str, Any]:
@@ -122,9 +179,8 @@ class AssetsService:
         if not existing:
             raise KeyError("Not found")
 
-        if ip != existing["ip"]:
-            if await col.find_one({"ip": ip, "is_deleted": {"$ne": True}}):
-                raise ValueError("IP already exists")
+        if asset_id != existing.get("asset_id"):
+            await _check_asset_id(col, asset_id, exclude_id=_id)
 
         now = TimeUtil.now_utc()
         new_doc = {
@@ -139,7 +195,19 @@ class AssetsService:
             "created_by": existing.get("created_by"),
         }
 
-        await col.update_one({"_id": _id}, {"$set": new_doc})
+        unset_fields: Dict[str, Any] = {}
+        if asset_id:
+            new_doc["asset_id"] = asset_id
+        else:
+            unset_fields["asset_id"] = ""
+        if asset_no:
+            new_doc["asset_no"] = asset_no
+        else:
+            unset_fields["asset_no"] = ""
+        mongo_op: Dict[str, Any] = {"$set": new_doc}
+        if unset_fields:
+            mongo_op["$unset"] = unset_fields
+        await col.update_one({"_id": _id}, mongo_op)
 
         after = {**existing, **new_doc, "_id": _id}
         before_out = to_out(existing)
@@ -152,6 +220,7 @@ class AssetsService:
             before=before_out,
             after=after_out,
             patch={"replace": True},
+            history_col=self._hist(),
         )
         return after_out
 
@@ -179,19 +248,34 @@ class AssetsService:
 
         ip = patch.get("ip")
         if ip is not None and ip != existing["ip"]:
-            if await col.find_one({"ip": ip, "is_deleted": {"$ne": True}}):
-                raise ValueError("IP already exists")
+            asset_type = existing.get("fields", {}).get("자산유형", "서버")
+            if await col.find_one({**_ip_asset_type_query(ip, asset_type), "_id": {"$ne": _id}}):
+                raise ValueError(f"IP already exists for asset type '{asset_type}'")
             update["ip"] = ip
 
         if patch.get("name") is not None:
             update["name"] = patch["name"]
+
+        unset: Dict[str, Any] = {}
+        if "asset_id" in patch and patch["asset_id"] != existing.get("asset_id"):
+            await _check_asset_id(col, patch["asset_id"], exclude_id=_id)
+            if patch["asset_id"]:
+                update["asset_id"] = patch["asset_id"]
+            else:
+                unset["asset_id"] = ""
+
+        if "asset_no" in patch and patch["asset_no"] != existing.get("asset_no"):
+            if patch["asset_no"]:
+                update["asset_no"] = patch["asset_no"]
+            else:
+                unset["asset_no"] = ""
 
         if patch.get("fields") is not None:
             if not isinstance(patch["fields"], dict):
                 raise ValueError("fields must be an object")
             update["fields"] = patch["fields"]
 
-        if not update:
+        if not update and not unset:
             return to_out(existing)
 
         now = TimeUtil.now_utc()
@@ -199,9 +283,14 @@ class AssetsService:
         update["updated_by"] = actor_email
         update["version"] = int(existing.get("version", 1)) + 1
 
-        await col.update_one({"_id": _id}, {"$set": update})
+        mongo_update: Dict[str, Any] = {"$set": update}
+        if unset:
+            mongo_update["$unset"] = unset
+        await col.update_one({"_id": _id}, mongo_update)
 
         after = {**existing, **update, "_id": _id}
+        for k in unset:
+            after.pop(k, None)
         before_out = to_out(existing)
         after_out = to_out(after)
 
@@ -212,10 +301,11 @@ class AssetsService:
             before=before_out,
             after=after_out,
             patch={"$set": update},
+            history_col=self._hist(),
         )
         return after_out
 
-    async def delete(self, *, _id: ObjectId, actor_email: str) -> None:
+    async def delete(self, *, _id: ObjectId, actor_email: str, reason: Optional[str] = None) -> Dict[str, Any]:
         col = self._col()
 
         existing = await col.find_one({"_id": _id, "is_deleted": {"$ne": True}})
@@ -225,6 +315,9 @@ class AssetsService:
         now = TimeUtil.now_utc()
         update = {
             "is_deleted": True,
+            "delete_reason": reason or "",
+            "deleted_at": now,
+            "deleted_by": actor_email,
             "updated_at": now,
             "updated_by": actor_email,
             "version": int(existing.get("version", 1)) + 1,
@@ -240,10 +333,47 @@ class AssetsService:
             before=to_out(existing),
             after=to_out(after),
             patch={"$set": update},
+            history_col=self._hist(),
+        )
+        return to_out(after)
+
+    async def restore(self, *, _id: ObjectId, actor_email: str) -> Dict[str, Any]:
+        col = self._col()
+
+        existing = await col.find_one({"_id": _id, "is_deleted": True})
+        if not existing:
+            raise KeyError("Not found or not deleted")
+
+        now = TimeUtil.now_utc()
+        update = {
+            "is_deleted": False,
+            "updated_at": now,
+            "updated_by": actor_email,
+            "version": int(existing.get("version", 1)) + 1,
+        }
+        await col.update_one(
+            {"_id": _id},
+            {"$set": update, "$unset": {"delete_reason": "", "deleted_at": "", "deleted_by": ""}},
         )
 
+        after = {**existing, **update, "_id": _id}
+        after.pop("delete_reason", None)
+        after.pop("deleted_at", None)
+        after.pop("deleted_by", None)
+
+        await _write_history(
+            asset_id=str(_id),
+            action="UPDATE",
+            changed_by=actor_email,
+            before=to_out(existing),
+            after=to_out(after),
+            patch={"$set": update},
+            history_col=self._hist(),
+        )
+        return to_out(after)
+
     async def get_history(self, *, server_id: str) -> List[Dict[str, Any]]:
-        h = MongoClientManager.get_assets_server_history_collection()
+        h = self._hist()
         cursor = h.find({"asset_id": server_id}).sort("changed_at", -1)
         items: List[Dict[str, Any]] = []
         async for doc in cursor:

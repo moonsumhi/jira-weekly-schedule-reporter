@@ -11,7 +11,7 @@ COPY . .
 RUN npm install -g @quasar/cli
 
 # Install dependencies
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Build production version
 RUN npx quasar build
