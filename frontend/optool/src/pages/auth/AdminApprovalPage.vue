@@ -107,7 +107,7 @@
             <q-item>
               <q-item-section>
                 <q-item-label><b>Name</b></q-item-label>
-                <q-item-label caption>{{ selected?.full_name || '-' }}</q-item-label>
+                <q-item-label caption>{{ selected?.fullName || '-' }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -146,7 +146,7 @@
             <q-item>
               <q-item-section>
                 <q-item-label><b>Name</b></q-item-label>
-                <q-item-label caption>{{ selected?.full_name || '-' }}</q-item-label>
+                <q-item-label caption>{{ selected?.fullName || '-' }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -184,6 +184,9 @@ import { useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 
 import { getErrorMessage } from 'src/utils/http/error'
+import { useAuthStore } from 'src/stores/auth'
+
+const auth = useAuthStore()
 
 import type { QTableProps } from 'quasar'
 
@@ -192,9 +195,9 @@ type PendingStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 type PendingUser = {
   id: string | number
   email: string
-  full_name?: string | null
+  fullName?: string | null
   status: PendingStatus
-  requested_at?: string // ISO
+  requestedAt?: string // ISO
 }
 
 type StatusFilter = PendingStatus | 'ALL'
@@ -223,15 +226,15 @@ const statusOptions: StatusOption[] = [
 const pagination = ref<QTableProps['pagination']>({
   page: 1,
   rowsPerPage: 10,
-  sortBy: 'requested_at',
+  sortBy: 'requestedAt',
   descending: true,
 })
 
 const columns: NonNullable<QTableProps['columns']> = [
   { name: 'email', label: 'Email', field: 'email', align: 'left', sortable: true },
-  { name: 'full_name', label: 'Name', field: 'full_name', align: 'left', sortable: true },
+  { name: 'fullName', label: 'Name', field: 'fullName', align: 'left', sortable: true },
   { name: 'status', label: 'Status', field: 'status', align: 'left', sortable: true },
-  { name: 'requested_at', label: 'Requested At', field: 'requested_at', align: 'left', sortable: true },
+  { name: 'requestedAt', label: 'Requested At', field: 'requestedAt', align: 'left', sortable: true },
   { name: 'actions', label: 'Actions', field: 'actions', align: 'right' },
 ]
 
@@ -253,7 +256,7 @@ const filteredRows = computed(() => {
     const passText =
       !q ||
       r.email.toLowerCase().includes(q) ||
-      (r.full_name || '').toLowerCase().includes(q)
+      (r.fullName || '').toLowerCase().includes(q)
     return passStatus && passText
   })
 })
@@ -305,6 +308,7 @@ async function doApprove() {
     rows.value = rows.value.map((r) =>
       r.id === selected.value!.id ? { ...r, status: 'APPROVED' } : r
     )
+    void auth.fetchPendingCount()
   } catch (e: unknown) {
     $q.notify({ type: 'negative', message: getErrorMessage(e, '승인 실패') })
   } finally {
@@ -326,6 +330,7 @@ async function doReject() {
     rows.value = rows.value.map((r) =>
       r.id === selected.value!.id ? { ...r, status: 'REJECTED' } : r
     )
+    void auth.fetchPendingCount()
   } catch (e: unknown) {
     $q.notify({ type: 'negative', message: getErrorMessage(e, '반려 실패') })
   } finally {
