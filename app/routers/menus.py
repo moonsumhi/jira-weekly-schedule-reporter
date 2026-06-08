@@ -19,6 +19,8 @@ def _to_out(doc: dict) -> MenuOut:
         icon=doc.get("icon", "fa-solid fa-folder"),
         sort_order=doc.get("sort_order"),
         is_visible=bool(doc.get("is_visible", True)),
+        is_external_visible=bool(doc.get("is_external_visible", False)),
+        is_internal_visible=bool(doc.get("is_internal_visible", True)),
         is_system=bool(doc.get("is_system", False)),
         slug=doc.get("slug"),
         sub_icons=doc.get("sub_icons"),
