@@ -195,8 +195,11 @@ const safeRedirect = computed<string | null>(() => {
 })
 
 function goAfterAuth() {
-  // router.replace returns a Promise -> mark as intentionally ignored
-  void router.replace(safeRedirect.value || { name: 'app-home' })
+  const target = safeRedirect.value || { name: 'app-home' }
+  router.replace(target).catch(() => {
+    // redirect 대상 이동 실패 시 app-home으로 재시도
+    void router.replace({ name: 'app-home' })
+  })
 }
 
 onMounted(() => {

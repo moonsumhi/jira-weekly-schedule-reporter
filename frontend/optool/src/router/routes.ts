@@ -28,6 +28,11 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'calendar',
+        meta: { requiresAuth: true },
+        component: () => import('pages/calendar/GoogleCalendarPage.vue')
+      },
+      {
         path: 'jira',
         meta: { requiresAuth: true },
         children: [
@@ -68,6 +73,21 @@ const routes: RouteRecordRaw[] = [
             path: 'checklist',
             meta: { requiresPermission: 'inspection_checklist' },
             component: () => import('pages/inspection/ServerRoomInspectionPage.vue')
+          },
+          {
+            path: 'health-summary',
+            meta: { requiresPermission: 'health_report' },
+            component: () => import('pages/inspection/HealthSummaryPage.vue')
+          },
+          {
+            path: 'health-servers',
+            meta: { requiresPermission: 'health_report' },
+            component: () => import('pages/inspection/HealthServerListPage.vue')
+          },
+          {
+            path: 'health-compare',
+            meta: { requiresPermission: 'health_report' },
+            component: () => import('pages/inspection/HealthComparePage.vue')
           }
         ]
       },
@@ -127,6 +147,18 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'menus',
             component: () => import('pages/admin/MenuManagePage.vue')
+          },
+          {
+            path: 'audit-log',
+            component: () => import('pages/admin/AuditLogPage.vue')
+          },
+          {
+            path: 'asset-log',
+            component: () => import('pages/admin/AssetLogPage.vue')
+          },
+          {
+            path: 'settings',
+            component: () => import('pages/admin/AppSettingsPage.vue')
           }
         ]
       }

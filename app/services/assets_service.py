@@ -37,6 +37,7 @@ async def _write_history(
     after: Optional[dict],
     patch: Optional[dict],
     history_col=None,
+    source: str = "manual",
 ):
     h = history_col if history_col is not None else MongoClientManager.get_assets_server_history_collection()
     doc = {
@@ -44,6 +45,7 @@ async def _write_history(
         "action": action,
         "changed_at": TimeUtil.now_utc(),
         "changed_by": changed_by,
+        "source": source,
         "patch": patch,
         "diff": (
             _diff_docs(before or {}, after or {})
@@ -126,6 +128,7 @@ class AssetsService:
         asset_no: Optional[str] = None,
         fields: Optional[Dict[str, Any]],
         actor_email: str,
+        source: str = "manual",
     ) -> Dict[str, Any]:
         col = self._col()
 
@@ -159,6 +162,7 @@ class AssetsService:
             after=out,
             patch=None,
             history_col=self._hist(),
+            source=source,
         )
         return out
 

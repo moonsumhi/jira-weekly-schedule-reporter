@@ -20,6 +20,7 @@ class MongoClientManager:
     ASSETS_VMWARE = "assets_vmware"
     ASSETS_VMWARE_HISTORY = "assets_vmware_history"
     WATCH_ASSIGNMENTS = "watch_assignments"
+    WATCH_HISTORY = "watch_history"
 
     # 카테고리 → (자산 컬렉션, 이력 컬렉션) 매핑
     CATEGORY_COLLECTIONS: dict = {
@@ -43,6 +44,11 @@ class MongoClientManager:
     MENUS = "menus"
     BOARDS = "boards"
     BOARD_POSTS = "board_posts"
+    AUTH_LOGS = "auth_logs"
+    ACTIVITY_LOGS = "activity_logs"
+    HEALTH_REPORTS = "health_reports"
+    HEALTH_ACTIONS = "health_report_actions"
+    APP_SETTINGS = "app_settings"
 
 
     @classmethod
@@ -101,6 +107,10 @@ class MongoClientManager:
         return cls.get_db()[cls.WATCH_ASSIGNMENTS]
 
     @classmethod
+    def get_watch_history_collection(cls):
+        return cls.get_db()[cls.WATCH_HISTORY]
+
+    @classmethod
     def get_pilot_poll_state_collection(cls):
         return cls.get_db()[cls.PILOT_POLL_STATE]
 
@@ -155,6 +165,14 @@ class MongoClientManager:
     @classmethod
     def get_board_posts_collection(cls):
         return cls.get_db()[cls.BOARD_POSTS]
+
+    @classmethod
+    def get_auth_logs_collection(cls):
+        return cls.get_db()[cls.AUTH_LOGS]
+
+    @classmethod
+    def get_activity_logs_collection(cls):
+        return cls.get_db()[cls.ACTIVITY_LOGS]
 
     @classmethod
     async def close_client(cls) -> None:

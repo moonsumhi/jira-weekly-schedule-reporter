@@ -7,6 +7,8 @@ export interface MenuOut {
   icon: string
   sortOrder: number | null
   isVisible: boolean
+  isExternalVisible: boolean
+  isInternalVisible: boolean
   isSystem: boolean
   slug: string | null
   subIcons?: Record<string, string> | null
@@ -26,6 +28,8 @@ export interface MenuPatch {
   icon?: string
   sort_order?: number | null
   is_visible?: boolean
+  is_external_visible?: boolean
+  is_internal_visible?: boolean
   sub_icons?: Record<string, string> | null
   sub_order?: string[] | null
 }

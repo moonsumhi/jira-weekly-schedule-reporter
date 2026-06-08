@@ -865,6 +865,15 @@ async def import_entry_from_file(
     return {"data": extracted, "skipped": skipped}
 
 
+async def _email_to_name_map() -> dict[str, str]:
+    """이메일 → 이름 변환 맵 (full_name 없으면 email 그대로)"""
+    users_col = MongoClientManager.get_users_collection()
+    return {
+        doc["email"]: doc.get("full_name") or doc["email"]
+        async for doc in users_col.find({}, {"email": 1, "full_name": 1})
+    }
+
+
 @router.get("", response_model=list[FormEntryOut])
 async def list_entries(
     template_id: str = Query(...),
@@ -875,8 +884,20 @@ async def list_entries(
     query: dict = {"template_id": template_id}
     if not include_deleted:
         query["is_deleted"] = {"$ne": True}
-    cursor = col.find(query).sort("created_at", -1)
-    return [_to_out(doc) async for doc in cursor]
+    docs = [doc async for doc in col.find(query).sort("created_at", -1)]
+
+    name_map = await _email_to_name_map()
+
+    def resolve(val: str | None) -> str | None:
+        if val is None:
+            return None
+        return name_map.get(val, val)
+
+    for doc in docs:
+        doc["created_by"] = resolve(doc.get("created_by"))
+        doc["updated_by"] = resolve(doc.get("updated_by"))
+
+    return [_to_out(doc) for doc in docs]
 
 
 @router.post("", response_model=FormEntryOut, status_code=status.HTTP_201_CREATED)
@@ -892,9 +913,9 @@ async def create_entry(
         "version": 1,
         "is_deleted": False,
         "created_at": now,
-        "created_by": current_user.email,
+        "created_by": current_user.full_name or current_user.email,
         "updated_at": now,
-        "updated_by": current_user.email,
+        "updated_by": current_user.full_name or current_user.email,
     }
     result = await col.insert_one(doc)
     doc["_id"] = result.inserted_id
@@ -913,7 +934,7 @@ async def patch_entry(
     now = _now()
     result = await col.find_one_and_update(
         {"_id": entry_oid, "version": payload.version, "is_deleted": {"$ne": True}},
-        {"$set": {"data": payload.data, "updated_at": now, "updated_by": current_user.email},
+        {"$set": {"data": payload.data, "updated_at": now, "updated_by": current_user.full_name or current_user.email},
          "$inc": {"version": 1}},
         return_document=True,
     )
@@ -935,7 +956,7 @@ async def delete_entry(
 
     result = await col.update_one(
         {"_id": entry_oid, "is_deleted": {"$ne": True}},
-        {"$set": {"is_deleted": True, "updated_at": _now(), "updated_by": current_user.email}},
+        {"$set": {"is_deleted": True, "updated_at": _now(), "updated_by": current_user.full_name or current_user.email}},
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Entry not found")

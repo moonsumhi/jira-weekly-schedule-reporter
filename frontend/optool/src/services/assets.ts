@@ -10,9 +10,9 @@ export async function listServers(includeDeleted: boolean, category?: string): P
   return res.data
 }
 
-export async function createServer(ip: string, name: string, fields?: FieldsMap, assetNo?: string | null, category?: string, assetId?: string | null): Promise<ServerAsset> {
+export async function createServer(ip: string, name: string, fields?: FieldsMap, assetNo?: string | null, category?: string, assetId?: string | null, source: 'manual' | 'import' = 'manual'): Promise<ServerAsset> {
   const res = await api.post<ServerAsset>(SERVERS, { ip, name, fields: fields ?? {}, asset_id: assetId ?? null, asset_no: assetNo ?? null }, {
-    params: category ? { category } : {},
+    params: { ...(category ? { category } : {}), source },
   })
   return res.data
 }

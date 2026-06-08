@@ -20,14 +20,6 @@ _SYSTEM_MENUS = [
     {"slug": "account", "title": "계정 설정",   "icon": "fa-solid fa-user-gear", "sort_order": 6},
 ]
 
-_ASSET_BOARDS = [
-    {"title": "서버",           "link": "/asset/list?category=서버",           "sort_order": 1},
-    {"title": "네트워크",       "link": "/asset/list?category=네트워크",       "sort_order": 2},
-    {"title": "정보보호시스템", "link": "/asset/list?category=정보보호시스템", "sort_order": 3},
-    {"title": "DBMS",           "link": "/asset/list?category=DBMS",           "sort_order": 4},
-    {"title": "VMware",         "link": "/asset/list?category=VMware",         "sort_order": 5},
-]
-
 
 async def create_indexes() -> None:
     """컬렉션별 인덱스를 생성한다. 이미 존재하면 무시된다."""
@@ -103,33 +95,6 @@ async def seed_system_menus() -> None:
             })
 
 
-async def seed_asset_boards() -> None:
-    """자산 메뉴 하위 게시판이 없으면 초기 데이터를 삽입한다."""
-    menus_col = MongoClientManager.get_menus_collection()
-    boards_col = MongoClientManager.get_boards_collection()
-
-    asset_menu = await menus_col.find_one({"slug": "asset"})
-    if not asset_menu:
-        return
-
-    asset_menu_id = str(asset_menu["_id"])
-    for ab in _ASSET_BOARDS:
-        existing = await boards_col.find_one({"menu_id": asset_menu_id, "title": ab["title"]})
-        if existing:
-            await boards_col.update_one(
-                {"_id": existing["_id"]},
-                {"$set": {"link": ab["link"], "sort_order": ab["sort_order"]}},
-            )
-        else:
-            await boards_col.insert_one({
-                "title": ab["title"],
-                "description": "",
-                "menu_id": asset_menu_id,
-                "link": ab["link"],
-                "sort_order": ab["sort_order"],
-                "created_at": datetime.now(timezone.utc),
-            })
-
 
 async def migrate_assets() -> None:
     """assets_servers 컬렉션의 비서버 자산을 유형별 컬렉션으로 이동한다.
@@ -160,5 +125,4 @@ async def run_startup() -> None:
     """lifespan startup에서 호출하는 진입점."""
     await create_indexes()
     await seed_system_menus()
-    await seed_asset_boards()
     await migrate_assets()

@@ -30,8 +30,11 @@ export default defineRouter(function () {
     // Restore session once (if token exists) so guards use real state
     if (!bootstrapped) {
       bootstrapped = true
-      // bootstrap() already checks token internally
-      await auth.bootstrap()
+      try {
+        await auth.bootstrap()
+      } catch {
+        // bootstrap 실패 시 현재 auth 상태로 진행 (토큰 만료면 guard 1에서 처리)
+      }
     }
 
     // 1) requiresAuth but not logged in -> go to auth(login) page
