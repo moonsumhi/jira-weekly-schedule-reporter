@@ -4,8 +4,16 @@ import { api } from 'boot/axios'
 // Rocky Linux / RHEL / CentOS 는 endoflife.date가 마이너 버전 단위로만 사이클을 제공하며
 // 현재 지원 중인 최신 마이너의 eol 이 false 이므로 메이저 버전 키를 직접 추가한다.
 const STATIC_FALLBACK: Record<string, string> = {
-  // Rocky Linux (https://rockylinux.org/news/rocky-linux-eol)
-  'Rocky Linux|8': '2029-05',
+  // Rocky Linux (https://wiki.rockylinux.org/rocky/version/)
+  'Rocky Linux|8':    '2029-05',
+  'Rocky Linux|8.3':  '2021-06',
+  'Rocky Linux|8.4':  '2021-11',
+  'Rocky Linux|8.5':  '2022-05',
+  'Rocky Linux|8.6':  '2022-11',
+  'Rocky Linux|8.7':  '2023-05',
+  'Rocky Linux|8.8':  '2023-11',
+  'Rocky Linux|8.9':  '2024-05',
+  'Rocky Linux|8.10': '2029-05',
   'Rocky Linux|9': '2032-05',
   // RHEL (Red Hat Maintenance Support 2 end date)
   'RHEL|7': '2024-06',
