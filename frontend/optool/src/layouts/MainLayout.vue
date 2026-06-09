@@ -95,6 +95,18 @@
                 link="/inspection/checklist"
               />
 
+              <!-- 서버점검 (월1회) -->
+              <EssentialLink
+                v-else-if="menu.slug === 'server_check' && hasPerm('health_report')"
+                :title="menu.title"
+                :icon="menu.icon"
+                :children="applySubOrder([
+                  { title: '요약', icon: menu.subIcons?.['/inspection/health-summary'] ?? 'fa-solid fa-table-list', link: '/inspection/health-summary' },
+                  { title: '서버리스트', icon: menu.subIcons?.['/inspection/health-servers'] ?? 'fa-solid fa-server', link: '/inspection/health-servers' },
+                  { title: '월별 비교', icon: menu.subIcons?.['/inspection/health-compare'] ?? 'fa-solid fa-code-compare', link: '/inspection/health-compare' },
+                ], menu)"
+              />
+
               <!-- Admin -->
               <EssentialLink
                 v-else-if="menu.slug === 'admin' && auth.me?.isAdmin"
@@ -104,14 +116,18 @@
                 :children="applySubOrder([
                   { title: '회원가입 승인', icon: menu.subIcons?.['/admin/approvals'] ?? 'fa-regular fa-thumbs-up', link: '/admin/approvals', badge: pendingCount },
                   { title: '회원 목록', icon: menu.subIcons?.['/admin/users'] ?? 'fa-solid fa-users', link: '/admin/users' },
-                  { title: '메뉴 관리', icon: menu.subIcons?.['/admin/menus'] ?? 'fa-solid fa-list', link: '/admin/menus' },
-                  { title: 'Pilot 일감 현황', icon: menu.subIcons?.['/pilot/tasks'] ?? 'fa-solid fa-tasks', link: '/pilot/tasks' },
                 ], menu)"
               />
 
-              <!-- 동적 메뉴 (관리자가 추가한 메뉴 > 게시판) -->
+              <!-- 동적 메뉴 (관리자가 추가한 메뉴 > 게시판, 또는 알 수 없는 slug) -->
               <EssentialLink
-                v-else-if="!menu.slug"
+                v-else-if="menu.link"
+                :title="menu.title"
+                :icon="menu.icon"
+                :link="menu.link"
+              />
+              <EssentialLink
+                v-else
                 :title="menu.title"
                 :icon="menu.icon"
                 :children="boardChildrenOf(menu.id)"
@@ -162,9 +178,22 @@ function hasPerm(perm: string): boolean {
   return (auth.me?.permissions ?? []).includes(perm)
 }
 
+// localhost, 127.0.0.1, 사설 IP 대역(10.x / 172.16~31.x / 192.168.x)이면 내부망으로 인식
+function detectInternal(hostname: string): boolean {
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true
+  // IPv4 사설 대역
+  if (/^10\./.test(hostname)) return true
+  if (/^192\.168\./.test(hostname)) return true
+  const m = hostname.match(/^172\.(\d+)\./)
+  if (m && Number(m[1]) >= 16 && Number(m[1]) <= 31) return true
+  return false
+}
+const isExternal = !detectInternal(window.location.hostname)
+
 const sortedVisibleMenus = computed(() =>
   sidebarMenus.value
     .filter((m) => m.isVisible)
+    .filter((m) => isExternal ? m.isExternalVisible : m.isInternalVisible)
     .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity))
 )
 
