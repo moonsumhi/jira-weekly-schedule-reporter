@@ -3484,9 +3484,16 @@ async function _runImport(buf: ArrayBuffer, password: string) {
     for (let rowIdx = 0; rowIdx < allRows.slice(1).length; rowIdx++) {
       const rawRow = allRows.slice(1)[rowIdx]!
       const row = Array.isArray(rawRow) ? rawRow : []
-      function cellStr(val: unknown): string {
+      function cellStr(val: unknown, colKey?: string): string {
         if (val === null || val === undefined) return ''
-        if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return String(val)
+        if (typeof val === 'number') {
+          const s = String(val)
+          // version 필드: Excel이 "8.10" 등을 숫자 8.1로 변환하는 현상 보정 (x.1 → x.10)
+          // 숫자로 들어온 경우에만 적용 (문자열 "8.1"은 그대로 유지)
+          if (colKey === 'version' && /^\d+\.1$/.test(s)) return s.replace(/\.1$/, '.10')
+          return s
+        }
+        if (typeof val === 'string' || typeof val === 'boolean') return String(val)
         // cellDates: true 로 인해 Date 객체가 올 수 있음 → YYYY-MM-DD로 변환
         if (val instanceof Date && !Number.isNaN(val.getTime())) {
           const y = val.getFullYear()
@@ -3512,7 +3519,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
           const fields2Empty: Record<string, string> = {}
           colKeys.forEach((k, i) => {
             if (k === 'ip' || k === 'name' || k === 'asset_id' || k === '__asset_id__') return
-            const v = cellStr(row[i]).trim()
+            const v = cellStr(row[i], k).trim()
             if (v) fields2Empty[k] = v
           })
           const importAssetId2Empty = assetIdIndex >= 0 ? cellStr(row[assetIdIndex]).trim() || null : null
@@ -3552,7 +3559,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
         const fields2: Record<string, string> = {}
         colKeys.forEach((k, i) => {
           if (k === 'ip' || k === 'name' || k === 'asset_id' || k === '__asset_id__') return
-          let v = cellStr(row[i]).trim()
+          let v = cellStr(row[i], k).trim()
           if (k === EOS_DATE_KEY && /^\d{4}-\d{2}-\d{2}/.test(v)) v = v.slice(0, 7)
           if (k === '운영체제') v = normalizeOsName(v)
           if (v) fields2[k] = v
@@ -3631,7 +3638,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       const fields: Record<string, string> = {}
       colKeys.forEach((k, i) => {
         if (k === 'ip' || k === 'name' || k === 'asset_id' || k === '__asset_id__') return
-        let v = cellStr(row[i]).trim()
+        let v = cellStr(row[i], k).trim()
         // EoS 종료 일자는 YYYY-MM 형식으로 정규화
         if (k === EOS_DATE_KEY && /^\d{4}-\d{2}-\d{2}/.test(v)) v = v.slice(0, 7)
         if (k === '운영체제') v = normalizeOsName(v)

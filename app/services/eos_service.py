@@ -15,7 +15,16 @@ _CACHE_TTL = 86400  # 24h
 # Rocky Linux / RHEL / CentOS 는 endoflife.date 가 마이너 버전 단위 사이클만 제공하며
 # 현재 지원 중인 최신 마이너의 eol 이 false 이므로 메이저 버전 키를 직접 정의한다.
 STATIC_FALLBACK: Dict[str, str] = {
-    "Rocky Linux|8": "2029-05",
+    # Rocky Linux (https://wiki.rockylinux.org/rocky/version/)
+    "Rocky Linux|8":    "2029-05",
+    "Rocky Linux|8.3":  "2021-06",
+    "Rocky Linux|8.4":  "2021-11",
+    "Rocky Linux|8.5":  "2022-05",
+    "Rocky Linux|8.6":  "2022-11",
+    "Rocky Linux|8.7":  "2023-05",
+    "Rocky Linux|8.8":  "2023-11",
+    "Rocky Linux|8.9":  "2024-05",
+    "Rocky Linux|8.10": "2029-05",
     "Rocky Linux|9": "2032-05",
     "RHEL|7":        "2024-06",
     "RHEL|8":        "2029-05",
