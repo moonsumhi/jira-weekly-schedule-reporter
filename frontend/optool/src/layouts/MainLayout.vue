@@ -79,14 +79,6 @@
                 link="/watch/timetable"
               />
 
-              <!-- Google 캘린더 -->
-              <EssentialLink
-                v-else-if="menu.slug === 'calendar'"
-                :title="menu.title"
-                :icon="menu.icon"
-                link="/calendar"
-              />
-
               <!-- 계정 설정 -->
               <EssentialLink
                 v-else-if="menu.slug === 'account'"
@@ -103,18 +95,6 @@
                 link="/inspection/checklist"
               />
 
-              <!-- 서버점검 (월1회) -->
-              <EssentialLink
-                v-else-if="menu.slug === 'server_check' && hasPerm('health_report')"
-                :title="menu.title"
-                :icon="menu.icon"
-                :children="applySubOrder([
-                  { title: '요약', icon: menu.subIcons?.['/inspection/health-summary'] ?? 'fa-solid fa-table-list', link: '/inspection/health-summary' },
-                  { title: '서버리스트', icon: menu.subIcons?.['/inspection/health-servers'] ?? 'fa-solid fa-server', link: '/inspection/health-servers' },
-                  { title: '월별 비교', icon: menu.subIcons?.['/inspection/health-compare'] ?? 'fa-solid fa-code-compare', link: '/inspection/health-compare' },
-                ], menu)"
-              />
-
               <!-- Admin -->
               <EssentialLink
                 v-else-if="menu.slug === 'admin' && auth.me?.isAdmin"
@@ -124,8 +104,8 @@
                 :children="applySubOrder([
                   { title: '회원가입 승인', icon: menu.subIcons?.['/admin/approvals'] ?? 'fa-regular fa-thumbs-up', link: '/admin/approvals', badge: pendingCount },
                   { title: '회원 목록', icon: menu.subIcons?.['/admin/users'] ?? 'fa-solid fa-users', link: '/admin/users' },
-                  { title: 'Audit Log', icon: menu.subIcons?.['/admin/audit-log'] ?? 'fa-solid fa-clock-rotate-left', link: '/admin/audit-log' },
-                  { title: '자산 로그', icon: menu.subIcons?.['/admin/asset-log'] ?? 'fa-solid fa-server', link: '/admin/asset-log' },
+                  { title: '메뉴 관리', icon: menu.subIcons?.['/admin/menus'] ?? 'fa-solid fa-list', link: '/admin/menus' },
+                  { title: 'Pilot 일감 현황', icon: menu.subIcons?.['/pilot/tasks'] ?? 'fa-solid fa-tasks', link: '/pilot/tasks' },
                 ], menu)"
               />
 
@@ -182,20 +162,18 @@ function hasPerm(perm: string): boolean {
   return (auth.me?.permissions ?? []).includes(perm)
 }
 
-const sortedVisibleMenus = computed(() => {
-  const isInternal = auth.me?.isInternal !== false
-  return sidebarMenus.value
-    .filter((m) => m.isVisible && (isInternal ? m.isInternalVisible !== false : m.isExternalVisible))
+const sortedVisibleMenus = computed(() =>
+  sidebarMenus.value
+    .filter((m) => m.isVisible)
     .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity))
-})
+)
 
 function applySubOrder<T extends { link: string }>(items: T[], menu: { subOrder?: string[] | null }): T[] {
   if (!menu.subOrder || menu.subOrder.length === 0) return items
   const orderMap = new Map(menu.subOrder.map((link, i) => [link, i]))
-  const ordered = items.filter((item) => orderMap.has(item.link))
+  return [...items]
+    .filter((item) => orderMap.has(item.link))
     .sort((a, b) => (orderMap.get(a.link) ?? Infinity) - (orderMap.get(b.link) ?? Infinity))
-  const unordered = items.filter((item) => !orderMap.has(item.link))
-  return [...ordered, ...unordered]
 }
 
 function boardChildrenOf(menuId: string) {

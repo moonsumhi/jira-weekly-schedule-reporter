@@ -118,25 +118,11 @@
               <th
                 v-for="(col, idx) in props.cols"
                 :key="idx"
-                :draggable="col.name !== 'actions' && col.name !== 'assetType'"
-                :class="['text-' + (col.align ?? 'left'), 'q-table__th',
-                  col.name !== 'actions' ? 'cursor-pointer select-none' : 'sticky-actions-col',
-                  colDragOver === colToKey(col) && colDragSrc !== colToKey(col) ? 'col-drag-over' : '']"
+                :class="['text-' + (col.align ?? 'left'), 'q-table__th', col.name !== 'actions' ? 'cursor-pointer select-none' : 'sticky-actions-col']"
                 :style="col.headerStyle"
                 @click="col.name !== 'actions' && toggleSort(col)"
-                @dragstart.stop="onColDragStart(col)"
-                @dragover.prevent.stop="onColDragOver(col)"
-                @dragleave.stop="colDragOver = null"
-                @drop.prevent.stop="onColDrop(col)"
               >
                 <div class="row items-center no-wrap q-gutter-xs">
-                  <q-icon
-                    v-if="col.name !== 'actions' && col.name !== 'assetType'"
-                    name="drag_indicator"
-                    size="xs"
-                    color="grey-4"
-                    class="col-drag-handle"
-                  />
                   <span>{{ col.label }}</span>
                   <q-icon
                     v-if="col.name !== 'actions' && tableSortKey === getSortKey(col)"
@@ -265,7 +251,6 @@
                 />
                 <template v-if="!props.row.isDeleted">
                   <q-btn
-                    v-if="isInternal"
                     dense
                     outline
                     size="12px"
@@ -282,7 +267,6 @@
                     @click="openHistory(props.row)"
                   />
                   <q-btn
-                    v-if="isInternal"
                     dense
                     outline
                     size="12px"
@@ -301,7 +285,6 @@
                     @click="openHistory(props.row)"
                   />
                   <q-btn
-                    v-if="isInternal"
                     dense
                     outline
                     size="12px"
@@ -1054,6 +1037,12 @@
                   dense borderless clearable class="field-input"
                   @update:model-value="() => { rowEditMajor = ''; rowEditValues['version'] = '' }"
                 />
+                <q-input
+                  v-else-if="rowEditValues['운영체제']"
+                  v-model="rowEditValues['운영체제']"
+                  borderless dense class="field-input"
+                  placeholder="OS 직접 입력"
+                />
                 <div v-else class="field-input field-disabled">-</div>
               </div>
               <div class="col-3 form-field">
@@ -1161,6 +1150,20 @@
                 borderless dense class="field-input"
                 placeholder="#태그 입력 후 Enter"
               />
+            </div>
+          </div>
+        </q-card-section>
+
+        <!-- 추가 필드 섹션 (커스텀/임포트 필드) -->
+        <q-card-section v-if="rowEditExtraFields.length" class="q-py-sm">
+          <div class="section-title-row">
+            <span class="section-title">추가 필드</span>
+          </div>
+          <div class="section-divider" />
+          <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+            <div v-for="k in rowEditExtraFields" :key="k" class="col-6 form-field">
+              <div class="field-label">{{ fieldLabel(k) }}</div>
+              <q-input :model-value="rowEditValues[k] ?? ''" @update:model-value="v => { rowEditValues[k] = String(v) }" borderless dense class="field-input" />
             </div>
           </div>
         </q-card-section>
@@ -1419,81 +1422,13 @@
 
     <!-- 컬럼 상세보기 다이얼로그 -->
     <q-dialog v-model="colVisDialog">
-      <q-card style="min-width:440px; max-width:95vw">
-        <q-card-section class="row items-center q-pb-xs">
+      <q-card style="min-width:400px">
+        <q-card-section class="row items-center">
           <div class="text-h6">컬럼 표시 설정</div>
           <q-space />
           <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
-
-        <!-- 프리셋 -->
-        <q-card-section class="q-pt-xs q-pb-sm">
-          <div class="text-caption text-grey-6 q-mb-xs">저장된 프리셋</div>
-          <div class="row q-gutter-sm items-center">
-            <template v-for="(preset, idx) in colPresets" :key="idx">
-              <q-chip
-                clickable
-                color="primary"
-                text-color="white"
-                icon="bookmark"
-                @click="applyPreset(idx)"
-              >
-                {{ preset.name }}
-                <q-btn
-                  flat round dense size="xs" icon="edit" color="white"
-                  class="q-ml-xs"
-                  @click.stop="openEditPreset(idx)"
-                >
-                  <q-tooltip>수정</q-tooltip>
-                </q-btn>
-                <q-btn
-                  flat round dense size="xs" icon="close" color="white"
-                  @click.stop="deletePreset(idx)"
-                >
-                  <q-tooltip>삭제</q-tooltip>
-                </q-btn>
-              </q-chip>
-            </template>
-            <q-btn
-              v-if="colPresets.length < 3"
-              flat dense size="sm" icon="bookmark_add" color="grey-7"
-              label="현재 저장"
-              @click="openSavePreset"
-            />
-            <span v-if="colPresets.length === 0" class="text-caption text-grey-5">없음</span>
-          </div>
-        </q-card-section>
-
-        <q-separator />
-
-        <!-- 선택된 컬럼 순서 (드래그로 변경) -->
-        <q-card-section class="q-pb-xs">
-          <div class="text-caption text-grey-6 q-mb-xs">선택된 컬럼 순서 (드래그로 변경)</div>
-          <div class="row q-gutter-xs flex-wrap">
-            <q-chip
-              v-for="key in tempColKeys"
-              :key="key"
-              draggable="true"
-              dense
-              color="blue-1"
-              text-color="blue-9"
-              :class="['cursor-grab', dlgDragOver === key && dlgDragSrc !== key ? 'col-drag-over' : '']"
-              @dragstart.stop="dlgDragSrc = key"
-              @dragover.prevent.stop="dlgDragOver = key"
-              @dragleave.stop="dlgDragOver = null"
-              @drop.prevent.stop="dlgReorder(key)"
-            >
-              <q-icon name="drag_indicator" size="xs" class="q-mr-xs" />
-              {{ COL_OPTIONS.find(c => c.key === key)?.label ?? key }}
-            </q-chip>
-            <span v-if="tempColKeys.length === 0" class="text-caption text-grey-5">선택된 컬럼 없음</span>
-          </div>
-        </q-card-section>
-
-        <q-separator />
-
         <q-card-section>
-          <div class="text-caption text-grey-6 q-mb-xs">컬럼 선택</div>
           <div class="row q-gutter-sm flex-wrap">
             <q-checkbox
               v-for="col in COL_OPTIONS"
@@ -1513,85 +1448,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- 프리셋 저장 다이얼로그 -->
-    <q-dialog v-model="savePresetDialog">
-      <q-card style="min-width:300px">
-        <q-card-section>
-          <div class="text-subtitle1">프리셋 이름</div>
-        </q-card-section>
-        <q-card-section>
-          <q-input v-model="presetNameInput" outlined dense autofocus label="프리셋 이름" @keyup.enter="confirmSavePreset" />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="취소" v-close-popup />
-          <q-btn color="primary" label="저장" :loading="presetSaving" @click="confirmSavePreset" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- 프리셋 수정 다이얼로그 -->
-    <q-dialog v-model="editPresetDialog">
-      <q-card style="min-width:460px; max-width:95vw">
-        <q-card-section class="row items-center q-pb-xs">
-          <div class="text-h6">프리셋 수정</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
-        </q-card-section>
-
-        <q-card-section class="q-pt-xs">
-          <q-input v-model="editPresetName" outlined dense label="프리셋 이름" />
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section class="q-pb-xs">
-          <div class="text-caption text-grey-6 q-mb-xs">컬럼 순서 (드래그로 변경)</div>
-          <div class="row q-gutter-xs flex-wrap">
-            <q-chip
-              v-for="key in editPresetCols"
-              :key="key"
-              draggable="true"
-              dense
-              color="blue-1"
-              text-color="blue-9"
-              :class="['cursor-grab', editDlgDragOver === key && editDlgDragSrc !== key ? 'col-drag-over' : '']"
-              @dragstart.stop="editDlgDragSrc = key"
-              @dragover.prevent.stop="editDlgDragOver = key"
-              @dragleave.stop="editDlgDragOver = null"
-              @drop.prevent.stop="editDlgReorder(key)"
-            >
-              <q-icon name="drag_indicator" size="xs" class="q-mr-xs" />
-              {{ COL_OPTIONS.find(c => c.key === key)?.label ?? key }}
-            </q-chip>
-            <span v-if="editPresetCols.length === 0" class="text-caption text-grey-5">선택된 컬럼 없음</span>
-          </div>
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section>
-          <div class="text-caption text-grey-6 q-mb-xs">컬럼 선택</div>
-          <div class="row q-gutter-sm flex-wrap">
-            <q-checkbox
-              v-for="col in COL_OPTIONS"
-              :key="col.key"
-              v-model="editPresetCols"
-              :val="col.key"
-              :label="col.label"
-              dense
-            />
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="전체 선택" @click="editPresetCols = COL_OPTIONS.map(c => c.key)" />
-          <q-btn flat label="전체 해제" @click="editPresetCols = []" />
-          <q-btn flat label="취소" v-close-popup />
-          <q-btn color="primary" label="저장" :loading="editPresetSaving" @click="confirmEditPreset" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
     <!-- 자산 유형 선택 다이얼로그 (전체 탭에서 자산 추가) -->
     <q-dialog v-model="assetTypeDialog">
       <q-card style="min-width:320px">
@@ -1601,13 +1457,47 @@
         <q-card-section>
           <q-select
             v-model="selectedAssetType"
-            :options="['서버', '네트워크', 'DBMS', '정보보호시스템', 'VMware']"
+            :options="pendingImport ? ['전체 (Excel 기준)', '서버', '네트워크', 'DBMS', '정보보호시스템', 'VMware'] : ['서버', '네트워크', 'DBMS', '정보보호시스템', 'VMware']"
             outlined dense label="유형 선택"
           />
+          <div v-if="pendingImport && selectedAssetType === '전체 (Excel 기준)'" class="text-caption text-grey q-mt-xs">
+            Excel 파일의 자산유형 컬럼값을 그대로 사용합니다
+          </div>
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
           <q-btn color="primary" label="확인" :disable="!selectedAssetType" @click="onAssetTypeConfirm" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Import 비밀번호 다이얼로그 -->
+    <q-dialog v-model="importPasswordDialog" persistent>
+      <q-card style="min-width:320px">
+        <q-card-section>
+          <div class="text-h6">파일 비밀번호 입력</div>
+          <div class="text-caption text-grey q-mt-xs">선택한 파일이 암호로 보호되어 있습니다.</div>
+        </q-card-section>
+        <q-card-section>
+          <q-input
+            v-model="importPassword"
+            :type="importPasswordVisible ? 'text' : 'password'"
+            outlined dense autofocus
+            label="비밀번호"
+            @keyup.enter="importPassword && onImportPasswordConfirm()"
+          >
+            <template #append>
+              <q-icon
+                :name="importPasswordVisible ? 'visibility_off' : 'visibility'"
+                class="cursor-pointer"
+                @click="importPasswordVisible = !importPasswordVisible"
+              />
+            </template>
+          </q-input>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="취소" @click="importPasswordDialog = false; importPassword = ''" />
+          <q-btn color="primary" label="확인" :disable="!importPassword" @click="onImportPasswordConfirm" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -1930,7 +1820,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAuthStore } from 'stores/auth'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
 import { api } from 'boot/axios'
@@ -1963,8 +1852,6 @@ import { historyBadgeColor } from 'src/utils/ui/badges'
 
 const $q = useQuasar()
 const route = useRoute()
-const auth = useAuthStore()
-const isInternal = computed(() => auth.me?.isInternal !== false)
 
 const category = computed(() => (route.query.category as string) || '')
 const pageTitle = computed(() => category.value ? `${category.value} 자산 관리` : '전체 자산 관리')
@@ -2186,171 +2073,6 @@ const visibleColKeys = ref<string[]>([...DEFAULT_COL_KEYS])
 const colVisDialog = ref(false)
 const tempColKeys = ref<string[]>([...DEFAULT_COL_KEYS])
 
-// ---- 테이블 헤더 드래그 ----
-const colDragSrc = ref<string | null>(null)
-const colDragOver = ref<string | null>(null)
-
-function colToKey(col: { name: string; fieldKey?: string }): string | null {
-  if (col.name === 'ip') return '__ip__'
-  if (col.name === 'name') return '__name__'
-  if (col.name === 'createdAt') return 'createdAt'
-  if (col.name === 'field') return (col as { fieldKey?: string }).fieldKey ?? null
-  return null
-}
-
-function onColDragStart(col: unknown) {
-  colDragSrc.value = colToKey(col as { name: string; fieldKey?: string })
-}
-function onColDragOver(col: unknown) {
-  colDragOver.value = colToKey(col as { name: string; fieldKey?: string })
-}
-function onColDrop(col: unknown) {
-  const src = colDragSrc.value
-  const dst = colToKey(col as { name: string; fieldKey?: string })
-  colDragSrc.value = null
-  colDragOver.value = null
-  if (!src || !dst || src === dst) return
-  const keys = [...visibleColKeys.value]
-  const si = keys.indexOf(src)
-  const di = keys.indexOf(dst)
-  if (si === -1 || di === -1) return
-  keys.splice(si, 1)
-  keys.splice(di, 0, src)
-  visibleColKeys.value = keys
-}
-
-// ---- 다이얼로그 내 드래그 ----
-const dlgDragSrc = ref<string | null>(null)
-const dlgDragOver = ref<string | null>(null)
-
-function dlgReorder(dstKey: string) {
-  const src = dlgDragSrc.value
-  dlgDragSrc.value = null
-  dlgDragOver.value = null
-  if (!src || src === dstKey) return
-  const arr = [...tempColKeys.value]
-  const si = arr.indexOf(src)
-  const di = arr.indexOf(dstKey)
-  if (si === -1 || di === -1) return
-  arr.splice(si, 1)
-  arr.splice(di, 0, src)
-  tempColKeys.value = arr
-}
-
-// ---- 프리셋 ----
-interface ColPreset { name: string; cols: string[] }
-const colPresets = ref<ColPreset[]>([])
-const savePresetDialog = ref(false)
-const presetNameInput = ref('')
-const presetSaving = ref(false)
-
-const PRESETS_LS_KEY = 'asset_col_presets'
-
-function savePresetsLocal(presets: ColPreset[]) {
-  localStorage.setItem(PRESETS_LS_KEY, JSON.stringify(presets))
-}
-
-async function loadPresets() {
-  // 1) localStorage에서 즉시 복원 — 데이터가 있으면 그게 정답, 서버 덮어쓰기 안 함
-  const local = localStorage.getItem(PRESETS_LS_KEY)
-  if (local) {
-    try {
-      colPresets.value = JSON.parse(local) as ColPreset[]
-      return
-    } catch { /* fall through */ }
-  }
-  // 2) localStorage가 비어있을 때만 서버에서 복원 (새 기기 / 브라우저 데이터 삭제 등)
-  try {
-    const res = await api.get<{ asset_col_presets: ColPreset[] }>('/auth/prefs')
-    const serverPresets = res.data.asset_col_presets ?? []
-    colPresets.value = serverPresets
-    if (serverPresets.length > 0) savePresetsLocal(serverPresets)
-  } catch { /* ignore */ }
-}
-
-async function persistPresets() {
-  // localStorage를 먼저 저장 (즉각 반영)
-  savePresetsLocal(colPresets.value)
-  // 서버 동기화 (실패해도 로컬은 유지됨)
-  try {
-    await api.put('/auth/prefs', { asset_col_presets: colPresets.value })
-  } catch { /* ignore */ }
-}
-
-function applyPreset(idx: number) {
-  const preset = colPresets.value[idx]
-  if (preset) tempColKeys.value = [...preset.cols]
-}
-
-function deletePreset(idx: number) {
-  colPresets.value.splice(idx, 1)
-  void persistPresets()
-}
-
-function openSavePreset() {
-  presetNameInput.value = `프리셋 ${colPresets.value.length + 1}`
-  savePresetDialog.value = true
-}
-
-// ---- 프리셋 수정 ----
-const editPresetDialog = ref(false)
-const editPresetIdx = ref(-1)
-const editPresetName = ref('')
-const editPresetCols = ref<string[]>([])
-const editPresetSaving = ref(false)
-const editDlgDragSrc = ref<string | null>(null)
-const editDlgDragOver = ref<string | null>(null)
-
-function openEditPreset(idx: number) {
-  const preset = colPresets.value[idx]
-  if (!preset) return
-  editPresetIdx.value = idx
-  editPresetName.value = preset.name
-  editPresetCols.value = [...preset.cols]
-  editPresetDialog.value = true
-}
-
-function editDlgReorder(dstKey: string) {
-  const src = editDlgDragSrc.value
-  editDlgDragSrc.value = null
-  editDlgDragOver.value = null
-  if (!src || src === dstKey) return
-  const arr = [...editPresetCols.value]
-  const si = arr.indexOf(src)
-  const di = arr.indexOf(dstKey)
-  if (si === -1 || di === -1) return
-  arr.splice(si, 1)
-  arr.splice(di, 0, src)
-  editPresetCols.value = arr
-}
-
-async function confirmEditPreset() {
-  if (!editPresetName.value.trim()) return
-  editPresetSaving.value = true
-  try {
-    colPresets.value[editPresetIdx.value] = {
-      name: editPresetName.value.trim(),
-      cols: [...editPresetCols.value],
-    }
-    await persistPresets()
-    editPresetDialog.value = false
-  } finally {
-    editPresetSaving.value = false
-  }
-}
-
-async function confirmSavePreset() {
-  if (!presetNameInput.value.trim()) return
-  presetSaving.value = true
-  try {
-    colPresets.value.push({ name: presetNameInput.value.trim(), cols: [...tempColKeys.value] })
-    await persistPresets()
-    savePresetDialog.value = false
-  } finally {
-    presetSaving.value = false
-  }
-}
-
 function assetTypeColor(row: ServerAsset): string {
   const t = (row.fields?.['자산유형'] as string) || '서버'
   if (t === '서버') return 'blue'
@@ -2376,26 +2098,13 @@ function applyColVis() {
   colVisDialog.value = false
 }
 
-function colStorageKey(cat: string) {
-  return `asset_col_keys_${cat || 'all'}`
-}
-
 watch(category, (cat) => {
-  const saved = localStorage.getItem(colStorageKey(cat))
-  if (saved) {
-    try {
-      visibleColKeys.value = JSON.parse(saved) as string[]
-      return
-    } catch { /* fall through */ }
-  }
   visibleColKeys.value = [...(CATEGORY_DEFAULT_COLS[cat] ?? DEFAULT_COL_KEYS)]
 }, { immediate: true })
 
-watch(visibleColKeys, (keys) => {
-  localStorage.setItem(colStorageKey(category.value), JSON.stringify(keys))
-})
-
 const columns = computed<NonNullable<QTableProps['columns']>>(() => {
+  const visSet = new Set(visibleColKeys.value)
+
   function makeFieldCol(k: string) {
     return {
       name: 'field',
@@ -2430,23 +2139,27 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
     })
   }
 
-  for (const key of visibleColKeys.value) {
+  for (const key of COLUMN_DISPLAY_ORDER) {
     if (key === '__ip__') {
-      result.push({ name: 'ip', label: 'IP', field: 'ip', align: 'left', sortable: true })
+      if (visSet.has('__ip__'))
+        result.push({ name: 'ip', label: 'IP', field: 'ip', align: 'left', sortable: true })
     } else if (key === '__name__') {
-      result.push({ name: 'name', label: 'HostName', field: 'name', align: 'left', sortable: true })
-    } else if (key === 'createdAt') {
-      result.push({
-        name: 'createdAt',
-        label: '작성일',
-        field: (row: unknown) => (row as ServerAsset).createdAt ?? '',
-        align: 'left',
-        sortable: true,
-        format: (val: unknown) => (val ? formatKst(val as string) : '-'),
-      })
+      if (visSet.has('__name__'))
+        result.push({ name: 'name', label: 'HostName', field: 'name', align: 'left', sortable: true })
     } else {
-      result.push(makeFieldCol(key))
+      if (visSet.has(key)) result.push(makeFieldCol(key))
     }
+  }
+
+  if (visSet.has('createdAt')) {
+    result.push({
+      name: 'createdAt',
+      label: '작성일',
+      field: (row: unknown) => (row as ServerAsset).createdAt ?? '',
+      align: 'left',
+      sortable: true,
+      format: (val: unknown) => (val ? formatKst(val as string) : '-'),
+    })
   }
 
   result.push({ name: 'actions', label: '', field: 'actions', align: 'right', style: 'width: 1px; white-space: nowrap', headerStyle: 'width: 1px; white-space: nowrap' })
@@ -2535,12 +2248,20 @@ const assetTypeDialog = ref(false)
 const selectedAssetType = ref('')
 const createOverrideCategory = ref('')
 const activeCreateCategory = computed(() => createOverrideCategory.value || category.value)
+const pendingImport = ref(false)
+const importOverrideCategory = ref('')
 
 function onAssetTypeConfirm() {
   assetTypeDialog.value = false
   const target = selectedAssetType.value
   selectedAssetType.value = ''
   if (!target) return
+  if (pendingImport.value) {
+    pendingImport.value = false
+    importOverrideCategory.value = target === '전체 (Excel 기준)' ? '' : target
+    importFileInput.value?.click()
+    return
+  }
   createOverrideCategory.value = target
   openCreate()
 }
@@ -2939,6 +2660,22 @@ const rowEditFields = computed(() => {
     if (!ordered.has(k) && !excluded.has(k)) result.push({ key: k, label: fieldLabel(k) })
   }
   return result
+})
+
+// 편집 다이얼로그 템플릿에서 이미 하드코딩된 필드 키 목록
+const EDIT_DIALOG_COVERED_KEYS = new Set([
+  '자산유형', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
+  '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, VADA_KEY,
+  '용도', '소속부서', '제품명', '도입사업', '납품회사', '도입가격', '도입일자',
+  '비고', TAGS_KEY,
+])
+
+// 편집 다이얼로그에 하드코딩 섹션이 없어서 별도로 렌더링해야 할 추가 필드
+const rowEditExtraFields = computed(() => {
+  if (!rowEditTarget.value) return []
+  return Object.keys(rowEditTarget.value.fields ?? {}).filter(
+    k => !EDIT_DIALOG_COVERED_KEYS.has(k)
+  )
 })
 
 function openRowEdit(row: ServerAsset) {
@@ -3379,6 +3116,10 @@ const importFailDialog = ref(false)
 const importFailedRows = ref<ImportFailedRow[]>([])
 const importSkippedRows = ref<ImportSkippedRow[]>([])
 const importResultTab = ref<'failed' | 'skipped' | 'separate'>('failed')
+const pendingImportBuf = ref<ArrayBuffer | null>(null)
+const importPasswordDialog = ref(false)
+const importPassword = ref('')
+const importPasswordVisible = ref(false)
 const skipEditIdx = ref(-1)
 const skipEditForm = ref<{ ip: string; name: string; fields: Record<string, string> }>({ ip: '', name: '', fields: {} })
 const skipEditSaving = ref(false)
@@ -3406,8 +3147,8 @@ async function _doSaveSeparate(row: ImportSkippedRow, ip: string, name: string, 
   for (const [k, v] of Object.entries(fields)) {
     if (k !== 'asset_id' && v) createFields[k] = v
   }
-  const rowCat = (fields['자산유형'] || category.value || '서버')
-  const newServer = await createServer(ip, name || ip, Object.keys(createFields).length > 0 ? createFields : undefined, undefined, rowCat, importAssetId, 'import')
+  const rowCat = (fields['자산유형'] || importOverrideCategory.value || category.value || '서버')
+  const newServer = await createServer(ip, name || ip, Object.keys(createFields).length > 0 ? createFields : undefined, undefined, rowCat, importAssetId)
   rows.value = [newServer, ...rows.value]
   row.separateSaved = true
   row.separateError = ''
@@ -3468,14 +3209,14 @@ async function doImportRowRetry(row: ImportFailedRow) {
     const retryAssetId = row.fields['asset_id'] || existing.assetId || null
     const patch: Record<string, unknown> = { fields: nextFields, asset_id: retryAssetId }
     if (row.name && row.name !== existing.name) patch['name'] = row.name
-    const retryCat = row.fields['자산유형'] || category.value || '서버'
+    const retryCat = row.fields['자산유형'] || importOverrideCategory.value || category.value || '서버'
     const updated_ = await patchServer(String(existing.id), patch as Parameters<typeof patchServer>[1], retryCat)
     rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
   } else {
     const createF = { ...row.fields }
     const retryAssetId = row.fields['asset_id'] || null
-    const retryCatNew = row.fields['자산유형'] || category.value || '서버'
-    const newServer = await createServer(row.ip, row.name || row.ip, Object.keys(createF).length > 0 ? createF : undefined, undefined, retryCatNew, retryAssetId, 'import')
+    const retryCatNew = row.fields['자산유형'] || importOverrideCategory.value || category.value || '서버'
+    const newServer = await createServer(row.ip, row.name || row.ip, Object.keys(createF).length > 0 ? createF : undefined, undefined, retryCatNew, retryAssetId)
     rows.value = [newServer, ...rows.value]
   }
 }
@@ -3569,7 +3310,7 @@ async function forceApplySkip(idx: number) {
     const skipAssetId = newFields['asset_id'] ?? existing.assetId ?? null
     const patch: Record<string, unknown> = { fields: nextFields, asset_id: skipAssetId }
     if (row.name && row.name !== existing.name) patch['name'] = row.name
-    const skipCat = ((existing.fields?.['자산유형'] as string) || category.value || '서버')
+    const skipCat = ((existing.fields?.['자산유형'] as string) || importOverrideCategory.value || category.value || '서버')
     const updated_ = await patchServer(String(existing.id), patch as Parameters<typeof patchServer>[1], skipCat)
     rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
     row.retrySuccess = true
@@ -3590,7 +3331,7 @@ async function forceApplyFailed(idx: number) {
     const failAssetId = row.fields['asset_id'] || existing.assetId || null
     const patch: Record<string, unknown> = { fields: nextFields, asset_id: failAssetId }
     if (row.name && row.name !== existing.name) patch['name'] = row.name
-    const failCat = ((existing.fields?.['자산유형'] as string) || category.value || '서버')
+    const failCat = ((existing.fields?.['자산유형'] as string) || importOverrideCategory.value || category.value || '서버')
     const updated_ = await patchServer(String(existing.id), patch as Parameters<typeof patchServer>[1], failCat)
     rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
     row.retrySuccess = true
@@ -3602,19 +3343,64 @@ async function forceApplyFailed(idx: number) {
 }
 
 function triggerImport() {
+  importOverrideCategory.value = ''
   importFileInput.value?.click()
+}
+
+
+async function onImportPasswordConfirm() {
+  if (!pendingImportBuf.value) return
+  if (importing.value) return
+  importPasswordDialog.value = false
+  importing.value = true
+  try {
+    const blob = new Blob([pendingImportBuf.value])
+    const form = new FormData()
+    form.append('file', blob, 'import.xlsx')
+    const res = await api.post<ArrayBuffer>(
+      `/assets/decrypt-xlsx?password=${encodeURIComponent(importPassword.value)}`,
+      form,
+      { responseType: 'arraybuffer' },
+    )
+    await _runImport(res.data, '')
+  } catch (err: unknown) {
+    $q.notify({ type: 'negative', message: getErrorMessage(err, '비밀번호가 올바르지 않습니다.') })
+  } finally {
+    importing.value = false
+    importPassword.value = ''
+    importPasswordVisible.value = false
+  }
 }
 
 async function onImportFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
+  if (importing.value) return
+  importing.value = true
   ;(e.target as HTMLInputElement).value = ''
 
+  try {
+    const buf = await file.arrayBuffer()
+    pendingImportBuf.value = buf
+    await _runImport(buf, '')
+  } catch (err: unknown) {
+    console.error('[Import] onImportFile unhandled error:', err)
+  } finally {
+    importing.value = false
+  }
+}
+
+function _showPasswordDialog() {
+  importPassword.value = ''
+  importPasswordVisible.value = false
+  importPasswordDialog.value = true
+}
+
+async function _runImport(buf: ArrayBuffer, password: string) {
   importing.value = true
   try {
     await fetchEosMap()
-    const buf = await file.arrayBuffer()
-    const wb = XLSX.read(buf, { type: 'array', cellDates: true })
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true, ...(password ? { password } : {}) })
     const ws = wb.Sheets[wb.SheetNames[0]!]
     if (!ws) throw new Error('시트를 찾을 수 없습니다.')
 
@@ -3638,6 +3424,7 @@ async function onImportFile(e: Event) {
       'EoS종료일자': EOS_DATE_KEY,
       // 합성 라벨 (key / display 형식)
       '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)': '자산유형',
+      '자산 종류': '자산유형',
       '운영체제 / 배포판': '운영체제',
       '운영체제 / 기종': '운영체제',
       '운영체제 / DB종류': '운영체제',
@@ -3733,7 +3520,7 @@ async function onImportFile(e: Event) {
           if (existingByNo2Empty) {
             const nextFields2Empty = { ...(existingByNo2Empty.fields ?? {}), ...fields2Empty }
             try {
-              const updated2Empty = await patchServer(String(existingByNo2Empty.id), { fields: nextFields2Empty, asset_id: importAssetId2Empty ?? existingByNo2Empty.assetId ?? null } as Parameters<typeof patchServer>[1], (fields2Empty['자산유형'] || category.value || '서버'))
+              const updated2Empty = await patchServer(String(existingByNo2Empty.id), { fields: nextFields2Empty, asset_id: importAssetId2Empty ?? existingByNo2Empty.assetId ?? null } as Parameters<typeof patchServer>[1], (fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버'))
               rows.value = rows.value.map(r => r.id === existingByNo2Empty.id ? updated2Empty : r)
               existingByAssetId.set(importAssetId2Empty!, updated2Empty)
               updatedIds.add(String(existingByNo2Empty.id))
@@ -3744,7 +3531,7 @@ async function onImportFile(e: Event) {
             // Asset ID는 있지만 기존 레코드 없음 → 신규 생성
             const createF2Empty = { ...fields2Empty }
             try {
-              const newServer2Empty = await createServer('', '', Object.keys(createF2Empty).length > 0 ? createF2Empty : undefined, undefined, fields2Empty['자산유형'] || category.value || '서버', importAssetId2Empty, 'import')
+              const newServer2Empty = await createServer('', '', Object.keys(createF2Empty).length > 0 ? createF2Empty : undefined, undefined, fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버', importAssetId2Empty)
               rows.value = [newServer2Empty, ...rows.value]
               existingByAssetId.set(importAssetId2Empty, newServer2Empty)
               created++
@@ -3814,7 +3601,7 @@ async function onImportFile(e: Event) {
             } else {
               // hostname만으로 신규 생성 (IP 빈 값)
               const createF2 = { ...fields2 }
-              const newServer2 = await createServer('', hostname2, Object.keys(createF2).length > 0 ? createF2 : undefined, undefined, rowAssetType2, importAssetId2, 'import')
+              const newServer2 = await createServer('', hostname2, Object.keys(createF2).length > 0 ? createF2 : undefined, undefined, rowAssetType2, importAssetId2)
               rows.value = [newServer2, ...rows.value]
               existingByName.set(nameKey, newServer2)
               if (importAssetId2) existingByAssetId.set(importAssetId2, newServer2)
@@ -3903,7 +3690,7 @@ async function onImportFile(e: Event) {
         } else {
           // 신규 서버 생성 — HostName 없으면 IP를 기본값으로 사용
           const createF = { ...fields }
-          const newServer = await createServer(ip, hostname || ip, Object.keys(createF).length > 0 ? createF : undefined, undefined, rowAssetType, importAssetId, 'import')
+          const newServer = await createServer(ip, hostname || ip, Object.keys(createF).length > 0 ? createF : undefined, undefined, rowAssetType, importAssetId)
           rows.value = [newServer, ...rows.value]
           existingByIp.set(rowKey, newServer)
           if (importAssetId) existingByAssetId.set(importAssetId, newServer)
@@ -3948,7 +3735,18 @@ async function onImportFile(e: Event) {
       message: `Import 완료: 신규 ${created}건, 업데이트 ${updated}건${skipped ? `, 건너뜀 ${skipped}건` : ''}${newFailedRows.length ? `, 실패 ${newFailedRows.length}건` : ''}${filterNote}`,
     })
   } catch (err: unknown) {
-    $q.notify({ type: 'negative', message: getErrorMessage(err, 'Import 실패') })
+    const errMsg = err instanceof Error ? err.message : String(err)
+    const lower = errMsg.toLowerCase()
+    if (lower.includes('file is password') || (lower.includes('password') && !lower.includes('incorrect'))) {
+      _showPasswordDialog()
+    } else if (lower.includes('incorrect') || lower.includes('wrong')) {
+      _showPasswordDialog()
+      $q.notify({ type: 'negative', message: '비밀번호가 틀렸습니다.' })
+    } else if (lower.includes('unsupported') || lower.includes('scheme')) {
+      $q.notify({ type: 'negative', message: '지원하지 않는 암호화 방식입니다.' })
+    } else {
+      $q.notify({ type: 'negative', message: getErrorMessage(err, 'Import 실패') })
+    }
   } finally {
     importing.value = false
   }
@@ -3957,22 +3755,10 @@ async function onImportFile(e: Event) {
 onMounted(() => {
   void fetchEosMap()  // endoflife.date 에서 EoS 맵 로드 (백그라운드)
   void load()
-  void loadPresets()
 })
 </script>
 
 <style scoped>
-.col-drag-over {
-  outline: 2px dashed #1976d2;
-  background: #e3f2fd !important;
-}
-.col-drag-handle {
-  opacity: 0.4;
-  cursor: grab;
-}
-th:hover .col-drag-handle {
-  opacity: 0.8;
-}
 .conflict-diff-table {
   border-collapse: collapse;
   font-size: 12px;

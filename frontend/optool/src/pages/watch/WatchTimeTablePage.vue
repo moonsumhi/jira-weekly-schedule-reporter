@@ -14,15 +14,15 @@
           </div>
           <q-space />
           <div class="row items-center q-gutter-sm">
-            <q-btn v-if="isInternal" flat dense icon="download" label="템플릿 다운로드" @click="downloadTemplate" />
-            <q-btn v-if="isInternal" color="teal" icon="upload" label="Import" :loading="importing" @click="triggerImport" />
+            <q-btn flat dense icon="download" label="템플릿 다운로드" @click="downloadTemplate" />
+            <q-btn color="teal" icon="upload" label="Import" :loading="importing" @click="triggerImport" />
             <input ref="importInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onImportFile" />
           </div>
         </div>
       </div>
 
       <!-- 일괄 생성 -->
-      <div v-if="isInternal" class="col-12">
+      <div class="col-12">
         <q-card flat bordered>
           <q-card-section>
             <div class="text-subtitle2 q-mb-sm">일괄 생성</div>
@@ -100,7 +100,7 @@
             {{ dialog.mode === 'create' ? '근무 일정 생성' : '근무 일정 수정' }}
           </div>
           <div v-if="dialog.mode === 'create'" class="text-caption text-grey-7 q-mt-xs">
-            {{ dialog.date === dialog.endDate ? dialog.date : `${dialog.date} ~ ${dialog.endDate}` }}
+            {{ dialog.date }}
           </div>
         </q-card-section>
 
@@ -138,16 +138,15 @@
         <q-separator />
 
         <q-card-actions align="right" class="q-gutter-sm">
-          <q-btn flat label="닫기" @click="closeDialog" />
+          <q-btn flat label="취소" @click="closeDialog" />
           <q-btn
-            v-if="isInternal && dialog.mode === 'edit'"
+            v-if="dialog.mode === 'edit'"
             color="negative"
             flat
             label="삭제"
             @click="removeDialog"
           />
           <q-btn
-            v-if="isInternal"
             color="primary"
             label="저장"
             :loading="busy"
@@ -159,7 +158,7 @@
   </q-page>
 </template>
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { Notify } from 'quasar'
 import { DateTime } from 'luxon'
 import * as XLSX from 'xlsx'
@@ -173,12 +172,8 @@ import type { CalendarOptions, EventInput, EventSourceFuncArg } from '@fullcalen
 import type FullCalendarComponent from '@fullcalendar/vue3'
 
 import { listWatch, createWatch, patchWatch, deleteWatch, type WatchRow } from 'src/services/watch'
-import { useAuthStore } from 'stores/auth'
 import { dateToKstDateTimeLocal, kstDateTimeLocalToUtcIso } from 'src/utils/time/kst'
 import { isRecord, getErrorMessage } from 'src/utils/http/error'
-
-const auth = useAuthStore()
-const isInternal = computed(() => auth.me?.isInternal !== false)
 
 const busy = ref(false)
 
@@ -255,8 +250,7 @@ const dialog = ref({
   assignee: '',     // edit 모드 전용
   assigneeA: '',    // create 모드 A타임
   assigneeB: '',    // create 모드 B타임
-  date: '',         // create 모드 시작 날짜 (YYYY-MM-DD)
-  endDate: '',      // create 모드 종료 날짜 (YYYY-MM-DD, 단일 선택 시 date와 동일)
+  date: '',         // create 모드 선택 날짜 (YYYY-MM-DD)
   startLocal: '',   // edit 모드 전용
   endLocal: '',     // edit 모드 전용
   note: '',
@@ -264,13 +258,8 @@ const dialog = ref({
   error: ''
 })
 
-function openCreate(start: Date, end: Date) {
-  const startDt = DateTime.fromJSDate(start, { zone: 'Asia/Seoul' })
-  // FullCalendar의 end는 exclusive이므로 -1일
-  const endDt = DateTime.fromJSDate(end, { zone: 'Asia/Seoul' }).minus({ days: 1 })
-  const startStr = startDt.toISODate() ?? ''
-  // endDt가 startDt보다 이전이면(단일 클릭) startDt와 동일하게
-  const endStr = endDt >= startDt ? (endDt.toISODate() ?? startStr) : startStr
+function openCreate(start: Date) {
+  const dateStr = DateTime.fromJSDate(start, { zone: 'Asia/Seoul' }).toISODate() ?? ''
   dialog.value = {
     open: true,
     mode: 'create',
@@ -278,8 +267,7 @@ function openCreate(start: Date, end: Date) {
     assignee: '',
     assigneeA: '',
     assigneeB: '',
-    date: startStr,
-    endDate: endStr,
+    date: dateStr,
     startLocal: '',
     endLocal: '',
     note: '',
@@ -303,7 +291,6 @@ function openEdit(arg: ClickArg) {
     assigneeA: '',
     assigneeB: '',
     date: '',
-    endDate: '',
     startLocal: dateToKstDateTimeLocal(start),
     endLocal: dateToKstDateTimeLocal(end),
     note: typeof ext.note === 'string' ? ext.note : '',
@@ -328,22 +315,18 @@ async function saveDialog() {
       const assigneeB = dialog.value.assigneeB.trim()
       if (!assigneeA && !assigneeB) throw new Error('A타임 또는 B타임 담당자를 입력해 주세요.')
 
-      let cursor = DateTime.fromISO(dialog.value.date, { zone: 'Asia/Seoul' })
-      const endDt = DateTime.fromISO(dialog.value.endDate || dialog.value.date, { zone: 'Asia/Seoul' })
-      if (!cursor.isValid || !endDt.isValid) throw new Error('날짜가 올바르지 않습니다.')
+      const dt = DateTime.fromISO(dialog.value.date, { zone: 'Asia/Seoul' })
+      if (!dt.isValid) throw new Error('날짜가 올바르지 않습니다.')
 
-      while ((cursor.toISODate() ?? '') <= (endDt.toISODate() ?? '')) {
-        if (assigneeA) {
-          const startIso = cursor.set({ hour: 11, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
-          const endIso   = cursor.set({ hour: 12, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
-          if (startIso && endIso) await createWatch({ assignee: assigneeA, start: startIso, end: endIso, fields: { note } })
-        }
-        if (assigneeB) {
-          const startIso = cursor.set({ hour: 12, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
-          const endIso   = cursor.set({ hour: 13, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
-          if (startIso && endIso) await createWatch({ assignee: assigneeB, start: startIso, end: endIso, fields: { note } })
-        }
-        cursor = cursor.plus({ days: 1 })
+      if (assigneeA) {
+        const startIso = dt.set({ hour: 11, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
+        const endIso   = dt.set({ hour: 12, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
+        if (startIso && endIso) await createWatch({ assignee: assigneeA, start: startIso, end: endIso, fields: { note } })
+      }
+      if (assigneeB) {
+        const startIso = dt.set({ hour: 12, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
+        const endIso   = dt.set({ hour: 13, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
+        if (startIso && endIso) await createWatch({ assignee: assigneeB, start: startIso, end: endIso, fields: { note } })
       }
     } else {
       const assignee = dialog.value.assignee.trim()
@@ -415,10 +398,6 @@ async function onMoveOrResize(info: MoveResizeArg) {
   }
 }
 
-function _normalizeIso(iso: string): string {
-  return DateTime.fromISO(iso, { zone: 'utc' }).toFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
-}
-
 async function createBulkForSlot(assignee: string, fromDate: string, toDate: string, sh: number, sm: number, eh: number, em: number) {
   if (!assignee.trim()) throw new Error('담당자를 입력해 주세요.')
   if (!fromDate || !toDate) throw new Error('시작일과 종료일을 입력해 주세요.')
@@ -428,12 +407,6 @@ async function createBulkForSlot(assignee: string, fromDate: string, toDate: str
 
   if (cursor > end) throw new Error('종료일이 시작일보다 앞습니다.')
 
-  // 해당 기간의 기존 레코드를 미리 로드하여 중복 생성 방지 (덮어쓰기)
-  const startParam = cursor.startOf('day').toUTC().toISO() ?? undefined
-  const endParam = end.endOf('day').toUTC().toISO() ?? undefined
-  const existingRows = startParam && endParam ? await listWatch({ start: startParam, end: endParam }) : []
-  const existingByStart = new Map(existingRows.map(r => [_normalizeIso(r.start), r]))
-
   while ((cursor.toISODate() ?? '') <= (end.toISODate() ?? '')) {
     // 평일(월~금)만 생성
     if (cursor.weekday <= 5) {
@@ -442,15 +415,7 @@ async function createBulkForSlot(assignee: string, fromDate: string, toDate: str
       const startIso = startKst.toUTC().toISO()
       const endIso = endKst.toUTC().toISO()
       if (!startIso || !endIso) throw new Error('Invalid datetime')
-
-      const key = _normalizeIso(startIso)
-      const existing = existingByStart.get(key)
-      if (existing) {
-        // 이미 존재하는 슬롯이면 담당자만 덮어씌우기
-        await patchWatch(existing.id, { assignee: assignee.trim(), version: existing.version })
-      } else {
-        await createWatch({ assignee: assignee.trim(), start: startIso, end: endIso, fields: { note: '' } })
-      }
+      await createWatch({ assignee: assignee.trim(), start: startIso, end: endIso, fields: { note: '' } })
     }
     cursor = cursor.plus({ days: 1 })
   }
@@ -550,7 +515,11 @@ async function onImportFile(e: Event) {
       : []
 
     // startISO → id 맵 (덮어쓰기 대상 찾기용)
-    const existingByStart = new Map(existingRows.map(r => [_normalizeIso(r.start), r.id]))
+    // ISO 형식 정규화 (Z vs +00:00, 밀리초 유무 차이 제거)
+    function normalizeIso(iso: string): string {
+      return DateTime.fromISO(iso, { zone: 'utc' }).toFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+    }
+    const existingByStart = new Map(existingRows.map(r => [normalizeIso(r.start), r.id]))
 
     let created = 0
     let skipped = 0
@@ -576,7 +545,7 @@ async function onImportFile(e: Event) {
           const startIso = cursor.set({ hour: sh, minute: sm, second: 0, millisecond: 0 }).toUTC().toISO()
           const endIso = cursor.set({ hour: eh, minute: em, second: 0, millisecond: 0 }).toUTC().toISO()
           if (startIso && endIso) {
-            const key = _normalizeIso(startIso)
+            const key = normalizeIso(startIso)
             const existingId = existingByStart.get(key)
             if (existingId) {
               // 기존 항목이 있으면 담당자만 업데이트
@@ -617,12 +586,12 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
 })
 
-const calendarOptions = computed<CalendarOptions>(() => ({
+const calendarOptions = ref<CalendarOptions>({
   plugins: [timeGridPlugin, dayGridPlugin, interactionPlugin, luxonPlugin],
   timeZone: 'Asia/Seoul',
   initialView: 'timeGridWeek',
-  selectable: isInternal.value,
-  editable: isInternal.value,
+  selectable: true,
+  editable: true,
   nowIndicator: true,
   height: 'auto',
   weekends: false,
@@ -649,9 +618,9 @@ const calendarOptions = computed<CalendarOptions>(() => ({
       })
   },
 
-  select: (arg) => { if (isInternal.value) openCreate(arg.start, arg.end) },
+  select: (arg) => openCreate(arg.start),
   eventClick: (arg) => openEdit(arg),
-  eventDrop: (info) => { if (isInternal.value) void onMoveOrResize(info as MoveResizeArg) },
-  eventResize: (info) => { if (isInternal.value) void onMoveOrResize(info as MoveResizeArg) },
-}))
+  eventDrop: (info) => { void onMoveOrResize(info as MoveResizeArg) },
+  eventResize: (info) => { void onMoveOrResize(info as MoveResizeArg)}
+})
 </script>

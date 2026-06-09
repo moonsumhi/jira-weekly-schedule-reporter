@@ -67,12 +67,7 @@
 
           <template #body-cell-actions="props">
             <q-td :props="props">
-              <q-btn dense flat icon="edit" color="primary" @click="openEdit(props.row)">
-                <q-tooltip>권한 설정</q-tooltip>
-              </q-btn>
-              <q-btn dense flat icon="key" color="grey-7" @click="openPwChange(props.row)">
-                <q-tooltip>비밀번호 변경</q-tooltip>
-              </q-btn>
+              <q-btn dense flat icon="edit" color="primary" @click="openEdit(props.row)" />
               <q-btn
                 v-if="!props.row.isAdmin"
                 dense flat
@@ -132,34 +127,6 @@
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
           <q-btn color="primary" label="저장" :loading="saving" @click="doSave" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-    <!-- 비밀번호 변경 Dialog -->
-    <q-dialog v-model="pwDialog">
-      <q-card style="width: 360px; max-width: 95vw">
-        <q-card-section>
-          <div class="text-h6">비밀번호 변경</div>
-          <div class="text-body2 text-grey-7 q-mt-xs">{{ pwTarget?.email }}</div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section class="q-gutter-sm">
-          <q-input
-            v-model="newPassword"
-            outlined dense
-            label="새 비밀번호"
-            :type="showPw ? 'text' : 'password'"
-            :rules="[v => v.length >= 6 || '6자 이상 입력하세요']"
-          >
-            <template #append>
-              <q-icon :name="showPw ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showPw = !showPw" />
-            </template>
-          </q-input>
-        </q-card-section>
-        <q-separator />
-        <q-card-actions align="right">
-          <q-btn flat label="취소" v-close-popup />
-          <q-btn color="primary" label="변경" :loading="pwSaving" @click="doChangePw" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -289,33 +256,6 @@ async function doSave() {
     $q.notify({ type: 'negative', message: getErrorMessage(e, '저장 실패') })
   } finally {
     saving.value = false
-  }
-}
-
-const pwDialog = ref(false)
-const pwTarget = ref<User | null>(null)
-const newPassword = ref('')
-const showPw = ref(false)
-const pwSaving = ref(false)
-
-function openPwChange(user: User) {
-  pwTarget.value = user
-  newPassword.value = ''
-  showPw.value = false
-  pwDialog.value = true
-}
-
-async function doChangePw() {
-  if (!pwTarget.value || newPassword.value.length < 6) return
-  pwSaving.value = true
-  try {
-    await api.post(`/admin/users/${pwTarget.value.id}/change-password`, { new_password: newPassword.value })
-    $q.notify({ type: 'positive', message: '비밀번호가 변경되었습니다.' })
-    pwDialog.value = false
-  } catch (e) {
-    $q.notify({ type: 'negative', message: getErrorMessage(e, '비밀번호 변경 실패') })
-  } finally {
-    pwSaving.value = false
   }
 }
 

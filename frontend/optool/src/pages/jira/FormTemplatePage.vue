@@ -12,9 +12,9 @@
         <q-space />
         <q-toggle v-model="includeDeleted" label="삭제 포함" dense @update:model-value="load" />
         <q-btn outline icon="refresh" label="새로고침" :loading="tableLoading" @click="load" />
-        <q-btn v-if="isInternal" outline icon="upload_file" label="Import" :loading="importing" @click="triggerImport" />
+        <q-btn outline icon="upload_file" label="Import" :loading="importing" @click="triggerImport" />
         <input ref="fileInput" type="file" accept=".pdf,.hwp" style="display:none" @change="handleFileImport" />
-        <q-btn v-if="isInternal" color="primary" icon="add" :label="`${template.title} 추가`" @click="openCreate" />
+        <q-btn color="primary" icon="add" :label="`${template.title} 추가`" @click="openCreate" />
       </div>
 
       <!-- Search bar -->
@@ -70,13 +70,11 @@
                 <div class="row items-center justify-end q-gutter-xs">
                   <q-btn dense outline icon="visibility" label="상세" @click="openDetail(props.row)" />
                   <q-btn
-                    v-if="isInternal"
                     dense outline icon="edit" label="수정"
                     :disable="props.row.isDeleted"
                     @click="openEdit(props.row)"
                   />
                   <q-btn
-                    v-if="isInternal"
                     dense color="negative" icon="delete" label="삭제"
                     :disable="props.row.isDeleted"
                     :loading="actingId === props.row.id"
@@ -421,7 +419,7 @@
         <q-separator />
         <q-card-actions align="right">
           <q-btn flat label="닫기" v-close-popup />
-          <q-btn v-if="isInternal" outline icon="edit" label="수정" @click="detailDialog = false; openEdit(detailRow!)" />
+          <q-btn outline icon="edit" label="수정" @click="detailDialog = false; openEdit(detailRow!)" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -434,12 +432,9 @@ import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { formTemplateService, type FormTemplate, type FormField, type FormSection } from 'src/services/formTemplates'
 import { formEntryService, type FormEntry, type ImportSkipped } from 'src/services/formEntries'
-import { useAuthStore } from 'stores/auth'
 
 const route = useRoute()
 const $q = useQuasar()
-const auth = useAuthStore()
-const isInternal = computed(() => auth.me?.isInternal !== false)
 
 const loading = ref(true)
 const tableLoading = ref(false)
