@@ -1,44 +1,8 @@
 import { defineBoot } from '#q-app/wrappers'
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import camelcaseKeys from 'camelcase-keys'
-import { Dialog } from 'quasar'
-import type { Router } from 'vue-router'
 
 import { useAuthStore } from 'stores/auth'
-
-const BUILD_ID_KEY = 'app_build_id'
-let knownBuildId: string | null = localStorage.getItem(BUILD_ID_KEY)
-let buildDialogShown = false
-
-function checkBuildId(
-  buildId: string | undefined,
-  auth: ReturnType<typeof useAuthStore>,
-  router: Router,
-) {
-  if (!buildId || !auth.token) return
-  if (!knownBuildId) {
-    knownBuildId = buildId
-    localStorage.setItem(BUILD_ID_KEY, buildId)
-    return
-  }
-  if (knownBuildId !== buildId && !buildDialogShown) {
-    buildDialogShown = true
-    Dialog.create({
-      title: '서버 업데이트',
-      message: '새로운 버전이 배포되었습니다.\n페이지를 새로고침한 후 다시 로그인해주세요.',
-      html: false,
-      persistent: true,
-      ok: { label: '다시 로그인', color: 'primary', unelevated: true },
-      cancel: false,
-    }).onOk(() => {
-      localStorage.setItem(BUILD_ID_KEY, buildId)
-      knownBuildId = buildId
-      buildDialogShown = false
-      auth.logout()
-      void router.push({ name: 'auth' })
-    })
-  }
-}
 
 declare module 'vue' {
   interface ComponentCustomProperties {
@@ -55,7 +19,7 @@ const api = axios.create({
   timeout: 180000,
 })
 
-export default defineBoot(({ app, router }) => {
+export default defineBoot(({ app }) => {
   const auth = useAuthStore()
 
   /**
@@ -80,8 +44,6 @@ export default defineBoot(({ app, router }) => {
    */
   api.interceptors.response.use(
     (res) => {
-      checkBuildId(res.headers['x-build-id'] as string | undefined, auth, router)
-
       // Skip transformation for binary responses (blob, arraybuffer)
       if (res.config.responseType === 'blob' || res.config.responseType === 'arraybuffer') {
         return res

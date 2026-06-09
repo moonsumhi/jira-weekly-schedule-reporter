@@ -2,7 +2,7 @@
   <q-page padding>
     <div class="row items-center q-mb-md">
       <div class="text-h6 col">{{ boardTitle }}</div>
-      <q-btn v-if="isInternal" icon="add" label="글쓰기" color="primary" @click="openWrite" />
+      <q-btn icon="add" label="글쓰기" color="primary" @click="openWrite" />
     </div>
 
     <q-table
@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { boardService, type PostOut } from 'src/services/boards'
@@ -102,14 +102,12 @@ function formatDate(dt: string | null | undefined) {
   })
 }
 
-const isInternal = computed(() => auth.me?.isInternal !== false)
-
 function canEdit(row: PostOut) {
-  return isInternal.value && (auth.me?.isAdmin || String(row.authorId) === String(auth.me?.id))
+  return auth.me?.isAdmin || String(row.authorId) === String(auth.me?.id)
 }
 
 function canDelete(row: PostOut) {
-  return isInternal.value && (auth.me?.isAdmin || String(row.authorId) === String(auth.me?.id))
+  return auth.me?.isAdmin || String(row.authorId) === String(auth.me?.id)
 }
 
 async function load() {

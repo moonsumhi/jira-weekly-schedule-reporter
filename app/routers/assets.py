@@ -165,6 +165,30 @@ async def get_history(
     return [AssetHistoryOut(**x) for x in items]
 
 
+@router.post("/decrypt-xlsx")
+async def decrypt_xlsx(
+    file: UploadFile,
+    password: str = Query(...),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    content = await file.read()
+    try:
+        office_file = msoffcrypto.OfficeFile(io.BytesIO(content))
+        office_file.load_key(password=password)
+        out = io.BytesIO()
+        office_file.decrypt(out)
+        out.seek(0)
+    except Exception as e:
+        msg = str(e).lower()
+        if "password" in msg or "invalid" in msg or "incorrect" in msg:
+            raise HTTPException(status_code=400, detail="비밀번호가 올바르지 않습니다.")
+        raise HTTPException(status_code=400, detail=f"복호화 실패: {e}")
+    return Response(
+        content=out.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 @router.post("/encrypt-xlsx")
 async def encrypt_xlsx(
     file: UploadFile,

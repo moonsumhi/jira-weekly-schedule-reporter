@@ -9,7 +9,6 @@ export type UserMe = {
   fullName?: string | null
   isAdmin?: boolean
   permissions?: string[]
-  isInternal?: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
