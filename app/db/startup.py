@@ -13,11 +13,10 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────
 _SYSTEM_MENUS = [
     {"slug": "jira",    "title": "Jira",       "icon": "fa-brands fa-jira",     "sort_order": 1},
-    {"slug": "pilot",   "title": "Pilot",       "icon": "fa-solid fa-robot",     "sort_order": 2},
-    {"slug": "job",     "title": "작업 관리",   "icon": "fa-solid fa-briefcase", "sort_order": 3},
-    {"slug": "asset",   "title": "자산",        "icon": "fa-solid fa-computer",  "sort_order": 4},
-    {"slug": "watch",   "title": "당직 시간표", "icon": "fa-solid fa-clock",     "sort_order": 5},
-    {"slug": "account", "title": "계정 설정",   "icon": "fa-solid fa-user-gear", "sort_order": 6},
+    {"slug": "job",     "title": "작업 관리",   "icon": "fa-solid fa-briefcase", "sort_order": 2},
+    {"slug": "asset",   "title": "자산",        "icon": "fa-solid fa-computer",  "sort_order": 3},
+    {"slug": "watch",   "title": "당직 시간표", "icon": "fa-solid fa-clock",     "sort_order": 4},
+    {"slug": "account", "title": "계정 설정",   "icon": "fa-solid fa-user-gear", "sort_order": 5},
 ]
 
 
