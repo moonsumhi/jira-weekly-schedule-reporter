@@ -6,6 +6,7 @@ class MenuCreate(BaseModel):
     icon: str = "fa-solid fa-folder"
     sort_order: int | None = None
     is_visible: bool = True
+    link: str | None = None
 
 
 class MenuPatch(BaseModel):
@@ -17,6 +18,7 @@ class MenuPatch(BaseModel):
     is_internal_visible: bool | None = None
     sub_icons: dict[str, str] | None = None
     sub_order: list[str] | None = None
+    link: str | None = None
 
 
 class MenuOut(BaseModel):
@@ -31,4 +33,5 @@ class MenuOut(BaseModel):
     slug: str | None = None
     sub_icons: dict[str, str] | None = None
     sub_order: list[str] | None = None
+    link: str | None = None
     created_at: str | None = None

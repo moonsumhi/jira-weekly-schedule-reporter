@@ -68,6 +68,21 @@ const routes: RouteRecordRaw[] = [
             path: 'checklist',
             meta: { requiresPermission: 'inspection_checklist' },
             component: () => import('pages/inspection/ServerRoomInspectionPage.vue')
+          },
+          {
+            path: 'health-summary',
+            meta: { requiresPermission: 'health_report' },
+            component: () => import('pages/inspection/HealthSummaryPage.vue')
+          },
+          {
+            path: 'health-servers',
+            meta: { requiresPermission: 'health_report' },
+            component: () => import('pages/inspection/HealthServerListPage.vue')
+          },
+          {
+            path: 'health-compare',
+            meta: { requiresPermission: 'health_report' },
+            component: () => import('pages/inspection/HealthComparePage.vue')
           }
         ]
       },

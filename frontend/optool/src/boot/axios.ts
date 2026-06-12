@@ -1,6 +1,7 @@
 import { defineBoot } from '#q-app/wrappers'
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import camelcaseKeys from 'camelcase-keys'
+import { Notify } from 'quasar'
 
 import { useAuthStore } from 'stores/auth'
 
@@ -19,7 +20,7 @@ const api = axios.create({
   timeout: 180000,
 })
 
-export default defineBoot(({ app }) => {
+export default defineBoot(({ app, router }) => {
   const auth = useAuthStore()
 
   /**
@@ -84,9 +85,13 @@ export default defineBoot(({ app }) => {
       const status = (err as AxiosError)?.response?.status
 
       if (status === 401) {
-        // If logout() is async, change your store typing so it returns Promise<void>,
-        // then you can restore `return auth.logout().finally(() => Promise.reject(error))`
         auth.logout()
+        Notify.create({
+          type: 'warning',
+          message: '세션이 만료되었습니다. 다시 로그인해 주세요.',
+          timeout: 4000,
+        })
+        void router.replace({ name: 'auth' })
       }
 
       return Promise.reject(error)

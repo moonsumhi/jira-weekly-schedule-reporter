@@ -8,6 +8,7 @@ export type UserMe = {
   email: string
   fullName?: string | null
   isAdmin?: boolean
+  isInternal?: boolean
   permissions?: string[]
 }
 
