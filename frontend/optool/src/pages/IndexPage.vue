@@ -41,10 +41,15 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useMenuStore } from 'stores/menus'
+import { useAuthStore } from 'stores/auth'
+import { api } from 'boot/axios'
 
 const menuStore = useMenuStore()
+const auth = useAuthStore()
+const isInternal = computed(() => auth.me?.isInternal !== false)
 
 onMounted(async () => {
+  void api.get('/auth/home-ping').catch(() => {})
   if (!menuStore.templateItems.length) {
     await menuStore.loadTemplates()
   }
@@ -57,8 +62,15 @@ const workPlanLink = computed(() => {
   return item?.link ?? '/job/forms'
 })
 
+function isCardVisible(slug: string): boolean {
+  const menu = menuStore.sidebarMenus.find((m) => m.slug === slug)
+  if (isInternal.value) return menu?.isInternalVisible !== false
+  return menu?.isExternalVisible === true
+}
+
 const menus = computed(() => [
   {
+    slug: 'jira',
     path: '/jira/search',
     icon: 'search',
     bg: 'linear-gradient(135deg, #1565c0, #1e88e5)',
@@ -66,6 +78,7 @@ const menus = computed(() => [
     desc: '담당자별 작업 현황 조회'
   },
   {
+    slug: 'jira',
     path: '/report/weekly',
     icon: 'summarize',
     bg: 'linear-gradient(135deg, #4527a0, #7e57c2)',
@@ -73,6 +86,7 @@ const menus = computed(() => [
     desc: '주간 업무 보고서 생성'
   },
   {
+    slug: 'asset',
     path: '/asset/list',
     icon: 'dns',
     bg: 'linear-gradient(135deg, #00695c, #26a69a)',
@@ -80,6 +94,7 @@ const menus = computed(() => [
     desc: '서버 자산 현황 및 이력'
   },
   {
+    slug: 'watch',
     path: '/watch/timetable',
     icon: 'schedule',
     bg: 'linear-gradient(135deg, #e65100, #ff8f00)',
@@ -87,6 +102,7 @@ const menus = computed(() => [
     desc: '당직 근무 일정 관리'
   },
   {
+    slug: 'inspection',
     path: '/inspection/checklist',
     icon: 'checklist',
     bg: 'linear-gradient(135deg, #ad1457, #e91e8c)',
@@ -94,13 +110,14 @@ const menus = computed(() => [
     desc: '서버실 점검 체크리스트'
   },
   {
+    slug: 'job',
     path: workPlanLink.value,
     icon: 'assignment',
     bg: 'linear-gradient(135deg, #1b5e20, #43a047)',
     title: '작업 계획서(서비스)',
     desc: '서비스 작업 계획서 작성'
   }
-])
+].filter((m) => isCardVisible(m.slug)))
 </script>
 
 <style scoped>

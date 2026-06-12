@@ -35,12 +35,28 @@
                   <span :class="menu.isVisible ? 'text-positive' : 'text-grey'">
                     {{ menu.isVisible ? '표시' : '숨김' }}
                   </span>
+                  <span v-if="menu.isExternalVisible" class="text-blue q-ml-xs">· 외부공개</span>
+                  <span v-if="!menu.isInternalVisible" class="text-orange q-ml-xs">· 내부숨김</span>
                   · 하위 {{ subsOf(menu.id).length + systemSubsOf(menu.slug).length }}개
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
                 <div class="row no-wrap items-center">
                   <q-badge v-if="menu.isSystem" color="blue-grey" label="시스템" class="q-mr-xs" />
+                  <q-btn
+                    flat dense round size="sm"
+                    :icon="menu.isInternalVisible !== false ? 'domain' : 'domain_disabled'"
+                    :color="menu.isInternalVisible !== false ? 'grey-5' : 'orange'"
+                    :title="menu.isInternalVisible !== false ? '내부 공개 중' : '내부 숨김'"
+                    @click.stop="toggleInternalVisible(menu)"
+                  />
+                  <q-btn
+                    flat dense round size="sm"
+                    :icon="menu.isExternalVisible ? 'public' : 'public_off'"
+                    :color="menu.isExternalVisible ? 'blue' : 'grey-5'"
+                    :title="menu.isExternalVisible ? '외부 공개 중' : '외부 비공개'"
+                    @click.stop="toggleExternalVisible(menu)"
+                  />
                   <q-btn v-if="!menu.isSystem" flat dense round icon="edit" size="sm" @click.stop="openEditMenu(menu)" />
                   <q-btn v-if="!menu.isSystem" flat dense round icon="delete" size="sm" color="negative" @click.stop="confirmDeleteMenu(menu)" />
                 </div>
@@ -203,6 +219,7 @@
             <IconPicker v-model="menuForm.icon" />
           </div>
           <q-toggle v-model="menuForm.is_visible" label="사이드바에 표시" />
+          <q-toggle v-model="menuForm.is_external_visible" label="외부 접속에도 표시" />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
@@ -273,7 +290,7 @@ const expandedId = ref<string | null>(null)
 // 메뉴 다이얼로그
 const menuDialog = ref(false)
 const editMenuTarget = ref<MenuOut | null>(null)
-const menuForm = ref({ title: '', icon: 'fa-solid fa-folder', is_visible: true })
+const menuForm = ref({ title: '', icon: 'fa-solid fa-folder', is_visible: true, is_external_visible: false })
 
 // 시스템 하위메뉴 아이콘 편집
 const sysIconDialog = ref(false)
@@ -318,15 +335,21 @@ const SYSTEM_SUBS: Record<string, { title: string; icon: string; link: string }[
     { title: 'VMware',       icon: 'fa-brands fa-vuejs',         link: '/asset/list?category=VMware' },
   ],
   watch: [],
+  calendar: [],
   account: [
     { title: '내 계정', icon: 'fa-solid fa-user', link: '/account/settings' },
   ],
   inspection: [],
+  server_check: [
+    { title: '요약', icon: 'fa-solid fa-table-list', link: '/inspection/health-summary' },
+    { title: '서버리스트', icon: 'fa-solid fa-server', link: '/inspection/health-servers' },
+    { title: '월별 비교', icon: 'fa-solid fa-code-compare', link: '/inspection/health-compare' },
+  ],
   admin: [
     { title: '회원가입 승인', icon: 'fa-regular fa-thumbs-up', link: '/admin/approvals' },
     { title: '회원 목록', icon: 'fa-solid fa-users', link: '/admin/users' },
-    { title: '메뉴 관리', icon: 'fa-solid fa-list', link: '/admin/menus' },
-    { title: 'Pilot 일감 현황', icon: 'fa-solid fa-tasks', link: '/pilot/tasks' },
+    { title: 'Audit Log', icon: 'fa-solid fa-clock-rotate-left', link: '/admin/audit-log' },
+    { title: '자산 로그', icon: 'fa-solid fa-server', link: '/admin/asset-log' },
   ],
 }
 
@@ -549,16 +572,34 @@ async function onSysSubDragEnd(menu: MenuOut) {
   }
 }
 
+async function toggleInternalVisible(menu: MenuOut) {
+  try {
+    await menuService.patch(menu.id, { is_internal_visible: menu.isInternalVisible === false ? true : false })
+    await load()
+  } catch {
+    $q.notify({ type: 'negative', message: '저장에 실패했습니다' })
+  }
+}
+
+async function toggleExternalVisible(menu: MenuOut) {
+  try {
+    await menuService.patch(menu.id, { is_external_visible: !menu.isExternalVisible })
+    await load()
+  } catch {
+    $q.notify({ type: 'negative', message: '저장에 실패했습니다' })
+  }
+}
+
 // ── 메뉴 ──
 function openCreateMenu() {
   editMenuTarget.value = null
-  menuForm.value = { title: '', icon: 'fa-solid fa-folder', is_visible: true }
+  menuForm.value = { title: '', icon: 'fa-solid fa-folder', is_visible: true, is_external_visible: false }
   menuDialog.value = true
 }
 
 function openEditMenu(menu: MenuOut) {
   editMenuTarget.value = menu
-  menuForm.value = { title: menu.title, icon: menu.icon, is_visible: menu.isVisible }
+  menuForm.value = { title: menu.title, icon: menu.icon, is_visible: menu.isVisible, is_external_visible: menu.isExternalVisible }
   menuDialog.value = true
 }
 

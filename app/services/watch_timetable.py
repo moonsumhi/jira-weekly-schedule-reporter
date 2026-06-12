@@ -11,6 +11,47 @@ from app.utils.time import TimeUtil
 from app.utils.mongo import to_out
 
 
+def _diff_docs(before: Dict[str, Any], after: Dict[str, Any]) -> List[Dict[str, Any]]:
+    changes: List[Dict[str, Any]] = []
+
+    def walk(path: str, a: Any, b: Any) -> None:
+        if type(a) != type(b):
+            changes.append({"path": path, "before": a, "after": b})
+            return
+        if isinstance(a, dict):
+            for key in set(list(a.keys()) + list(b.keys())):
+                walk(f"{path}.{key}" if path else key, a.get(key), b.get(key))
+            return
+        if a != b:
+            changes.append({"path": path, "before": a, "after": b})
+
+    walk("", before, after)
+    return changes
+
+
+async def _write_watch_history(
+    assignment_id: str,
+    action: str,
+    changed_by: str,
+    before: Optional[Dict[str, Any]],
+    after: Optional[Dict[str, Any]],
+) -> None:
+    col = MongoClientManager.get_watch_history_collection()
+    await col.insert_one({
+        "assignment_id": assignment_id,
+        "action": action,
+        "changed_at": TimeUtil.now_utc(),
+        "changed_by": changed_by,
+        "before": before,
+        "after": after,
+        "diff": (
+            _diff_docs(before or {}, after or {})
+            if before is not None and after is not None
+            else None
+        ),
+    })
+
+
 class WatchTimetableService:
     """
     Watch timetable CRUD + overlap rules.
@@ -106,7 +147,9 @@ class WatchTimetableService:
 
         res = await self._col().insert_one(doc)
         doc["_id"] = res.inserted_id
-        return to_out(doc)
+        out = to_out(doc)
+        await _write_watch_history(out["id"], "CREATE", actor_email, None, out)
+        return out
 
     async def replace(
         self,
@@ -144,7 +187,9 @@ class WatchTimetableService:
         }
 
         await self._col().update_one({"_id": _id}, {"$set": new_doc})
-        return to_out({**existing, **new_doc, "_id": _id})
+        out = to_out({**existing, **new_doc, "_id": _id})
+        await _write_watch_history(out["id"], "UPDATE", actor_email, to_out(existing), out)
+        return out
 
     async def patch(
         self,
@@ -189,7 +234,9 @@ class WatchTimetableService:
         update["version"] = int(existing.get("version", 1)) + 1
 
         await self._col().update_one({"_id": _id}, {"$set": update})
-        return to_out({**existing, **update, "_id": _id})
+        out = to_out({**existing, **update, "_id": _id})
+        await _write_watch_history(out["id"], "UPDATE", actor_email, to_out(existing), out)
+        return out
 
     async def delete(self, *, _id: ObjectId, actor_email: str) -> None:
         existing = await self._col().find_one({"_id": _id, "is_deleted": {"$ne": True}})
@@ -203,3 +250,4 @@ class WatchTimetableService:
             "version": int(existing.get("version", 1)) + 1,
         }
         await self._col().update_one({"_id": _id}, {"$set": update})
+        await _write_watch_history(str(_id), "DELETE", actor_email, to_out(existing), None)

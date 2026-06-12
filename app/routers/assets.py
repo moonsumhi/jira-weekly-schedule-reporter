@@ -62,6 +62,7 @@ async def list_servers(
 async def create_server(
     body: ServerAssetCreate,
     category: Optional[str] = Query(None),
+    source: str = Query(default="manual"),
     current_user: UserPublic = Depends(get_current_user),
 ):
     cat = category or (body.fields or {}).get("자산유형", "서버")
@@ -73,6 +74,7 @@ async def create_server(
             asset_no=body.asset_no,
             fields=body.fields,
             actor_email=current_user.email,
+            source=source,
         )
     except ValueError as e:
         logger.warning("409 create_server: cat=%s ip=%s name=%s asset_id=%s err=%s", cat, body.ip, body.name, body.asset_id, e)
