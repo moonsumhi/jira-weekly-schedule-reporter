@@ -14,6 +14,7 @@ class UserCreate(UserBase):
 
 class UserPublic(UserBase):
     id: str
+    is_internal: bool = True  # 내부 IP 접속 여부 (요청마다 동적으로 설정)
 
 
 class RegisterPendingResponse(BaseModel):
