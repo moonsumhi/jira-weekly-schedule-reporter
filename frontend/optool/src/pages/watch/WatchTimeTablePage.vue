@@ -407,6 +407,14 @@ async function createBulkForSlot(assignee: string, fromDate: string, toDate: str
 
   if (cursor > end) throw new Error('종료일이 시작일보다 앞습니다.')
 
+  // 해당 범위의 기존 일정을 미리 조회하여 startIso → id 맵 구성 (덮어쓰기용)
+  const rangeStart = cursor.set({ hour: sh, minute: sm, second: 0, millisecond: 0 }).toUTC().toISO()
+  const rangeEnd = end.set({ hour: eh, minute: em, second: 0, millisecond: 0 }).toUTC().toISO()
+  const existing = rangeStart && rangeEnd
+    ? await listWatch({ start: rangeStart, end: rangeEnd, include_deleted: false })
+    : []
+  const existingByStart = new Map(existing.map(r => [r.start, r]))
+
   while ((cursor.toISODate() ?? '') <= (end.toISODate() ?? '')) {
     // 평일(월~금)만 생성
     if (cursor.weekday <= 5) {
@@ -415,7 +423,12 @@ async function createBulkForSlot(assignee: string, fromDate: string, toDate: str
       const startIso = startKst.toUTC().toISO()
       const endIso = endKst.toUTC().toISO()
       if (!startIso || !endIso) throw new Error('Invalid datetime')
-      await createWatch({ assignee: assignee.trim(), start: startIso, end: endIso, fields: { note: '' } })
+      const found = existingByStart.get(startIso)
+      if (found) {
+        await patchWatch(found.id, { assignee: assignee.trim(), version: found.version })
+      } else {
+        await createWatch({ assignee: assignee.trim(), start: startIso, end: endIso, fields: { note: '' } })
+      }
     }
     cursor = cursor.plus({ days: 1 })
   }
