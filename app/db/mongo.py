@@ -49,6 +49,7 @@ class MongoClientManager:
     HEALTH_REPORTS = "health_reports"
     HEALTH_ACTIONS = "health_report_actions"
     APP_SETTINGS = "app_settings"
+    LINKS = "links"
 
 
     @classmethod
@@ -157,6 +158,10 @@ class MongoClientManager:
     @classmethod
     def get_menus_collection(cls):
         return cls.get_db()[cls.MENUS]
+
+    @classmethod
+    def get_links_collection(cls):
+        return cls.get_db()[cls.LINKS]
 
     @classmethod
     def get_boards_collection(cls):
