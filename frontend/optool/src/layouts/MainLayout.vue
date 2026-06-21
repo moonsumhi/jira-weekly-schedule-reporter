@@ -17,9 +17,9 @@
 
         <div>OPTOOL v1.0</div>
 
-        <!-- 링크 사이드바 토글 -->
+        <!-- 링크 사이드바 토글 (내부망만) -->
         <q-btn
-          v-if="auth.isLoggedIn"
+          v-if="auth.isLoggedIn && !isExternal"
           flat dense round
           icon="fa-solid fa-link"
           aria-label="Links"
@@ -163,9 +163,9 @@
         </q-list>
       </div>
     </q-drawer>
-    <!-- 오른쪽 링크 사이드바 -->
+    <!-- 오른쪽 링크 사이드바 (내부망만) -->
     <q-drawer
-      v-if="auth.isLoggedIn"
+      v-if="auth.isLoggedIn && !isExternal"
       v-model="rightDrawerOpen"
       side="right"
       bordered
