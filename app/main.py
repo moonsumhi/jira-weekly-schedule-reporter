@@ -13,7 +13,7 @@ from starlette.requests import Request
 # 서버 시작 시각을 Build ID로 사용 (rebuild 감지용)
 BUILD_ID = str(int(time.time()))
 
-from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot, inspection, job, job_result, job_non_service, test, form_templates, form_entries, menus, boards, health_reports, health_actions, links
+from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot, inspection, job, job_result, job_non_service, test, form_templates, form_entries, menus, boards, health_reports, health_actions, links, ddays
 from app.routers import settings as settings_router
 
 from app.core.config import settings
@@ -105,6 +105,7 @@ app.include_router(health_reports.router, prefix="/health-reports", tags=["healt
 app.include_router(health_actions.router, prefix="/health-reports", tags=["health-actions"])
 app.include_router(settings_router.router, prefix="/settings", tags=["settings"])
 app.include_router(links.router, prefix="/links", tags=["links"])
+app.include_router(ddays.router, prefix="/ddays", tags=["ddays"])
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
