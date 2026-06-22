@@ -15,6 +15,9 @@ pipeline {
                     usernamePassword(credentialsId: 'admin',
                         usernameVariable: 'HB_USER',
                         passwordVariable: 'HB_PW'),
+                    usernamePassword(credentialsId: 'Git_account',
+                        usernameVariable: 'GIT_USER',
+                        passwordVariable: 'GIT_TOKEN'),
                 ]) {
                     sh """
                         ssh -i ${SSH_KEY} -p 50022 -o StrictHostKeyChecking=no jenkins@${params.IP} '
@@ -24,6 +27,9 @@ pipeline {
                             cd /home/jenkins/backoffice
                             pwd
                             hostname
+
+                            echo "===== Git pull (docker-compose.yml 최신화) ====="
+                            git pull http://${GIT_USER}:${GIT_TOKEN}@10.32.50.103/ncdc-source-code/ncdc-backoffice.git main
 
                             echo "===== Harbor 로그인 ====="
                             echo "${HB_PW}" | docker login 10.32.50.26 \
