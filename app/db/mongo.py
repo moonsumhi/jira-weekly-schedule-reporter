@@ -50,6 +50,7 @@ class MongoClientManager:
     HEALTH_ACTIONS = "health_report_actions"
     APP_SETTINGS = "app_settings"
     LINKS = "links"
+    DDAYS = "ddays"
 
 
     @classmethod
@@ -162,6 +163,10 @@ class MongoClientManager:
     @classmethod
     def get_links_collection(cls):
         return cls.get_db()[cls.LINKS]
+
+    @classmethod
+    def get_ddays_collection(cls):
+        return cls.get_db()[cls.DDAYS]
 
     @classmethod
     def get_boards_collection(cls):

@@ -45,6 +45,56 @@ def _svc(category: Optional[str]) -> AssetsService:
 @router.get("/eos-map", response_model=Dict[str, str])
 async def get_eos_map(current_user: UserPublic = Depends(get_current_user)):
     return await EosService.get_eos_map()
+
+
+@router.get("/eos-summary")
+async def get_eos_summary(current_user: UserPublic = Depends(get_current_user)):
+    from datetime import date, timedelta
+    from app.services.assets_service import list_all_assets
+
+    assets = await list_all_assets(include_deleted=False)
+    today = date.today()
+    one_year_later = today + timedelta(days=365)
+
+    eos_list = []
+    soon_list = []
+
+    for a in assets:
+        fields = a.get("fields") or {}
+        status_val = str(fields.get("eos_action_status") or "").strip()
+        eos_date_str = str(fields.get("eos_date") or "").strip()
+
+        item = {
+            "id": str(a.get("_id", "")),
+            "name": a.get("name", ""),
+            "ip": a.get("ip", ""),
+            "category": fields.get("자산유형", "서버"),
+            "os": fields.get("운영체제", ""),
+            "version": fields.get("version", ""),
+            "eos_date": eos_date_str,
+        }
+
+        if status_val == "EOS":
+            eos_list.append(item)
+        elif eos_date_str:
+            try:
+                # eos_date: YYYY-MM or YYYY-MM-DD
+                parts = eos_date_str.split("-")
+                if len(parts) == 2:
+                    eos_date = date(int(parts[0]), int(parts[1]), 1)
+                else:
+                    eos_date = date(int(parts[0]), int(parts[1]), int(parts[2]))
+                if today <= eos_date <= one_year_later:
+                    soon_list.append(item)
+            except (ValueError, IndexError):
+                pass
+
+    return {
+        "eos_count": len(eos_list),
+        "soon_count": len(soon_list),
+        "eos_assets": eos_list,
+        "soon_assets": soon_list,
+    }
 @router.get("", response_model=List[ServerAssetOut])
 async def list_servers(
     category: Optional[str] = Query(None),

@@ -1,244 +1,687 @@
 <template>
-  <q-page class="home-page">
+  <q-page class="dashboard-page q-pa-md">
 
-    <!-- Hero Section -->
-    <div class="hero-section">
-      <div class="hero-overlay" />
-      <div class="hero-content">
-        <img src="~assets/logo.png" alt="국가암데이터센터" class="hero-logo" />
-        <h1 class="hero-title">데이터운영팀 백오피스</h1>
-      </div>
-    </div>
+    <div class="dashboard-grid">
 
-    <!-- Service Cards -->
-    <div class="services-section">
-      <div class="section-header">
-        <span class="section-bar" />
-        <span class="section-title">주요 서비스</span>
-      </div>
-      <div class="cards-grid">
-        <div
-          class="service-card"
-          v-for="menu in menus"
-          :key="menu.path"
-          @click="$router.push(menu.path)"
-        >
-          <div class="card-icon-wrap" :style="{ background: menu.bg }">
-            <q-icon :name="menu.icon" size="32px" color="white" />
+      <!-- 내 정보 -->
+      <div class="dash-card profile-card">
+        <div class="card-header">
+          <q-icon name="person" size="18px" color="blue-7" />
+          <span class="card-title">내 정보</span>
+        </div>
+        <div class="profile-body">
+          <div class="profile-avatar">
+            <q-icon name="account_circle" size="56px" color="blue-3" />
           </div>
-          <div class="card-body">
-            <div class="card-title">{{ menu.title }}</div>
-            <div class="card-desc">{{ menu.desc }}</div>
+          <div class="profile-info">
+            <div class="profile-name">{{ auth.me?.fullName || auth.me?.email }}</div>
+            <div class="profile-email text-grey-6">{{ auth.me?.email }}</div>
+            <div class="profile-badges q-mt-sm">
+              <q-badge v-if="auth.me?.isAdmin" color="deep-purple" label="관리자" class="q-mr-xs" />
+              <q-badge
+                v-for="perm in (auth.me?.permissions ?? [])"
+                :key="perm"
+                color="blue-grey"
+                :label="perm"
+                class="q-mr-xs q-mb-xs"
+                outline
+              />
+            </div>
           </div>
-          <q-icon name="chevron_right" size="20px" color="grey-4" class="card-arrow" />
         </div>
       </div>
+
+      <!-- D-Day -->
+      <div class="dash-card dday-card">
+        <div class="card-header">
+          <q-icon name="event" size="18px" color="red-7" />
+          <span class="card-title">D-Day</span>
+          <q-space />
+          <q-btn v-if="auth.me?.isAdmin" flat dense round icon="add" size="sm" color="grey-7" @click="openDDayCreate" />
+        </div>
+
+        <!-- 서버 점검일 (정기: 3번째 목요일) — D-Day 지나면 숨김 -->
+        <div v-if="showInspectionDay" class="dday-item dday-item--inspection q-mb-sm">
+          <div class="dday-count" style="background: #00897b">
+            <span class="dday-label">{{ calcDDay(inspectionDate) }}</span>
+          </div>
+          <div class="dday-info">
+            <div class="dday-title">
+              서버 점검일
+              <q-badge outline color="teal" label="정기" class="q-ml-xs" style="font-size:10px" />
+            </div>
+            <div class="dday-date text-grey-6">{{ inspectionDate }}{{ inspectionOverridden ? ' (수정됨)' : ' (3번째 목요일)' }}</div>
+          </div>
+          <div v-if="auth.me?.isAdmin" class="dday-actions">
+            <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openInspectionEdit" />
+            <q-btn v-if="inspectionOverridden" flat dense round icon="refresh" size="xs" color="grey" title="자동 계산으로 초기화" @click="resetInspection" />
+          </div>
+        </div>
+
+        <div v-if="ddaysLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+        <div v-if="!ddaysLoading && visibleDDays.length > 0" class="dday-list">
+          <div
+            v-for="d in visibleDDays"
+            :key="d.id"
+            class="dday-item"
+          >
+            <div class="dday-count" :style="{ background: ddayColorMap[d.color] ?? '#1e88e5' }">
+              <span class="dday-label">{{ calcDDay(d.date) }}</span>
+            </div>
+            <div class="dday-info">
+              <div class="dday-title">{{ d.title }}</div>
+              <div class="dday-date text-grey-6">{{ d.date }}</div>
+              <div v-if="d.note" class="dday-note text-grey-5">{{ d.note }}</div>
+            </div>
+            <div v-if="auth.me?.isAdmin" class="dday-actions">
+              <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openDDayEdit(d)" />
+              <q-btn flat dense round icon="delete" size="xs" color="negative" @click="confirmDeleteDDay(d)" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EoS 현황 -->
+      <div class="dash-card eos-card">
+        <div class="card-header">
+          <q-icon name="warning" size="18px" color="deep-orange-7" />
+          <span class="card-title">서버 EoS 현황</span>
+          <q-space />
+          <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push('/asset/list')" />
+        </div>
+
+        <div v-if="eosLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+        <div v-else class="eos-summary">
+          <!-- 카운트 요약 -->
+          <div class="eos-counts">
+            <div class="eos-count-item eos-count--danger" @click="eosTab = 'eos'">
+              <div class="eos-count-num">{{ eosSummary.eosCount }}</div>
+              <div class="eos-count-label">EoS된 장비</div>
+            </div>
+            <div class="eos-count-item eos-count--warn" @click="eosTab = 'soon'">
+              <div class="eos-count-num">{{ eosSummary.soonCount }}</div>
+              <div class="eos-count-label">1년 내 EoS 예정</div>
+            </div>
+          </div>
+
+          <!-- 탭 목록 -->
+          <div class="eos-tab-btns q-mt-sm">
+            <q-btn flat dense :color="eosTab === 'eos' ? 'negative' : 'grey'" size="sm" label="EoS 목록" @click="eosTab = 'eos'" />
+            <q-btn flat dense :color="eosTab === 'soon' ? 'orange' : 'grey'" size="sm" label="예정 목록" @click="eosTab = 'soon'" />
+          </div>
+
+          <div class="eos-list q-mt-xs">
+            <div v-if="currentEosList.length === 0" class="text-grey text-caption text-center q-pa-sm">해당 장비가 없습니다.</div>
+            <div v-for="a in currentEosList" :key="a.id" class="eos-item">
+              <q-icon :name="eosTab === 'eos' ? 'cancel' : 'schedule'" :color="eosTab === 'eos' ? 'negative' : 'orange'" size="16px" />
+              <div class="eos-item-info">
+                <span class="eos-item-name">{{ a.name }}</span>
+                <span class="eos-item-os text-grey-6">{{ a.os }}{{ a.version ? ` ${a.version}` : '' }}</span>
+              </div>
+              <span class="eos-item-date" :class="eosTab === 'eos' ? 'text-negative' : 'text-orange'">{{ a.eosDate }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 이번 달 당직 일정 -->
+      <div class="dash-card watch-card">
+        <div class="card-header">
+          <q-icon name="schedule" size="18px" color="orange-7" />
+          <span class="card-title">이번 달 당직 일정</span>
+          <q-space />
+          <span class="text-caption text-grey-6">{{ currentMonthLabel }}</span>
+        </div>
+
+        <div v-if="watchLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+        <div v-else-if="myWatchList.length === 0" class="text-center text-grey text-caption q-pa-md">이번 달 당직 일정이 없습니다.</div>
+        <div v-else class="watch-list">
+          <div v-for="w in myWatchList" :key="w.id" class="watch-item">
+            <div class="watch-dot" />
+            <div class="watch-info">
+              <div class="watch-name">{{ w.assignee }}</div>
+              <div class="watch-range text-grey-6">{{ fmtWatch(w.start) }} ~ {{ fmtWatch(w.end) }} · {{ watchTime(w.start, w.end) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
+
+    <!-- D-Day 추가/수정 다이얼로그 -->
+    <q-dialog v-model="ddayDialog" persistent>
+      <q-card style="min-width: 340px">
+        <q-card-section>
+          <div class="text-h6">{{ ddayForm.id ? 'D-Day 수정' : 'D-Day 추가' }}</div>
+        </q-card-section>
+        <q-card-section class="q-gutter-sm">
+          <q-input v-model="ddayForm.title" outlined dense label="이름 *" placeholder="예: ISMS-P 심사" />
+          <q-input v-model="ddayForm.date" outlined dense label="날짜 *" type="date" />
+          <q-select
+            v-model="ddayForm.color"
+            outlined dense label="색상"
+            :options="ddayColorOptions"
+            emit-value map-options
+          />
+          <q-input v-model="ddayForm.note" outlined dense label="메모" type="textarea" rows="2" />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="취소" v-close-popup />
+          <q-btn color="primary" label="저장" :loading="ddaySaving" @click="saveDDay" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
-import { useMenuStore } from 'stores/menus'
+import { ref, computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
+import { useAuthStore } from 'stores/auth'
+import { api } from 'boot/axios'
+import { fetchDDays, createDDay, patchDDay, deleteDDay, type DDay } from 'src/services/ddays'
 
-const menuStore = useMenuStore()
+const auth = useAuthStore()
+const $q = useQuasar()
 
-onMounted(async () => {
-  if (!menuStore.templateItems.length) {
-    await menuStore.loadTemplates()
-  }
+// ── 당직 일정 ──────────────────────────────────────────────────────────────
+interface WatchItem { id: string; assignee: string; start: string; end: string }
+const watchLoading = ref(false)
+const watchList = ref<WatchItem[]>([])
+
+const now = new Date()
+const currentMonthLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월`
+
+const myWatchList = computed(() => {
+  const fullName = (auth.me?.fullName || '').trim()
+  const email = (auth.me?.email || '').trim()
+  if (!fullName && !email) return []
+  return watchList.value.filter((w) => {
+    const assignee = (w.assignee || '').trim()
+    if (!assignee) return false
+    // 이메일 일치
+    if (email && assignee === email) return true
+    // 이름 포함 여부 (양방향)
+    if (fullName) {
+      if (assignee.includes(fullName) || fullName.includes(assignee)) return true
+    }
+    return false
+  })
 })
 
-const workPlanLink = computed(() => {
-  const item = menuStore.templateItems.find((t) =>
-    t.title.includes('계획서') && t.title.includes('서비스') && !t.title.includes('서비스 외') && !t.title.includes('서비스외')
-  )
-  return item?.link ?? '/job/forms'
+function fmtWatch(iso: string) {
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+function watchTime(startIso: string, endIso: string): string {
+  const toKSTHour = (iso: string) => (new Date(iso).getUTCHours() + 9) % 24
+  const fmt = (iso: string) => {
+    const h = toKSTHour(iso)
+    return `${String(h).padStart(2, '0')}:00`
+  }
+  return `${fmt(startIso)}~${fmt(endIso)}`
+}
+
+async function loadWatch() {
+  watchLoading.value = true
+  try {
+    const y = now.getFullYear()
+    const m = now.getMonth()
+    const start = new Date(y, m, 1).toISOString()
+    const end = new Date(y, m + 1, 0, 23, 59, 59).toISOString()
+    const { data } = await api.get<WatchItem[]>('/watch', { params: { start, end } })
+    watchList.value = data
+  } catch {
+    watchList.value = []
+  } finally {
+    watchLoading.value = false
+  }
+}
+
+// ── 서버 점검일 ────────────────────────────────────────────────────────────
+const INSPECTION_KEY_PREFIX = '서버 점검일'
+
+function thirdThursdayOf(year: number, month: number): string {
+  // month: 0-based
+  let count = 0
+  for (let d = 1; d <= 31; d++) {
+    const dt = new Date(year, month, d)
+    if (dt.getMonth() !== month) break
+    if (dt.getDay() === 4) { // 4 = Thursday
+      count++
+      if (count === 3) {
+        const mm = String(month + 1).padStart(2, '0')
+        const dd = String(d).padStart(2, '0')
+        return `${year}-${mm}-${dd}`
+      }
+    }
+  }
+  return ''
+}
+
+const inspectionOverrideKey = computed(() => {
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  return `${INSPECTION_KEY_PREFIX} ${y}-${m}`
 })
 
-const menus = computed(() => [
-  {
-    path: '/jira/search',
-    icon: 'search',
-    bg: 'linear-gradient(135deg, #1565c0, #1e88e5)',
-    title: 'Jira 티켓 검색',
-    desc: '담당자별 작업 현황 조회'
-  },
-  {
-    path: '/report/weekly',
-    icon: 'summarize',
-    bg: 'linear-gradient(135deg, #4527a0, #7e57c2)',
-    title: '주간 보고서',
-    desc: '주간 업무 보고서 생성'
-  },
-  {
-    path: '/asset/list',
-    icon: 'dns',
-    bg: 'linear-gradient(135deg, #00695c, #26a69a)',
-    title: '서버 자산 관리',
-    desc: '서버 자산 현황 및 이력'
-  },
-  {
-    path: '/watch/timetable',
-    icon: 'schedule',
-    bg: 'linear-gradient(135deg, #e65100, #ff8f00)',
-    title: '당직 일정',
-    desc: '당직 근무 일정 관리'
-  },
-  {
-    path: '/inspection/checklist',
-    icon: 'checklist',
-    bg: 'linear-gradient(135deg, #ad1457, #e91e8c)',
-    title: '서버실 점검',
-    desc: '서버실 점검 체크리스트'
-  },
-  {
-    path: workPlanLink.value,
-    icon: 'assignment',
-    bg: 'linear-gradient(135deg, #1b5e20, #43a047)',
-    title: '작업 계획서(서비스)',
-    desc: '서비스 작업 계획서 작성'
+const inspectionOverrideDDay = computed(() =>
+  ddays.value.find((d) => d.title === inspectionOverrideKey.value)
+)
+
+const inspectionOverridden = computed(() => !!inspectionOverrideDDay.value)
+
+const inspectionDate = computed(() =>
+  inspectionOverrideDDay.value?.date ?? thirdThursdayOf(now.getFullYear(), now.getMonth())
+)
+
+const showInspectionDay = computed(() => {
+  const date = inspectionDate.value
+  if (!date) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const parts = date.split('-')
+  const target = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+  return target >= today
+})
+
+function openInspectionEdit() {
+  const existing = inspectionOverrideDDay.value
+  ddayForm.value = {
+    id: existing?.id ?? '',
+    title: inspectionOverrideKey.value,
+    date: inspectionDate.value,
+    color: 'teal',
+    note: existing?.note ?? '',
   }
-])
+  ddayDialog.value = true
+}
+
+function resetInspection() {
+  const existing = inspectionOverrideDDay.value
+  if (!existing) return
+  confirmDeleteDDay(existing)
+}
+
+// ── D-Day ──────────────────────────────────────────────────────────────────
+const ddays = ref<DDay[]>([])
+const ddaysLoading = ref(false)
+const ddayDialog = ref(false)
+const ddaySaving = ref(false)
+const ddayForm = ref({ id: '', title: '', date: '', color: 'blue', note: '' })
+
+const ddayColorMap: Record<string, string> = {
+  red: '#e53935', orange: '#fb8c00', yellow: '#f9a825',
+  green: '#43a047', blue: '#1e88e5', purple: '#8e24aa',
+  teal: '#00897b', grey: '#757575',
+}
+const ddayColorOptions = Object.entries(ddayColorMap).map(([value]) => ({
+  value,
+  label: { red: '빨강', orange: '주황', yellow: '노랑', green: '초록', blue: '파랑', purple: '보라', teal: '청록', grey: '회색' }[value] ?? value,
+}))
+
+// dateStr 기준으로 오늘보다 daysAfter일 이상 지났으면 true
+function isDatePast(dateStr: string, daysAfter: number): boolean {
+  if (!dateStr) return false
+  const target = new Date(dateStr)
+  target.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const diff = Math.round((today.getTime() - target.getTime()) / 86400000)
+  return diff > daysAfter
+}
+
+// 서버 점검일 override key가 아닌 것만, 2주 초과 지난 것 제외
+const visibleDDays = computed(() =>
+  ddays.value.filter((d) => {
+    if (d.title.startsWith(INSPECTION_KEY_PREFIX)) return false  // 서버 점검일 override는 목록에서 숨김
+    return !isDatePast(d.date, 14)
+  })
+)
+
+function calcDDay(dateStr: string): string {
+  const target = new Date(dateStr)
+  target.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const diff = Math.round((target.getTime() - today.getTime()) / 86400000)
+  if (diff === 0) return 'D-Day'
+  if (diff > 0) return `D-${diff}`
+  return `D+${Math.abs(diff)}`
+}
+
+async function loadDDays() {
+  ddaysLoading.value = true
+  try {
+    ddays.value = await fetchDDays()
+  } finally {
+    ddaysLoading.value = false
+  }
+}
+
+function openDDayCreate() {
+  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '' }
+  ddayDialog.value = true
+}
+
+function openDDayEdit(d: DDay) {
+  ddayForm.value = { id: d.id, title: d.title, date: d.date, color: d.color, note: d.note ?? '' }
+  ddayDialog.value = true
+}
+
+async function saveDDay() {
+  if (!ddayForm.value.title || !ddayForm.value.date) {
+    $q.notify({ type: 'warning', message: '이름과 날짜는 필수입니다.' })
+    return
+  }
+  ddaySaving.value = true
+  try {
+    const payload = {
+      title: ddayForm.value.title,
+      date: ddayForm.value.date,
+      color: ddayForm.value.color,
+      note: ddayForm.value.note || null,
+    }
+    if (ddayForm.value.id) {
+      await patchDDay(ddayForm.value.id, payload)
+    } else {
+      await createDDay(payload)
+    }
+    ddayDialog.value = false
+    await loadDDays()
+    $q.notify({ type: 'positive', message: '저장되었습니다.' })
+  } catch {
+    $q.notify({ type: 'negative', message: '저장 실패' })
+  } finally {
+    ddaySaving.value = false
+  }
+}
+
+function confirmDeleteDDay(d: DDay) {
+  $q.dialog({
+    title: 'D-Day 삭제',
+    message: `"${d.title}"을(를) 삭제하시겠습니까?`,
+    cancel: true,
+    persistent: true,
+  }).onOk(() => {
+    void (async () => {
+      try {
+        await deleteDDay(d.id)
+        ddays.value = ddays.value.filter((x) => x.id !== d.id)
+        $q.notify({ type: 'positive', message: '삭제되었습니다.' })
+      } catch {
+        $q.notify({ type: 'negative', message: '삭제 실패' })
+      }
+    })()
+  })
+}
+
+// ── EoS 현황 ───────────────────────────────────────────────────────────────
+interface EosAsset { id: string; name: string; ip: string; category: string; os: string; version: string; eosDate: string }
+interface EosSummary { eosCount: number; soonCount: number; eosAssets: EosAsset[]; soonAssets: EosAsset[] }
+const eosLoading = ref(false)
+const eosTab = ref<'eos' | 'soon'>('eos')
+const eosSummary = ref<EosSummary>({ eosCount: 0, soonCount: 0, eosAssets: [], soonAssets: [] })
+
+const currentEosList = computed(() =>
+  eosTab.value === 'eos' ? eosSummary.value.eosAssets : eosSummary.value.soonAssets
+)
+
+async function loadEosSummary() {
+  eosLoading.value = true
+  try {
+    const { data } = await api.get<{ eos_count: number; soon_count: number; eos_assets: Record<string, string>[]; soon_assets: Record<string, string>[] }>('/assets/eos-summary')
+    const toAsset = (a: Record<string, string>): EosAsset => ({
+      id: a['id'] ?? '', name: a['name'] ?? '', ip: a['ip'] ?? '',
+      category: a['category'] ?? '', os: a['os'] ?? '', version: a['version'] ?? '',
+      eosDate: a['eos_date'] ?? '',
+    })
+    eosSummary.value = {
+      eosCount: data.eos_count,
+      soonCount: data.soon_count,
+      eosAssets: data.eos_assets.map(toAsset),
+      soonAssets: data.soon_assets.map(toAsset),
+    }
+  } catch {
+    // ignore
+  } finally {
+    eosLoading.value = false
+  }
+}
+
+onMounted(() => {
+  void loadDDays()
+  void loadWatch()
+  void loadEosSummary()
+})
 </script>
 
 <style scoped>
-.home-page {
+.dashboard-page {
   background: #f4f6f9;
   min-height: 100vh;
 }
 
-/* Hero */
-.hero-section {
-  position: relative;
-  height: 280px;
-  background: linear-gradient(135deg, #2458b6 0%, #a68fca 50%, #d8abc8 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hero-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.15);
-}
-
-.hero-content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0px;
-}
-
-.hero-logo {
-  height: 230px;
-  object-fit: contain;
-}
-
-.hero-title {
-  color: #ffffff;
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0;
-  margin-top: -60px;
-  letter-spacing: 2px;
-}
-
-.hero-desc {
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 14px;
-  margin: 0;
-  letter-spacing: 1px;
-}
-
-/* Services */
-.services-section {
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
   max-width: 1000px;
   margin: 0 auto;
-  padding: 48px 24px 64px;
 }
 
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 28px;
-}
-
-.section-bar {
-  display: inline-block;
-  width: 4px;
-  height: 22px;
-  background: #1565c0;
-  border-radius: 2px;
-}
-
-.section-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1a237e;
-}
-
-.cards-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 600px) {
-  .cards-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.service-card {
-  background: #ffffff;
+.dash-card {
+  background: #fff;
   border-radius: 12px;
-  padding: 20px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  cursor: pointer;
   border: 1px solid #e8edf5;
-  transition: transform 0.15s, box-shadow 0.15s;
+  padding: 20px;
 }
 
-.service-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(21, 101, 192, 0.12);
-}
-
-.card-icon-wrap {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+.card-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.card-body {
-  flex: 1;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .card-title {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: #1a237e;
 }
 
-.card-desc {
-  font-size: 12px;
-  color: #90a4ae;
-  margin-top: 3px;
+/* 내 정보 */
+.profile-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.card-arrow {
+.profile-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a237e;
+}
+
+.profile-email {
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* D-Day */
+.dday-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dday-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8f9fc;
+}
+
+.dday-count {
+  min-width: 64px;
+  height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.dday-label {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.dday-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #263238;
+}
+
+.dday-date {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.dday-note {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.dday-info {
+  flex: 1;
+}
+
+.dday-actions {
+  display: flex;
+  gap: 2px;
+}
+
+/* EoS */
+.eos-counts {
+  display: flex;
+  gap: 12px;
+}
+
+.eos-count-item {
+  flex: 1;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.eos-count-item:hover { opacity: 0.85; }
+
+.eos-count--danger { background: #fff3f3; border: 1px solid #ffcdd2; }
+.eos-count--warn   { background: #fff8f0; border: 1px solid #ffe0b2; }
+
+.eos-count-num {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.eos-count--danger .eos-count-num { color: #c62828; }
+.eos-count--warn   .eos-count-num { color: #e65100; }
+
+.eos-count-label {
+  font-size: 11px;
+  color: #78909c;
+  margin-top: 2px;
+}
+
+.eos-tab-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.eos-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.eos-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #f8f9fc;
+  font-size: 13px;
+}
+
+.eos-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.eos-item-name { font-weight: 600; color: #263238; }
+.eos-item-os   { font-size: 11px; }
+.eos-item-date { font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+/* 당직 */
+.watch-card {
+  grid-column: 1 / -1;
+}
+
+.watch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.watch-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8f9fc;
+}
+
+.watch-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff8f00;
+  flex-shrink: 0;
+}
+
+.watch-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #263238;
+}
+
+.watch-range {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+@media (max-width: 600px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .watch-card,
+  .eos-card {
+    grid-column: 1;
+  }
 }
 </style>
