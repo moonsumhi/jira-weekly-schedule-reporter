@@ -1422,12 +1422,38 @@
 
     <!-- 컬럼 상세보기 다이얼로그 -->
     <q-dialog v-model="colVisDialog">
-      <q-card style="min-width:400px">
-        <q-card-section class="row items-center">
+      <q-card style="min-width:460px; max-width:560px">
+        <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">컬럼 표시 설정</div>
           <q-space />
           <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
+
+        <!-- 프리셋 영역 -->
+        <q-card-section class="q-pt-sm q-pb-xs">
+          <div class="text-caption text-grey-7 q-mb-xs">저장된 프리셋</div>
+          <div v-if="colPresets.length === 0" class="text-caption text-grey-5">저장된 프리셋이 없습니다.</div>
+          <div v-else class="row q-gutter-xs flex-wrap">
+            <q-chip
+              v-for="p in colPresets"
+              :key="p.name"
+              clickable
+              color="blue-1"
+              text-color="blue-9"
+              @click="applyPreset(p)"
+            >
+              {{ p.name }}
+              <q-btn flat round dense icon="close" size="xs" color="grey-6" class="q-ml-xs" @click.stop="deletePreset(p.name)" />
+            </q-chip>
+          </div>
+          <div class="row q-gutter-sm q-mt-sm items-center">
+            <q-input v-model="newPresetName" outlined dense label="프리셋 이름" style="flex:1" @keyup.enter="savePreset" />
+            <q-btn color="primary" label="현재 설정 저장" unelevated @click="savePreset" :disable="!newPresetName.trim()" />
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
         <q-card-section>
           <div class="row q-gutter-sm flex-wrap">
             <q-checkbox
@@ -2103,6 +2129,8 @@ function removeCol(col: { name: string; fieldKey?: string }) {
 
 function openColVisDialog() {
   tempColKeys.value = [...visibleColKeys.value]
+  loadPresets()
+  newPresetName.value = ''
   colVisDialog.value = true
 }
 
@@ -2110,6 +2138,42 @@ function applyColVis() {
   visibleColKeys.value = [...tempColKeys.value]
   saveColKeys(category.value, tempColKeys.value)
   colVisDialog.value = false
+}
+
+// ── 컬럼 프리셋 ──────────────────────────────────────────────────────────────
+interface ColPreset { name: string; keys: string[] }
+const newPresetName = ref('')
+const colPresets = ref<ColPreset[]>([])
+
+function presetsStorageKey() {
+  return `asset-col-presets:${category.value}`
+}
+
+function loadPresets() {
+  try {
+    const saved = localStorage.getItem(presetsStorageKey())
+    colPresets.value = saved ? (JSON.parse(saved) as ColPreset[]) : []
+  } catch { colPresets.value = [] }
+}
+
+function savePreset() {
+  const name = newPresetName.value.trim()
+  if (!name) return
+  const existing = colPresets.value.findIndex((p) => p.name === name)
+  const preset: ColPreset = { name, keys: [...tempColKeys.value] }
+  if (existing >= 0) colPresets.value[existing] = preset
+  else colPresets.value.push(preset)
+  try { localStorage.setItem(presetsStorageKey(), JSON.stringify(colPresets.value)) } catch { /* ignore */ }
+  newPresetName.value = ''
+}
+
+function applyPreset(p: ColPreset) {
+  tempColKeys.value = [...p.keys]
+}
+
+function deletePreset(name: string) {
+  colPresets.value = colPresets.value.filter((p) => p.name !== name)
+  try { localStorage.setItem(presetsStorageKey(), JSON.stringify(colPresets.value)) } catch { /* ignore */ }
 }
 
 watch(category, (cat) => {
