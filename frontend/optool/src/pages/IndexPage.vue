@@ -124,6 +124,33 @@
         </div>
       </div>
 
+      <!-- 서버 리소스 위험 현황 -->
+      <div class="dash-card resource-card">
+        <div class="card-header">
+          <q-icon name="memory" size="18px" color="red-7" />
+          <span class="card-title">서버 리소스 위험 현황</span>
+          <q-space />
+          <span v-if="dangerReport.reportDate" class="text-caption text-grey-6">{{ dangerReport.reportDate }} 기준</span>
+          <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push('/inspection/health-summary')" />
+        </div>
+        <div v-if="dangerLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+        <div v-else-if="dangerReport.servers.length === 0" class="text-center text-grey text-caption q-pa-md">위험 수치 서버가 없습니다.</div>
+        <div v-else class="resource-list">
+          <div v-for="s in dangerReport.servers" :key="s.ip" class="resource-item">
+            <div class="resource-name">{{ s.hostName || s.ip }}</div>
+            <div class="resource-badges">
+              <q-badge
+                :color="s.ramPct >= 90 ? 'negative' : 'orange'"
+                class="q-mr-xs"
+              >RAM {{ s.ram }}</q-badge>
+              <q-badge
+                :color="s.diskPct >= 90 ? 'negative' : 'orange'"
+              >Disk {{ s.diskMax }}</q-badge>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 이번 달 당직 일정 -->
       <div class="dash-card watch-card">
         <div class="card-header">
@@ -464,10 +491,29 @@ async function loadEosSummary() {
   }
 }
 
+// ── 서버 리소스 위험 현황 ────────────────────────────────────────────────────
+interface DangerServer { hostName: string; ip: string; ram: string; diskMax: string; ramPct: number; diskPct: number }
+interface DangerReport { reportDate: string | null; servers: DangerServer[] }
+const dangerLoading = ref(false)
+const dangerReport = ref<DangerReport>({ reportDate: null, servers: [] })
+
+async function loadDangerSummary() {
+  dangerLoading.value = true
+  try {
+    const { data } = await api.get<DangerReport>('/health-reports/danger')
+    dangerReport.value = data
+  } catch {
+    // ignore
+  } finally {
+    dangerLoading.value = false
+  }
+}
+
 onMounted(() => {
   void loadDDays()
   void loadWatch()
   void loadEosSummary()
+  void loadDangerSummary()
 })
 </script>
 
@@ -648,6 +694,37 @@ onMounted(() => {
 .eos-item-name { font-weight: 600; color: #263238; }
 .eos-item-os   { font-size: 11px; }
 .eos-item-date { font-size: 12px; font-weight: 600; white-space: nowrap; }
+
+/* 리소스 위험 */
+.resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.resource-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #fff8f8;
+  border: 1px solid #ffcdd2;
+}
+
+.resource-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #263238;
+}
+
+.resource-badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
 
 /* 당직 */
 .watch-card {
