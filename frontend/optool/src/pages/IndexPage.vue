@@ -696,12 +696,18 @@ onMounted(() => {
 .eos-item-date { font-size: 12px; font-weight: 600; white-space: nowrap; }
 
 /* 리소스 위험 */
+.resource-card {
+  display: flex;
+  flex-direction: column;
+}
+
 .resource-list {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 200px;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .resource-item {
