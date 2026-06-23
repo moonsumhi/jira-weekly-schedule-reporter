@@ -2069,9 +2069,22 @@ const COL_OPTIONS = [
 
 const CATEGORY_DEFAULT_COLS: Record<string, string[]> = {}
 const DEFAULT_COL_KEYS = ['__ip__', '__name__', EOS_STATUS_KEY]
-const visibleColKeys = ref<string[]>([...DEFAULT_COL_KEYS])
+
+function loadColKeys(cat: string): string[] {
+  try {
+    const saved = localStorage.getItem(`asset-col-vis:${cat}`)
+    if (saved) return JSON.parse(saved) as string[]
+  } catch { /* ignore */ }
+  return [...(CATEGORY_DEFAULT_COLS[cat] ?? DEFAULT_COL_KEYS)]
+}
+
+function saveColKeys(cat: string, keys: string[]) {
+  try { localStorage.setItem(`asset-col-vis:${cat}`, JSON.stringify(keys)) } catch { /* ignore */ }
+}
+
+const visibleColKeys = ref<string[]>(loadColKeys(category.value))
 const colVisDialog = ref(false)
-const tempColKeys = ref<string[]>([...DEFAULT_COL_KEYS])
+const tempColKeys = ref<string[]>([...visibleColKeys.value])
 
 function assetTypeColor(row: ServerAsset): string {
   const t = (row.fields?.['자산유형'] as string) || '서버'
@@ -2095,11 +2108,12 @@ function openColVisDialog() {
 
 function applyColVis() {
   visibleColKeys.value = [...tempColKeys.value]
+  saveColKeys(category.value, tempColKeys.value)
   colVisDialog.value = false
 }
 
 watch(category, (cat) => {
-  visibleColKeys.value = [...(CATEGORY_DEFAULT_COLS[cat] ?? DEFAULT_COL_KEYS)]
+  visibleColKeys.value = loadColKeys(cat)
 }, { immediate: true })
 
 const columns = computed<NonNullable<QTableProps['columns']>>(() => {
