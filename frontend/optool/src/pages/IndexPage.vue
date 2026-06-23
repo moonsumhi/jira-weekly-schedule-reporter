@@ -197,9 +197,12 @@ const myWatchList = computed(() => {
   const fullName = (auth.me?.fullName || '').trim()
   const email = (auth.me?.email || '').trim()
   if (!fullName && !email) return []
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
   return watchList.value.filter((w) => {
     const assignee = (w.assignee || '').trim()
     if (!assignee) return false
+    // 이미 종료된 당직 제외 (end가 오늘 자정 이전이면 제외)
+    if (new Date(w.end) < todayStart) return false
     // 이메일 일치
     if (email && assignee === email) return true
     // 이름 포함 여부 (양방향)
@@ -645,6 +648,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
 }
 
 .watch-item {
