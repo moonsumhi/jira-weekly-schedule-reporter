@@ -35,7 +35,7 @@ pipeline {
                     rm -rf ${REMOTE_DIR}
 
                     echo "===== 2. Git Clone (Build 서버에서 수행) ====="
-                    git clone http://${GIT_USER}:${GIT_TOKEN}@10.32.50.103/ncdc-source-code/ncdc-backoffice.git ${REMOTE_DIR}
+                    git clone -b main http://${GIT_USER}:${GIT_TOKEN}@10.32.50.103/ncdc-source-code/ncdc-backoffice.git ${REMOTE_DIR}
 
                     cd ${REMOTE_DIR}
 
@@ -70,8 +70,6 @@ pipeline {
 
                     docker push ${HARBOR_URL}/dev/jira-reporter-frontend:${params.TAG} --tls-verify=false
                     docker push ${HARBOR_URL}/dev/jira-reporter-backend:${params.TAG} --tls-verify=false
-                    docker push ${HARBOR_URL}/dev/mongo:${params.TAG} --tls-verify=false
-                    docker push ${HARBOR_URL}/dev/mongo-express:${params.TAG} --tls-verify=false
                     docker logout ${HARBOR_URL}
 
                     """
