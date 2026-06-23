@@ -220,10 +220,6 @@ const myWatchList = computed(() => {
   })
 })
 
-function fmtWatch(iso: string) {
-  const d = new Date(iso)
-  return `${d.getMonth() + 1}/${d.getDate()}`
-}
 
 function watchTime(startIso: string, endIso: string): string {
   const toKSTHour = (iso: string) => (new Date(iso).getUTCHours() + 9) % 24
