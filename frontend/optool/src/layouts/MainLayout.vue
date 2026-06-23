@@ -126,6 +126,7 @@
                 :children="applySubOrder([
                   { title: '회원가입 승인', icon: menu.subIcons?.['/admin/approvals'] ?? 'fa-regular fa-thumbs-up', link: '/admin/approvals', badge: pendingCount },
                   { title: '회원 목록', icon: menu.subIcons?.['/admin/users'] ?? 'fa-solid fa-users', link: '/admin/users' },
+                  { title: '메뉴 관리', icon: menu.subIcons?.['/admin/menus'] ?? 'fa-solid fa-bars', link: '/admin/menus' },
                   { title: 'Audit Log', icon: menu.subIcons?.['/admin/audit-log'] ?? 'fa-solid fa-clipboard-list', link: '/admin/audit-log' },
                 ], menu)"
               />
@@ -329,9 +330,8 @@ const isPort9001 = window.location.port === '9001'
 const sortedVisibleMenus = computed(() =>
   sidebarMenus.value
     .filter((m) => m.isVisible)
-    .filter((m) => isPort9001 || (isExternal ? m.isExternalVisible : m.isInternalVisible))
     .filter((m) => m.slug !== 'admin' || !!auth.me?.isAdmin)
-    .filter((m) => !isPort9001 || m.slug === 'jira' || m.title === '팀캘린더')
+    .filter((m) => !isPort9001 || m.slug === 'jira' || m.slug === 'calendar' || m.title === '팀캘린더')
     .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity))
 )
 
