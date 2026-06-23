@@ -135,12 +135,19 @@
 
         <div v-if="watchLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
         <div v-else-if="myWatchList.length === 0" class="text-center text-grey text-caption q-pa-md">이번 달 당직 일정이 없습니다.</div>
-        <div v-else class="watch-list">
-          <div v-for="w in myWatchList" :key="w.id" class="watch-item">
-            <div class="watch-dot" />
-            <div class="watch-info">
-              <div class="watch-name">{{ w.assignee }}</div>
-              <div class="watch-range text-grey-6">{{ fmtWatch(w.start) === fmtWatch(w.end) ? fmtWatch(w.start) : `${fmtWatch(w.start)} ~ ${fmtWatch(w.end)}` }} · {{ watchTime(w.start, w.end) }}</div>
+        <div v-else class="watch-cards">
+          <div v-for="w in myWatchList" :key="w.id" class="watch-card-item">
+            <div class="watch-card-date">
+              <div class="watch-card-month">{{ new Date(w.start).getMonth() + 1 }}월</div>
+              <div class="watch-card-day">{{ new Date(w.start).getDate() }}</div>
+              <div class="watch-card-dow">{{ ['일','월','화','수','목','금','토'][new Date(w.start).getDay()] }}</div>
+            </div>
+            <div class="watch-card-body">
+              <div class="watch-card-name">{{ w.assignee }}</div>
+              <div class="watch-card-time">
+                <q-icon name="schedule" size="12px" color="orange-6" />
+                {{ watchTime(w.start, w.end) }}
+              </div>
             </div>
           </div>
         </div>
@@ -644,40 +651,77 @@ onMounted(() => {
   grid-column: 1 / -1;
 }
 
-.watch-list {
+.watch-cards {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 240px;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-height: 260px;
   overflow-y: auto;
 }
 
-.watch-item {
+.watch-card-item {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #f8f9fc;
+  align-items: stretch;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #ffe0b2;
+  min-width: 160px;
+  flex: 1 1 160px;
+  max-width: 220px;
 }
 
-.watch-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.watch-card-date {
   background: #ff8f00;
-  flex-shrink: 0;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  min-width: 52px;
 }
 
-.watch-name {
-  font-size: 14px;
+.watch-card-month {
+  font-size: 10px;
   font-weight: 600;
+  opacity: 0.85;
+  line-height: 1;
+}
+
+.watch-card-day {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.watch-card-dow {
+  font-size: 11px;
+  opacity: 0.85;
+  line-height: 1;
+}
+
+.watch-card-body {
+  background: #fff8f0;
+  flex: 1;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.watch-card-name {
+  font-size: 14px;
+  font-weight: 700;
   color: #263238;
 }
 
-.watch-range {
+.watch-card-time {
   font-size: 12px;
-  margin-top: 2px;
+  color: #e65100;
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 @media (max-width: 600px) {
