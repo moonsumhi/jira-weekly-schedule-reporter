@@ -126,6 +126,7 @@
                 :children="applySubOrder([
                   { title: '회원가입 승인', icon: menu.subIcons?.['/admin/approvals'] ?? 'fa-regular fa-thumbs-up', link: '/admin/approvals', badge: pendingCount },
                   { title: '회원 목록', icon: menu.subIcons?.['/admin/users'] ?? 'fa-solid fa-users', link: '/admin/users' },
+                  { title: '오딧 로그', icon: menu.subIcons?.['/admin/audit-log'] ?? 'fa-solid fa-clipboard-list', link: '/admin/audit-log' },
                 ], menu)"
               />
 
