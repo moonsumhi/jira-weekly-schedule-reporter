@@ -1454,21 +1454,20 @@
 
         <q-separator />
 
-        <q-card-section>
-          <div class="row q-gutter-sm flex-wrap">
-            <q-checkbox
-              v-for="col in COL_OPTIONS"
-              :key="col.key"
-              v-model="tempColKeys"
-              :val="col.key"
-              :label="col.label"
-              dense
-            />
-          </div>
+        <q-card-section style="max-height:360px; overflow-y:auto">
+          <div class="text-caption text-grey-7 q-mb-xs">드래그로 순서 변경 / 체크로 표시 여부 설정</div>
+          <draggable v-model="tempColItems" item-key="key" handle=".drag-handle">
+            <template #item="{ element }">
+              <div class="row items-center q-py-xs col-item">
+                <q-icon name="drag_indicator" class="drag-handle cursor-grab text-grey-5 q-mr-xs" size="18px" />
+                <q-checkbox v-model="element.visible" :label="element.label" dense />
+              </div>
+            </template>
+          </draggable>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat label="전체 선택" @click="tempColKeys = COL_OPTIONS.map(c => c.key)" />
-          <q-btn flat label="전체 해제" @click="tempColKeys = []" />
+          <q-btn flat label="전체 선택" @click="tempColItems.forEach(c => c.visible = true)" />
+          <q-btn flat label="전체 해제" @click="tempColItems.forEach(c => c.visible = false)" />
           <q-btn color="primary" label="적용" @click="applyColVis" />
         </q-card-actions>
       </q-card>
@@ -1848,6 +1847,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
+import draggable from 'vuedraggable'
 import { api } from 'boot/axios'
 
 import type { ServerAsset, AssetHistory, FieldsMap, FieldValue, EosActionStatus } from 'src/types/assets'
@@ -2108,9 +2108,27 @@ function saveColKeys(cat: string, keys: string[]) {
   try { localStorage.setItem(`asset-col-vis:${cat}`, JSON.stringify(keys)) } catch { /* ignore */ }
 }
 
+interface ColItem { key: string; label: string; visible: boolean }
+
+function buildColItems(visibleKeys: string[]): ColItem[] {
+  const visSet = new Set(visibleKeys)
+  // 선택된 컬럼을 지정된 순서대로, 나머지는 뒤에
+  const ordered = visibleKeys
+    .filter((k) => COL_OPTIONS.find((c) => c.key === k))
+    .map((k) => {
+      const opt = COL_OPTIONS.find((c) => c.key === k)!
+      return { key: k, label: opt.label, visible: true }
+    })
+  const rest = COL_OPTIONS
+    .filter((c) => !visSet.has(c.key))
+    .map((c) => ({ key: c.key, label: c.label, visible: false }))
+  return [...ordered, ...rest]
+}
+
 const visibleColKeys = ref<string[]>(loadColKeys(category.value))
 const colVisDialog = ref(false)
 const tempColKeys = ref<string[]>([...visibleColKeys.value])
+const tempColItems = ref<ColItem[]>(buildColItems(visibleColKeys.value))
 
 function assetTypeColor(row: ServerAsset): string {
   const t = (row.fields?.['자산유형'] as string) || '서버'
@@ -2128,6 +2146,7 @@ function removeCol(col: { name: string; fieldKey?: string }) {
 }
 
 function openColVisDialog() {
+  tempColItems.value = buildColItems(visibleColKeys.value)
   tempColKeys.value = [...visibleColKeys.value]
   loadPresets()
   newPresetName.value = ''
@@ -2135,8 +2154,10 @@ function openColVisDialog() {
 }
 
 function applyColVis() {
-  visibleColKeys.value = [...tempColKeys.value]
-  saveColKeys(category.value, tempColKeys.value)
+  const keys = tempColItems.value.filter((c) => c.visible).map((c) => c.key)
+  visibleColKeys.value = keys
+  tempColKeys.value = keys
+  saveColKeys(category.value, keys)
   colVisDialog.value = false
 }
 
@@ -2159,8 +2180,9 @@ function loadPresets() {
 function savePreset() {
   const name = newPresetName.value.trim()
   if (!name) return
+  const keys = tempColItems.value.filter((c) => c.visible).map((c) => c.key)
   const existing = colPresets.value.findIndex((p) => p.name === name)
-  const preset: ColPreset = { name, keys: [...tempColKeys.value] }
+  const preset: ColPreset = { name, keys }
   if (existing >= 0) colPresets.value[existing] = preset
   else colPresets.value.push(preset)
   try { localStorage.setItem(presetsStorageKey(), JSON.stringify(colPresets.value)) } catch { /* ignore */ }
@@ -2168,6 +2190,7 @@ function savePreset() {
 }
 
 function applyPreset(p: ColPreset) {
+  tempColItems.value = buildColItems(p.keys)
   tempColKeys.value = [...p.keys]
 }
 
@@ -2178,6 +2201,7 @@ function deletePreset(name: string) {
 
 watch(category, (cat) => {
   visibleColKeys.value = loadColKeys(cat)
+  tempColItems.value = buildColItems(visibleColKeys.value)
 }, { immediate: true })
 
 const columns = computed<NonNullable<QTableProps['columns']>>(() => {
@@ -2217,15 +2241,13 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
     })
   }
 
-  for (const key of COLUMN_DISPLAY_ORDER) {
+  for (const key of visibleColKeys.value) {
     if (key === '__ip__') {
-      if (visSet.has('__ip__'))
-        result.push({ name: 'ip', label: 'IP', field: 'ip', align: 'left', sortable: true })
+      result.push({ name: 'ip', label: 'IP', field: 'ip', align: 'left', sortable: true })
     } else if (key === '__name__') {
-      if (visSet.has('__name__'))
-        result.push({ name: 'name', label: 'HostName', field: 'name', align: 'left', sortable: true })
-    } else {
-      if (visSet.has(key)) result.push(makeFieldCol(key))
+      result.push({ name: 'name', label: 'HostName', field: 'name', align: 'left', sortable: true })
+    } else if (key !== 'createdAt') {
+      result.push(makeFieldCol(key))
     }
   }
 
@@ -4090,5 +4112,15 @@ tbody .sticky-actions-col {
 }
 .cell-deleted-actions {
   background-color: #f5f5f5 !important;
+}
+.col-item:hover {
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+.cursor-grab {
+  cursor: grab;
+}
+.cursor-grab:active {
+  cursor: grabbing;
 }
 </style>
