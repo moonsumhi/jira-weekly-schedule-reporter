@@ -128,6 +128,16 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'calendar',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: '',
+            component: () => import('pages/calendar/TeamCalendarPage.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requiresAdmin: true },
         children: [

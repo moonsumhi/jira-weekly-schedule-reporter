@@ -131,6 +131,14 @@
                 ], menu)"
               />
 
+              <!-- 팀캘린더 -->
+              <EssentialLink
+                v-else-if="menu.slug === 'calendar'"
+                :title="menu.title"
+                :icon="menu.icon"
+                link="/calendar"
+              />
+
               <!-- 동적 메뉴 (관리자가 추가한 메뉴 > 게시판, 또는 알 수 없는 slug) -->
               <EssentialLink
                 v-else-if="menu.link"
