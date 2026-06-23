@@ -17,8 +17,7 @@ _SYSTEM_MENUS = [
     {"slug": "asset",    "title": "자산",        "icon": "fa-solid fa-computer",   "sort_order": 3},
     {"slug": "watch",    "title": "당직 시간표", "icon": "fa-solid fa-clock",      "sort_order": 4},
     {"slug": "account",  "title": "계정 설정",   "icon": "fa-solid fa-user-gear",  "sort_order": 5},
-    {"slug": "calendar", "title": "팀캘린더",    "icon": "fa-solid fa-calendar",   "sort_order": 6,
-     "link": "https://calendar.google.com/calendar/u/1/r?cid=bmNkY3RlYW0yMkBnbWFpbC5jb20&es=3"},
+    {"slug": "calendar", "title": "팀캘린더",    "icon": "fa-solid fa-calendar",   "sort_order": 6},
 ]
 
 
@@ -95,8 +94,8 @@ async def seed_system_menus() -> None:
                 "is_system": True,
                 "created_at": datetime.now(timezone.utc),
             })
-        elif "link" in sm and not existing.get("link"):
-            await menus_col.update_one({"slug": sm["slug"]}, {"$set": {"link": sm["link"]}})
+        elif sm["slug"] == "calendar" and existing.get("link"):
+            await menus_col.update_one({"slug": "calendar"}, {"$unset": {"link": ""}})
 
 
 
