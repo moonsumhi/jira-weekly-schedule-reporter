@@ -137,15 +137,15 @@
         <div v-else-if="myWatchList.length === 0" class="text-center text-grey text-caption q-pa-md">이번 달 당직 일정이 없습니다.</div>
         <div v-else class="watch-cards">
           <div v-for="w in myWatchList" :key="w.id" class="watch-card-item">
-            <div class="watch-card-date">
+            <div class="watch-card-date" :style="{ background: watchShiftColor(w.start) }">
               <div class="watch-card-month">{{ new Date(w.start).getMonth() + 1 }}월</div>
               <div class="watch-card-day">{{ new Date(w.start).getDate() }}</div>
               <div class="watch-card-dow">{{ ['일','월','화','수','목','금','토'][new Date(w.start).getDay()] }}</div>
             </div>
-            <div class="watch-card-body">
+            <div class="watch-card-body" :style="{ background: watchShiftColor(w.start) + '18' }">
               <div class="watch-card-name">{{ w.assignee }}</div>
-              <div class="watch-card-time">
-                <q-icon name="schedule" size="12px" color="orange-6" />
+              <div class="watch-card-time" :style="{ color: watchShiftColor(w.start) }">
+                <q-icon name="schedule" size="12px" />
                 {{ watchTime(w.start, w.end) }}
               </div>
             </div>
@@ -220,6 +220,13 @@ const myWatchList = computed(() => {
   })
 })
 
+
+function watchShiftColor(startIso: string): string {
+  const hour = (new Date(startIso).getUTCHours() + 9) % 24
+  if (hour === 11) return '#1976d2' // A타임
+  if (hour === 12) return '#7b1fa2' // B타임
+  return '#1976d2'
+}
 
 function watchTime(startIso: string, endIso: string): string {
   const toKSTHour = (iso: string) => (new Date(iso).getUTCHours() + 9) % 24
@@ -660,14 +667,13 @@ onMounted(() => {
   align-items: stretch;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #ffe0b2;
+  border: 1px solid #e0e0e0;
   min-width: 160px;
   flex: 1 1 160px;
   max-width: 220px;
 }
 
 .watch-card-date {
-  background: #ff8f00;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -697,7 +703,6 @@ onMounted(() => {
 }
 
 .watch-card-body {
-  background: #fff8f0;
   flex: 1;
   padding: 10px 12px;
   display: flex;
