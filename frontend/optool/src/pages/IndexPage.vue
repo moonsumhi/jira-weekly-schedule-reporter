@@ -140,7 +140,7 @@
             <div class="watch-dot" />
             <div class="watch-info">
               <div class="watch-name">{{ w.assignee }}</div>
-              <div class="watch-range text-grey-6">{{ fmtWatch(w.start) }} ~ {{ fmtWatch(w.end) }} · {{ watchTime(w.start, w.end) }}</div>
+              <div class="watch-range text-grey-6">{{ fmtWatch(w.start) === fmtWatch(w.end) ? fmtWatch(w.start) : `${fmtWatch(w.start)} ~ ${fmtWatch(w.end)}` }} · {{ watchTime(w.start, w.end) }}</div>
             </div>
           </div>
         </div>
