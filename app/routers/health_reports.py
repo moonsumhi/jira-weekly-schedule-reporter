@@ -332,6 +332,38 @@ def _parse_excel(contents: bytes) -> tuple[str, str, list[dict], list[dict]]:
 
 # ── routes ───────────────────────────────────────────────────────────────────
 
+@router.get("/danger")
+async def get_danger_summary(current_user: UserPublic = Depends(get_current_user)):
+    """최신 서버 점검 보고서에서 RAM 또는 Disk가 80% 이상인 서버 목록 반환"""
+    col = MongoClientManager.get_db()[MongoClientManager.HEALTH_REPORTS]
+    doc = await col.find_one({}, {"summary": 1, "report_date": 1}, sort=[("report_date", -1)])
+    if not doc:
+        return {"report_date": None, "servers": []}
+
+    def _pct(val: str) -> float:
+        try:
+            return float(str(val).replace("%", "").strip())
+        except (ValueError, TypeError):
+            return 0.0
+
+    danger = []
+    for row in (doc.get("summary") or []):
+        ram_pct = _pct(row.get("ram", ""))
+        disk_pct = _pct(row.get("disk_max", ""))
+        if ram_pct >= 80 or disk_pct >= 80:
+            danger.append({
+                "host_name": row.get("host_name", ""),
+                "ip": row.get("ip", ""),
+                "ram": row.get("ram", ""),
+                "disk_max": row.get("disk_max", ""),
+                "ram_pct": ram_pct,
+                "disk_pct": disk_pct,
+            })
+
+    danger.sort(key=lambda x: max(x["ram_pct"], x["disk_pct"]), reverse=True)
+    return {"report_date": doc.get("report_date"), "servers": danger}
+
+
 @router.get("", response_model=list[HealthReportListItem])
 async def list_reports(current_user: UserPublic = Depends(get_current_user)):
     col = MongoClientManager.get_db()[MongoClientManager.HEALTH_REPORTS]
