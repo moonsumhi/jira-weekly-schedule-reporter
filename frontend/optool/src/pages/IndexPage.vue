@@ -432,17 +432,17 @@ const currentEosList = computed(() =>
 async function loadEosSummary() {
   eosLoading.value = true
   try {
-    const { data } = await api.get<{ eos_count: number; soon_count: number; eos_assets: Record<string, string>[]; soon_assets: Record<string, string>[] }>('/assets/eos-summary')
+    const { data } = await api.get<{ eosCount: number; soonCount: number; eosAssets: Record<string, string>[]; soonAssets: Record<string, string>[] }>('/assets/eos-summary')
     const toAsset = (a: Record<string, string>): EosAsset => ({
       id: a['id'] ?? '', name: a['name'] ?? '', ip: a['ip'] ?? '',
       category: a['category'] ?? '', os: a['os'] ?? '', version: a['version'] ?? '',
-      eosDate: a['eos_date'] ?? '',
+      eosDate: a['eosDate'] ?? '',
     })
     eosSummary.value = {
-      eosCount: data.eos_count,
-      soonCount: data.soon_count,
-      eosAssets: data.eos_assets.map(toAsset),
-      soonAssets: data.soon_assets.map(toAsset),
+      eosCount: data.eosCount,
+      soonCount: data.soonCount,
+      eosAssets: data.eosAssets.map(toAsset),
+      soonAssets: data.soonAssets.map(toAsset),
     }
   } catch {
     // ignore
