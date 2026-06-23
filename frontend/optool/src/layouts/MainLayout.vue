@@ -323,12 +323,14 @@ function detectInternal(hostname: string): boolean {
   return false
 }
 const isExternal = !detectInternal(window.location.hostname)
+const isPort9001 = window.location.port === '9001'
 
 const sortedVisibleMenus = computed(() =>
   sidebarMenus.value
     .filter((m) => m.isVisible)
     .filter((m) => isExternal ? m.isExternalVisible : m.isInternalVisible)
     .filter((m) => m.slug !== 'admin' || !!auth.me?.isAdmin)
+    .filter((m) => !isPort9001 || m.slug === 'jira' || m.title === '팀캘린더')
     .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity))
 )
 

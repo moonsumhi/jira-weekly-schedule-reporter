@@ -46,7 +46,7 @@ pipeline {
                             docker pull x.x.x.x(HARBOR_URL)/dev/mongo-express:latest
 
                             echo "===== docker compose up ====="
-                            TAG=${params.TAG} docker compose up -d
+                            TAG=${params.TAG} docker compose up -d --no-build
 
                             sleep 10
                             docker ps
