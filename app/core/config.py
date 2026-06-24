@@ -15,7 +15,10 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str = Field(..., description="JWT Secret Key")
     JWT_ALGORITHM: str = Field(..., description="JWT Algorithm")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
-        ..., description="Access Token Expire Minutes"
+        ..., description="Access Token Expire Minutes (내부망)"
+    )
+    ACCESS_TOKEN_EXPIRE_MINUTES_EXTERNAL: int = Field(
+        default=120, description="Access Token Expire Minutes (외부 포트 9001)"
     )
     APP_DB_NAME: str = Field(..., description="Mongo DB Name")
     CORS_ORIGINS: list[str] = Field(default=["http://localhost:9000"], description="Allowed CORS origins")
