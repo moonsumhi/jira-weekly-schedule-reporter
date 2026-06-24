@@ -180,7 +180,14 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
         "diff": [{"path": "IP", "before": None, "after": client_ip}],
     })
 
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    origin = request.headers.get("Origin", "")
+    is_external_port = ":9001" in origin
+    expire_minutes = (
+        settings.ACCESS_TOKEN_EXPIRE_MINUTES_EXTERNAL
+        if is_external_port
+        else settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    access_token_expires = timedelta(minutes=expire_minutes)
     access_token = create_access_token(
         subject=user["email"],
         expires_delta=access_token_expires,
