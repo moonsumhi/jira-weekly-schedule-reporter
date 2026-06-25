@@ -89,7 +89,12 @@ const isActive = computed(() => {
 })
 
 function navigate() {
-  if (props.link && props.link !== '#') void router.push(props.link)
+  if (!props.link || props.link === '#') return
+  if (props.link.startsWith('http://') || props.link.startsWith('https://')) {
+    window.open(props.link, '_blank', 'noopener,noreferrer')
+  } else {
+    void router.push(props.link)
+  }
 }
 </script>
 
