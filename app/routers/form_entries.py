@@ -1,10 +1,14 @@
 """Form entry CRUD endpoints — stores submitted data for a form template."""
 
 import asyncio
+import base64
+import glob as glob_module
 import io
 import logging
 import os
 import re
+import shutil
+import subprocess
 import tempfile
 from datetime import datetime, timezone
 from typing import Any
@@ -55,6 +59,68 @@ def _extract_pdf_text(content: bytes) -> str:
     logger.info("PDF extracted text length: %d", len(text))
     logger.debug("PDF text preview: %s", text[:500])
     return text
+
+
+def _extract_pdf_images(content: bytes) -> list[str]:
+    """PDF에서 이미지를 추출해 base64 data URL 리스트로 반환."""
+    import fitz  # PyMuPDF
+    doc = fitz.open(stream=content, filetype="pdf")
+    images = []
+    for page in doc:
+        for img in page.get_images():
+            xref = img[0]
+            base_image = doc.extract_image(xref)
+            ext = base_image["ext"]
+            img_bytes = base_image["image"]
+            if len(img_bytes) < 1_000:  # 아이콘/라인 등 소형 이미지 제외
+                continue
+            b64 = base64.b64encode(img_bytes).decode()
+            images.append(f"data:image/{ext};base64,{b64}")
+    logger.info("PDF extracted %d image(s)", len(images))
+    return images
+
+
+def _extract_hwp_images(content: bytes) -> list[str]:
+    """HWP BinData에서 이미지를 추출해 base64 data URL 리스트로 반환."""
+    SUPPORTED_EXT = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tif', 'tiff'}
+    with tempfile.NamedTemporaryFile(suffix=".hwp", delete=False) as f:
+        f.write(content)
+        tmppath = f.name
+    outdir = tempfile.mkdtemp()
+    images: list[str] = []
+    try:
+        result = subprocess.run(
+            ["hwp5proc", "unpack", tmppath, outdir],
+            capture_output=True, timeout=60
+        )
+        if result.returncode != 0:
+            logger.warning("hwp5proc unpack failed: %s", result.stderr.decode(errors="replace")[:200])
+            return images
+        bindata_dir = os.path.join(outdir, "BinData")
+        if not os.path.isdir(bindata_dir):
+            logger.info("HWP: BinData directory not found")
+            return images
+        for imgpath in sorted(glob_module.glob(os.path.join(bindata_dir, "*"))):
+            ext = os.path.splitext(imgpath)[1].lower().lstrip('.')
+            if ext not in SUPPORTED_EXT:
+                continue
+            with open(imgpath, 'rb') as imgf:
+                img_bytes = imgf.read()
+            if len(img_bytes) < 1_000:
+                continue
+            mime = 'jpeg' if ext in ('jpg', 'jpeg') else ext
+            b64 = base64.b64encode(img_bytes).decode()
+            images.append(f"data:image/{mime};base64,{b64}")
+        logger.info("HWP extracted %d image(s)", len(images))
+    except Exception as e:
+        logger.warning("HWP image extraction failed: %s", e)
+    finally:
+        try:
+            os.unlink(tmppath)
+        except Exception:
+            pass
+        shutil.rmtree(outdir, ignore_errors=True)
+    return images
 
 
 def _parse_hwp_xml(xml_content: str) -> str:
@@ -851,10 +917,13 @@ async def import_entry_from_file(
 
     filename = (file.filename or "").lower()
 
+    images: list[str] = []
     if filename.endswith(".pdf"):
         text = _extract_pdf_text(content)
+        images = _extract_pdf_images(content)
     elif filename.endswith(".hwp"):
         text = await _extract_hwp_text(content)
+        images = _extract_hwp_images(content)
     else:
         raise HTTPException(status_code=415, detail="지원하지 않는 파일 형식입니다. PDF 또는 HWP 파일을 업로드하세요.")
 
@@ -862,7 +931,7 @@ async def import_entry_from_file(
         raise HTTPException(status_code=422, detail="파일에서 텍스트를 추출할 수 없습니다.")
 
     extracted, skipped = _extract_form_data(text, tmpl.get("sections", []))
-    return {"data": extracted, "skipped": skipped}
+    return {"data": extracted, "skipped": skipped, "images": images}
 
 
 async def _email_to_name_map() -> dict[str, str]:

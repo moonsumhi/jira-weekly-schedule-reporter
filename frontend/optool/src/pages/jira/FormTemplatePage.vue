@@ -95,7 +95,7 @@
     </template>
 
     <!-- Create / Edit Dialog -->
-    <q-dialog v-model="formDialog" persistent>
+    <q-dialog v-model="formDialog" persistent @hide="importedImages = []; selectedPanelImage = ''; activePasteCell = null">
       <q-card style="width: 920px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">{{ isEdit ? `${template?.title} 수정` : `${template?.title} 추가` }}</div>
@@ -122,9 +122,71 @@
                 <tbody>
                   <tr v-for="(row, rowIdx) in getRows(section.title)" :key="rowIdx">
                     <td class="no-cell">{{ rowIdx + 1 }}</td>
-                    <td v-for="field in section.fields" :key="field.label" class="value-cell">
+                    <td
+                      v-for="field in section.fields"
+                      :key="field.label"
+                      class="value-cell"
+                      :style="field.type === 'image' ? 'min-width:160px; width:160px; padding:0;' : ''"
+
+                      @dragover.prevent="field.type === 'image' ? (dragOverCell = `${section.title}__${rowIdx}__${field.label}`) : undefined"
+                      @dragleave="field.type === 'image' ? (dragOverCell = '') : undefined"
+                      @drop.prevent="field.type === 'image' ? onDropImage(section.title, rowIdx, field.label, $event) : undefined"
+                    >
+                      <!-- 이미지 필드 -->
+                      <template v-if="field.type === 'image'">
+                        <div
+                          class="image-drop-zone"
+                          :class="{
+                            'has-image': getRowImages(section.title, rowIdx, field.label).length > 0,
+                            'drag-over': dragOverCell === `${section.title}__${rowIdx}__${field.label}`,
+                            'paste-ready': activePasteCell?.sectionTitle === section.title && activePasteCell?.rowIdx === rowIdx && activePasteCell?.fieldLabel === field.label
+                          }"
+                          @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
+                          @dragleave="dragOverCell = ''"
+                          @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
+                          @paste.stop="onPasteImage(section.title, rowIdx, field.label, $event)"
+                        >
+                          <!-- 배치된 이미지 목록 -->
+                          <div v-if="getRowImages(section.title, rowIdx, field.label).length > 0" style="display:flex;flex-wrap:wrap;gap:4px;padding:4px;">
+                            <div
+                              v-for="(imgSrc, imgIdx) in getRowImages(section.title, rowIdx, field.label)"
+                              :key="imgIdx"
+                              style="position:relative;display:inline-block;"
+                            >
+                              <img
+                                :src="imgSrc"
+                                style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                @click.stop="previewImage(imgSrc)"
+                              />
+                              <q-btn
+                                flat dense round icon="close" size="xs"
+                                style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.45);color:white;padding:0;min-width:16px;min-height:16px;"
+                                @click.stop="removeRowImage(section.title, rowIdx, field.label, imgIdx)"
+                              />
+                            </div>
+                          </div>
+                          <!-- 이미지 추가 영역 -->
+                          <div
+                            style="display:flex;align-items:center;justify-content:center;min-height:36px;cursor:pointer;padding:2px;"
+                            @click.stop="onImageCellClick(section.title, rowIdx, field.label)"
+                            @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
+                            @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
+                          >
+                            <div v-if="importedImages.length > 0 && !selectedPanelImage" style="display:flex;flex-wrap:wrap;gap:2px;">
+                              <img
+                                v-for="(img, imgIdx) in importedImages"
+                                :key="imgIdx"
+                                :src="img"
+                                draggable="false"
+                                style="width:36px;height:28px;object-fit:cover;border:1px solid #ccc;border-radius:2px;opacity:0.6;pointer-events:none;"
+                              />
+                            </div>
+                            <div v-else class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, field.label).length > 0 ? '+ 추가' : '이미지 선택 후 클릭 또는 드래그') }}</div>
+                          </div>
+                        </div>
+                      </template>
                       <q-input
-                        v-if="field.type !== 'boolean' && field.type !== 'select'"
+                        v-else-if="field.type !== 'boolean' && field.type !== 'select'"
                         :model-value="getRowVal(section.title, rowIdx, field.label)"
                         @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
                         :placeholder="field.placeholder"
@@ -271,6 +333,38 @@
 
           </div>
         </q-card-section>
+
+        <!-- 추출된 이미지 패널 -->
+        <template v-if="importedImages.length > 0">
+          <q-separator />
+          <q-card-section class="image-panel q-py-sm">
+            <div class="row items-center q-mb-xs">
+              <span class="text-subtitle2">
+                추출된 이미지 ({{ importedImages.length }}장)
+                <span v-if="selectedPanelImage" class="text-positive q-ml-sm">— 이미지 선택됨. 배치할 셀을 클릭하세요</span>
+                <span v-else class="text-grey q-ml-sm">— 이미지를 클릭해 선택 후 배치할 셀을 클릭하세요</span>
+              </span>
+              <q-space />
+              <q-btn flat dense icon="close" size="sm" @click="importedImages = []; selectedPanelImage = ''" />
+            </div>
+            <div class="image-panel-scroll row q-gutter-sm">
+              <div
+                v-for="(img, idx) in importedImages"
+                :key="idx"
+                class="image-thumb"
+                :class="{ 'image-thumb--selected': selectedPanelImage === img }"
+                draggable="true"
+                @click="selectedPanelImage = selectedPanelImage === img ? '' : img"
+                @dragstart="selectedPanelImage = img; $event.dataTransfer?.setData('text/plain', String(idx))"
+                @dragend="dragOverCell = ''"
+              >
+                <img :src="img" draggable="false" style="width: 100px; height: 80px; object-fit: cover; cursor: grab; pointer-events: none;" />
+                <div class="text-caption text-center">{{ idx + 1 }}</div>
+              </div>
+            </div>
+          </q-card-section>
+        </template>
+
         <q-separator />
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
@@ -317,6 +411,18 @@
       </q-card>
     </q-dialog>
 
+    <!-- Extracted Image Panel (shown inside form dialog area, below form) -->
+    <!-- Rendered as a floating panel attached to the page, visible when formDialog is open -->
+
+    <!-- Image Preview Dialog -->
+    <q-dialog v-model="imagePreviewOpen">
+      <q-card>
+        <q-card-section>
+          <img :src="imagePreviewSrc" style="max-width: 80vw; max-height: 80vh" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
+
     <!-- Detail Dialog -->
     <q-dialog v-model="detailDialog">
       <q-card style="width: 920px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column">
@@ -345,9 +451,27 @@
                   <tbody>
                     <tr v-for="(rowData, rowIdx) in detailMultipleRows(detailRow, section.title)" :key="rowIdx">
                       <td class="no-cell">{{ rowIdx + 1 }}</td>
-                      <td v-for="field in section.fields" :key="field.label" class="value-cell">
+                      <td
+                        v-for="field in section.fields"
+                        :key="field.label"
+                        class="value-cell"
+                        :style="field.type === 'image' ? 'min-width:160px; width:160px' : ''"
+                      >
+                        <template v-if="field.type === 'image'">
+                          <div v-if="toImageArray(rowData[field.label]).length > 0" style="padding:4px;display:flex;flex-wrap:wrap;gap:4px;">
+                            <img
+                              v-for="(imgSrc, imgIdx) in toImageArray(rowData[field.label])"
+                              :key="imgIdx"
+                              :src="imgSrc"
+                              style="max-width:120px;max-height:100px;cursor:pointer;border:1px solid #eee;border-radius:4px;"
+                              @click="previewImage(imgSrc)"
+                            />
+                          </div>
+                          <span v-else class="text-grey-5 text-caption" style="padding: 4px;">-</span>
+                        </template>
                         <q-input
-                          :model-value="rowData[field.label] || ''"
+                          v-else
+                          :model-value="(rowData[field.label] as string) || ''"
                           :type="field.type !== 'boolean' && field.type !== 'select' ? tableInputType(field.type) : 'text'"
                           borderless dense readonly autogrow
                           class="table-input"
@@ -427,7 +551,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { formTemplateService, type FormTemplate, type FormField, type FormSection } from 'src/services/formTemplates'
@@ -491,6 +615,13 @@ const importing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const skippedDialog = ref(false)
 const skippedItems = ref<ImportSkipped[]>([])
+const importedImages = ref<string[]>([])
+const dragOverCell = ref('')
+const imagePreviewSrc = ref('')
+const imagePreviewOpen = ref(false)
+
+const activePasteCell = ref<{ sectionTitle: string; rowIdx: number; fieldLabel: string } | null>(null)
+const selectedPanelImage = ref<string>('')  // 패널에서 선택된 이미지 src
 
 // dialogs
 const formDialog = ref(false)
@@ -501,7 +632,8 @@ const actingId = ref<string | null>(null)
 const editingId = ref<string | null>(null)
 const editingVersion = ref(1)
 
-type SectionValue = Record<string, string> | Record<string, string>[]
+type RowData = Record<string, string | string[]>
+type SectionValue = RowData | RowData[]
 const formValues = ref<Record<string, SectionValue>>({})
 
 const sections = computed<FormSection[]>(() =>
@@ -549,7 +681,8 @@ function entryPreview(row: FormEntry): string {
 function getVal(sectionTitle: string, fieldLabel: string): string {
   const sec = formValues.value[sectionTitle]
   if (!sec || Array.isArray(sec)) return ''
-  return sec[fieldLabel] ?? ''
+  const v = sec[fieldLabel]
+  return Array.isArray(v) ? '' : (v ?? '')
 }
 
 function setVal(sectionTitle: string, fieldLabel: string, val: string | number | null): void {
@@ -564,15 +697,21 @@ function setVal(sectionTitle: string, fieldLabel: string, val: string | number |
 
 // ── Multiple section helpers ────────────────────────────────────────────────
 
-function getRows(sectionTitle: string): Array<Record<string, string>> {
+function getRows(sectionTitle: string): RowData[] {
   const val = formValues.value[sectionTitle]
-  if (Array.isArray(val)) return val as Array<Record<string, string>>
+  if (Array.isArray(val)) return val as RowData[]
   return []
 }
 
 function getRowVal(sectionTitle: string, rowIdx: number, fieldLabel: string): string {
   const r = getRows(sectionTitle)
-  return r[rowIdx]?.[fieldLabel] ?? ''
+  const v = r[rowIdx]?.[fieldLabel]
+  if (Array.isArray(v)) return ''
+  return v ?? ''
+}
+
+function getRowImages(sectionTitle: string, rowIdx: number, fieldLabel: string): string[] {
+  return toImageArray(getRows(sectionTitle)[rowIdx]?.[fieldLabel])
 }
 
 function setRowVal(sectionTitle: string, rowIdx: number, fieldLabel: string, val: string | number | null): void {
@@ -581,7 +720,25 @@ function setRowVal(sectionTitle: string, rowIdx: number, fieldLabel: string, val
   rowsArr[rowIdx][fieldLabel] = val == null ? '' : String(val)
 }
 
-function emptyRow(section: FormSection): Record<string, string> {
+function addRowImage(sectionTitle: string, rowIdx: number, fieldLabel: string, src: string): void {
+  const rowsArr = getRows(sectionTitle)
+  if (!rowsArr[rowIdx]) rowsArr[rowIdx] = {}
+  const current = rowsArr[rowIdx][fieldLabel]
+  const arr: string[] = Array.isArray(current) ? [...current] : (current ? [current] : [])
+  arr.push(src)
+  rowsArr[rowIdx][fieldLabel] = arr
+}
+
+function removeRowImage(sectionTitle: string, rowIdx: number, fieldLabel: string, imgIdx: number): void {
+  const rowsArr = getRows(sectionTitle)
+  if (!rowsArr[rowIdx]) return
+  const current = rowsArr[rowIdx][fieldLabel]
+  const arr: string[] = Array.isArray(current) ? [...current] : (current ? [current] : [])
+  arr.splice(imgIdx, 1)
+  rowsArr[rowIdx][fieldLabel] = arr
+}
+
+function emptyRow(section: FormSection): RowData {
   return Object.fromEntries(section.fields.map((f) => [f.label, '']))
 }
 
@@ -599,11 +756,89 @@ function removeRow(sectionTitle: string, rowIdx: number): void {
   if (rowsArr.length > 1) rowsArr.splice(rowIdx, 1)
 }
 
+// ── Image drag & drop helpers ───────────────────────────────────────────────
+
+
+function onDropImage(sectionTitle: string, rowIdx: number, fieldLabel: string, e: DragEvent) {
+  dragOverCell.value = ''
+  const idxStr = e.dataTransfer?.getData('text/plain') ?? ''
+  const idx = idxStr !== '' ? Number(idxStr) : -1
+  const src = (idx >= 0 && importedImages.value[idx]) ? importedImages.value[idx] : selectedPanelImage.value
+  if (src) {
+    addRowImage(sectionTitle, rowIdx, fieldLabel, src)
+    selectedPanelImage.value = ''
+  }
+}
+
+function pasteImageFromClipboard(sectionTitle: string, rowIdx: number, fieldLabel: string, e: ClipboardEvent) {
+  const readFile = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const src = ev.target?.result as string
+      if (src) addRowImage(sectionTitle, rowIdx, fieldLabel, src)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const items = e.clipboardData?.items
+  if (items) {
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) { e.preventDefault(); readFile(file); return }
+      }
+    }
+  }
+
+  const files = e.clipboardData?.files
+  if (files) {
+    for (const file of Array.from(files)) {
+      if (file.type.startsWith('image/')) {
+        e.preventDefault(); readFile(file); return
+      }
+    }
+  }
+}
+
+function onPasteImage(sectionTitle: string, rowIdx: number, fieldLabel: string, e: ClipboardEvent) {
+  pasteImageFromClipboard(sectionTitle, rowIdx, fieldLabel, e)
+}
+
+function setActivePasteCell(sectionTitle: string, rowIdx: number, fieldLabel: string) {
+  activePasteCell.value = { sectionTitle, rowIdx, fieldLabel }
+}
+
+function onImageCellClick(sectionTitle: string, rowIdx: number, fieldLabel: string) {
+  if (selectedPanelImage.value) {
+    addRowImage(sectionTitle, rowIdx, fieldLabel, selectedPanelImage.value)
+    selectedPanelImage.value = ''
+  } else {
+    setActivePasteCell(sectionTitle, rowIdx, fieldLabel)
+  }
+}
+
+function handleGlobalPaste(e: ClipboardEvent) {
+  if (!activePasteCell.value) return
+  const { sectionTitle, rowIdx, fieldLabel } = activePasteCell.value
+  pasteImageFromClipboard(sectionTitle, rowIdx, fieldLabel, e)
+}
+
+function toImageArray(val: string | string[] | undefined): string[] {
+  if (Array.isArray(val)) return val
+  if (typeof val === 'string' && val) return [val]
+  return []
+}
+
+function previewImage(src: string) {
+  imagePreviewSrc.value = src
+  imagePreviewOpen.value = true
+}
+
 // ── Detail dialog helper ────────────────────────────────────────────────────
 
-function detailMultipleRows(row: FormEntry, sectionTitle: string): Array<Record<string, string>> {
+function detailMultipleRows(row: FormEntry, sectionTitle: string): RowData[] {
   const val = row.data[sectionTitle]
-  if (Array.isArray(val)) return val as Array<Record<string, string>>
+  if (Array.isArray(val)) return val as RowData[]
   return []
 }
 
@@ -691,6 +926,7 @@ async function handleFileImport(event: Event) {
       }
     }
     formValues.value = init
+    importedImages.value = result.images ?? []
     isEdit.value = false
     editingId.value = null
     formDialog.value = true
@@ -724,7 +960,7 @@ function openEdit(row: FormEntry) {
     const saved = row.data[section.title]
     if (section.multiple) {
       if (Array.isArray(saved) && saved.length > 0) {
-        copy[section.title] = saved.map((r: Record<string, string>) => ({ ...r }))
+        copy[section.title] = saved.map((r: RowData) => ({ ...r }))
       } else {
         copy[section.title] = [emptyRow(section)]
       }
@@ -823,6 +1059,11 @@ async function loadPage(id: string) {
 
 onMounted(() => {
   void loadPage(route.params['id'] as string)
+  document.addEventListener('paste', handleGlobalPaste as EventListener)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('paste', handleGlobalPaste as EventListener)
 })
 
 watch(() => route.params['id'], (id) => {
@@ -892,4 +1133,35 @@ watch(() => route.params['id'], (id) => {
 .table-input :deep(.q-field__marginal) {
   height: unset;
 }
+.image-drop-zone {
+  min-height: 80px;
+  width: 100%;
+  height: 100%;
+  border: 2px dashed #ccc;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 4px;
+}
+.image-drop-zone.drag-over {
+  border-color: #1976d2;
+  background: #e3f2fd;
+}
+.image-drop-zone:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+.image-drop-zone.paste-ready {
+  border-color: #43a047;
+  background: #f1f8e9;
+}
+.image-drop-zone.has-image { border-style: solid; }
+.drop-hint { font-size: 11px; color: #aaa; text-align: center; }
+.remove-img-btn { position: absolute; top: 2px; right: 2px; }
+.image-panel { background: #f5f5f5; }
+.image-panel-scroll { overflow-x: auto; flex-wrap: nowrap; }
+.image-thumb { border: 1px solid #ddd; border-radius: 4px; padding: 4px; background: white; cursor: pointer; }
+.image-thumb--selected { border: 2px solid #43a047; background: #f1f8e9; box-shadow: 0 0 0 2px #43a04766; }
 </style>

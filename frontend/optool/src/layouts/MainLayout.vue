@@ -339,7 +339,10 @@ const sortedVisibleMenus = computed(() =>
   sidebarMenus.value
     .filter((m) => m.isVisible)
     .filter((m) => m.slug !== 'admin' || !!auth.me?.isAdmin)
-    .filter((m) => !isPort9001 || m.slug === 'jira' || m.slug === 'calendar' || m.title === '팀캘린더')
+    .filter((m) => {
+      if (isPort9001) return m.slug === 'jira' || m.slug === 'calendar' || m.title === '팀캘린더'
+      return m.slug !== 'jira' && m.slug !== 'calendar' && m.title !== '팀캘린더'
+    })
     .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity))
 )
 

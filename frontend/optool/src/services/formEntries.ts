@@ -1,7 +1,8 @@
 // src/services/formEntries.ts
 import { api } from 'src/boot/axios'
 
-type SectionValue = Record<string, string> | Record<string, string>[]
+type RowData = Record<string, string | string[]>
+type SectionValue = RowData | RowData[]
 type EntryData = Record<string, SectionValue>
 
 export type ImportSkipped = {
@@ -13,6 +14,7 @@ export type ImportSkipped = {
 export type ImportResult = {
   data: EntryData
   skipped: ImportSkipped[]
+  images?: string[]
 }
 
 export type FormEntry = {
