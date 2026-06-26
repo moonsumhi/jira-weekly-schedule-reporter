@@ -16,7 +16,7 @@ from urllib.parse import quote
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
@@ -328,6 +328,48 @@ async def get_file_content(
         media_type=f.get("mime_type", "application/octet-stream"),
         headers={"Content-Disposition": f"inline; filename*=UTF-8''{encoded_name}"},
     )
+
+
+@router.get("/files/{file_id}/hwp-preview", response_class=HTMLResponse)
+async def hwp_preview(
+    file_id: str,
+    current_user: UserPublic = Depends(_get_user_any_auth),
+):
+    """HWP 파일을 HTML로 변환해 반환 (hwp5html 사용)."""
+    db = _db()
+    f = await db["document_files"].find_one({"_id": parse_oid(file_id)})
+    if not f:
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+
+    file_path = Path(f["file_path"])
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="파일이 서버에 없습니다.")
+
+    out_dir = tempfile.mkdtemp()
+    try:
+        result = subprocess.run(
+            ["hwp5html", "--output", out_dir, str(file_path)],
+            capture_output=True, text=True, timeout=30,
+        )
+        # hwp5html outputs index.xhtml or body.xhtml
+        for fname in ("index.xhtml", "body.xhtml", "index.html"):
+            out_file = Path(out_dir) / fname
+            if out_file.exists():
+                html = out_file.read_text(encoding="utf-8", errors="ignore")
+                # 상대 경로 리소스(이미지 등) 제거 — 텍스트/표만 표시
+                return HTMLResponse(content=html)
+        # fallback: 텍스트
+        text = result.stdout or f.get("text_content", "")
+        escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        return HTMLResponse(content=f"<html><body><pre style='font-family:sans-serif;line-height:1.8;padding:16px'>{escaped}</pre></body></html>")
+    except Exception as e:
+        logger.warning("hwp5html failed: %s", e)
+        text = f.get("text_content", "")
+        escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        return HTMLResponse(content=f"<html><body><pre style='font-family:sans-serif;line-height:1.8;padding:16px'>{escaped}</pre></body></html>")
+    finally:
+        import shutil
+        shutil.rmtree(out_dir, ignore_errors=True)
 
 
 @router.patch("/files/{file_id}")

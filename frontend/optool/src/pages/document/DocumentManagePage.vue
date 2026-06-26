@@ -415,8 +415,11 @@ async function openFile(f: DocFile) {
         html += XLSX.utils.sheet_to_html(ws, { id: `sheet-${sheetName}` })
       }
       viewerExcelHtml.value = html
+    } else if (ext === 'hwp') {
+      // HWP → hwp5html로 변환한 HTML을 iframe으로 표시
+      viewerPdfUrl.value = documentService.getHwpPreviewUrl(f.id, auth.token ?? '')
     } else {
-      // HWP, DOCX, TXT, MD 등 텍스트 추출
+      // DOCX, TXT, MD 등 텍스트 추출
       const meta = await documentService.getFileMeta(f.id)
       viewerText.value = meta.textContent ?? null
     }
