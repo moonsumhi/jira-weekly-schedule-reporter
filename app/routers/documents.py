@@ -429,6 +429,52 @@ async def hwp_preview(
         shutil.rmtree(out_dir, ignore_errors=True)
 
 
+@router.post("/files/{file_id}/replace")
+async def replace_file(
+    file_id: str,
+    file: UploadFile = File(...),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """기존 파일을 새 파일로 교체 (ID/폴더 유지, 내용·텍스트 갱신)."""
+    db = _db()
+    f = await db["document_files"].find_one({"_id": parse_oid(file_id)})
+    if not f:
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+
+    content = await file.read()
+    filename = file.filename or f["name"]
+    extension = Path(filename).suffix
+
+    # 기존 파일 삭제
+    old_path = Path(f["file_path"])
+    if old_path.exists():
+        old_path.unlink()
+
+    # 새 파일 저장
+    file_uuid = str(uuid.uuid4())
+    save_path = UPLOAD_DIR / f"{file_uuid}{extension}"
+    save_path.write_bytes(content)
+
+    text_content = _extract_text(content, extension)
+    mime_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+    await db["document_files"].update_one(
+        {"_id": parse_oid(file_id)},
+        {"$set": {
+            "name": filename,
+            "extension": extension.lstrip(".").lower(),
+            "mime_type": mime_type,
+            "file_path": str(save_path),
+            "text_content": text_content,
+            "size": len(content),
+            "updated_at": _now(),
+            "updated_by": current_user.email,
+        }},
+    )
+    updated = await db["document_files"].find_one({"_id": parse_oid(file_id)})
+    return _file_out(updated)
+
+
 @router.patch("/files/{file_id}")
 async def update_file(
     file_id: str,

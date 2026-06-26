@@ -59,6 +59,13 @@ export const documentService = {
     return data
   },
 
+  async replaceFile(fileId: string, file: File): Promise<DocFile> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await api.post<DocFile>(`/documents/files/${fileId}/replace`, formData)
+    return data
+  },
+
   async deleteFile(fileId: string): Promise<void> {
     await api.delete(`/documents/files/${fileId}`)
   },
