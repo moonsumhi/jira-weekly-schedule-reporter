@@ -69,15 +69,23 @@
             <q-icon name="home" size="16px" class="q-mr-xs" />
             전체 (루트)
           </div>
-          <DocFolderNode
-            v-for="node in rootNodes"
-            :key="node.id"
-            :node="node"
-            :selected-id="selectedFolderId"
-            :is-admin="isAdmin"
-            @select="selectFolder"
-            @delete="confirmDeleteFolder"
-          />
+          <div
+            v-for="f in flatFolderTree"
+            :key="f.id"
+            class="folder-item"
+            :class="{ 'folder-item--active': selectedFolderId === f.id }"
+            :style="{ paddingLeft: (8 + f.depth * 16) + 'px' }"
+            @click="selectFolder(f.id)"
+          >
+            <q-icon name="folder" size="15px" color="amber-7" class="q-mr-xs" />
+            <span class="folder-item-label">{{ f.name }}</span>
+            <q-btn
+              v-if="isAdmin"
+              flat dense round icon="delete" color="negative" size="xs"
+              class="folder-del-btn"
+              @click.stop="confirmDeleteFolder(f)"
+            />
+          </div>
         </div>
 
         <!-- 우측 파일 목록 -->
@@ -218,19 +226,28 @@ import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'stores/auth'
 import { documentService, type DocFile, type DocFolder } from 'src/services/documents'
-import DocFolderNode from 'src/components/DocFolderNode.vue'
 
 const $q = useQuasar()
 const auth = useAuthStore()
 const isAdmin = computed(() => !!auth.me?.isAdmin)
 
 // ── 폴더 트리 ────────────────────────────────────────────────────────────────
-interface TreeNode extends DocFolder { children: TreeNode[] }
-
 const folders = ref<DocFolder[]>([])
 const selectedFolderId = ref<string | null>(null)
 
-const rootNodes = computed<TreeNode[]>(() => buildTree(null))
+const flatFolderTree = computed(() => {
+  const result: Array<DocFolder & { depth: number }> = []
+  function visit(parentId: string | null, depth: number) {
+    folders.value
+      .filter((f) => f.parent_id === parentId)
+      .forEach((f) => {
+        result.push({ ...f, depth })
+        visit(f.id, depth + 1)
+      })
+  }
+  visit(null, 0)
+  return result
+})
 
 const childFolders = computed(() =>
   folders.value.filter((f) => f.parent_id === selectedFolderId.value)
@@ -248,11 +265,6 @@ const breadcrumb = computed(() => {
   return crumbs
 })
 
-function buildTree(parentId: string | null): TreeNode[] {
-  return folders.value
-    .filter((f) => f.parent_id === parentId)
-    .map((f) => ({ ...f, children: buildTree(f.id) }))
-}
 
 function selectFolder(id: string | null) {
   selectedFolderId.value = id
@@ -441,7 +453,7 @@ function confirmDeleteFile(f: DocFile) {
   deleteDialog.value = true
 }
 
-function confirmDeleteFolder(f: DocFolder) {
+function confirmDeleteFolder(f: DocFolder & { depth?: number }) {
   deleteTarget.value = { id: f.id, name: f.name, type: 'folder' }
   deleteDialog.value = true
 }
