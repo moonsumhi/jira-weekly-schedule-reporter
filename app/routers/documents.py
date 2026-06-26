@@ -330,12 +330,40 @@ async def get_file_content(
     )
 
 
+def _embed_images(html: str, base_dir: Path) -> str:
+    """HTML 내 상대 경로 src를 base64 data URL로 인라인 치환."""
+    import base64 as _b64
+    import re as _re
+
+    mime_map = {
+        'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+        'gif': 'image/gif', 'bmp': 'image/bmp', 'svg': 'image/svg+xml',
+    }
+
+    def replace(m: re.Match) -> str:
+        src = m.group(1)
+        if src.startswith(('http://', 'https://', 'data:', '//')):
+            return m.group(0)
+        img_path = (base_dir / src).resolve()
+        # base_dir 밖으로 path traversal 방지
+        if not str(img_path).startswith(str(base_dir.resolve())):
+            return m.group(0)
+        if not img_path.exists():
+            return m.group(0)
+        ext = img_path.suffix.lstrip('.').lower()
+        mime = mime_map.get(ext, 'application/octet-stream')
+        data = _b64.b64encode(img_path.read_bytes()).decode()
+        return f'src="data:{mime};base64,{data}"'
+
+    return _re.sub(r'src="([^"]*)"', replace, html)
+
+
 @router.get("/files/{file_id}/hwp-preview", response_class=HTMLResponse)
 async def hwp_preview(
     file_id: str,
     current_user: UserPublic = Depends(_get_user_any_auth),
 ):
-    """HWP 파일을 HTML로 변환해 반환 (hwp5html 사용)."""
+    """HWP 파일을 HTML로 변환해 반환 (hwp5html, 이미지 base64 임베드)."""
     db = _db()
     f = await db["document_files"].find_one({"_id": parse_oid(file_id)})
     if not f:
@@ -347,26 +375,26 @@ async def hwp_preview(
 
     out_dir = tempfile.mkdtemp()
     try:
-        result = subprocess.run(
+        subprocess.run(
             ["hwp5html", "--output", out_dir, str(file_path)],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=60,
         )
-        # hwp5html outputs index.xhtml or body.xhtml
+        out_path = Path(out_dir)
         for fname in ("index.xhtml", "body.xhtml", "index.html"):
-            out_file = Path(out_dir) / fname
+            out_file = out_path / fname
             if out_file.exists():
                 html = out_file.read_text(encoding="utf-8", errors="ignore")
-                # 상대 경로 리소스(이미지 등) 제거 — 텍스트/표만 표시
+                html = _embed_images(html, out_path)
                 return HTMLResponse(content=html)
-        # fallback: 텍스트
-        text = result.stdout or f.get("text_content", "")
-        escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        return HTMLResponse(content=f"<html><body><pre style='font-family:sans-serif;line-height:1.8;padding:16px'>{escaped}</pre></body></html>")
+        # fallback: 저장된 text_content 표시
+        raise RuntimeError("hwp5html output not found")
     except Exception as e:
         logger.warning("hwp5html failed: %s", e)
-        text = f.get("text_content", "")
+        text = f.get("text_content", "변환 실패")
         escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        return HTMLResponse(content=f"<html><body><pre style='font-family:sans-serif;line-height:1.8;padding:16px'>{escaped}</pre></body></html>")
+        return HTMLResponse(
+            content=f"<html><body><pre style='font-family:sans-serif;line-height:1.8;padding:16px'>{escaped}</pre></body></html>"
+        )
     finally:
         import shutil
         shutil.rmtree(out_dir, ignore_errors=True)
