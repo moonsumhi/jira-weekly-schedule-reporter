@@ -403,7 +403,7 @@ async function openFile(f: DocFile) {
         const ws = wb.Sheets[sheetName]
         if (!ws) continue
         html += `<div class="excel-sheet-name">${sheetName}</div>`
-        html += XLSX.utils.sheet_to_html(ws as XLSX.WorkSheet, { id: `sheet-${sheetName}` })
+        html += XLSX.utils.sheet_to_html(ws, { id: `sheet-${sheetName}` })
       }
       viewerExcelHtml.value = html
     } else {
