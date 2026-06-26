@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
+from urllib.parse import quote
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -320,11 +322,11 @@ async def get_file_content(
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="파일이 서버에 없습니다.")
 
+    encoded_name = quote(f["name"])
     return FileResponse(
         path=str(file_path),
         media_type=f.get("mime_type", "application/octet-stream"),
-        filename=f["name"],
-        headers={"Content-Disposition": f'inline; filename="{f["name"]}"'},
+        headers={"Content-Disposition": f"inline; filename*=UTF-8''{encoded_name}"},
     )
 
 
