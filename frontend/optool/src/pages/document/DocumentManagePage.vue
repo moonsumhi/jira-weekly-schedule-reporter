@@ -156,15 +156,19 @@
         </q-card-section>
 
         <q-card-section class="viewer-body q-pa-none">
+          <div v-if="viewerLoading" class="text-center q-pa-xl text-grey">
+            <q-spinner size="40px" color="primary" /><br />불러오는 중...
+          </div>
           <iframe
-            v-if="viewerPdfUrl && viewerFile?.extension === 'pdf'"
+            v-else-if="viewerPdfUrl"
             :src="viewerPdfUrl"
             class="viewer-iframe"
           />
+          <div v-else-if="viewerExcelHtml" class="viewer-excel q-pa-md" v-html="viewerExcelHtml" />
           <div v-else-if="viewerText" class="viewer-text q-pa-md">
             <pre class="viewer-pre">{{ viewerText }}</pre>
           </div>
-          <div v-else class="text-center q-pa-xl text-grey">
+          <div v-else-if="!viewerLoading" class="text-center q-pa-xl text-grey">
             <q-icon name="insert_drive_file" size="64px" color="grey-4" /><br />
             미리보기를 지원하지 않는 파일입니다.<br />
             다운로드 버튼을 눌러 파일을 확인하세요.
@@ -225,6 +229,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'stores/auth'
+import { api } from 'src/boot/axios'
+import * as XLSX from 'xlsx'
 import { documentService, type DocFile, type DocFolder } from 'src/services/documents'
 
 const $q = useQuasar()
@@ -368,31 +374,52 @@ async function onFolderSelected(e: Event) {
 const viewerOpen = ref(false)
 const viewerFile = ref<DocFile | null>(null)
 const viewerPdfUrl = ref<string | null>(null)
+const viewerExcelHtml = ref<string | null>(null)
 const viewerText = ref<string | null>(null)
+const viewerLoading = ref(false)
 const viewerDownloadUrl = ref('')
 
 async function openFile(f: DocFile) {
   viewerFile.value = f
   viewerPdfUrl.value = null
+  viewerExcelHtml.value = null
   viewerText.value = null
   viewerOpen.value = true
+  viewerLoading.value = true
   viewerDownloadUrl.value = documentService.getDownloadUrl(f.id)
 
   const ext = f.extension?.toLowerCase()
 
-  if (ext === 'pdf') {
-    viewerPdfUrl.value = documentService.getContentUrl(f.id, auth.token ?? '')
-  } else {
-    try {
+  try {
+    if (ext === 'pdf') {
+      viewerPdfUrl.value = documentService.getContentUrl(f.id, auth.token ?? '')
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      const resp = await api.get<ArrayBuffer>(`/documents/files/${f.id}/content`, {
+        responseType: 'arraybuffer',
+      })
+      const wb = XLSX.read(resp.data, { type: 'array' })
+      let html = ''
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName]
+        html += `<div class="excel-sheet-name">${sheetName}</div>`
+        html += XLSX.utils.sheet_to_html(ws, { id: `sheet-${sheetName}` })
+      }
+      viewerExcelHtml.value = html
+    } else {
       const meta = await documentService.getFileMeta(f.id)
       viewerText.value = meta.textContent ?? null
-    } catch { /* 미리보기 없음 */ }
+    }
+  } catch {
+    $q.notify({ type: 'negative', message: '미리보기 로드 실패' })
+  } finally {
+    viewerLoading.value = false
   }
 }
 
 function closeViewer() {
   viewerOpen.value = false
   viewerPdfUrl.value = null
+  viewerExcelHtml.value = null
 }
 
 // ── 수정 ─────────────────────────────────────────────────────────────────────
@@ -700,9 +727,51 @@ onMounted(() => {
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.8;
   font-family: 'Noto Sans KR', sans-serif;
   color: #263238;
   margin: 0;
+}
+
+/* 엑셀 뷰어 */
+.viewer-excel {
+  height: 100%;
+  overflow: auto;
+}
+
+.viewer-excel :deep(.excel-sheet-name) {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a237e;
+  padding: 12px 4px 6px;
+  border-bottom: 2px solid #3f51b5;
+  margin-bottom: 8px;
+}
+
+.viewer-excel :deep(table) {
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 32px;
+  min-width: 100%;
+}
+
+.viewer-excel :deep(td),
+.viewer-excel :deep(th) {
+  border: 1px solid #ddd;
+  padding: 5px 10px;
+  white-space: nowrap;
+  color: #263238;
+}
+
+.viewer-excel :deep(tr:first-child td),
+.viewer-excel :deep(th) {
+  background: #e8eaf6;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.viewer-excel :deep(tr:nth-child(even)) {
+  background: #f5f5f5;
 }
 </style>
