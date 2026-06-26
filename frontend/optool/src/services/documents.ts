@@ -78,6 +78,13 @@ export const documentService = {
     await api.delete(`/documents/files/${fileId}`)
   },
 
+  async updateFolder(folderId: string, name: string): Promise<DocFolder> {
+    const formData = new FormData()
+    formData.append('name', name)
+    const { data } = await api.patch<DocFolder>(`/documents/folders/${folderId}`, formData)
+    return data
+  },
+
   async deleteFolder(folderId: string): Promise<void> {
     await api.delete(`/documents/folders/${folderId}`)
   },

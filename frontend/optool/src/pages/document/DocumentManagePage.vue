@@ -86,6 +86,13 @@
             <q-icon name="folder" size="15px" color="amber-7" class="q-mr-xs" />
             <span class="folder-item-label">{{ f.name }}</span>
             <q-btn
+              flat dense round icon="edit" color="grey-6" size="xs"
+              class="folder-del-btn"
+              @click.stop="openRenameFolder(f)"
+            >
+              <q-tooltip>이름 변경</q-tooltip>
+            </q-btn>
+            <q-btn
               v-if="isAdmin"
               flat dense round icon="delete" color="negative" size="xs"
               class="folder-del-btn"
@@ -123,8 +130,11 @@
                 <q-tooltip anchor="top middle" self="bottom middle" :delay="400">{{ f.name }}</q-tooltip>
               </div>
               <div class="file-card-meta text-grey-6">폴더</div>
-              <div v-if="isAdmin" class="file-card-actions">
-                <q-btn flat dense round icon="delete" color="negative" size="xs" @click.stop="confirmDeleteFolder(f)">
+              <div class="file-card-actions">
+                <q-btn flat dense round icon="edit" color="grey-7" size="xs" @click.stop="openRenameFolder(f)">
+                  <q-tooltip>이름 변경</q-tooltip>
+                </q-btn>
+                <q-btn v-if="isAdmin" flat dense round icon="delete" color="negative" size="xs" @click.stop="confirmDeleteFolder(f)">
                   <q-tooltip>삭제</q-tooltip>
                 </q-btn>
               </div>
@@ -283,6 +293,28 @@
       </q-card>
     </q-dialog>
 
+    <!-- 폴더 이름 변경 다이얼로그 -->
+    <q-dialog v-model="renameFolderDialog">
+      <q-card style="min-width:360px">
+        <q-card-section>
+          <div class="text-h6">폴더 이름 변경</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="renameFolderName"
+            label="폴더명"
+            dense outlined autofocus
+            :rules="[(v) => !!v || '폴더명을 입력하세요.']"
+            @keyup.enter="void doRenameFolder()"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="취소" @click="renameFolderDialog = false" />
+          <q-btn unelevated color="primary" label="저장" :loading="renamingFolder" @click="void doRenameFolder()" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
   </q-page>
 </template>
 
@@ -367,6 +399,34 @@ async function doCreateFolder() {
     $q.notify({ type: 'negative', message: '폴더 생성에 실패했습니다.' })
   } finally {
     creatingFolder.value = false
+  }
+}
+
+// ── 폴더 이름 변경 ────────────────────────────────────────────────────────────
+const renameFolderDialog = ref(false)
+const renameFolderTarget = ref<DocFolder | null>(null)
+const renameFolderName = ref('')
+const renamingFolder = ref(false)
+
+function openRenameFolder(f: DocFolder) {
+  renameFolderTarget.value = f
+  renameFolderName.value = f.name
+  renameFolderDialog.value = true
+}
+
+async function doRenameFolder() {
+  if (!renameFolderTarget.value || !renameFolderName.value.trim()) return
+  renamingFolder.value = true
+  try {
+    const updated = await documentService.updateFolder(renameFolderTarget.value.id, renameFolderName.value.trim())
+    const target = folders.value.find((f) => f.id === updated.id)
+    if (target) target.name = updated.name
+    $q.notify({ type: 'positive', message: '폴더 이름이 변경되었습니다.' })
+    renameFolderDialog.value = false
+  } catch {
+    $q.notify({ type: 'negative', message: '이름 변경에 실패했습니다.' })
+  } finally {
+    renamingFolder.value = false
   }
 }
 

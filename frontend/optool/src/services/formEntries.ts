@@ -37,6 +37,11 @@ export const formEntryService = {
     return data
   },
 
+  async get(id: string): Promise<FormEntry> {
+    const { data } = await api.get<FormEntry>(`/form-entries/${id}`)
+    return data
+  },
+
   async create(templateId: string, entryData: EntryData): Promise<FormEntry> {
     const { data } = await api.post<FormEntry>('/form-entries', {
       template_id: templateId,
