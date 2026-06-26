@@ -410,8 +410,8 @@ async function openFile(f: DocFile) {
       const meta = await documentService.getFileMeta(f.id)
       viewerText.value = meta.textContent ?? null
     }
-  } catch {
-    $q.notify({ type: 'negative', message: '미리보기 로드 실패' })
+  } catch (err) {
+    $q.notify({ type: 'negative', message: `미리보기 로드 실패: ${String(err)}` })
   } finally {
     viewerLoading.value = false
   }
