@@ -113,9 +113,11 @@
               class="file-card file-card--folder"
               @click="selectFolder(f.id)"
             >
-              <q-tooltip anchor="top middle" self="bottom middle" :delay="400">{{ f.name }}</q-tooltip>
               <q-icon name="folder" size="36px" color="amber-7" />
-              <div class="file-card-name">{{ f.name }}</div>
+              <div class="file-card-name">
+                {{ f.name }}
+                <q-tooltip anchor="top middle" self="bottom middle" :delay="400">{{ f.name }}</q-tooltip>
+              </div>
               <div class="file-card-meta text-grey-6">폴더</div>
               <div v-if="isAdmin" class="file-card-actions">
                 <q-btn flat dense round icon="delete" color="negative" size="xs" @click.stop="confirmDeleteFolder(f)">
@@ -129,12 +131,14 @@
               class="file-card"
               @click="void openFile(f)"
             >
-              <q-tooltip anchor="top middle" self="bottom middle" :delay="400" max-width="320px">
-                <div class="text-weight-bold">{{ f.name }}</div>
-                <div class="text-caption">{{ formatSize(f.size) }} · {{ f.extension?.toUpperCase() }}</div>
-              </q-tooltip>
               <q-icon :name="fileIcon(f.extension)" size="36px" :color="fileColor(f.extension)" />
-              <div class="file-card-name">{{ f.name }}</div>
+              <div class="file-card-name">
+                {{ f.name }}
+                <q-tooltip anchor="top middle" self="bottom middle" :delay="400" max-width="320px">
+                  <div class="text-weight-bold">{{ f.name }}</div>
+                  <div class="text-caption">{{ formatSize(f.size) }} · {{ f.extension?.toUpperCase() }}</div>
+                </q-tooltip>
+              </div>
               <div class="file-card-meta text-grey-6">{{ formatSize(f.size) }}</div>
               <div class="file-card-actions">
                 <q-btn flat dense round icon="upload" color="orange-7" size="xs" @click.stop="triggerReplaceFor(f)">
@@ -161,14 +165,15 @@
           <q-icon :name="fileIcon(viewerFile?.extension ?? '')" size="20px" :color="fileColor(viewerFile?.extension ?? '')" class="q-mr-sm" />
           <span class="text-h6 ellipsis">{{ viewerFile?.name }}</span>
           <q-space />
-          <q-btn
-            flat dense round icon="download" color="primary"
-            :href="viewerDownloadUrl"
-            target="_blank"
-            title="다운로드"
-          />
-          <q-btn flat dense round icon="edit" color="grey-7" title="수정" @click="openEdit(viewerFile!)" />
-          <q-btn flat dense round icon="upload" color="orange-7" title="파일 교체" :loading="replacing" @click="triggerReplace" />
+          <q-btn flat dense round icon="download" color="primary" @click="downloadFile">
+            <q-tooltip>다운로드</q-tooltip>
+          </q-btn>
+          <q-btn flat dense round icon="edit" color="grey-7" @click="openEdit(viewerFile!)">
+            <q-tooltip>파일명 수정</q-tooltip>
+          </q-btn>
+          <q-btn flat dense round icon="upload" color="orange-7" :loading="replacing" @click="triggerReplace">
+            <q-tooltip>파일 교체</q-tooltip>
+          </q-btn>
           <input ref="replaceInput" type="file" style="display:none" @change="(e) => { void onReplaceSelected(e) }" />
           <q-btn flat dense round icon="close" @click="closeViewer" />
         </q-card-section>
@@ -446,6 +451,17 @@ async function openFile(f: DocFile) {
   } finally {
     viewerLoading.value = false
   }
+}
+
+function downloadFile() {
+  if (!viewerFile.value) return
+  const url = documentService.getContentUrl(viewerFile.value.id, auth.token ?? '')
+  const a = document.createElement('a')
+  a.href = url
+  a.download = viewerFile.value.name
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
 }
 
 function closeViewer() {
