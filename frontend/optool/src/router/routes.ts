@@ -138,6 +138,17 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'documents',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: '',
+            meta: { requiresPermission: 'document_manage' },
+            component: () => import('pages/document/DocumentManagePage.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requiresAdmin: true },
         children: [

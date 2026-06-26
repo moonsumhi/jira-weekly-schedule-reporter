@@ -702,7 +702,8 @@ onMounted(() => {
 }
 
 .resource-list {
-  flex: 1;
+  max-height: 310px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;

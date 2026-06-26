@@ -18,6 +18,7 @@ services:
       - PILOT_ENABLED=${PILOT_ENABLED}
     volumes:
       - ./app/secret:/app/app/secret:ro
+      - ./uploads/documents:/app/uploads/documents
 
   frontend:
     image: ${HARBOR_URL:-x.x.x.x(HARBOR_URL)}/dev/jira-reporter-frontend:${TAG:-latest}
