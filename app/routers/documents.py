@@ -287,7 +287,10 @@ async def _get_user_any_auth(
     """헤더 또는 쿼리 파라미터로 JWT 인증 (iframe PDF 뷰어용)."""
     # 쿼리 파라미터 토큰 우선, 없으면 Authorization 헤더 사용
     raw = token or request.headers.get("authorization", "").removeprefix("Bearer ").strip()
-    email = decode_token(raw) if raw else None
+    try:
+        email = decode_token(raw) if raw else None
+    except Exception:
+        email = None
     if not email:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
     user = await get_user_by_email(email)
