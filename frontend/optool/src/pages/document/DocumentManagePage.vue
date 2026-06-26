@@ -48,7 +48,9 @@
           </div>
           <div class="search-item-actions">
             <q-btn v-if="isAdmin" flat dense round icon="delete" color="negative" size="sm"
-              @click.stop="confirmDeleteFile(f)" />
+              @click.stop="confirmDeleteFile(f)">
+              <q-tooltip>삭제</q-tooltip>
+            </q-btn>
           </div>
         </div>
       </div>
@@ -111,11 +113,14 @@
               class="file-card file-card--folder"
               @click="selectFolder(f.id)"
             >
+              <q-tooltip anchor="top middle" self="bottom middle" :delay="400">{{ f.name }}</q-tooltip>
               <q-icon name="folder" size="36px" color="amber-7" />
               <div class="file-card-name">{{ f.name }}</div>
               <div class="file-card-meta text-grey-6">폴더</div>
               <div v-if="isAdmin" class="file-card-actions">
-                <q-btn flat dense round icon="delete" color="negative" size="xs" @click.stop="confirmDeleteFolder(f)" />
+                <q-btn flat dense round icon="delete" color="negative" size="xs" @click.stop="confirmDeleteFolder(f)">
+                  <q-tooltip>삭제</q-tooltip>
+                </q-btn>
               </div>
             </div>
             <div
@@ -124,13 +129,23 @@
               class="file-card"
               @click="void openFile(f)"
             >
+              <q-tooltip anchor="top middle" self="bottom middle" :delay="400" max-width="320px">
+                <div class="text-weight-bold">{{ f.name }}</div>
+                <div class="text-caption">{{ formatSize(f.size) }} · {{ f.extension?.toUpperCase() }}</div>
+              </q-tooltip>
               <q-icon :name="fileIcon(f.extension)" size="36px" :color="fileColor(f.extension)" />
               <div class="file-card-name">{{ f.name }}</div>
               <div class="file-card-meta text-grey-6">{{ formatSize(f.size) }}</div>
               <div class="file-card-actions">
-                <q-btn flat dense round icon="upload" color="orange-7" size="xs" title="파일 교체" @click.stop="triggerReplaceFor(f)" />
-                <q-btn flat dense round icon="edit" color="grey-7" size="xs" @click.stop="openEdit(f)" />
-                <q-btn v-if="isAdmin" flat dense round icon="delete" color="negative" size="xs" @click.stop="confirmDeleteFile(f)" />
+                <q-btn flat dense round icon="upload" color="orange-7" size="xs" @click.stop="triggerReplaceFor(f)">
+                  <q-tooltip>파일 교체</q-tooltip>
+                </q-btn>
+                <q-btn flat dense round icon="edit" color="grey-7" size="xs" @click.stop="openEdit(f)">
+                  <q-tooltip>이름/폴더 수정</q-tooltip>
+                </q-btn>
+                <q-btn v-if="isAdmin" flat dense round icon="delete" color="negative" size="xs" @click.stop="confirmDeleteFile(f)">
+                  <q-tooltip>삭제</q-tooltip>
+                </q-btn>
               </div>
             </div>
           </div>
