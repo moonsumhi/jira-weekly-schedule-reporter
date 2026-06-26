@@ -157,8 +157,8 @@
 
         <q-card-section class="viewer-body q-pa-none">
           <iframe
-            v-if="viewerBlobUrl && viewerFile?.extension === 'pdf'"
-            :src="viewerBlobUrl"
+            v-if="viewerPdfUrl && viewerFile?.extension === 'pdf'"
+            :src="viewerPdfUrl"
             class="viewer-iframe"
           />
           <div v-else-if="viewerText" class="viewer-text q-pa-md">
@@ -367,13 +367,13 @@ async function onFolderSelected(e: Event) {
 // ── 파일 뷰어 ─────────────────────────────────────────────────────────────────
 const viewerOpen = ref(false)
 const viewerFile = ref<DocFile | null>(null)
-const viewerBlobUrl = ref<string | null>(null)
+const viewerPdfUrl = ref<string | null>(null)
 const viewerText = ref<string | null>(null)
 const viewerDownloadUrl = ref('')
 
 async function openFile(f: DocFile) {
   viewerFile.value = f
-  viewerBlobUrl.value = null
+  viewerPdfUrl.value = null
   viewerText.value = null
   viewerOpen.value = true
   viewerDownloadUrl.value = documentService.getDownloadUrl(f.id)
@@ -381,11 +381,7 @@ async function openFile(f: DocFile) {
   const ext = f.extension?.toLowerCase()
 
   if (ext === 'pdf') {
-    try {
-      viewerBlobUrl.value = await documentService.getFileBlob(f.id)
-    } catch {
-      $q.notify({ type: 'negative', message: 'PDF 로드 실패' })
-    }
+    viewerPdfUrl.value = documentService.getContentUrl(f.id, auth.token ?? '')
   } else {
     try {
       const meta = await documentService.getFileMeta(f.id)
@@ -396,10 +392,7 @@ async function openFile(f: DocFile) {
 
 function closeViewer() {
   viewerOpen.value = false
-  if (viewerBlobUrl.value) {
-    URL.revokeObjectURL(viewerBlobUrl.value)
-    viewerBlobUrl.value = null
-  }
+  viewerPdfUrl.value = null
 }
 
 // ── 수정 ─────────────────────────────────────────────────────────────────────

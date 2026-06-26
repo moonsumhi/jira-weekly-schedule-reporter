@@ -78,4 +78,9 @@ export const documentService = {
     const base = (api.defaults.baseURL ?? '/api').replace(/\/$/, '')
     return `${base}/documents/files/${fileId}/content`
   },
+
+  getContentUrl(fileId: string, token: string): string {
+    const base = (api.defaults.baseURL ?? '/api').replace(/\/$/, '')
+    return `${base}/documents/files/${fileId}/content?token=${encodeURIComponent(token)}`
+  },
 }

@@ -13,12 +13,13 @@ from pathlib import Path
 from typing import List, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
-from app.routers.auth import get_current_user
+from app.routers.auth import get_current_user, get_user_by_email
+from app.core.security import decode_token
 from app.utils.mongo import fmt_dt
 from app.utils.mongo import oid as parse_oid
 
@@ -279,10 +280,33 @@ async def get_file_meta(
     return _file_out(f, include_text=True)
 
 
+async def _get_user_any_auth(
+    request: Request,
+    token: Optional[str] = Query(None),
+) -> UserPublic:
+    """헤더 또는 쿼리 파라미터로 JWT 인증 (iframe PDF 뷰어용)."""
+    # 쿼리 파라미터 토큰 우선, 없으면 Authorization 헤더 사용
+    raw = token or request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    email = decode_token(raw) if raw else None
+    if not email:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+    user = await get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return UserPublic(
+        id=str(user["_id"]),
+        email=user["email"],
+        full_name=user.get("full_name"),
+        is_admin=bool(user.get("is_admin", False)),
+        permissions=user.get("permissions", []),
+        is_internal=False,
+    )
+
+
 @router.get("/files/{file_id}/content")
 async def get_file_content(
     file_id: str,
-    current_user: UserPublic = Depends(get_current_user),
+    current_user: UserPublic = Depends(_get_user_any_auth),
 ):
     db = _db()
     f = await db["document_files"].find_one({"_id": parse_oid(file_id)})
