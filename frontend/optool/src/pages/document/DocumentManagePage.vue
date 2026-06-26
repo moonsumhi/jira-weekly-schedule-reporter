@@ -229,7 +229,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'stores/auth'
-import { api } from 'src/boot/axios'
 import * as XLSX from 'xlsx'
 import { documentService, type DocFile, type DocFolder } from 'src/services/documents'
 
@@ -394,10 +393,11 @@ async function openFile(f: DocFile) {
     if (ext === 'pdf') {
       viewerPdfUrl.value = documentService.getContentUrl(f.id, auth.token ?? '')
     } else if (ext === 'xlsx' || ext === 'xls') {
-      const resp = await api.get<ArrayBuffer>(`/documents/files/${f.id}/content`, {
-        responseType: 'arraybuffer',
-      })
-      const wb = XLSX.read(resp.data, { type: 'array' })
+      const contentUrl = documentService.getContentUrl(f.id, auth.token ?? '')
+      const fetchResp = await fetch(contentUrl)
+      if (!fetchResp.ok) throw new Error(`HTTP ${fetchResp.status}`)
+      const arrayBuffer = await fetchResp.arrayBuffer()
+      const wb = XLSX.read(arrayBuffer, { type: 'array' })
       let html = ''
       for (const sheetName of wb.SheetNames) {
         const ws = wb.Sheets[sheetName]
