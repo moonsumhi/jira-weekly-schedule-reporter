@@ -60,7 +60,7 @@
 
         <!-- 좌측 폴더 트리 -->
         <div class="folder-panel">
-          <div class="folder-panel-title text-caption text-grey-6 q-mb-xs">폴더</div>
+          <div class="folder-panel-title text-caption text-grey-6 q-mb-xs">폴더 (로드: {{ folders.length }}, 트리: {{ flatFolderTree.length }})</div>
           <div
             class="folder-item"
             :class="{ 'folder-item--active': selectedFolderId === null }"
