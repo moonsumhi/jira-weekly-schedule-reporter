@@ -164,6 +164,9 @@
             :src="viewerPdfUrl"
             class="viewer-iframe"
           />
+          <div v-else-if="viewerImageUrl" class="viewer-image">
+            <img :src="viewerImageUrl" class="viewer-img" alt="" />
+          </div>
           <div v-else-if="viewerExcelHtml" class="viewer-excel q-pa-md" v-html="viewerExcelHtml" />
           <div v-else-if="viewerText" class="viewer-text q-pa-md">
             <pre class="viewer-pre">{{ viewerText }}</pre>
@@ -370,9 +373,12 @@ async function onFolderSelected(e: Event) {
 }
 
 // ── 파일 뷰어 ─────────────────────────────────────────────────────────────────
+const IMAGE_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'])
+
 const viewerOpen = ref(false)
 const viewerFile = ref<DocFile | null>(null)
 const viewerPdfUrl = ref<string | null>(null)
+const viewerImageUrl = ref<string | null>(null)
 const viewerExcelHtml = ref<string | null>(null)
 const viewerText = ref<string | null>(null)
 const viewerLoading = ref(false)
@@ -381,6 +387,7 @@ const viewerDownloadUrl = ref('')
 async function openFile(f: DocFile) {
   viewerFile.value = f
   viewerPdfUrl.value = null
+  viewerImageUrl.value = null
   viewerExcelHtml.value = null
   viewerText.value = null
   viewerOpen.value = true
@@ -392,6 +399,8 @@ async function openFile(f: DocFile) {
   try {
     if (ext === 'pdf') {
       viewerPdfUrl.value = documentService.getContentUrl(f.id, auth.token ?? '')
+    } else if (IMAGE_EXTS.has(ext ?? '')) {
+      viewerImageUrl.value = documentService.getContentUrl(f.id, auth.token ?? '')
     } else if (ext === 'xlsx' || ext === 'xls') {
       const contentUrl = documentService.getContentUrl(f.id, auth.token ?? '')
       const fetchResp = await fetch(contentUrl)
@@ -407,6 +416,7 @@ async function openFile(f: DocFile) {
       }
       viewerExcelHtml.value = html
     } else {
+      // HWP, DOCX, TXT, MD 등 텍스트 추출
       const meta = await documentService.getFileMeta(f.id)
       viewerText.value = meta.textContent ?? null
     }
@@ -420,6 +430,7 @@ async function openFile(f: DocFile) {
 function closeViewer() {
   viewerOpen.value = false
   viewerPdfUrl.value = null
+  viewerImageUrl.value = null
   viewerExcelHtml.value = null
 }
 
@@ -508,6 +519,7 @@ function fileIcon(ext: string): string {
     case 'hwp': return 'article'
     case 'docx': case 'doc': return 'description'
     case 'txt': case 'md': return 'text_snippet'
+    case 'png': case 'jpg': case 'jpeg': case 'gif': case 'webp': case 'bmp': return 'image'
     default: return 'insert_drive_file'
   }
 }
@@ -518,6 +530,7 @@ function fileColor(ext: string): string {
     case 'xlsx': case 'xls': return 'green-7'
     case 'hwp': return 'blue-7'
     case 'docx': case 'doc': return 'indigo-6'
+    case 'png': case 'jpg': case 'jpeg': case 'gif': case 'webp': case 'bmp': return 'teal-6'
     default: return 'grey-6'
   }
 }
@@ -723,6 +736,24 @@ onMounted(() => {
 }
 
 .viewer-text { height: 100%; overflow-y: auto; }
+
+/* 이미지 뷰어 */
+.viewer-image {
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 16px;
+  background: #f0f0f0;
+}
+
+.viewer-img {
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  border-radius: 4px;
+}
 
 .viewer-pre {
   white-space: pre-wrap;
