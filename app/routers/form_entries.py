@@ -943,6 +943,17 @@ async def _email_to_name_map() -> dict[str, str]:
     }
 
 
+def _strip_images(data: Any) -> Any:
+    """목록 조회 시 base64 이미지 값을 빈 문자열로 대체해 응답 크기를 줄입니다."""
+    if isinstance(data, str):
+        return "" if data.startswith("data:image/") else data
+    if isinstance(data, list):
+        return [_strip_images(v) for v in data]
+    if isinstance(data, dict):
+        return {k: _strip_images(v) for k, v in data.items()}
+    return data
+
+
 @router.get("", response_model=list[FormEntryOut])
 async def list_entries(
     template_id: str = Query(...),
@@ -965,8 +976,25 @@ async def list_entries(
     for doc in docs:
         doc["created_by"] = resolve(doc.get("created_by"))
         doc["updated_by"] = resolve(doc.get("updated_by"))
+        doc["data"] = _strip_images(doc.get("data", {}))
 
     return [_to_out(doc) for doc in docs]
+
+
+@router.get("/{entry_id}", response_model=FormEntryOut)
+async def get_entry(
+    entry_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    col = MongoClientManager.get_form_entries_collection()
+    doc = await col.find_one({"_id": parse_oid(entry_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    name_map = await _email_to_name_map()
+    doc["created_by"] = name_map.get(doc.get("created_by", ""), doc.get("created_by"))
+    doc["updated_by"] = name_map.get(doc.get("updated_by", ""), doc.get("updated_by"))
+    return _to_out(doc)
 
 
 @router.post("", response_model=FormEntryOut, status_code=status.HTTP_201_CREATED)

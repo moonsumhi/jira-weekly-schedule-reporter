@@ -68,7 +68,7 @@
             <template #body-cell-actions="props">
               <q-td :props="props">
                 <div class="row items-center justify-end q-gutter-xs">
-                  <q-btn dense outline icon="visibility" label="상세" @click="openDetail(props.row)" />
+                  <q-btn dense outline icon="visibility" label="상세" @click="void openDetail(props.row)" />
                   <q-btn
                     dense outline icon="edit" label="수정"
                     :disable="props.row.isDeleted"
@@ -432,7 +432,11 @@
           <q-btn flat dense icon="close" v-close-popup />
         </q-card-section>
         <q-separator />
-        <q-card-section class="col scroll" style="min-height: 0;">
+        <div v-if="detailLoading" class="text-center q-pa-xl">
+          <q-spinner size="40px" color="primary" /><br />
+          <span class="text-grey q-mt-sm">불러오는 중...</span>
+        </div>
+        <q-card-section v-else class="col scroll" style="min-height: 0;">
           <div v-if="detailRow">
             <div v-for="section in sections" :key="section.title" class="q-mb-md">
 
@@ -540,10 +544,10 @@
             </div>
           </div>
         </q-card-section>
-        <q-separator />
+        <q-separator v-if="!detailLoading" />
         <q-card-actions align="right">
           <q-btn flat label="닫기" v-close-popup />
-          <q-btn outline icon="edit" label="수정" @click="detailDialog = false; openEdit(detailRow!)" />
+          <q-btn v-if="!detailLoading" outline icon="edit" label="수정" @click="detailDialog = false; openEdit(detailRow!)" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -626,6 +630,7 @@ const selectedPanelImage = ref<string>('')  // 패널에서 선택된 이미지 
 // dialogs
 const formDialog = ref(false)
 const detailDialog = ref(false)
+const detailLoading = ref(false)
 const isEdit = ref(false)
 const detailRow = ref<FormEntry | null>(null)
 const actingId = ref<string | null>(null)
@@ -972,9 +977,18 @@ function openEdit(row: FormEntry) {
   formDialog.value = true
 }
 
-function openDetail(row: FormEntry) {
+async function openDetail(row: FormEntry) {
   detailRow.value = row
   detailDialog.value = true
+  detailLoading.value = true
+  try {
+    detailRow.value = await formEntryService.get(row.id)
+  } catch {
+    $q.notify({ type: 'negative', message: '상세 데이터를 불러오지 못했습니다.' })
+    detailDialog.value = false
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 function validate(): boolean {

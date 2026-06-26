@@ -548,6 +548,28 @@ async def delete_file(
     return {"ok": True}
 
 
+@router.patch("/folders/{folder_id}")
+async def update_folder(
+    folder_id: str,
+    name: str = Form(...),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    db = _db()
+    result = await db["document_folders"].update_one(
+        {"_id": parse_oid(folder_id)},
+        {"$set": {"name": name.strip()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="폴더를 찾을 수 없습니다.")
+    f = await db["document_folders"].find_one({"_id": parse_oid(folder_id)})
+    return {
+        "id": str(f["_id"]),
+        "name": f["name"],
+        "parent_id": f.get("parent_id"),
+        "created_at": fmt_dt(f.get("created_at")),
+    }
+
+
 @router.delete("/folders/{folder_id}")
 async def delete_folder(
     folder_id: str,
