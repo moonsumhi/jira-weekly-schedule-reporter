@@ -60,7 +60,7 @@
 
         <!-- 좌측 폴더 트리 -->
         <div class="folder-panel">
-          <div class="folder-panel-title text-caption text-grey-6 q-mb-xs">폴더 (로드: {{ folders.length }}, 트리: {{ flatFolderTree.length }})</div>
+          <div class="folder-panel-title text-caption text-grey-6 q-mb-xs">폴더</div>
           <div
             class="folder-item"
             :class="{ 'folder-item--active': selectedFolderId === null }"
@@ -239,7 +239,7 @@ const flatFolderTree = computed(() => {
   const result: Array<DocFolder & { depth: number }> = []
   function visit(parentId: string | null, depth: number) {
     folders.value
-      .filter((f) => f.parent_id === parentId)
+      .filter((f) => f.parentId === parentId)
       .forEach((f) => {
         result.push({ ...f, depth })
         visit(f.id, depth + 1)
@@ -250,7 +250,7 @@ const flatFolderTree = computed(() => {
 })
 
 const childFolders = computed(() =>
-  folders.value.filter((f) => f.parent_id === selectedFolderId.value)
+  folders.value.filter((f) => f.parentId === selectedFolderId.value)
 )
 
 const breadcrumb = computed(() => {
@@ -260,7 +260,7 @@ const breadcrumb = computed(() => {
     const f = folders.value.find((x) => x.id === id)
     if (!f) break
     crumbs.unshift(f)
-    id = f.parent_id
+    id = f.parentId
   }
   return crumbs
 })
@@ -389,7 +389,7 @@ async function openFile(f: DocFile) {
   } else {
     try {
       const meta = await documentService.getFileMeta(f.id)
-      viewerText.value = meta.text_content ?? null
+      viewerText.value = meta.textContent ?? null
     } catch { /* 미리보기 없음 */ }
   }
 }
@@ -416,7 +416,7 @@ const folderOptions = computed(() =>
 function openEdit(f: DocFile) {
   editTarget.value = f
   editName.value = f.name
-  editFolderId.value = f.folder_id ?? null
+  editFolderId.value = f.folderId ?? null
   editDialog.value = true
 }
 
@@ -432,7 +432,7 @@ async function doEdit() {
     editDialog.value = false
     // 뷰어에 열려있으면 이름 갱신
     if (viewerFile.value?.id === editTarget.value.id) {
-      viewerFile.value = { ...viewerFile.value, name: editName.value.trim(), folder_id: editFolderId.value }
+      viewerFile.value = { ...viewerFile.value, name: editName.value.trim(), folderId: editFolderId.value }
     }
     await loadFolders()
     await loadFiles()

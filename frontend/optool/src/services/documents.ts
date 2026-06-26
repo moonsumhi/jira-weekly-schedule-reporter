@@ -3,21 +3,21 @@ import { api } from 'src/boot/axios'
 export interface DocFolder {
   id: string
   name: string
-  parent_id: string | null
-  created_at: string | null
+  parentId: string | null
+  createdAt: string | null
 }
 
 export interface DocFile {
   id: string
   name: string
-  folder_id: string | null
+  folderId: string | null
   extension: string
-  mime_type: string
+  mimeType: string
   size: number
-  created_at: string | null
-  created_by: string | null
+  createdAt: string | null
+  createdBy: string | null
   snippet?: string
-  text_content?: string
+  textContent?: string
 }
 
 export const documentService = {
