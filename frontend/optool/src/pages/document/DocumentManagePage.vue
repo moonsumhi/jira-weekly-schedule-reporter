@@ -350,7 +350,7 @@ async function onFolderSelected(e: Event) {
     // 업로드된 최상위 폴더로 자동 이동
     const topFolder = paths[0]?.split('/')[0]
     if (topFolder) {
-      const found = folders.value.find((f) => f.name === topFolder && f.parent_id === null)
+      const found = folders.value.find((f) => f.name === topFolder && f.parentId === null)
       if (found) {
         selectedFolderId.value = found.id
       }
