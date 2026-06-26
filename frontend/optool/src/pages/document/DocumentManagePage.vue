@@ -128,6 +128,7 @@
               <div class="file-card-name">{{ f.name }}</div>
               <div class="file-card-meta text-grey-6">{{ formatSize(f.size) }}</div>
               <div class="file-card-actions">
+                <q-btn flat dense round icon="upload" color="orange-7" size="xs" title="파일 교체" @click.stop="triggerReplaceFor(f)" />
                 <q-btn flat dense round icon="edit" color="grey-7" size="xs" @click.stop="openEdit(f)" />
                 <q-btn v-if="isAdmin" flat dense round icon="delete" color="negative" size="xs" @click.stop="confirmDeleteFile(f)" />
               </div>
@@ -152,6 +153,8 @@
             title="다운로드"
           />
           <q-btn flat dense round icon="edit" color="grey-7" title="수정" @click="openEdit(viewerFile!)" />
+          <q-btn flat dense round icon="upload" color="orange-7" title="파일 교체" :loading="replacing" @click="triggerReplace" />
+          <input ref="replaceInput" type="file" style="display:none" @change="(e) => { void onReplaceSelected(e) }" />
           <q-btn flat dense round icon="close" @click="closeViewer" />
         </q-card-section>
 
@@ -435,6 +438,46 @@ function closeViewer() {
   viewerPdfUrl.value = null
   viewerImageUrl.value = null
   viewerExcelHtml.value = null
+}
+
+// ── 파일 교체 ─────────────────────────────────────────────────────────────────
+const replaceInput = ref<HTMLInputElement | null>(null)
+const replaceTargetId = ref<string | null>(null)
+const replacing = ref(false)
+
+function triggerReplace() {
+  if (!viewerFile.value) return
+  replaceTargetId.value = viewerFile.value.id
+  replaceInput.value?.click()
+}
+
+function triggerReplaceFor(f: DocFile) {
+  replaceTargetId.value = f.id
+  replaceInput.value?.click()
+}
+
+async function onReplaceSelected(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !replaceTargetId.value) return
+
+  replacing.value = true
+  try {
+    const updated = await documentService.replaceFile(replaceTargetId.value, file)
+    $q.notify({ type: 'positive', message: `"${updated.name}" 교체 완료` })
+    await loadFiles()
+    // 뷰어가 열려있으면 새 파일로 다시 열기
+    if (viewerOpen.value && viewerFile.value?.id === replaceTargetId.value) {
+      closeViewer()
+      await openFile(updated)
+    }
+  } catch {
+    $q.notify({ type: 'negative', message: '파일 교체에 실패했습니다.' })
+  } finally {
+    replacing.value = false
+    replaceTargetId.value = null
+    input.value = ''
+  }
 }
 
 // ── 수정 ─────────────────────────────────────────────────────────────────────
