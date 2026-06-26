@@ -401,6 +401,7 @@ async function openFile(f: DocFile) {
       let html = ''
       for (const sheetName of wb.SheetNames) {
         const ws = wb.Sheets[sheetName]
+        if (!ws) continue
         html += `<div class="excel-sheet-name">${sheetName}</div>`
         html += XLSX.utils.sheet_to_html(ws, { id: `sheet-${sheetName}` })
       }
