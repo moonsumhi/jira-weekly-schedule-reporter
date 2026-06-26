@@ -209,6 +209,28 @@ async def upload_files(
     return {"uploaded": len(uploaded), "ids": uploaded}
 
 
+@router.post("/folders")
+async def create_folder(
+    name: str = Form(...),
+    parent_id: Optional[str] = Form(None),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    db = _db()
+    doc = {
+        "name": name.strip(),
+        "parent_id": parent_id or None,
+        "created_at": _now(),
+        "created_by": current_user.email,
+    }
+    result = await db["document_folders"].insert_one(doc)
+    return {
+        "id": str(result.inserted_id),
+        "name": doc["name"],
+        "parent_id": doc["parent_id"],
+        "created_at": fmt_dt(doc["created_at"]),
+    }
+
+
 @router.get("/folders")
 async def list_folders(current_user: UserPublic = Depends(get_current_user)):
     db = _db()

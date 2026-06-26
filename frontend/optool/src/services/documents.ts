@@ -21,6 +21,14 @@ export interface DocFile {
 }
 
 export const documentService = {
+  async createFolder(name: string, parentId?: string | null): Promise<DocFolder> {
+    const formData = new FormData()
+    formData.append('name', name)
+    if (parentId) formData.append('parent_id', parentId)
+    const { data } = await api.post<DocFolder>('/documents/folders', formData)
+    return data
+  },
+
   async getFolders(): Promise<DocFolder[]> {
     const { data } = await api.get<DocFolder[]>('/documents/folders')
     return data

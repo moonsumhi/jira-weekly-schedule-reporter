@@ -13,6 +13,10 @@
         <template #prepend><q-icon name="search" /></template>
       </q-input>
       <q-btn
+        unelevated color="secondary" icon="create_new_folder" label="폴더 추가"
+        @click="openCreateFolder"
+      />
+      <q-btn
         unelevated color="primary" icon="upload_file" label="폴더 업로드"
         :loading="uploading"
         @click="triggerUpload"
@@ -248,6 +252,37 @@
       </q-card>
     </q-dialog>
 
+    <!-- 폴더 추가 다이얼로그 -->
+    <q-dialog v-model="createFolderDialog">
+      <q-card style="min-width:360px">
+        <q-card-section>
+          <div class="text-h6">폴더 추가</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none q-gutter-sm">
+          <q-input
+            v-model="newFolderName"
+            label="폴더명"
+            dense outlined autofocus
+            :rules="[(v) => !!v || '폴더명을 입력하세요.']"
+            @keyup.enter="void doCreateFolder()"
+          />
+          <q-select
+            v-model="newFolderParentId"
+            :options="[{ label: '루트 (최상위)', value: null }, ...folderOptions]"
+            label="상위 폴더"
+            dense outlined
+            emit-value
+            map-options
+            :display-value="newFolderParentId ? folderOptions.find(o => o.value === newFolderParentId)?.label : '루트 (최상위)'"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="취소" @click="createFolderDialog = false" />
+          <q-btn unelevated color="secondary" label="추가" :loading="creatingFolder" @click="void doCreateFolder()" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
   </q-page>
 </template>
 
@@ -306,6 +341,33 @@ async function loadFolders() {
   try {
     folders.value = await documentService.getFolders()
   } catch { /* ignore */ }
+}
+
+// ── 폴더 추가 ─────────────────────────────────────────────────────────────────
+const createFolderDialog = ref(false)
+const newFolderName = ref('')
+const newFolderParentId = ref<string | null>(null)
+const creatingFolder = ref(false)
+
+function openCreateFolder() {
+  newFolderName.value = ''
+  newFolderParentId.value = selectedFolderId.value
+  createFolderDialog.value = true
+}
+
+async function doCreateFolder() {
+  if (!newFolderName.value.trim()) return
+  creatingFolder.value = true
+  try {
+    const folder = await documentService.createFolder(newFolderName.value.trim(), newFolderParentId.value)
+    folders.value.push(folder)
+    $q.notify({ type: 'positive', message: '폴더가 생성되었습니다.' })
+    createFolderDialog.value = false
+  } catch {
+    $q.notify({ type: 'negative', message: '폴더 생성에 실패했습니다.' })
+  } finally {
+    creatingFolder.value = false
+  }
 }
 
 // ── 파일 목록 ────────────────────────────────────────────────────────────────
