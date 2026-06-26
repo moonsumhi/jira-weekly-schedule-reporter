@@ -117,6 +117,14 @@
                 ], menu)"
               />
 
+              <!-- 문서 관리 -->
+              <EssentialLink
+                v-else-if="menu.slug === 'document' && hasPerm('document_manage')"
+                :title="menu.title"
+                :icon="menu.icon"
+                link="/documents"
+              />
+
               <!-- Admin -->
               <EssentialLink
                 v-else-if="menu.slug === 'admin' && auth.me?.isAdmin"
@@ -349,9 +357,10 @@ const sortedVisibleMenus = computed(() =>
 function applySubOrder<T extends { link: string }>(items: T[], menu: { subOrder?: string[] | null }): T[] {
   if (!menu.subOrder || menu.subOrder.length === 0) return items
   const orderMap = new Map(menu.subOrder.map((link, i) => [link, i]))
-  return [...items]
-    .filter((item) => orderMap.has(item.link))
+  const ordered = items.filter((item) => orderMap.has(item.link))
     .sort((a, b) => (orderMap.get(a.link) ?? Infinity) - (orderMap.get(b.link) ?? Infinity))
+  const unordered = items.filter((item) => !orderMap.has(item.link))
+  return [...ordered, ...unordered]
 }
 
 function boardChildrenOf(menuId: string) {
