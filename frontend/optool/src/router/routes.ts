@@ -149,6 +149,16 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'isms-p',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: ':folderName',
+            component: () => import('pages/document/IsmsDocPage.vue')
+          }
+        ]
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requiresAdmin: true },
         children: [

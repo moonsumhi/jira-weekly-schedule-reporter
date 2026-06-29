@@ -125,6 +125,16 @@
                 link="/documents"
               />
 
+              <!-- ISMS-P -->
+              <EssentialLink
+                v-else-if="menu.slug === 'isms-p'"
+                :title="menu.title"
+                :icon="menu.icon"
+                :children="[
+                  { title: '단계별 산출물', icon: 'fa-solid fa-folder-open', link: '/isms-p/01. ISMS-P_단계별산출물' },
+                ]"
+              />
+
               <!-- Admin -->
               <EssentialLink
                 v-else-if="menu.slug === 'admin' && auth.me?.isAdmin"

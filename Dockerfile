@@ -10,6 +10,9 @@ RUN apt-get update \
     libxml2-utils \
     nodejs \
     npm \
+    libreoffice-writer \
+    libreoffice-calc \
+    fonts-noto-cjk \
  && rm -rf /var/lib/apt/lists/* \
  && printf '#!/bin/sh\ncat\n' > /usr/bin/xmllint \
  && chmod +x /usr/bin/xmllint

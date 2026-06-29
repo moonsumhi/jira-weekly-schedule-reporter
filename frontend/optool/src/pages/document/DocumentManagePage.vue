@@ -64,8 +64,8 @@
     <template v-else>
       <div class="doc-layout">
 
-        <!-- 좌측 폴더 트리 -->
-        <div class="folder-panel">
+        <!-- 좌측 폴더 트리 (scoped 모드에서는 숨김) -->
+        <div v-if="!isScopedMode" class="folder-panel">
           <div class="folder-panel-title text-caption text-grey-6 q-mb-xs">폴더</div>
           <div
             class="folder-item"
@@ -105,14 +105,20 @@
         <div class="file-panel">
           <!-- 경로 브레드크럼 -->
           <div v-if="breadcrumb.length" class="file-breadcrumb q-mb-sm">
-            <span class="breadcrumb-item cursor-pointer" @click="selectFolder(null)">루트</span>
-            <span v-for="b in breadcrumb" :key="b.id">
+            <!-- scoped 모드: 루트 대신 scope 폴더명 표시, 루트로 이동 불가 -->
+            <span v-if="isScopedMode" class="breadcrumb-item cursor-pointer" @click="selectFolder(scopeRootId)">{{ activeScopeFolder }}</span>
+            <span v-else class="breadcrumb-item cursor-pointer" @click="selectFolder(null)">루트</span>
+            <span v-for="b in scopedBreadcrumb" :key="b.id">
               <q-icon name="chevron_right" size="14px" class="q-mx-xs text-grey-5" />
               <span class="breadcrumb-item cursor-pointer" @click="selectFolder(b.id)">{{ b.name }}</span>
             </span>
           </div>
 
-          <div v-if="filesLoading" class="text-center q-pa-xl text-grey">불러오는 중...</div>
+          <div v-if="isScopedMode && !scopeRootId" class="text-center q-pa-xl text-grey-5">
+            <q-icon name="folder_off" size="48px" /><br />
+            <div class="q-mt-sm">폴더 <strong>{{ activeScopeFolder }}</strong>를 먼저 만들거나 업로드해주세요.</div>
+          </div>
+          <div v-else-if="filesLoading" class="text-center q-pa-xl text-grey">불러오는 중...</div>
           <div v-else-if="childFolders.length === 0 && currentFiles.length === 0" class="text-center q-pa-xl text-grey-5">
             <q-icon name="folder_open" size="48px" /><br />파일이 없습니다.
           </div>
@@ -146,6 +152,7 @@
               @click="void openFile(f)"
             >
               <q-icon :name="fileIcon(f.extension)" size="36px" :color="fileColor(f.extension)" />
+              <q-badge v-if="f.convertedFrom === 'hwp'" color="orange-3" text-color="orange-9" label="변환됨" class="q-mt-xs" style="font-size:9px" />
               <div class="file-card-name">
                 {{ f.name }}
                 <q-tooltip anchor="top middle" self="bottom middle" :delay="400" max-width="320px">
@@ -178,41 +185,109 @@
         <q-card-section class="viewer-header row items-center">
           <q-icon :name="fileIcon(viewerFile?.extension ?? '')" size="20px" :color="fileColor(viewerFile?.extension ?? '')" class="q-mr-sm" />
           <span class="text-h6 ellipsis">{{ viewerFile?.name }}</span>
+          <q-chip v-if="viewerFile?.convertedFrom === 'hwp'" dense color="orange-2" text-color="orange-9" icon="swap_horiz" class="q-ml-sm" style="font-size:11px">
+            HWP에서 변환됨
+          </q-chip>
           <q-space />
-          <q-btn flat dense round icon="download" color="primary" @click="downloadFile">
-            <q-tooltip>다운로드</q-tooltip>
-          </q-btn>
-          <q-btn flat dense round icon="edit" color="grey-7" @click="openEdit(viewerFile!)">
-            <q-tooltip>파일명 수정</q-tooltip>
-          </q-btn>
-          <q-btn flat dense round icon="upload" color="orange-7" :loading="replacing" @click="triggerReplace">
-            <q-tooltip>파일 교체</q-tooltip>
-          </q-btn>
+          <!-- 편집 모드일 때 -->
+          <template v-if="editMode">
+            <q-btn flat dense round icon="save" color="positive" :loading="contentSaving" @click="void saveEdit()">
+              <q-tooltip>저장</q-tooltip>
+            </q-btn>
+            <q-btn flat dense round icon="cancel" color="grey-7" @click="cancelEdit">
+              <q-tooltip>취소</q-tooltip>
+            </q-btn>
+          </template>
+          <!-- 일반 모드 -->
+          <template v-else>
+            <q-btn v-if="isHwpFile" flat dense round icon="swap_horiz" color="orange-7" :loading="converting" @click="void convertHwpToDocx()">
+              <q-tooltip>DOCX로 변환</q-tooltip>
+            </q-btn>
+            <q-btn v-if="canEdit" flat dense round icon="draw" color="teal" :loading="editLoading" @click="void enterEditMode()">
+              <q-tooltip>편집</q-tooltip>
+            </q-btn>
+            <q-btn flat dense round icon="download" color="primary" @click="downloadFile">
+              <q-tooltip>다운로드</q-tooltip>
+            </q-btn>
+            <q-btn flat dense round icon="edit" color="grey-7" @click="openEdit(viewerFile!)">
+              <q-tooltip>파일명 수정</q-tooltip>
+            </q-btn>
+            <q-btn flat dense round icon="upload" color="orange-7" :loading="replacing" @click="triggerReplace">
+              <q-tooltip>파일 교체</q-tooltip>
+            </q-btn>
+          </template>
           <input ref="replaceInput" type="file" style="display:none" @change="(e) => { void onReplaceSelected(e) }" />
           <q-btn flat dense round icon="close" @click="closeViewer" />
         </q-card-section>
 
         <q-card-section class="viewer-body q-pa-none">
-          <div v-if="viewerLoading" class="text-center q-pa-xl text-grey">
-            <q-spinner size="40px" color="primary" /><br />불러오는 중...
+          <!-- 편집 모드 로딩 -->
+          <div v-if="editLoading" class="text-center q-pa-xl text-grey">
+            <q-spinner size="40px" color="teal" /><br />편집기 로딩 중...
           </div>
-          <iframe
-            v-else-if="viewerPdfUrl"
-            :src="viewerPdfUrl"
-            class="viewer-iframe"
-          />
-          <div v-else-if="viewerImageUrl" class="viewer-image">
-            <img :src="viewerImageUrl" class="viewer-img" alt="" />
+
+          <!-- 텍스트 편집기 (txt/md/csv) -->
+          <div v-else-if="editMode && isTextFile" class="viewer-editor-wrap">
+            <textarea v-model="editorText" class="text-editor" spellcheck="false" />
           </div>
-          <div v-else-if="viewerExcelHtml" class="viewer-excel q-pa-md" v-html="viewerExcelHtml" />
-          <div v-else-if="viewerText" class="viewer-text q-pa-md">
-            <pre class="viewer-pre">{{ viewerText }}</pre>
+
+          <!-- DOCX 편집기 -->
+          <div v-else-if="editMode && isDocxFile" class="viewer-editor-wrap">
+            <div class="editor-toolbar">
+              <q-btn flat dense size="sm" label="B" @click="execCmd('bold')" style="font-weight:bold" />
+              <q-btn flat dense size="sm" label="I" @click="execCmd('italic')" style="font-style:italic" />
+              <q-btn flat dense size="sm" label="U" @click="execCmd('underline')" style="text-decoration:underline" />
+              <q-separator vertical class="q-mx-xs" />
+              <q-btn flat dense size="sm" icon="format_list_bulleted" @click="execCmd('insertUnorderedList')" />
+              <q-btn flat dense size="sm" icon="format_list_numbered" @click="execCmd('insertOrderedList')" />
+              <q-separator vertical class="q-mx-xs" />
+              <q-btn flat dense size="sm" icon="format_align_left" @click="execCmd('justifyLeft')" />
+              <q-btn flat dense size="sm" icon="format_align_center" @click="execCmd('justifyCenter')" />
+              <q-btn flat dense size="sm" icon="format_align_right" @click="execCmd('justifyRight')" />
+            </div>
+            <div ref="editorRef" contenteditable="true" class="html-editor" />
           </div>
-          <div v-else-if="!viewerLoading" class="text-center q-pa-xl text-grey">
-            <q-icon name="insert_drive_file" size="64px" color="grey-4" /><br />
-            미리보기를 지원하지 않는 파일입니다.<br />
-            다운로드 버튼을 눌러 파일을 확인하세요.
+
+          <!-- Excel 편집기 -->
+          <div v-else-if="editMode && isXlsxFile" class="viewer-editor-wrap">
+            <div class="xlsx-editor-wrap">
+              <table class="xlsx-editor-table">
+                <tbody>
+                  <tr v-for="(row, ri) in xlsxEditData" :key="ri">
+                    <td class="xlsx-row-num">{{ ri + 1 }}</td>
+                    <td v-for="ci in xlsxMaxCols" :key="ci" class="xlsx-cell-td">
+                      <input
+                        :value="row[ci - 1] ?? ''"
+                        class="xlsx-cell-input"
+                        @input="(e) => { if (!xlsxEditData[ri]) xlsxEditData[ri] = []; xlsxEditData[ri][ci - 1] = (e.target as HTMLInputElement).value }"
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <q-btn flat dense icon="add" label="행 추가" size="sm" class="q-mt-sm" @click="xlsxEditData.push(Array(xlsxMaxCols).fill(''))" />
+            </div>
           </div>
+
+          <!-- 미리보기 모드 (기존) -->
+          <template v-else>
+            <div v-if="viewerLoading" class="text-center q-pa-xl text-grey">
+              <q-spinner size="40px" color="primary" /><br />불러오는 중...
+            </div>
+            <iframe v-else-if="viewerPdfUrl" :src="viewerPdfUrl" class="viewer-iframe" />
+            <div v-else-if="viewerImageUrl" class="viewer-image">
+              <img :src="viewerImageUrl" class="viewer-img" alt="" />
+            </div>
+            <div v-else-if="viewerExcelHtml" class="viewer-excel q-pa-md" v-html="viewerExcelHtml" />
+            <div v-else-if="viewerText" class="viewer-text q-pa-md">
+              <pre class="viewer-pre">{{ viewerText }}</pre>
+            </div>
+            <div v-else-if="!viewerLoading" class="text-center q-pa-xl text-grey">
+              <q-icon name="insert_drive_file" size="64px" color="grey-4" /><br />
+              미리보기를 지원하지 않는 파일입니다.<br />
+              다운로드 버튼을 눌러 파일을 확인하세요.
+            </div>
+          </template>
         </q-card-section>
       </q-card>
     </q-dialog>
@@ -319,14 +394,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'stores/auth'
 import * as XLSX from 'xlsx'
 import { documentService, type DocFile, type DocFolder } from 'src/services/documents'
 
+const props = defineProps<{ scopeFolder?: string }>()
+
 const $q = useQuasar()
 const auth = useAuthStore()
+const route = useRoute()
 const isAdmin = computed(() => !!auth.me?.isAdmin)
 
 // ── 폴더 트리 ────────────────────────────────────────────────────────────────
@@ -361,6 +440,12 @@ const breadcrumb = computed(() => {
     id = f.parentId
   }
   return crumbs
+})
+
+// scoped 모드: scope root 폴더 아래의 경로만 표시
+const scopedBreadcrumb = computed(() => {
+  if (!isScopedMode.value || !scopeRootId.value) return breadcrumb.value
+  return breadcrumb.value.filter(b => b.id !== scopeRootId.value)
 })
 
 
@@ -591,6 +676,133 @@ function closeViewer() {
   viewerPdfUrl.value = null
   viewerImageUrl.value = null
   viewerExcelHtml.value = null
+  editMode.value = false
+}
+
+// ── 편집 모드 ─────────────────────────────────────────────────────────────────
+const TEXT_EXTS = new Set(['txt', 'md', 'csv'])
+const DOCX_EXTS = new Set(['docx'])
+const XLSX_EDIT_EXTS = new Set(['xlsx', 'xls'])
+
+const editMode = ref(false)
+const editLoading = ref(false)
+const contentSaving = ref(false)
+const editorText = ref('')
+const editorHtml = ref('')
+const editorRef = ref<HTMLDivElement | null>(null)
+const xlsxEditData = ref<string[][]>([])
+const xlsxSheetName = ref('Sheet1')
+const converting = ref(false)
+
+const isTextFile = computed(() => TEXT_EXTS.has(viewerFile.value?.extension?.toLowerCase() ?? ''))
+const isDocxFile = computed(() => DOCX_EXTS.has(viewerFile.value?.extension?.toLowerCase() ?? ''))
+const isXlsxFile = computed(() => XLSX_EDIT_EXTS.has(viewerFile.value?.extension?.toLowerCase() ?? ''))
+const isHwpFile = computed(() => viewerFile.value?.extension?.toLowerCase() === 'hwp')
+const canEdit = computed(() => isTextFile.value || isDocxFile.value || isXlsxFile.value)
+
+const xlsxMaxCols = computed(() =>
+  xlsxEditData.value.reduce((m, r) => Math.max(m, r.length), 1)
+)
+
+watch([editMode, isDocxFile], async ([mode, isDocx]) => {
+  if (mode && isDocx) {
+    await nextTick()
+    if (editorRef.value) editorRef.value.innerHTML = editorHtml.value
+  }
+})
+
+async function enterEditMode() {
+  if (!viewerFile.value) return
+  editLoading.value = true
+  try {
+    const ext = viewerFile.value.extension?.toLowerCase() ?? ''
+    if (TEXT_EXTS.has(ext) || DOCX_EXTS.has(ext)) {
+      const res = await documentService.getEditContent(viewerFile.value.id)
+      if (res.contentType === 'text') {
+        editorText.value = res.content
+      } else {
+        editorHtml.value = res.content
+      }
+    } else if (XLSX_EDIT_EXTS.has(ext)) {
+      const url = documentService.getContentUrl(viewerFile.value.id, auth.token ?? '')
+      const resp = await fetch(url)
+      const buf = await resp.arrayBuffer()
+      const wb = XLSX.read(buf, { type: 'array' })
+      const sn = wb.SheetNames[0] ?? 'Sheet1'
+      xlsxSheetName.value = sn
+      const ws = wb.Sheets[sn]
+      xlsxEditData.value = ws ? XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: '' }) : [['']]
+    }
+    editMode.value = true
+  } catch (err) {
+    $q.notify({ type: 'negative', message: `편집 데이터 로드 실패: ${String(err)}` })
+  } finally {
+    editLoading.value = false
+  }
+}
+
+function cancelEdit() {
+  editMode.value = false
+}
+
+async function saveEdit() {
+  if (!viewerFile.value) return
+  contentSaving.value = true
+  try {
+    const ext = viewerFile.value.extension?.toLowerCase() ?? ''
+    if (TEXT_EXTS.has(ext)) {
+      await documentService.saveEditContent(viewerFile.value.id, 'text', editorText.value)
+      viewerText.value = editorText.value
+    } else if (DOCX_EXTS.has(ext)) {
+      const html = editorRef.value?.innerHTML ?? editorHtml.value
+      await documentService.saveEditContent(viewerFile.value.id, 'html', html)
+    } else if (XLSX_EDIT_EXTS.has(ext)) {
+      const wb = XLSX.utils.book_new()
+      const ws = XLSX.utils.aoa_to_sheet(xlsxEditData.value)
+      XLSX.utils.book_append_sheet(wb, ws, xlsxSheetName.value)
+      const buffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const file = new File([blob], viewerFile.value.name)
+      const updated = await documentService.replaceFile(viewerFile.value.id, file)
+      viewerFile.value = updated
+      // 미리보기 갱신
+      const wb2 = XLSX.read(buffer, { type: 'array' })
+      let html = ''
+      for (const sn of wb2.SheetNames) {
+        const ws2 = wb2.Sheets[sn]
+        if (!ws2) continue
+        html += `<div class="excel-sheet-name">${sn}</div>`
+        html += XLSX.utils.sheet_to_html(ws2, { id: `sheet-${sn}` })
+      }
+      viewerExcelHtml.value = html
+    }
+    $q.notify({ type: 'positive', message: '저장되었습니다.' })
+    editMode.value = false
+  } catch (err) {
+    $q.notify({ type: 'negative', message: `저장 실패: ${String(err)}` })
+  } finally {
+    contentSaving.value = false
+  }
+}
+
+function execCmd(cmd: string) {
+  document.execCommand(cmd, false)
+  editorRef.value?.focus()
+}
+
+async function convertHwpToDocx() {
+  if (!viewerFile.value) return
+  converting.value = true
+  try {
+    const newFile = await documentService.convertToDocx(viewerFile.value.id)
+    currentFiles.value.unshift(newFile)
+    $q.notify({ type: 'positive', message: 'DOCX로 변환되었습니다.' })
+    await openFile(newFile)
+  } catch (err) {
+    $q.notify({ type: 'negative', message: `변환 실패: ${String(err)}` })
+  } finally {
+    converting.value = false
+  }
 }
 
 // ── 파일 교체 ─────────────────────────────────────────────────────────────────
@@ -740,8 +952,25 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-onMounted(() => {
-  void loadFolders()
+// scopeFolder prop 또는 ?folder= 쿼리로 특정 폴더 자동 선택
+const activeScopeFolder = computed(() => props.scopeFolder ?? (route.query['folder'] as string | undefined))
+
+// scoped 모드: 좌측 폴더 트리 숨김, 해당 폴더 하위만 표시
+const isScopedMode = computed(() => !!activeScopeFolder.value)
+const scopeRootId = ref<string | null>(null)
+
+
+onMounted(async () => {
+  await loadFolders()
+  const name = activeScopeFolder.value
+  if (name) {
+    const match = folders.value.find((f) => f.name === name)
+    if (match) {
+      scopeRootId.value = match.id
+      selectFolder(match.id)
+      return
+    }
+  }
   void loadFiles()
 })
 </script>
@@ -962,6 +1191,93 @@ onMounted(() => {
   font-family: 'Noto Sans KR', sans-serif;
   color: #263238;
   margin: 0;
+}
+
+/* ── 편집기 ── */
+.viewer-editor-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.text-editor {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: 'Noto Sans KR', monospace;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #263238;
+  background: #fafafa;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.html-editor {
+  flex: 1;
+  padding: 20px 32px;
+  overflow-y: auto;
+  outline: none;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  line-height: 1.9;
+  color: #263238;
+  background: #fff;
+}
+.html-editor:focus { background: #fefefe; }
+
+.xlsx-editor-wrap {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.xlsx-editor-table {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.xlsx-row-num {
+  padding: 2px 8px;
+  color: #999;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  text-align: center;
+  font-size: 11px;
+  user-select: none;
+  min-width: 32px;
+}
+
+.xlsx-cell-td {
+  border: 1px solid #ddd;
+  padding: 0;
+}
+
+.xlsx-cell-input {
+  width: 120px;
+  min-width: 80px;
+  padding: 4px 6px;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  font-family: inherit;
+  background: transparent;
+}
+.xlsx-cell-input:focus {
+  background: #e8f0fe;
 }
 
 /* 엑셀 뷰어 */
