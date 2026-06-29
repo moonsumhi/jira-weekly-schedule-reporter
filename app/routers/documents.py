@@ -140,10 +140,31 @@ def _file_out(f: dict, include_text: bool = False) -> dict:
         "size": f.get("size", 0),
         "created_at": fmt_dt(f.get("created_at")),
         "created_by": f.get("created_by"),
+        "converted_from": f.get("converted_from"),
     }
     if include_text:
         out["text_content"] = f.get("text_content", "")
     return out
+
+
+def _lo_convert(src: Path, target_format: str, out_dir: Path) -> Path:
+    """LibreOffice headless로 파일 변환. 변환된 파일 경로 반환."""
+    lo_home = Path(tempfile.mkdtemp(prefix="lo_home_"))
+    try:
+        result = subprocess.run(
+            ["libreoffice", "--headless", "--convert-to", target_format,
+             "--outdir", str(out_dir), str(src)],
+            capture_output=True, text=True, timeout=120,
+            env={**os.environ, "HOME": str(lo_home)},
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr or result.stdout)
+    finally:
+        shutil.rmtree(lo_home, ignore_errors=True)
+    out_file = out_dir / f"{src.stem}.{target_format}"
+    if not out_file.exists():
+        raise RuntimeError(f"변환된 파일을 찾을 수 없습니다: {out_file}")
+    return out_file
 
 
 def _snippet(text: str, q: str, context: int = 120) -> str:
@@ -568,6 +589,110 @@ async def update_folder(
         "parent_id": f.get("parent_id"),
         "created_at": fmt_dt(f.get("created_at")),
     }
+
+
+@router.post("/files/{file_id}/convert-to-docx")
+async def convert_to_docx(
+    file_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """HWP 파일을 DOCX로 변환하여 같은 폴더에 새 파일로 저장합니다."""
+    db = _db()
+    f = await db["document_files"].find_one({"_id": parse_oid(file_id)})
+    if not f:
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+    if f.get("extension", "").lower() != "hwp":
+        raise HTTPException(status_code=400, detail="HWP 파일만 변환할 수 있습니다.")
+
+    src = Path(f["file_path"])
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out = _lo_convert(src, "docx", Path(tmpdir))
+        content = out.read_bytes()
+
+    new_name = Path(f["name"]).stem + ".docx"
+    file_uuid = str(uuid.uuid4())
+    dest = UPLOAD_DIR / f"{file_uuid}.docx"
+    dest.write_bytes(content)
+    text = _extract_text(content, ".docx")
+
+    doc = {
+        "name": new_name,
+        "folder_id": f.get("folder_id"),
+        "extension": "docx",
+        "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "file_path": str(dest),
+        "text_content": text,
+        "size": len(content),
+        "is_deleted": False,
+        "converted_from": "hwp",
+        "created_at": _now(),
+        "created_by": current_user.email,
+    }
+    result = await db["document_files"].insert_one(doc)
+    doc["_id"] = result.inserted_id
+    return _file_out(doc)
+
+
+@router.get("/files/{file_id}/edit-content")
+async def get_edit_content(
+    file_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """편집용 콘텐츠 반환 — txt/md/csv: text, docx: HTML"""
+    db = _db()
+    f = await db["document_files"].find_one({"_id": parse_oid(file_id)})
+    if not f:
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+
+    ext = f.get("extension", "").lower()
+    src = Path(f["file_path"])
+
+    if ext in ("txt", "md", "csv"):
+        text = src.read_text(encoding="utf-8", errors="replace")
+        return {"content_type": "text", "content": text}
+    elif ext == "docx":
+        import mammoth
+        with open(src, "rb") as fp:
+            result = mammoth.convert_to_html(fp)
+        return {"content_type": "html", "content": result.value}
+    else:
+        raise HTTPException(status_code=400, detail="편집을 지원하지 않는 파일 형식입니다.")
+
+
+@router.put("/files/{file_id}/edit-content")
+async def save_edit_content(
+    file_id: str,
+    content_type: str = Form(...),
+    content: str = Form(...),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """편집 내용 저장 — text: 직접 저장, html: LibreOffice로 DOCX 변환 후 저장"""
+    db = _db()
+    f = await db["document_files"].find_one({"_id": parse_oid(file_id)})
+    if not f:
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+
+    file_path = Path(f["file_path"])
+
+    if content_type == "text":
+        file_path.write_text(content, encoding="utf-8")
+        new_text = content
+    elif content_type == "html":
+        with tempfile.TemporaryDirectory() as tmpdir:
+            html_file = Path(tmpdir) / "content.html"
+            html_file.write_text(f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>", encoding="utf-8")
+            docx_file = _lo_convert(html_file, "docx", Path(tmpdir))
+            file_path.write_bytes(docx_file.read_bytes())
+        new_text = _extract_text(file_path.read_bytes(), ".docx")
+    else:
+        raise HTTPException(status_code=400, detail="알 수 없는 content_type입니다.")
+
+    await db["document_files"].update_one(
+        {"_id": parse_oid(file_id)},
+        {"$set": {"text_content": new_text, "size": file_path.stat().st_size}},
+    )
+    updated = await db["document_files"].find_one({"_id": parse_oid(file_id)})
+    return _file_out(updated)
 
 
 @router.delete("/folders/{folder_id}")

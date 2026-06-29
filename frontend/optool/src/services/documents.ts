@@ -18,6 +18,7 @@ export interface DocFile {
   createdBy: string | null
   snippet?: string
   textContent?: string
+  convertedFrom?: string | null
 }
 
 export const documentService = {
@@ -109,5 +110,23 @@ export const documentService = {
   getHwpPreviewUrl(fileId: string, token: string): string {
     const base = (api.defaults.baseURL ?? '/api').replace(/\/$/, '')
     return `${base}/documents/files/${fileId}/hwp-preview?token=${encodeURIComponent(token)}`
+  },
+
+  async convertToDocx(fileId: string): Promise<DocFile> {
+    const { data } = await api.post<DocFile>(`/documents/files/${fileId}/convert-to-docx`)
+    return data
+  },
+
+  async getEditContent(fileId: string): Promise<{ contentType: string; content: string }> {
+    const { data } = await api.get<{ content_type: string; content: string }>(`/documents/files/${fileId}/edit-content`)
+    return { contentType: data.content_type, content: data.content }
+  },
+
+  async saveEditContent(fileId: string, contentType: string, content: string): Promise<DocFile> {
+    const formData = new FormData()
+    formData.append('content_type', contentType)
+    formData.append('content', content)
+    const { data } = await api.put<DocFile>(`/documents/files/${fileId}/edit-content`, formData)
+    return data
   },
 }
