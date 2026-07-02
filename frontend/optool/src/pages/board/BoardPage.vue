@@ -71,6 +71,7 @@ import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { boardService, type PostOut } from 'src/services/boards'
 import { useAuthStore } from 'stores/auth'
+import { formatKst } from 'src/utils/time/kst'
 
 const route = useRoute()
 const $q = useQuasar()
@@ -96,10 +97,7 @@ const columns = [
 
 function formatDate(dt: string | null | undefined) {
   if (!dt) return ''
-  return new Date(dt).toLocaleString('ko-KR', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  })
+  return formatKst(dt)
 }
 
 function canEdit(row: PostOut) {
