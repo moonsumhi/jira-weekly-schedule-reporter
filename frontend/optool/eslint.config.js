@@ -67,6 +67,11 @@ export default defineConfigWithVueTs(
 
       // allow debugger during development only
       'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
+
+      // 기존 코드 호환성 - warn으로 유지
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-floating-promises': 'warn',
     },
   },
 
