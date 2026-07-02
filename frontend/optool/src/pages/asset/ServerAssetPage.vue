@@ -186,6 +186,16 @@
                 <q-badge v-else color="grey" outline>확인 불가</q-badge>
               </template>
 
+              <!-- EOL status badge -->
+              <template v-else-if="colKey(props.col) === EOL_STATUS_KEY">
+                <template v-if="props.row.fields?.['운영체제']">
+                  <q-badge :color="getField(props.row, EOL_STATUS_KEY) ? eolStatusColor(getField(props.row, EOL_STATUS_KEY)) : 'grey'" outline>
+                    {{ getField(props.row, EOL_STATUS_KEY) ? eolStatusLabel(getField(props.row, EOL_STATUS_KEY)) : '확인 불가' }}
+                  </q-badge>
+                </template>
+                <q-badge v-else color="grey" outline>확인 불가</q-badge>
+              </template>
+
               <!-- EOS date + soon warning -->
               <template v-else-if="colKey(props.col) === EOS_DATE_KEY">
                 <span>{{ getField(props.row, EOS_DATE_KEY) || '확인 불가' }}</span>
@@ -232,7 +242,7 @@
 
               <!-- Normal dynamic field -->
               <template v-else>
-                <span>{{ displayValue(getField(props.row, colKey(props.col))) }}</span>
+                <span>{{ formatCell(props.col, props.value) }}</span>
               </template>
             </q-td>
           </template>
@@ -542,6 +552,18 @@
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
             </div>
           </template>
+          <div v-if="createFields[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
+               :class="createFields[EOL_STATUS_KEY] === 'O' ? 'eos-banner--eos' : 'eos-banner--active'">
+            <span class="eos-item"><span class="eos-item-label">EoL 여부</span><strong>{{ eolStatusLabel(createFields[EOL_STATUS_KEY]) }}</strong></span>
+            <span class="eos-sep">·</span>
+            <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createFields[EOL_DATE_KEY] || '확인 불가' }}</strong></span>
+          </div>
+          <div class="row q-col-gutter-x-md q-mt-sm">
+            <div class="col-6 form-field">
+              <div class="field-label">EoL 종료 일자 직접 입력</div>
+              <q-input v-model="createFields[EOL_DATE_KEY]" type="text" borderless dense class="field-input" placeholder="YYYY-MM" />
+            </div>
+          </div>
         </q-card-section>
 
         <!-- 도입 정보 섹션 -->
@@ -563,6 +585,10 @@
               <div class="field-label">제품명(모델명)</div>
               <q-input v-model="createFields['제품명']" borderless dense class="field-input" />
             </div>
+            <div class="col-12 form-field">
+              <div class="field-label">사양</div>
+              <q-input v-model="createFields['사양']" borderless dense class="field-input" placeholder="예: G5217 3GHz 8C*2 RAM128GB 960GB" />
+            </div>
             <div class="col-6 form-field">
               <div class="field-label">도입사업</div>
               <q-input v-model="createFields['도입사업']" borderless dense class="field-input" />
@@ -570,6 +596,10 @@
             <div class="col-6 form-field">
               <div class="field-label">납품회사</div>
               <q-input v-model="createFields['납품회사']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">담당자</div>
+              <q-input v-model="createFields['담당자']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">도입가격</div>
@@ -589,17 +619,51 @@
           </div>
           <div class="section-divider" />
           <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
-            <div v-if="activeCreateCategory === '서버' || !activeCreateCategory" class="col-4 form-field">
-              <div class="field-label">VADA 설치여부</div>
+            <div class="col-4 form-field">
+              <div class="field-label">ISMS-P 대상 여부</div>
               <q-select
-                v-model="createFields[VADA_KEY]"
-                :options="vadaOptions"
+                v-model="createFields[ISMS_P_KEY]"
+                :options="ismsPOptions"
                 borderless dense emit-value map-options
                 clearable
                 class="field-input"
               />
             </div>
             <div class="col form-field">
+              <div class="field-label">ISMS-P 비고</div>
+              <q-input v-model="createFields['ISMS-P비고']" borderless dense class="field-input" />
+            </div>
+            <template v-if="activeCreateCategory === '서버' || !activeCreateCategory">
+              <div class="col-4 form-field">
+                <div class="field-label">VADA 설치여부</div>
+                <q-select
+                  v-model="createFields[VADA_KEY]"
+                  :options="vadaOptions"
+                  borderless dense emit-value map-options
+                  clearable
+                  class="field-input"
+                />
+              </div>
+              <div class="col form-field">
+                <div class="field-label">VADA 비고</div>
+                <q-input v-model="createFields['VADA비고']" borderless dense class="field-input" />
+              </div>
+              <div class="col-4 form-field">
+                <div class="field-label">백신 여부</div>
+                <q-select
+                  v-model="createFields[ANTIVIRUS_KEY]"
+                  :options="antivirusOptions"
+                  borderless dense emit-value map-options
+                  clearable
+                  class="field-input"
+                />
+              </div>
+              <div class="col form-field">
+                <div class="field-label">백신 비고</div>
+                <q-input v-model="createFields['백신비고']" borderless dense class="field-input" />
+              </div>
+            </template>
+            <div class="col-12 form-field">
               <div class="field-label">비고</div>
               <q-input v-model="createFields['비고']" borderless dense class="field-input" />
             </div>
@@ -700,6 +764,28 @@
               :options="vadaOptions"
               outlined dense emit-value map-options
               label="VADA 설치 여부"
+              class="q-mt-md"
+            />
+          </template>
+
+          <!-- 백신 여부 -->
+          <template v-else-if="editFieldKey === ANTIVIRUS_KEY">
+            <q-select
+              v-model="editFieldText"
+              :options="antivirusOptions"
+              outlined dense emit-value map-options
+              label="백신 여부"
+              class="q-mt-md"
+            />
+          </template>
+
+          <!-- ISMS-P 대상 여부 -->
+          <template v-else-if="editFieldKey === ISMS_P_KEY">
+            <q-select
+              v-model="editFieldText"
+              :options="ismsPOptions"
+              outlined dense emit-value map-options
+              label="ISMS-P 대상 여부"
               class="q-mt-md"
             />
           </template>
@@ -1024,7 +1110,12 @@
                   v-model="rowEditOsFamily"
                   :options="Object.keys(OS_TREE)"
                   dense borderless clearable class="field-input"
-                  @update:model-value="val => { rowEditValues['운영체제'] = val === '기타' ? '기타' : ''; rowEditMajor = ''; rowEditValues['version'] = '' }"
+                  @update:model-value="val => {
+                    if (val === '기타') { rowEditValues['운영체제'] = '기타'; rowEditMajor = ''; rowEditValues['version'] = ''; return }
+                    const curDist = rowEditValues['운영체제'] ?? ''
+                    if (!val || !osDistOptions(val).includes(curDist)) { rowEditValues['운영체제'] = ''; rowEditMajor = ''; rowEditValues['version'] = '' }
+                    else { rowEditMajor = detectOsMajor(curDist, rowEditValues['version'] ?? '') }
+                  }"
                 />
               </div>
               <div class="col-3 form-field">
@@ -1078,6 +1169,18 @@
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
             </div>
           </template>
+          <div v-if="rowEditValues[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
+               :class="rowEditValues[EOL_STATUS_KEY] === 'O' ? 'eos-banner--eos' : 'eos-banner--active'">
+            <span class="eos-item"><span class="eos-item-label">EoL 여부</span><strong>{{ eolStatusLabel(rowEditValues[EOL_STATUS_KEY]) }}</strong></span>
+            <span class="eos-sep">·</span>
+            <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ rowEditValues[EOL_DATE_KEY] || '확인 불가' }}</strong></span>
+          </div>
+          <div class="row q-col-gutter-x-md q-mt-sm">
+            <div class="col-6 form-field">
+              <div class="field-label">EoL 종료 일자 직접 입력</div>
+              <q-input v-model="rowEditValues[EOL_DATE_KEY]" type="text" borderless dense class="field-input" placeholder="YYYY-MM" />
+            </div>
+          </div>
         </q-card-section>
 
         <!-- 도입 정보 섹션 -->
@@ -1099,6 +1202,10 @@
               <div class="field-label">제품명(모델명)</div>
               <q-input v-model="rowEditValues['제품명']" borderless dense class="field-input" />
             </div>
+            <div class="col-12 form-field">
+              <div class="field-label">사양</div>
+              <q-input v-model="rowEditValues['사양']" borderless dense class="field-input" placeholder="예: G5217 3GHz 8C*2 RAM128GB 960GB" />
+            </div>
             <div class="col-6 form-field">
               <div class="field-label">도입사업</div>
               <q-input v-model="rowEditValues['도입사업']" borderless dense class="field-input" />
@@ -1106,6 +1213,10 @@
             <div class="col-6 form-field">
               <div class="field-label">납품회사</div>
               <q-input v-model="rowEditValues['납품회사']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">담당자</div>
+              <q-input v-model="rowEditValues['담당자']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">도입가격</div>
@@ -1125,17 +1236,51 @@
           </div>
           <div class="section-divider" />
           <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
-            <div v-if="!rowEditTarget?.fields?.['자산유형'] || rowEditTarget?.fields?.['자산유형'] === '서버'" class="col-4 form-field">
-              <div class="field-label">VADA 설치여부</div>
+            <div class="col-4 form-field">
+              <div class="field-label">ISMS-P 대상 여부</div>
               <q-select
-                v-model="rowEditValues[VADA_KEY]"
-                :options="vadaOptions"
+                v-model="rowEditValues[ISMS_P_KEY]"
+                :options="ismsPOptions"
                 borderless dense emit-value map-options
                 clearable
                 class="field-input"
               />
             </div>
             <div class="col form-field">
+              <div class="field-label">ISMS-P 비고</div>
+              <q-input v-model="rowEditValues['ISMS-P비고']" borderless dense class="field-input" />
+            </div>
+            <template v-if="!rowEditTarget?.fields?.['자산유형'] || rowEditTarget?.fields?.['자산유형'] === '서버'">
+              <div class="col-4 form-field">
+                <div class="field-label">VADA 설치여부</div>
+                <q-select
+                  v-model="rowEditValues[VADA_KEY]"
+                  :options="vadaOptions"
+                  borderless dense emit-value map-options
+                  clearable
+                  class="field-input"
+                />
+              </div>
+              <div class="col form-field">
+                <div class="field-label">VADA 비고</div>
+                <q-input v-model="rowEditValues['VADA비고']" borderless dense class="field-input" />
+              </div>
+              <div class="col-4 form-field">
+                <div class="field-label">백신 여부</div>
+                <q-select
+                  v-model="rowEditValues[ANTIVIRUS_KEY]"
+                  :options="antivirusOptions"
+                  borderless dense emit-value map-options
+                  clearable
+                  class="field-input"
+                />
+              </div>
+              <div class="col form-field">
+                <div class="field-label">백신 비고</div>
+                <q-input v-model="rowEditValues['백신비고']" borderless dense class="field-input" />
+              </div>
+            </template>
+            <div class="col-12 form-field">
               <div class="field-label">비고</div>
               <q-input v-model="rowEditValues['비고']" borderless dense class="field-input" />
             </div>
@@ -1257,55 +1402,78 @@
               </div>
             </div>
             <!-- DBMS: DB 종류 + 버전 + EoS -->
-            <div v-else-if="detailTarget.fields?.['자산유형'] === 'DBMS'" class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
-              <div class="col-4 form-field">
-                <div class="field-label">DB 종류</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
-              </div>
-              <div class="col-4 form-field">
-                <div class="field-label">버전</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
-              </div>
-              <div class="col-4 form-field">
-                <div class="field-label">EoS 여부</div>
-                <div class="detail-value">
-                  <template v-if="detailTarget.fields?.['운영체제']">
-                    <q-badge :color="detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusColor(detailTarget.fields?.[EOS_STATUS_KEY]) : 'grey'" outline>
-                      {{ detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusLabel(detailTarget.fields?.[EOS_STATUS_KEY]) : '확인 불가' }}
-                    </q-badge>
-                  </template>
-                  <q-badge v-else color="grey" outline>확인 불가</q-badge>
+            <template v-else-if="detailTarget.fields?.['자산유형'] === 'DBMS'">
+              <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+                <div class="col-4 form-field">
+                  <div class="field-label">DB 종류</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                </div>
+                <div class="col form-field">
+                  <div class="field-label">버전</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
-              <div class="col-4 form-field">
-                <div class="field-label">EoS 종료 일자</div>
-                <div class="detail-value">{{ detailTarget.fields?.[EOS_DATE_KEY] || '확인 불가' }}</div>
+              <div class="row q-col-gutter-x-md q-mt-sm">
+                <div class="col-4 form-field">
+                  <div class="field-label">EoS 여부</div>
+                  <div class="detail-value">
+                    <template v-if="detailTarget.fields?.['운영체제']">
+                      <q-badge :color="detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusColor(detailTarget.fields?.[EOS_STATUS_KEY]) : 'grey'" outline>
+                        {{ detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusLabel(detailTarget.fields?.[EOS_STATUS_KEY]) : '확인 불가' }}
+                      </q-badge>
+                    </template>
+                    <q-badge v-else color="grey" outline>확인 불가</q-badge>
+                  </div>
+                </div>
+                <div class="col form-field">
+                  <div class="field-label">EoS 종료 일자</div>
+                  <div class="detail-value">{{ detailTarget.fields?.[EOS_DATE_KEY] || '확인 불가' }}</div>
+                </div>
               </div>
-            </div>
+            </template>
             <!-- 일반: OS + EoS 정보 -->
-            <div v-else class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
-              <div class="col-4 form-field">
-                <div class="field-label">배포판</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
-              </div>
-              <div class="col-4 form-field">
-                <div class="field-label">버전</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
-              </div>
-              <div class="col-4 form-field">
-                <div class="field-label">EoS 여부</div>
-                <div class="detail-value">
-                  <template v-if="detailTarget.fields?.['운영체제']">
-                    <q-badge :color="detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusColor(detailTarget.fields?.[EOS_STATUS_KEY]) : 'grey'" outline>
-                      {{ detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusLabel(detailTarget.fields?.[EOS_STATUS_KEY]) : '확인 불가' }}
-                    </q-badge>
-                  </template>
-                  <q-badge v-else color="grey" outline>확인 불가</q-badge>
+            <template v-else>
+              <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+                <div class="col-4 form-field">
+                  <div class="field-label">배포판</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                </div>
+                <div class="col form-field">
+                  <div class="field-label">버전</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
+              <div class="row q-col-gutter-x-md q-mt-sm">
+                <div class="col-4 form-field">
+                  <div class="field-label">EoS 여부</div>
+                  <div class="detail-value">
+                    <template v-if="detailTarget.fields?.['운영체제']">
+                      <q-badge :color="detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusColor(detailTarget.fields?.[EOS_STATUS_KEY]) : 'grey'" outline>
+                        {{ detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusLabel(detailTarget.fields?.[EOS_STATUS_KEY]) : '확인 불가' }}
+                      </q-badge>
+                    </template>
+                    <q-badge v-else color="grey" outline>확인 불가</q-badge>
+                  </div>
+                </div>
+                <div class="col form-field">
+                  <div class="field-label">EoS 종료 일자</div>
+                  <div class="detail-value">{{ detailTarget.fields?.[EOS_DATE_KEY] || '확인 불가' }}</div>
+                </div>
+              </div>
+            </template>
+            <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
               <div class="col-4 form-field">
-                <div class="field-label">EoS 종료 일자</div>
-                <div class="detail-value">{{ detailTarget.fields?.[EOS_DATE_KEY] || '확인 불가' }}</div>
+                <div class="field-label">EoL 여부</div>
+                <div class="detail-value">
+                  <q-badge v-if="detailTarget.fields?.[EOL_STATUS_KEY]" :color="eolStatusColor(detailTarget.fields?.[EOL_STATUS_KEY])" outline>
+                    {{ eolStatusLabel(detailTarget.fields?.[EOL_STATUS_KEY]) }}
+                  </q-badge>
+                  <span v-else>-</span>
+                </div>
+              </div>
+              <div class="col form-field">
+                <div class="field-label">EoL 종료 일자</div>
+                <div class="detail-value">{{ detailTarget.fields?.[EOL_DATE_KEY] || '-' }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1329,6 +1497,10 @@
                 <div class="field-label">제품명(모델명)</div>
                 <div class="detail-value">{{ displayValue(detailTarget.fields?.['제품명']) }}</div>
               </div>
+              <div class="col-12 form-field">
+                <div class="field-label">사양</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['사양']) }}</div>
+              </div>
               <div class="col-6 form-field">
                 <div class="field-label">도입사업</div>
                 <div class="detail-value">{{ displayValue(detailTarget.fields?.['도입사업']) }}</div>
@@ -1338,8 +1510,12 @@
                 <div class="detail-value">{{ displayValue(detailTarget.fields?.['납품회사']) }}</div>
               </div>
               <div class="col-6 form-field">
+                <div class="field-label">담당자</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['담당자']) }}</div>
+              </div>
+              <div class="col-6 form-field">
                 <div class="field-label">도입가격</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['도입가격']) }}</div>
+                <div class="detail-value">{{ displayPrice(detailTarget.fields?.['도입가격']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">도입일자(취득일자)</div>
@@ -1354,12 +1530,40 @@
               <span class="section-title">기타 정보</span>
             </div>
             <div class="section-divider" />
-            <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
-              <div v-if="!detailTarget.fields?.['자산유형'] || detailTarget.fields?.['자산유형'] === '서버'" class="col-4 form-field">
-                <div class="field-label">VADA 설치여부</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.[VADA_KEY]) }}</div>
+            <div class="row q-col-gutter-x-md q-mt-xs">
+              <div class="col-4 form-field">
+                <div class="field-label">ISMS-P 대상 여부</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.[ISMS_P_KEY]) }}</div>
               </div>
               <div class="col form-field">
+                <div class="field-label">ISMS-P 비고</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['ISMS-P비고']) }}</div>
+              </div>
+            </div>
+            <template v-if="!detailTarget.fields?.['자산유형'] || detailTarget.fields?.['자산유형'] === '서버'">
+              <div class="row q-col-gutter-x-md q-mt-sm">
+                <div class="col-4 form-field">
+                  <div class="field-label">백신 여부</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.[ANTIVIRUS_KEY]) }}</div>
+                </div>
+                <div class="col form-field">
+                  <div class="field-label">백신 비고</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['백신비고']) }}</div>
+                </div>
+              </div>
+              <div class="row q-col-gutter-x-md q-mt-sm">
+                <div class="col-4 form-field">
+                  <div class="field-label">VADA 설치여부</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.[VADA_KEY]) }}</div>
+                </div>
+                <div class="col form-field">
+                  <div class="field-label">VADA 비고</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['VADA비고']) }}</div>
+                </div>
+              </div>
+            </template>
+            <div class="row q-col-gutter-x-md q-mt-sm">
+              <div class="col-12 form-field">
                 <div class="field-label">비고</div>
                 <div class="detail-value">{{ displayValue(detailTarget.fields?.['비고']) }}</div>
               </div>
@@ -1856,21 +2060,46 @@ import { fetchEosMap } from 'src/services/eosData'
 import { OS_TREE } from 'src/constants/osVersions'
 import { DBMS_TREE } from 'src/constants/dbmsVersions'
 import {
-  detectOsFamily, osDistOptions, osMajorOptions, osMinorOptions, detectOsMajor,
+  detectOsFamily, resolveDistName, osDistOptions, osMajorOptions, osMinorOptions, detectOsMajor,
   getAutoEos, getNetworkEos,
 } from 'src/services/eosDetection'
 
 import { listServers, createServer, patchServer, deleteServer, restoreServer, getServerHistory } from 'src/services/assets'
+import { eolStatusColor, eolStatusLabel, getAutoEol } from 'src/services/eolData'
 
 const VADA_KEY = 'vada_installed' as const
+const ANTIVIRUS_KEY = 'antivirus_installed' as const
+const ISMS_P_KEY = 'isms_p_target' as const
 const TAGS_KEY = 'tags' as const
+const EOL_STATUS_KEY = 'eol_status' as const
+const EOL_DATE_KEY = 'eol_date' as const
 const vadaOptions = [
+  { label: 'O', value: 'O' },
+  { label: 'X', value: 'X' },
+]
+const antivirusOptions = [
+  { label: 'O', value: 'O' },
+  { label: 'X', value: 'X' },
+]
+const ismsPOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
 ]
 
 import { getErrorMessage } from 'src/utils/http/error'
 import { displayValue } from 'src/utils/format/value'
+
+function displayPrice(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '-'
+  const n = Number(v)
+  if (!isNaN(n)) return n.toLocaleString()
+  return String(v as string | number | boolean)
+}
+
+function formatCell(col: unknown, value: unknown): string {
+  const c = col as { format?: (v: unknown) => string }
+  return c.format ? c.format(value) : displayValue(value)
+}
 import { parseSmartValue } from 'src/utils/parse/smartValue'
 import { formatKst, isDateSoon } from 'src/utils/time/kst'
 import { eosStatusColor, eosStatusLabel, normalizeEosStatus } from 'src/utils/rules/eos'
@@ -1905,10 +2134,19 @@ const PREFERRED_FIELD_KEYS = [
   '위치',
   EOS_STATUS_KEY,
   EOS_DATE_KEY,
+  EOL_STATUS_KEY,
+  EOL_DATE_KEY,
+  ISMS_P_KEY,
+  'ISMS-P비고',
   VADA_KEY,
+  'VADA비고',
+  ANTIVIRUS_KEY,
+  '백신비고',
   '제품명',
+  '사양',
   '도입사업',
   '납품회사',
+  '담당자',
   '도입가격',
   '도입일자',
   '수령일',
@@ -1941,10 +2179,19 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   '위치': '위치',
   [EOS_STATUS_KEY]: 'EoS 여부',
   [EOS_DATE_KEY]: 'EoS 기간',
+  [EOL_STATUS_KEY]: 'EoL 여부',
+  [EOL_DATE_KEY]: 'EoL 종료 일자',
+  [ISMS_P_KEY]: 'ISMS-P 대상 여부',
+  'ISMS-P비고': 'ISMS-P 비고',
   [VADA_KEY]: 'VADA 설치여부',
+  'VADA비고': 'VADA 비고',
+  [ANTIVIRUS_KEY]: '백신 여부',
+  '백신비고': '백신 비고',
   '제품명': '제품명(모델명)',
+  '사양': '사양',
   '도입사업': '도입사업',
   '납품회사': '납품회사',
+  '담당자': '담당자',
   '도입가격': '도입가격',
   '도입일자': '도입일자(취득일자)',
   '수령일': '수령일',
@@ -2080,7 +2327,7 @@ function colKey(col: unknown): string {
 // 컬럼 표시 순서 — '__ip__'/'__name__'은 IP/HostName 고정 컬럼 위치 마커
 const COLUMN_DISPLAY_ORDER = [
   'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
-  EOS_STATUS_KEY, EOS_DATE_KEY, VADA_KEY, '제품명', '도입사업', '납품회사', '도입가격', '도입일자', '수령일', '변경일', '변경사항', TAGS_KEY, '비고',
+  EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', TAGS_KEY, '비고',
 ] as const
 
 // 컬럼 선택 다이얼로그
@@ -2094,7 +2341,7 @@ const COL_OPTIONS = [
 ]
 
 const CATEGORY_DEFAULT_COLS: Record<string, string[]> = {}
-const DEFAULT_COL_KEYS = ['__ip__', '__name__', EOS_STATUS_KEY]
+const DEFAULT_COL_KEYS = ['__ip__', '__name__', '자산번호', EOS_STATUS_KEY]
 
 function loadColKeys(cat: string): string[] {
   try {
@@ -2208,7 +2455,7 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
   const visSet = new Set(visibleColKeys.value)
 
   function makeFieldCol(k: string) {
-    return {
+    const base = {
       name: 'field',
       label: fieldLabel(k),
       field: (row: unknown) => {
@@ -2223,6 +2470,18 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
       sortable: true,
       fieldKey: k,
     }
+    if (k === '도입가격') {
+      return {
+        ...base,
+        format: (val: unknown): string => {
+          if (val === null || val === undefined || val === '') return '-'
+          const n = Number(val)
+          if (!isNaN(n)) return n.toLocaleString()
+          return String(val as string | number | boolean)
+        },
+      }
+    }
+    return base
   }
 
   const result: NonNullable<QTableProps['columns']> = []
@@ -2321,19 +2580,28 @@ async function load() {
     // DB에 eos_action_status가 없는 기존 레코드를 on-the-fly로 보완 (표시 전용, DB 미수정)
     await fetchEosMap()
     for (const row of rows.value) {
-      if (row.fields?.[EOS_STATUS_KEY]) continue
       const dist = (row.fields?.['운영체제'] as string) ?? ''
       if (!dist) continue
       const version = (row.fields?.['version'] as string) ?? ''
       const assetType = (row.fields?.['자산유형'] as string) || category.value || '서버'
       const series = Object.keys(DBMS_TREE[dist] ?? {}).find(s =>
         (DBMS_TREE[dist]?.[s] ?? []).includes(version)) ?? ''
-      const eos = getAutoEos(dist, version)
-        ?? (series ? getAutoEos(dist, series) : null)
-        ?? (['네트워크', '정보보호시스템'].includes(assetType) ? getNetworkEos(dist) : null)
-      if (!eos) continue
-      row.fields[EOS_STATUS_KEY] = eos.status
-      row.fields[EOS_DATE_KEY] = eos.date
+      if (!row.fields?.[EOS_STATUS_KEY]) {
+        const eos = getAutoEos(dist, version)
+          ?? (series ? getAutoEos(dist, series) : null)
+          ?? (['네트워크', '정보보호시스템'].includes(assetType) ? getNetworkEos(dist) : null)
+        if (eos) {
+          row.fields[EOS_STATUS_KEY] = eos.status
+          row.fields[EOS_DATE_KEY] = eos.date
+        }
+      }
+      if (!row.fields?.[EOL_STATUS_KEY]) {
+        const eol = getAutoEol(dist, version) ?? (series ? getAutoEol(dist, series) : null)
+        if (eol) {
+          row.fields[EOL_STATUS_KEY] = eol.status
+          row.fields[EOL_DATE_KEY] = eol.date
+        }
+      }
     }
   } catch (err: unknown) {
     $q.notify({ type: 'negative', message: getErrorMessage(err, '조회 실패') })
@@ -2421,8 +2689,8 @@ const createEosDateText = ref('')
 const createEosIsEos = ref(false)
 
 watch(
-  () => [createFields.value['운영체제'], createFields.value['version'], createDbSeries.value] as const,
-  async ([dist, version, series]) => {
+  () => [createFields.value['운영체제'], createFields.value['version'], createDbSeries.value, createOsMajor.value] as const,
+  async ([dist, version, series, major]) => {
     await fetchEosMap()
     createManualEosDate.value = ''
     const eos = getAutoEos(dist ?? '', version ?? '')
@@ -2441,6 +2709,16 @@ watch(
       createEosDateText.value = ''
       createEosIsEos.value = false
     }
+    const eol = getAutoEol(dist ?? '', version ?? '')
+      ?? (major ? getAutoEol(dist ?? '', major) : null)
+      ?? (series ? getAutoEol(dist ?? '', series) : null)
+    if (eol) {
+      createFields.value[EOL_STATUS_KEY] = eol.status
+      createFields.value[EOL_DATE_KEY] = eol.date
+    } else {
+      createFields.value[EOL_STATUS_KEY] = ''
+      createFields.value[EOL_DATE_KEY] = ''
+    }
   }
 )
 
@@ -2453,6 +2731,12 @@ watch(createManualEosDate, (date) => {
   createEosStatusText.value = eosStatusLabel(status)
   createEosDateText.value = date
   createEosIsEos.value = status === 'EOS'
+})
+
+watch(() => createFields.value[EOL_DATE_KEY], (date) => {
+  if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}$/.test(date)) return
+  const today = new Date().toISOString().slice(0, 7)
+  createFields.value[EOL_STATUS_KEY] = date <= today ? 'O' : 'X'
 })
 
 async function doCreate() {
@@ -2521,11 +2805,16 @@ async function doCreate() {
       if ((v ?? '').toString().trim()) fields[k] = parseSmartValue(v)
     }
     if (createTags.value.length) fields[TAGS_KEY] = createTags.value
-    // watch가 아직 실행되지 않았을 경우를 대비해 EoS 직접 계산
+    // watch가 아직 실행되지 않았을 경우를 대비해 EoS/EoL 직접 계산
     const eos = getAutoEos(createFields.value['운영체제'] ?? '', createFields.value['version'] ?? '')
     if (eos) {
       fields[EOS_STATUS_KEY] = eos.status
       fields[EOS_DATE_KEY] = eos.date
+    }
+    const eol = getAutoEol(createFields.value['운영체제'] ?? '', createFields.value['version'] ?? '')
+    if (eol) {
+      fields[EOL_STATUS_KEY] = eol.status
+      fields[EOL_DATE_KEY] = eol.date
     }
     // 자산유형을 초기 생성 시부터 전달 → 같은 IP·다른 자산유형 레코드 허용
     const assetNo = (createFields.value['자산번호'] ?? '').toString().trim() || null
@@ -2765,8 +3054,8 @@ const rowEditFields = computed(() => {
 // 편집 다이얼로그 템플릿에서 이미 하드코딩된 필드 키 목록
 const EDIT_DIALOG_COVERED_KEYS = new Set([
   '자산유형', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
-  '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, VADA_KEY,
-  '용도', '소속부서', '제품명', '도입사업', '납품회사', '도입가격', '도입일자',
+  '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고',
+  '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자',
   '비고', TAGS_KEY,
 ])
 
@@ -2792,12 +3081,14 @@ function openRowEdit(row: ServerAsset) {
   if (row.assetNo != null) vals['자산번호'] = row.assetNo
   rowEditValues.value = vals
   rowEditTags.value = Array.isArray(row.fields?.[TAGS_KEY]) ? [...(row.fields?.[TAGS_KEY] as string[])] : []
-  const detectedFamily = detectOsFamily(vals['운영체제'] ?? '')
-  rowEditOsFamily.value = detectedFamily || (vals['운영체제'] === '기타' ? '기타' : '')
-  if (rowEditOsFamily.value && !osDistOptions(rowEditOsFamily.value).includes(vals['운영체제'] ?? '')) {
+  const osDist = resolveDistName((vals['운영체제'] ?? '').trim())
+  if (osDist !== vals['운영체제']) vals['운영체제'] = osDist
+  const detectedFamily = detectOsFamily(osDist)
+  rowEditOsFamily.value = detectedFamily || (osDist === '기타' ? '기타' : '')
+  if (rowEditOsFamily.value && rowEditOsFamily.value !== '기타' && !osDistOptions(rowEditOsFamily.value).includes(osDist)) {
     rowEditOsFamily.value = ''
   }
-  rowEditMajor.value = rowEditOsFamily.value ? detectOsMajor(vals['운영체제'] ?? '', vals['version'] ?? '') : ''
+  rowEditMajor.value = rowEditOsFamily.value ? detectOsMajor(osDist, (vals['version'] ?? '').trim()) : ''
   const assetTypeVal = (row.fields?.['자산유형'] as string) || ''
   if (assetTypeVal === 'DBMS' && vals['운영체제']) {
     const dbKind = vals['운영체제'] ?? ''
@@ -2814,8 +3105,8 @@ function openRowEdit(row: ServerAsset) {
 }
 
 watch(
-  () => [rowEditValues.value['운영체제'], rowEditValues.value['version']] as const,
-  async ([dist, version]) => {
+  () => [rowEditValues.value['운영체제'], rowEditValues.value['version'], rowEditMajor.value] as const,
+  async ([dist, version, major]) => {
     await fetchEosMap()
     rowEditManualEosDate.value = ''
     const eos = getAutoEos(dist ?? '', version ?? '')
@@ -2827,6 +3118,15 @@ watch(
       rowEditValues.value[EOS_STATUS_KEY] = ''
       rowEditValues.value[EOS_DATE_KEY] = ''
     }
+    const eol = getAutoEol(dist ?? '', version ?? '')
+      ?? (major ? getAutoEol(dist ?? '', major) : null)
+    if (eol) {
+      rowEditValues.value[EOL_STATUS_KEY] = eol.status
+      rowEditValues.value[EOL_DATE_KEY] = eol.date
+    } else {
+      rowEditValues.value[EOL_STATUS_KEY] = ''
+      rowEditValues.value[EOL_DATE_KEY] = ''
+    }
   }
 )
 
@@ -2836,6 +3136,12 @@ watch(rowEditManualEosDate, (date) => {
   const status: EosActionStatus = date <= today ? 'EOS' : 'ACTIVE'
   rowEditValues.value[EOS_STATUS_KEY] = status
   rowEditValues.value[EOS_DATE_KEY] = date
+})
+
+watch(() => rowEditValues.value[EOL_DATE_KEY], (date) => {
+  if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}$/.test(date)) return
+  const today = new Date().toISOString().slice(0, 7)
+  rowEditValues.value[EOL_STATUS_KEY] = date <= today ? 'O' : 'X'
 })
 
 async function doRowEdit() {
@@ -2992,10 +3298,19 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
     { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
     { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
+    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
+    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
+    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
     { key: VADA_KEY,        label: 'VADA설치여부',                                                    sample: 'O' },
+    { key: 'VADA비고',      label: 'VADA비고',                                                        sample: '' },
+    { key: ANTIVIRUS_KEY,   label: '백신여부',                                                        sample: 'O' },
+    { key: '백신비고',       label: '백신비고',                                                        sample: '' },
     { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '사양',          label: '사양',                                                            sample: '' },
     { key: '도입사업',      label: '도입사업',                                                        sample: '' },
     { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '담당자',        label: '담당자',                                                          sample: '' },
     { key: '도입가격',      label: '도입가격',                                                        sample: '' },
     { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
     { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
@@ -3023,9 +3338,15 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
     { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
     { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
+    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
+    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
+    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
     { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '사양',          label: '사양',                                                            sample: '' },
     { key: '도입사업',      label: '도입사업',                                                        sample: '' },
     { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '담당자',        label: '담당자',                                                          sample: '' },
     { key: '도입가격',      label: '도입가격',                                                        sample: '' },
     { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
     { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
@@ -3054,9 +3375,15 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
     { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
     { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
+    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
+    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
+    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
     { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '사양',          label: '사양',                                                            sample: '' },
     { key: '도입사업',      label: '도입사업',                                                        sample: '' },
     { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '담당자',        label: '담당자',                                                          sample: '' },
     { key: '도입가격',      label: '도입가격',                                                        sample: '' },
     { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
     { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
@@ -3085,9 +3412,15 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
     { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
     { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
+    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
+    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
+    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
     { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '사양',          label: '사양',                                                            sample: '' },
     { key: '도입사업',      label: '도입사업',                                                        sample: '' },
     { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '담당자',        label: '담당자',                                                          sample: '' },
     { key: '도입가격',      label: '도입가격',                                                        sample: '' },
     { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
     { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
@@ -3116,9 +3449,15 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
     { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
     { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
+    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
+    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
+    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
+    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
     { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
+    { key: '사양',          label: '사양',                                                            sample: '' },
     { key: '도입사업',      label: '도입사업',                                                        sample: '' },
     { key: '납품회사',      label: '납품회사',                                                        sample: '' },
+    { key: '담당자',        label: '담당자',                                                          sample: '' },
     { key: '도입가격',      label: '도입가격',                                                        sample: '' },
     { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
     { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
@@ -3173,15 +3512,8 @@ function downloadTemplate() {
 }
 
 /** Import */
-const OS_NAME_ALIASES: Record<string, string> = {
-  'rocky': 'Rocky Linux',
-  'rhel': 'RHEL',
-  'centos': 'CentOS',
-  'ubuntu': 'Ubuntu',
-  'debian': 'Debian',
-}
 function normalizeOsName(v: string): string {
-  return OS_NAME_ALIASES[v.trim().toLowerCase()] ?? v
+  return resolveDistName(v.trim())
 }
 const importFileInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
@@ -3520,6 +3852,15 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       '배포판': '운영체제',
       'DB종류': '운영체제',
       'VADA설치여부': VADA_KEY,
+      '백신여부': ANTIVIRUS_KEY,
+      '백신 여부': ANTIVIRUS_KEY,
+      'ISMS-P대상여부': ISMS_P_KEY,
+      'ISMS-P 대상 여부': ISMS_P_KEY,
+      'ISMS-P비고': 'ISMS-P비고',
+      'VADA비고': 'VADA비고',
+      '백신비고': '백신비고',
+      'EoL여부': EOL_STATUS_KEY,
+      'EoL종료일자': EOL_DATE_KEY,
       'EoS여부': EOS_STATUS_KEY,
       'EoS종료일자': EOS_DATE_KEY,
       // 합성 라벨 (key / display 형식)
@@ -3541,7 +3882,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       ...Object.fromEntries(Object.entries(FIELD_LABEL_MAP).map(([k, v]) => [v, k])),
     }
     // 모든 알려진 필드키에 대해: 현재 카테고리 기준 fieldLabel() 결과 및 키 자체를 모두 매핑
-    const allKnownKeys = [...PREFERRED_FIELD_KEYS, '자산유형', TAGS_KEY, VADA_KEY, EOS_STATUS_KEY, EOS_DATE_KEY]
+    const allKnownKeys = [...PREFERRED_FIELD_KEYS, '자산유형', TAGS_KEY, VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', ISMS_P_KEY, 'ISMS-P비고', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY]
     for (const k of allKnownKeys) {
       const label = fieldLabel(k)
       if (!labelToKey[label]) labelToKey[label] = k

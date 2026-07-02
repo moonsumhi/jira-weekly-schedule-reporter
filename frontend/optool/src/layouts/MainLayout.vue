@@ -117,14 +117,6 @@
                 ], menu)"
               />
 
-              <!-- 문서 관리 -->
-              <EssentialLink
-                v-else-if="menu.slug === 'document' && hasPerm('document_manage')"
-                :title="menu.title"
-                :icon="menu.icon"
-                link="/documents"
-              />
-
               <!-- ISMS-P -->
               <EssentialLink
                 v-else-if="menu.slug === 'isms-p'"
@@ -356,6 +348,7 @@ const isPort9001 = window.location.port === '9001'
 const sortedVisibleMenus = computed(() =>
   sidebarMenus.value
     .filter((m) => m.isVisible)
+    .filter((m) => m.slug !== 'document')
     .filter((m) => m.slug !== 'admin' || !!auth.me?.isAdmin)
     .filter((m) => {
       if (isPort9001) return m.slug === 'jira' || m.slug === 'calendar' || m.title === '팀캘린더'

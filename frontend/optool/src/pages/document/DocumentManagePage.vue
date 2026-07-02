@@ -21,6 +21,11 @@
         :loading="uploading"
         @click="triggerUpload"
       />
+      <q-btn
+        unelevated color="primary" icon="insert_drive_file" label="파일 업로드"
+        :loading="uploading"
+        @click="triggerFileUpload"
+      />
       <input
         ref="uploadInput"
         type="file"
@@ -28,6 +33,13 @@
         multiple
         style="display:none"
         @change="(e) => { void onFolderSelected(e) }"
+      />
+      <input
+        ref="fileUploadInput"
+        type="file"
+        multiple
+        style="display:none"
+        @change="(e) => { void onFileSelected(e) }"
       />
     </div>
 
@@ -64,40 +76,72 @@
     <template v-else>
       <div class="doc-layout">
 
-        <!-- 좌측 폴더 트리 (scoped 모드에서는 숨김) -->
-        <div v-if="!isScopedMode" class="folder-panel">
-          <div class="folder-panel-title text-caption text-grey-6 q-mb-xs">폴더</div>
+        <!-- 좌측 폴더 트리 -->
+        <div class="folder-panel">
+          <div class="folder-panel-header">
+            <span class="folder-panel-title text-caption text-grey-6">폴더</span>
+            <q-btn flat dense round size="xs" icon="unfold_less" color="grey-5" @click="collapseAll">
+              <q-tooltip>모두 접기</q-tooltip>
+            </q-btn>
+            <q-btn flat dense round size="xs" icon="unfold_more" color="grey-5" @click="expandAll">
+              <q-tooltip>모두 펼치기</q-tooltip>
+            </q-btn>
+          </div>
+          <!-- non-scoped: 전체 루트 / scoped: 스코프 폴더 루트 -->
           <div
-            class="folder-item"
-            :class="{ 'folder-item--active': selectedFolderId === null }"
-            @click="selectFolder(null)"
+            class="folder-item folder-item--root"
+            :class="{ 'folder-item--active': isScopedMode ? selectedFolderId === scopeRootId : selectedFolderId === null }"
+            @click="isScopedMode ? selectFolder(scopeRootId) : selectFolder(null)"
           >
-            <q-icon name="home" size="16px" class="q-mr-xs" />
-            전체 (루트)
+            <q-icon name="home" size="16px" color="blue-grey-5" class="q-mr-xs" />
+            {{ isScopedMode ? (activeScopeFolder ?? '루트') : '전체 (루트)' }}
           </div>
           <div
-            v-for="f in flatFolderTree"
+            v-for="f in scopedFlatFolderTree"
             :key="f.id"
             class="folder-item"
             :class="{ 'folder-item--active': selectedFolderId === f.id }"
-            :style="{ paddingLeft: (8 + f.depth * 16) + 'px' }"
             @click="selectFolder(f.id)"
           >
-            <q-icon name="folder" size="15px" color="amber-7" class="q-mr-xs" />
-            <span class="folder-item-label">{{ f.name }}</span>
-            <q-btn
-              flat dense round icon="edit" color="grey-6" size="xs"
-              class="folder-del-btn"
-              @click.stop="openRenameFolder(f)"
-            >
-              <q-tooltip>이름 변경</q-tooltip>
-            </q-btn>
-            <q-btn
-              v-if="isAdmin"
-              flat dense round icon="delete" color="negative" size="xs"
-              class="folder-del-btn"
-              @click.stop="confirmDeleteFolder(f)"
+            <!-- 들여쓰기 선 -->
+            <span
+              v-for="d in f.depth"
+              :key="d"
+              class="tree-indent-line"
+              :class="{ 'tree-indent-line--last': d === f.depth }"
             />
+            <!-- 접기/펼치기 -->
+            <q-btn
+              v-if="hasFolderChildren(f.id)"
+              flat dense round size="xs"
+              :icon="collapsedFolders.has(f.id) ? 'chevron_right' : 'expand_more'"
+              color="grey-5"
+              class="tree-toggle-btn"
+              @click.stop="toggleCollapse(f.id)"
+            />
+            <span v-else class="tree-toggle-placeholder" />
+            <q-icon
+              :name="collapsedFolders.has(f.id) ? 'folder' : 'folder_open'"
+              size="15px"
+              :color="selectedFolderId === f.id ? 'amber-8' : 'amber-6'"
+              class="q-mr-xs"
+            />
+            <span class="folder-item-label">{{ f.name }}</span>
+            <span class="folder-item-actions">
+              <q-btn
+                flat dense round icon="edit" color="grey-5" size="xs"
+                @click.stop="openRenameFolder(f)"
+              >
+                <q-tooltip>이름 변경</q-tooltip>
+              </q-btn>
+              <q-btn
+                v-if="isAdmin"
+                flat dense round icon="delete" color="negative" size="xs"
+                @click.stop="confirmDeleteFolder(f)"
+              >
+                <q-tooltip>삭제</q-tooltip>
+              </q-btn>
+            </span>
           </div>
         </div>
 
@@ -220,6 +264,30 @@
           <q-btn flat dense round icon="close" @click="closeViewer" />
         </q-card-section>
 
+        <!-- HWP 편집 안내 배너 -->
+        <div v-if="isHwpFile && !editMode" class="hwp-edit-banner">
+          <q-icon name="info" size="16px" color="orange-7" class="q-mr-xs" />
+          HWP 파일은 직접 편집이 불가합니다.
+          상단의 <strong>DOCX 변환</strong> 버튼으로 변환 후 편집하세요.
+        </div>
+
+        <!-- 표 삽입 다이얼로그 -->
+        <q-dialog v-model="tableInsertDialog">
+          <q-card style="min-width:280px">
+            <q-card-section>
+              <div class="text-h6">표 삽입</div>
+            </q-card-section>
+            <q-card-section class="q-pt-none q-gutter-sm">
+              <q-input v-model.number="tableRows" type="number" label="행 수" dense outlined :min="1" :max="50" />
+              <q-input v-model.number="tableCols" type="number" label="열 수" dense outlined :min="1" :max="20" />
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="취소" @click="tableInsertDialog = false" />
+              <q-btn unelevated color="primary" label="삽입" @click="insertTable" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+
         <q-card-section class="viewer-body q-pa-none">
           <!-- 편집 모드 로딩 -->
           <div v-if="editLoading" class="text-center q-pa-xl text-grey">
@@ -244,6 +312,10 @@
               <q-btn flat dense size="sm" icon="format_align_left" @click="execCmd('justifyLeft')" />
               <q-btn flat dense size="sm" icon="format_align_center" @click="execCmd('justifyCenter')" />
               <q-btn flat dense size="sm" icon="format_align_right" @click="execCmd('justifyRight')" />
+              <q-separator vertical class="q-mx-xs" />
+              <q-btn flat dense size="sm" icon="table_chart" @click="openTableDialog">
+                <q-tooltip>표 삽입</q-tooltip>
+              </q-btn>
             </div>
             <div ref="editorRef" contenteditable="true" class="html-editor" />
           </div>
@@ -285,7 +357,8 @@
             <div v-else-if="!viewerLoading" class="text-center q-pa-xl text-grey">
               <q-icon name="insert_drive_file" size="64px" color="grey-4" /><br />
               미리보기를 지원하지 않는 파일입니다.<br />
-              다운로드 버튼을 눌러 파일을 확인하세요.
+              내용을 수정하려면 <strong>편집</strong> 버튼을 누르세요.<br />
+              <span class="text-caption text-grey-6">다운로드 후 확인도 가능합니다.</span>
             </div>
           </template>
         </q-card-section>
@@ -411,6 +484,26 @@ const isAdmin = computed(() => !!auth.me?.isAdmin)
 // ── 폴더 트리 ────────────────────────────────────────────────────────────────
 const folders = ref<DocFolder[]>([])
 const selectedFolderId = ref<string | null>(null)
+const collapsedFolders = ref<Set<string>>(new Set())
+
+function hasFolderChildren(folderId: string): boolean {
+  return folders.value.some((f) => f.parentId === folderId)
+}
+
+function toggleCollapse(folderId: string) {
+  const s = new Set(collapsedFolders.value)
+  if (s.has(folderId)) s.delete(folderId)
+  else s.add(folderId)
+  collapsedFolders.value = s
+}
+
+function collapseAll() {
+  collapsedFolders.value = new Set(folders.value.map((f) => f.id))
+}
+
+function expandAll() {
+  collapsedFolders.value = new Set()
+}
 
 const flatFolderTree = computed(() => {
   const result: Array<DocFolder & { depth: number }> = []
@@ -419,10 +512,26 @@ const flatFolderTree = computed(() => {
       .filter((f) => f.parentId === parentId)
       .forEach((f) => {
         result.push({ ...f, depth })
-        visit(f.id, depth + 1)
+        if (!collapsedFolders.value.has(f.id)) visit(f.id, depth + 1)
       })
   }
   visit(null, 0)
+  return result
+})
+
+// scoped 모드에서는 스코프 폴더 하위만 트리로 표시
+const scopedFlatFolderTree = computed(() => {
+  if (!isScopedMode.value || !scopeRootId.value) return flatFolderTree.value
+  const result: Array<DocFolder & { depth: number }> = []
+  function visit(parentId: string, depth: number) {
+    folders.value
+      .filter((f) => f.parentId === parentId)
+      .forEach((f) => {
+        result.push({ ...f, depth })
+        if (!collapsedFolders.value.has(f.id)) visit(f.id, depth + 1)
+      })
+  }
+  visit(scopeRootId.value, 0)
   return result
 })
 
@@ -538,17 +647,17 @@ async function loadFiles() {
 const searchQuery = ref('')
 const searchResults = ref<DocFile[]>([])
 const searchLoading = ref(false)
-const isSearching = computed(() => searchQuery.value.trim().length > 0)
+const isSearching = computed(() => (searchQuery.value ?? '').trim().length > 0)
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 function onSearch() {
   if (searchTimer) clearTimeout(searchTimer)
-  if (!searchQuery.value.trim()) return
+  if (!(searchQuery.value ?? '').trim()) return
   searchTimer = setTimeout(() => { void doSearch() }, 400)
 }
 
 async function doSearch() {
-  const q = searchQuery.value.trim()
+  const q = (searchQuery.value ?? '').trim()
   if (!q) return
   searchLoading.value = true
   try {
@@ -562,10 +671,15 @@ async function doSearch() {
 
 // ── 업로드 ────────────────────────────────────────────────────────────────────
 const uploadInput = ref<HTMLInputElement | null>(null)
+const fileUploadInput = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
 
 function triggerUpload() {
   uploadInput.value?.click()
+}
+
+function triggerFileUpload() {
+  fileUploadInput.value?.click()
 }
 
 async function onFolderSelected(e: Event) {
@@ -581,21 +695,57 @@ async function onFolderSelected(e: Event) {
 
   uploading.value = true
   try {
-    const result = await documentService.uploadFiles(files, paths)
+    // scoped 모드에서 스코프 폴더가 없으면 먼저 생성
+    if (isScopedMode.value && !scopeRootId.value && activeScopeFolder.value) {
+      await documentService.createFolder(activeScopeFolder.value, null)
+      await loadFolders()
+    }
+
+    // scoped 모드: 스코프 루트 하위에 업로드, non-scoped: 루트에 업로드
+    const result = await documentService.uploadFiles(files, paths, scopeRootId.value)
     $q.notify({ type: 'positive', message: `${result.uploaded}개 파일 업로드 완료` })
     await loadFolders()
 
-    // 업로드된 최상위 폴더로 자동 이동
-    const topFolder = paths[0]?.split('/')[0]
-    if (topFolder) {
-      const found = folders.value.find((f) => f.name === topFolder && f.parentId === null)
-      if (found) {
-        selectedFolderId.value = found.id
+    if (isScopedMode.value && scopeRootId.value) {
+      // scoped 모드: 업로드 후 스코프 루트로 이동
+      selectFolder(scopeRootId.value)
+    } else {
+      // non-scoped: 업로드된 최상위 폴더로 자동 이동
+      const topFolder = paths[0]?.split('/')[0]
+      if (topFolder) {
+        const found = folders.value.find((f) => f.name === topFolder && f.parentId === null)
+        if (found) selectedFolderId.value = found.id
       }
+      await loadFiles()
     }
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    const msg = detail ?? (status ? `업로드 실패 (${status})` : '업로드에 실패했습니다.')
+    $q.notify({ type: 'negative', message: msg })
+  } finally {
+    uploading.value = false
+    input.value = ''
+  }
+}
+
+async function onFileSelected(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+
+  const files = Array.from(input.files)
+  const paths = files.map((f) => f.name)
+
+  uploading.value = true
+  try {
+    const result = await documentService.uploadFiles(files, paths, selectedFolderId.value)
+    $q.notify({ type: 'positive', message: `${result.uploaded}개 파일 업로드 완료` })
     await loadFiles()
-  } catch {
-    $q.notify({ type: 'negative', message: '업로드에 실패했습니다.' })
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    const msg = detail ?? (status ? `업로드 실패 (${status})` : '업로드에 실패했습니다.')
+    $q.notify({ type: 'negative', message: msg })
   } finally {
     uploading.value = false
     input.value = ''
@@ -790,6 +940,46 @@ function execCmd(cmd: string) {
   editorRef.value?.focus()
 }
 
+// ── 표 삽입 ───────────────────────────────────────────────────────────────────
+const tableInsertDialog = ref(false)
+const tableRows = ref(3)
+const tableCols = ref(3)
+let savedTableRange: Range | null = null
+
+function openTableDialog() {
+  // 다이얼로그가 열리기 전에 editor selection 저장
+  const sel = window.getSelection()
+  if (sel && sel.rangeCount > 0) {
+    savedTableRange = sel.getRangeAt(0).cloneRange()
+  } else {
+    savedTableRange = null
+  }
+  tableInsertDialog.value = true
+}
+
+function insertTable() {
+  const rows = Math.max(1, Math.min(50, tableRows.value || 3))
+  const cols = Math.max(1, Math.min(20, tableCols.value || 3))
+  const cellStyle = 'border:1px solid #ccc;padding:6px 10px;min-width:60px;'
+  const headerCell = `<th style="${cellStyle}background:#f5f5f5;">&nbsp;</th>`
+  const bodyCell = `<td style="${cellStyle}">&nbsp;</td>`
+  const headerRow = `<tr>${headerCell.repeat(cols)}</tr>`
+  const bodyRow = `<tr>${bodyCell.repeat(cols)}</tr>`
+  const tableHtml = `<table style="border-collapse:collapse;width:100%;margin:8px 0"><thead>${headerRow}</thead><tbody>${bodyRow.repeat(rows - 1)}</tbody></table><p><br></p>`
+  tableInsertDialog.value = false
+  void nextTick(() => {
+    editorRef.value?.focus()
+    // 저장된 selection 복원
+    if (savedTableRange) {
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(savedTableRange)
+      savedTableRange = null
+    }
+    document.execCommand('insertHTML', false, tableHtml)
+  })
+}
+
 async function convertHwpToDocx() {
   if (!viewerFile.value) return
   converting.value = true
@@ -957,21 +1147,27 @@ const activeScopeFolder = computed(() => props.scopeFolder ?? (route.query['fold
 
 // scoped 모드: 좌측 폴더 트리 숨김, 해당 폴더 하위만 표시
 const isScopedMode = computed(() => !!activeScopeFolder.value)
-const scopeRootId = ref<string | null>(null)
+const scopeRootId = computed(() => {
+  const name = activeScopeFolder.value
+  if (!name) return null
+  return folders.value.find((f) => f.name === name)?.id ?? null
+})
 
+// scoped 모드에서 폴더가 새로 생성되면 자동으로 해당 폴더로 이동
+watch(scopeRootId, (newId, oldId) => {
+  if (newId && !oldId) {
+    selectFolder(newId)
+  }
+})
 
 onMounted(async () => {
   await loadFolders()
-  const name = activeScopeFolder.value
-  if (name) {
-    const match = folders.value.find((f) => f.name === name)
-    if (match) {
-      scopeRootId.value = match.id
-      selectFolder(match.id)
-      return
-    }
+  if (isScopedMode.value && scopeRootId.value) {
+    selectFolder(scopeRootId.value)
+  } else if (!isScopedMode.value) {
+    void loadFiles()
   }
-  void loadFiles()
+  // isScopedMode && !scopeRootId: 폴더 없음 → watcher가 업로드 후 자동 처리
 })
 </script>
 
@@ -998,32 +1194,110 @@ onMounted(async () => {
 .folder-panel {
   background: #fff;
   border-radius: 12px;
-  border: 1px solid #e8edf5;
-  padding: 12px 8px;
+  border: 1px solid #e0e7f0;
+  padding: 10px 6px 12px;
   min-height: 300px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.folder-panel-header {
+  display: flex;
+  align-items: center;
+  padding: 0 6px 6px;
+  border-bottom: 1px solid #f0f4f8;
+  margin-bottom: 6px;
+  gap: 2px;
 }
 
 .folder-panel-title {
-  padding: 0 8px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-weight: 600;
+  flex: 1;
 }
 
 .folder-item {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
+  padding: 5px 6px 5px 4px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
   color: #37474f;
-  transition: background 0.15s;
+  transition: background 0.12s;
   position: relative;
+  gap: 2px;
+  min-height: 30px;
+}
+.folder-item--root {
+  font-size: 13px;
+  font-weight: 500;
+  color: #455a64;
+  margin-bottom: 2px;
+}
+.folder-item:hover { background: #f0f5ff; }
+.folder-item--active {
+  background: #e3eaff;
+  color: #283593;
+  font-weight: 600;
+}
+.folder-item--active .q-icon { color: #f9a825 !important; }
+
+.folder-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.folder-item:hover { background: #f0f4ff; }
-.folder-item--active { background: #e8eeff; color: #1a237e; font-weight: 600; }
+.folder-item-actions {
+  display: none;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+.folder-item:hover .folder-item-actions { display: flex; }
+
+/* 트리 들여쓰기 선 */
+.tree-indent-line {
+  display: inline-block;
+  width: 14px;
+  flex-shrink: 0;
+  align-self: stretch;
+  position: relative;
+  margin-left: 7px;
+}
+/* 세로선: 아이템 패딩(5px)까지 위아래로 넘겨서 이음새 없이 연결 */
+.tree-indent-line::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -5px;
+  bottom: -5px;
+  border-left: 1px dashed #c8d4e4;
+}
+/* 가로선: 마지막 들여쓰기에만 */
+.tree-indent-line--last::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 14px;
+  border-top: 1px dashed #c8d4e4;
+}
+
+.tree-toggle-btn {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: #90a4ae;
+}
+.tree-toggle-placeholder {
+  display: inline-block;
+  width: 18px;
+  flex-shrink: 0;
+}
 
 /* 파일 패널 */
 .file-panel {
@@ -1143,6 +1417,17 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.hwp-edit-banner {
+  display: flex;
+  align-items: center;
+  background: #fff8e1;
+  border-bottom: 1px solid #ffe082;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: #5d4037;
+  flex-shrink: 0;
 }
 
 .viewer-header {

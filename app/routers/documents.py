@@ -5,6 +5,7 @@ import logging
 import mimetypes
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import uuid
@@ -102,14 +103,21 @@ def _extract_hwp(content: bytes) -> str:
 def _extract_docx(content: bytes) -> str:
     from docx import Document
     doc = Document(io.BytesIO(content))
-    return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+    parts = [p.text for p in doc.paragraphs if p.text.strip()]
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                if cell.text.strip():
+                    parts.append(cell.text)
+    return "\n".join(parts)
 
 
 # ── Folder helpers ─────────────────────────────────────────────────────────────
 
-async def _ensure_folder_path(db, path_parts: list, user_email: str) -> Optional[str]:
-    """Ensure folder hierarchy exists, return leaf folder id string."""
-    parent_id: Optional[str] = None
+async def _ensure_folder_path(db, path_parts: list, user_email: str, parent_id: Optional[str] = None) -> Optional[str]:
+    """Ensure folder hierarchy exists, return leaf folder id string.
+    parent_id: starting parent folder (None = root). Used to scope uploads under a specific folder.
+    """
     for part in path_parts:
         existing = await db["document_folders"].find_one(
             {"name": part, "parent_id": parent_id}
@@ -148,12 +156,57 @@ def _file_out(f: dict, include_text: bool = False) -> dict:
 
 
 def _lo_convert(src: Path, target_format: str, out_dir: Path) -> Path:
-    """LibreOffice headless로 파일 변환. 변환된 파일 경로 반환."""
+    """LibreOffice headless로 파일 변환.
+    HWP 변환 순서:
+      1) LibreOffice 직접 (LO 25+ 네이티브 HWP 필터)
+      2) hwp5html → HTML → target (표 구조 보존 우수)
+      3) hwp5odt → ODT → target (최후 수단)
+    """
     lo_home = Path(tempfile.mkdtemp(prefix="lo_home_"))
     try:
+        actual_src = src
+        if src.suffix.lower() == ".hwp":
+            # 1) LibreOffice 직접 변환
+            lo_direct = subprocess.run(
+                ["libreoffice", "--headless", "--convert-to", target_format,
+                 "--outdir", str(out_dir), str(src)],
+                capture_output=True, text=True, timeout=120,
+                env={**os.environ, "HOME": str(lo_home)},
+            )
+            direct_out = out_dir / f"{src.stem}.{target_format}"
+            if lo_direct.returncode == 0 and direct_out.exists():
+                return direct_out
+
+            # 2) hwp5html → HTML → target (표 보존이 ODT 경로보다 우수)
+            html_path = out_dir / f"{src.stem}.html"
+            r_html = subprocess.run(
+                ["hwp5html", "--output", str(html_path), str(src)],
+                capture_output=True, text=True, timeout=120,
+            )
+            if r_html.returncode == 0 and html_path.exists():
+                lo_html = subprocess.run(
+                    ["libreoffice", "--headless", "--convert-to", target_format,
+                     "--outdir", str(out_dir), str(html_path)],
+                    capture_output=True, text=True, timeout=120,
+                    env={**os.environ, "HOME": str(lo_home)},
+                )
+                html_out = out_dir / f"{src.stem}.{target_format}"
+                if lo_html.returncode == 0 and html_out.exists():
+                    return html_out
+
+            # 3) hwp5odt → ODT → target (RelaxNG 경고 무시, 파일 존재 여부만 확인)
+            odt_path = out_dir / f"{src.stem}.odt"
+            subprocess.run(
+                ["hwp5odt", "--output", str(odt_path), str(src)],
+                capture_output=True, text=True, timeout=120,
+            )
+            if not odt_path.exists():
+                raise RuntimeError("HWP 변환 실패: 모든 변환 방법이 실패했습니다.")
+            actual_src = odt_path
+
         result = subprocess.run(
             ["libreoffice", "--headless", "--convert-to", target_format,
-             "--outdir", str(out_dir), str(src)],
+             "--outdir", str(out_dir), str(actual_src)],
             capture_output=True, text=True, timeout=120,
             env={**os.environ, "HOME": str(lo_home)},
         )
@@ -161,7 +214,7 @@ def _lo_convert(src: Path, target_format: str, out_dir: Path) -> Path:
             raise RuntimeError(result.stderr or result.stdout)
     finally:
         shutil.rmtree(lo_home, ignore_errors=True)
-    out_file = out_dir / f"{src.stem}.{target_format}"
+    out_file = out_dir / f"{actual_src.stem}.{target_format}"
     if not out_file.exists():
         raise RuntimeError(f"변환된 파일을 찾을 수 없습니다: {out_file}")
     return out_file
@@ -187,9 +240,12 @@ def _snippet(text: str, q: str, context: int = 120) -> str:
 async def upload_files(
     files: List[UploadFile] = File(...),
     paths: List[str] = Form(...),
+    target_folder_id: Optional[str] = Form(None),
     current_user: UserPublic = Depends(get_current_user),
 ):
-    """Upload files preserving folder structure (paths = relative paths per file)."""
+    """Upload files preserving folder structure (paths = relative paths per file).
+    target_folder_id: if provided, files with no folder in their path are placed here.
+    """
     db = _db()
     uploaded = []
 
@@ -200,8 +256,11 @@ async def upload_files(
         folder_id: Optional[str] = None
         if len(parts) > 1:
             folder_id = await _ensure_folder_path(
-                db, list(parts[:-1]), current_user.email
+                db, list(parts[:-1]), current_user.email,
+                parent_id=target_folder_id  # scoped 모드: 스코프 루트 하위에 생성
             )
+        elif target_folder_id:
+            folder_id = target_folder_id
 
         filename = parts[-1]
         extension = Path(filename).suffix
@@ -299,8 +358,8 @@ async def search_documents(
         {
             "is_deleted": {"$ne": True},
             "$or": [
-                {"name": {"$regex": pattern}},
-                {"text_content": {"$regex": pattern}},
+                {"name": pattern},
+                {"text_content": pattern},
             ],
         }
     ).to_list(length=200)
@@ -468,7 +527,6 @@ async def hwp_preview(
             content=f"<html><body><pre style='font-family:sans-serif;line-height:1.8;padding:16px'>{escaped}</pre></body></html>"
         )
     finally:
-        import shutil
         shutil.rmtree(out_dir, ignore_errors=True)
 
 

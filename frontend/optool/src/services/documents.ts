@@ -50,10 +50,11 @@ export const documentService = {
     return data
   },
 
-  async uploadFiles(files: File[], paths: string[]): Promise<{ uploaded: number }> {
+  async uploadFiles(files: File[], paths: string[], folderId?: string | null): Promise<{ uploaded: number }> {
     const formData = new FormData()
     files.forEach((f) => formData.append('files', f))
     paths.forEach((p) => formData.append('paths', p))
+    if (folderId) formData.append('target_folder_id', folderId)
     const { data } = await api.post<{ uploaded: number }>('/documents/upload', formData)
     return data
   },
