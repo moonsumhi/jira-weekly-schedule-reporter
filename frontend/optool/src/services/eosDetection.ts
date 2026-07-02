@@ -5,9 +5,28 @@ import { getEosMap } from 'src/services/eosData'
 
 // ── OS 탐지 ──────────────────────────────────────────────────────────────────
 
+/** 공백·하이픈 제거 + 소문자 정규화 (예: "Rocky Linux" → "rockylinux") */
+function norm(s: string): string {
+  return s.replace(/[\s\-_]/g, '').toLowerCase()
+}
+
+/** 정규화된 이름으로 OS_TREE 배포판 키를 찾아 정확한 키 반환 */
+export function resolveDistName(osName: string): string {
+  const n = norm(osName)
+  for (const dists of Object.values(OS_TREE)) {
+    for (const key of Object.keys(dists)) {
+      if (norm(key) === n) return key
+    }
+  }
+  return osName
+}
+
 export function detectOsFamily(osName: string): string {
+  const n = norm(osName)
   for (const [family, dists] of Object.entries(OS_TREE)) {
-    if (osName in dists) return family
+    for (const key of Object.keys(dists)) {
+      if (norm(key) === n) return family
+    }
   }
   return ''
 }

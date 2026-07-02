@@ -1,0 +1,20 @@
+FROM --platform=linux/amd64 golang:1.24-alpine AS builder
+RUN apk add --no-cache gcc musl-dev
+
+FROM --platform=linux/amd64 alpine:3.20
+RUN apk add --no-cache \
+    ca-certificates \
+    python3 \
+    py3-pip \
+    nodejs \
+    npm \
+    git \
+    github-cli \
+    bash \
+    openssh-client \
+    shadow \
+    su-exec
+RUN npm install -g @anthropic-ai/claude-code
+RUN pip3 install pypdf python-docx pyhwp six beautifulsoup4 lxml --break-system-packages
+RUN addgroup -g 1000 pilot && \
+    adduser -D -u 1000 -G pilot pilot
