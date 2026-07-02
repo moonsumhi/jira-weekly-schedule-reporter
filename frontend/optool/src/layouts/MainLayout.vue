@@ -48,19 +48,19 @@
             <template v-for="menu in sortedVisibleMenus" :key="menu.id">
               <!-- Jira -->
               <EssentialLink
-                v-if="menu.slug === 'jira' && (hasPerm('jira_search') || hasPerm('weekly_report'))"
+                v-if="menu.slug === 'jira' && hasPerm('jira')"
                 :title="menu.title"
                 :icon="menu.icon"
                 :children="applySubOrder([
-                  ...(hasPerm('jira_search') ? [{ title: '검색', icon: menu.subIcons?.['/jira/search'] ?? 'fa-solid fa-list', link: '/jira/search' }] : []),
-                  ...(hasPerm('weekly_report') ? [{ title: '주간보고', icon: menu.subIcons?.['/report/weekly'] ?? 'fa-solid fa-calendar-week', link: '/report/weekly' }] : []),
+                  { title: '검색', icon: menu.subIcons?.['/jira/search'] ?? 'fa-solid fa-list', link: '/jira/search' },
+                  { title: '주간보고', icon: menu.subIcons?.['/report/weekly'] ?? 'fa-solid fa-calendar-week', link: '/report/weekly' },
                 ], menu)"
               />
 
 
               <!-- Job -->
               <EssentialLink
-                v-else-if="menu.slug === 'job'"
+                v-else-if="menu.slug === 'job' && hasPerm('job')"
                 :title="menu.title"
                 :icon="menu.icon"
                 :children="jobMenuItems"
@@ -68,7 +68,7 @@
 
               <!-- 자산 -->
               <EssentialLink
-                v-else-if="menu.slug === 'asset' && hasPerm('asset_list')"
+                v-else-if="menu.slug === 'asset' && hasPerm('asset')"
                 :title="menu.title"
                 :icon="menu.icon"
                 :children="applySubOrder([
@@ -83,23 +83,18 @@
 
               <!-- Timetable -->
               <EssentialLink
-                v-else-if="menu.slug === 'watch' && hasPerm('watch_timetable')"
+                v-else-if="menu.slug === 'watch' && hasPerm('watch')"
                 :title="menu.title"
                 :icon="menu.icon"
                 link="/watch/timetable"
               />
 
-              <!-- 계정 설정 -->
-              <EssentialLink
-                v-else-if="menu.slug === 'account'"
-                :title="menu.title"
-                :icon="menu.icon"
-                :children="[{ title: '내 계정', icon: menu.subIcons?.['/account/settings'] ?? 'fa-solid fa-user', link: '/account/settings' }]"
-              />
+              <!-- 계정 설정: 하단 유저 카드로 이동, 여기서는 숨김 -->
+              <template v-else-if="menu.slug === 'account'" />
 
               <!-- 서버실 점검 -->
               <EssentialLink
-                v-else-if="menu.slug === 'inspection' && hasPerm('inspection_checklist')"
+                v-else-if="menu.slug === 'inspection' && hasPerm('inspection')"
                 :title="menu.title"
                 :icon="menu.icon"
                 link="/inspection/checklist"
@@ -107,7 +102,7 @@
 
               <!-- 서버점검 (월1회) -->
               <EssentialLink
-                v-else-if="menu.slug === 'server_check' && hasPerm('health_report')"
+                v-else-if="menu.slug === 'server_check' && hasPerm('server_check')"
                 :title="menu.title"
                 :icon="menu.icon"
                 :children="applySubOrder([
@@ -127,6 +122,35 @@
                 ]"
               />
 
+              <!-- PM -->
+              <EssentialLink
+                v-else-if="menu.slug === 'pm' && hasPerm('pm')"
+                :title="menu.title"
+                :icon="menu.icon"
+                :children="applySubOrder([
+                  { title: '대시보드', icon: menu.subIcons?.['/pm/dashboard'] ?? 'fa-solid fa-gauge', link: '/pm/dashboard' },
+                  { title: '업무 현황', icon: menu.subIcons?.['/pm/work-status'] ?? 'fa-solid fa-chart-bar', link: '/pm/work-status' },
+                  { title: '프로젝트', icon: menu.subIcons?.['/pm/projects'] ?? 'fa-solid fa-diagram-project', link: '/pm/projects' },
+                  { title: '조직', icon: menu.subIcons?.['/pm/organizations'] ?? 'fa-solid fa-building', link: '/pm/organizations' },
+                  ...(auth.me?.isAdmin ? [
+                    { title: '주간 보고', icon: menu.subIcons?.['/pm/weekly-report'] ?? 'fa-solid fa-calendar-week', link: '/pm/weekly-report' },
+                    { title: '월간 보고', icon: menu.subIcons?.['/pm/monthly-report'] ?? 'fa-solid fa-calendar-days', link: '/pm/monthly-report' },
+                  ] : []),
+                ], menu)"
+              />
+
+              <!-- SR (Service Request) -->
+              <EssentialLink
+                v-else-if="menu.slug === 'sr' && hasPerm('sr')"
+                :title="menu.title"
+                :icon="menu.icon"
+                :children="applySubOrder([
+                  { title: 'SR 접수',    icon: menu.subIcons?.['/pm/sr/new']    ?? 'fa-solid fa-paper-plane', link: '/pm/sr/new' },
+                  { title: '내 SR 목록', icon: menu.subIcons?.['/pm/sr/my']     ?? 'fa-solid fa-list-check',  link: '/pm/sr/my' },
+                  { title: 'SR 관리',    icon: menu.subIcons?.['/pm/sr/manage'] ?? 'fa-solid fa-tasks',       link: '/pm/sr/manage' },
+                ], menu)"
+              />
+
               <!-- Admin -->
               <EssentialLink
                 v-else-if="menu.slug === 'admin' && auth.me?.isAdmin"
@@ -143,7 +167,7 @@
 
               <!-- 팀캘린더 -->
               <EssentialLink
-                v-else-if="menu.slug === 'calendar'"
+                v-else-if="menu.slug === 'calendar' && hasPerm('calendar')"
                 :title="menu.title"
                 :icon="menu.icon"
                 link="/calendar"
@@ -166,21 +190,33 @@
           </q-list>
         </q-scroll-area>
 
-        <!-- LOGOUT AREA (BOTTOM) -->
+        <!-- USER / LOGOUT AREA (BOTTOM) -->
         <q-separator />
 
-        <q-list>
-          <q-item clickable v-ripple @click="onLogout">
-            <q-item-section avatar>
-              <q-icon name="logout" color="negative" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label class="text-negative">
-                로그아웃
-              </q-item-label>
-            </q-item-section>
-          </q-item>
-        </q-list>
+        <q-item
+          clickable v-ripple
+          class="q-py-sm"
+          @click="$router.push('/account/settings')"
+        >
+          <q-item-section avatar>
+            <q-avatar color="primary" text-color="white" size="36px" class="text-caption">
+              {{ auth.me?.fullName?.[0] ?? auth.me?.email?.[0]?.toUpperCase() ?? '?' }}
+            </q-avatar>
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-weight-medium">{{ auth.me?.fullName ?? '-' }}</q-item-label>
+            <q-item-label caption class="text-grey-6">{{ auth.me?.email }}</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-btn
+              flat round dense
+              icon="logout"
+              color="grey-6"
+              size="sm"
+              @click.stop="onLogout"
+            />
+          </q-item-section>
+        </q-item>
       </div>
     </q-drawer>
     <!-- 오른쪽 링크 사이드바 (내부망만) -->
@@ -345,11 +381,22 @@ function detectInternal(hostname: string): boolean {
 const isExternal = !detectInternal(window.location.hostname)
 const isPort9001 = window.location.port === '9001'
 
+// 슬러그별 필요 권한 (account·admin은 별도 처리, 동적 메뉴는 제한 없음)
+const SLUG_PERM: Record<string, string> = {
+  jira: 'jira', job: 'job', asset: 'asset', watch: 'watch',
+  inspection: 'inspection', server_check: 'server_check',
+  pm: 'pm', sr: 'sr', calendar: 'calendar',
+}
+
 const sortedVisibleMenus = computed(() =>
   sidebarMenus.value
     .filter((m) => m.isVisible)
     .filter((m) => m.slug !== 'document')
     .filter((m) => m.slug !== 'admin' || !!auth.me?.isAdmin)
+    .filter((m) => {
+      const perm = SLUG_PERM[m.slug ?? '']
+      return perm ? hasPerm(perm) : true  // 권한 필요한 슬러그는 hasPerm 체크
+    })
     .filter((m) => {
       if (isPort9001) return m.slug === 'jira' || m.slug === 'calendar' || m.title === '팀캘린더'
       return m.slug !== 'jira' && m.slug !== 'calendar' && m.title !== '팀캘린더'

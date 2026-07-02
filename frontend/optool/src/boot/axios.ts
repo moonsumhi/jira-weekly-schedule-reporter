@@ -65,7 +65,7 @@ export default defineBoot(({ app, router }) => {
         ? res.data.map(saveFields)
         : saveFields(res.data)
 
-      res.data = camelcaseKeys(res.data, { deep: true, exclude: [/[가-힣]/, /^[A-Z][A-Z0-9]*$/, /^\//] })
+      res.data = camelcaseKeys(res.data, { deep: true, exclude: [/[가-힣]/, /^[A-Z][A-Z0-9_]*$/, /^\//] })
 
       // Restore original fields keys
       if (Array.isArray(res.data) && Array.isArray(savedFields)) {
