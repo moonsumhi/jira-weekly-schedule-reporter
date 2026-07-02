@@ -5,6 +5,7 @@ import {
   createWebHashHistory,
   createWebHistory,
 } from 'vue-router'
+import { Notify } from 'quasar'
 import routes from './routes'
 import { useAuthStore } from 'stores/auth'
 
@@ -44,27 +45,24 @@ export default defineRouter(function () {
       return { name: 'app-home' }
     }
 
+    // 로그인 상태면 항상 최신 me 갱신 (30초 캐시 — 사이드바 권한 즉시 반영)
+    if (auth.isLoggedIn) {
+      try { await auth.fetchMe() } catch { /* token invalid */ }
+    }
+
     // 3) 관리자
     if (to.meta.requiresAdmin) {
-      if (!auth.me && auth.isLoggedIn) {
-        try {
-          await auth.fetchMe()
-        } catch {
-          // token invalid
-        }
-      }
       if (!auth.me?.isAdmin) {
+        Notify.create({ type: 'negative', message: '접근 권한이 없습니다. 관리자에게 문의하세요.' })
         return { name: 'app-home' }
       }
     }
 
     // 4) 메뉴 권한 체크
     if (to.meta.requiresPermission) {
-      if (!auth.me && auth.isLoggedIn) {
-        try { await auth.fetchMe() } catch { /* ignore */ }
-      }
       const perm = to.meta.requiresPermission as string
       if (auth.me && !auth.me.isAdmin && !(auth.me.permissions ?? []).includes(perm)) {
+        Notify.create({ type: 'negative', message: '해당 메뉴에 대한 접근 권한이 없습니다. 관리자에게 문의하세요.' })
         return { name: 'app-home' }
       }
     }

@@ -23,6 +23,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'timetable',
+            meta: { requiresPermission: 'watch' },
             component: () => import('pages/watch/WatchTimeTablePage.vue')
           }
         ]
@@ -33,7 +34,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'search',
-            meta: { requiresPermission: 'jira_search' },
+            meta: { requiresPermission: 'jira' },
             component: () => import('pages/jira/TaskViewer.vue')
           },
         ]
@@ -44,7 +45,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'list',
-            meta: { requiresPermission: 'asset_list' },
+            meta: { requiresPermission: 'asset' },
             component: () => import('pages/asset/ServerAssetPage.vue')
           }
         ]
@@ -55,7 +56,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'tasks',
-            meta: { requiresPermission: 'pilot_tasks' },
+            meta: { requiresPermission: 'job' },
             component: () => import('pages/pilot/PilotTasksPage.vue')
           }
         ]
@@ -66,22 +67,22 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'checklist',
-            meta: { requiresPermission: 'inspection_checklist' },
+            meta: { requiresPermission: 'inspection' },
             component: () => import('pages/inspection/ServerRoomInspectionPage.vue')
           },
           {
             path: 'health-summary',
-            meta: { requiresPermission: 'health_report' },
+            meta: { requiresPermission: 'server_check' },
             component: () => import('pages/inspection/HealthSummaryPage.vue')
           },
           {
             path: 'health-servers',
-            meta: { requiresPermission: 'health_report' },
+            meta: { requiresPermission: 'server_check' },
             component: () => import('pages/inspection/HealthServerListPage.vue')
           },
           {
             path: 'health-compare',
-            meta: { requiresPermission: 'health_report' },
+            meta: { requiresPermission: 'server_check' },
             component: () => import('pages/inspection/HealthComparePage.vue')
           }
         ]
@@ -92,7 +93,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: 'weekly',
-            meta: { requiresPermission: 'weekly_report' },
+            meta: { requiresPermission: 'jira' },
             component: () => import('pages/report/WeeklyReportPage.vue')
           }
         ]
@@ -133,6 +134,7 @@ const routes: RouteRecordRaw[] = [
         children: [
           {
             path: '',
+            meta: { requiresPermission: 'calendar' },
             component: () => import('pages/calendar/TeamCalendarPage.vue')
           }
         ]
@@ -156,6 +158,84 @@ const routes: RouteRecordRaw[] = [
             path: ':folderName',
             component: () => import('pages/document/IsmsDocPage.vue')
           }
+        ]
+      },
+      {
+        path: 'pm',
+        meta: { requiresAuth: true, requiresPermission: 'pm' },
+        children: [
+          {
+            path: 'dashboard',
+            component: () => import('pages/pm/PmDashboardPage.vue')
+          },
+          {
+            path: 'projects',
+            component: () => import('pages/pm/ProjectListPage.vue')
+          },
+          {
+            path: 'projects/:projectId',
+            component: () => import('pages/pm/ProjectDetailPage.vue')
+          },
+          {
+            path: 'projects/:projectId/board',
+            component: () => import('pages/pm/ProjectBoardPage.vue')
+          },
+          {
+            path: 'projects/:projectId/backlog',
+            component: () => import('pages/pm/ProjectBacklogPage.vue')
+          },
+          {
+            path: 'projects/:projectId/sprints',
+            component: () => import('pages/pm/ProjectSprintsPage.vue')
+          },
+          {
+            path: 'organizations',
+            component: () => import('pages/pm/OrgListPage.vue')
+          },
+          {
+            path: 'organizations/:orgId',
+            component: () => import('pages/pm/OrgDetailPage.vue')
+          },
+          {
+            path: 'work-status',
+            component: () => import('pages/pm/WorkStatusPage.vue')
+          },
+          {
+            path: 'weekly-report',
+            meta: { requiresAdmin: true },
+            component: () => import('pages/pm/WeeklyReportPage.vue')
+          },
+          {
+            path: 'monthly-report',
+            meta: { requiresAdmin: true },
+            component: () => import('pages/pm/MonthlyReportPage.vue')
+          },
+          // ── SR (Service Request) ────────────────────────────
+          {
+            path: 'sr/new',
+            meta: { requiresPermission: 'sr' },
+            component: () => import('pages/sr/SrRequestPage.vue')
+          },
+          {
+            path: 'sr/my',
+            meta: { requiresPermission: 'sr' },
+            component: () => import('pages/sr/SrMyListPage.vue')
+          },
+          {
+            path: 'sr/manage',
+            meta: { requiresPermission: 'sr' },
+            component: () => import('pages/sr/SrManagePage.vue')
+          },
+          {
+            path: 'sr/:id/edit',
+            meta: { requiresPermission: 'sr' },
+            component: () => import('pages/sr/SrRequestPage.vue')
+          },
+          {
+            path: 'sr/:id',
+            meta: { requiresPermission: 'sr' },
+            component: () => import('pages/sr/SrDetailPage.vue')
+          },
         ]
       },
       {

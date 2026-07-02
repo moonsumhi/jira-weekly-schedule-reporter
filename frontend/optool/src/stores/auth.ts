@@ -7,6 +7,7 @@ export type UserMe = {
   id: string | number
   email: string
   fullName?: string | null
+  team?: string | null
   isAdmin?: boolean
   isInternal?: boolean
   permissions?: string[]
@@ -18,6 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const lastError = ref<string | null>(null)
   const pendingCount = ref(0)
+  let meFetchedAt = 0
 
   async function fetchPendingCount() {
     try {
@@ -40,15 +42,20 @@ export const useAuthStore = defineStore('auth', () => {
     return token.value ? { Authorization: `Bearer ${token.value}` } : {}
   }
 
-  async function fetchMe() {
+  async function fetchMe(force = false) {
     if (!token.value) {
       me.value = null
       return null
+    }
+    // 30초 이내에 이미 가져왔으면 스킵 (force=true면 항상 호출)
+    if (!force && me.value && Date.now() - meFetchedAt < 30_000) {
+      return me.value
     }
     const res = await api.get<UserMe>('/auth/me', {
       headers: authHeader(),
     })
     me.value = res.data
+    meFetchedAt = Date.now()
     return me.value
   }
 
@@ -80,7 +87,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function register(email: string, password: string, fullName?: string) {
+  async function register(email: string, password: string, fullName?: string, team?: string) {
     loading.value = true
     lastError.value = null
     try {
@@ -88,6 +95,7 @@ export const useAuthStore = defineStore('auth', () => {
         email,
         password,
         full_name: fullName || null,
+        team: team || null,
       })
       return true
     } catch (err) {
