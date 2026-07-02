@@ -64,6 +64,7 @@ async def get_current_user(
         id=str(user["_id"]),
         email=user["email"],
         full_name=user.get("full_name"),
+        team=user.get("team"),
         is_admin=bool(user.get("is_admin", False)),
         permissions=user.get("permissions", []),
         is_internal=internal,
@@ -109,6 +110,7 @@ async def register(user: UserCreate):
     doc = {
         "email": user.email,
         "full_name": user.full_name,
+        "team": user.team,
         "hashed_password": hash_password(user.password),
         "status": "PENDING",
         "requested_at": datetime.now(timezone.utc),

@@ -75,6 +75,16 @@
                 autocomplete="name"
               />
 
+              <q-select
+                v-model="team"
+                :options="TEAM_OPTIONS"
+                label="소속 팀"
+                outlined
+                dense
+                clearable
+                :rules="[val => !!val || '소속 팀을 선택해 주세요.']"
+              />
+
               <q-input
                 v-model="password"
                 label="비밀번호"
@@ -172,10 +182,13 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
+const TEAM_OPTIONS = ['데이터운영팀', '데이터구축팀', '데이터활용팀', '데이터결합팀']
+
 const mode = ref<'login' | 'register'>('login')
 const email = ref('')
 const password = ref('')
 const fullName = ref('')
+const team = ref<string | null>(null)
 
 const pwDialog = ref(false)
 const currentPw = ref('')
@@ -217,13 +230,11 @@ async function onSubmitLogin() {
 }
 
 async function onSubmitRegister() {
-  const registered = await auth.register(email.value, password.value, fullName.value)
+  const registered = await auth.register(email.value, password.value, fullName.value, team.value ?? undefined)
   if (!registered) {
     $q.notify({ type: 'negative', message: auth.lastError || '회원가입에 실패했어요.' })
     return
   }
-
-  $q.notify({ type: 'positive', message: '회원가입이 완료되어 자동으로 로그인합니다.' })
 
   const ok = await auth.login(email.value, password.value)
   if (!ok) {

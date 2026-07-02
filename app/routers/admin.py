@@ -37,6 +37,7 @@ class PendingUserPublic(BaseModel):
     id: str
     email: EmailStr
     full_name: Optional[str] = None
+    team: Optional[str] = None
     status: PendingStatus
     requested_at: Optional[datetime] = None
     reviewed_at: Optional[datetime] = None
@@ -52,6 +53,7 @@ class UserListItem(BaseModel):
     id: str
     email: EmailStr
     full_name: Optional[str] = None
+    team: Optional[str] = None
     is_admin: bool = False
     is_blocked: bool = False
     permissions: list[str] = []
@@ -60,6 +62,8 @@ class UserListItem(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    team: Optional[str] = None
     is_admin: Optional[bool] = None
     permissions: Optional[list[str]] = None
 
@@ -76,6 +80,7 @@ async def list_users(
                 id=str(doc["_id"]),
                 email=doc["email"],
                 full_name=doc.get("full_name"),
+                team=doc.get("team"),
                 is_admin=bool(doc.get("is_admin", False)),
                 is_blocked=bool(doc.get("is_blocked", False)),
                 permissions=doc.get("permissions", []),
@@ -100,6 +105,10 @@ async def update_user(
         raise HTTPException(status_code=404, detail="User not found")
 
     update: dict = {}
+    if body.full_name is not None:
+        update["full_name"] = body.full_name
+    if body.team is not None:
+        update["team"] = body.team
     if body.is_admin is not None:
         update["is_admin"] = body.is_admin
     if body.permissions is not None:
@@ -113,6 +122,7 @@ async def update_user(
         id=str(doc["_id"]),
         email=doc["email"],
         full_name=doc.get("full_name"),
+        team=doc.get("team"),
         is_admin=bool(doc.get("is_admin", False)),
         is_blocked=bool(doc.get("is_blocked", False)),
         permissions=doc.get("permissions", []),
@@ -141,6 +151,7 @@ async def list_pending(
                 id=str(doc["_id"]),
                 email=doc["email"],
                 full_name=doc.get("full_name"),
+                team=doc.get("team"),
                 status=doc.get("status", "PENDING"),
                 requested_at=doc.get("requested_at"),
                 reviewed_at=doc.get("reviewed_at"),
@@ -176,20 +187,18 @@ async def approve_pending_user(
 
     now = datetime.now(timezone.utc)
 
-    # users 생성
+    # users 생성 (권한은 빈 상태로, 관리자가 직접 부여)
     user_doc = {
         "email": p["email"],
         "full_name": p.get("full_name"),
+        "team": p.get("team"),
         "hashed_password": p["hashed_password"],
         "created_at": now,
         "created_from_request_id": str(p["_id"]),
         "approved_by": admin.email,
         "approved_at": now,
         "is_admin": False,
-        "permissions": [
-            "jira_search", "weekly_report", "asset_list",
-            "watch_timetable", "inspection_checklist", "pilot_tasks", "health_report",
-        ],
+        "permissions": [],
     }
     result = await users.insert_one(user_doc)
 
@@ -225,6 +234,7 @@ async def block_user(user_id: str, admin: UserPublic = Depends(require_admin)):
     doc = await users.find_one({"_id": _id})
     return UserListItem(
         id=str(doc["_id"]), email=doc["email"], full_name=doc.get("full_name"),
+        team=doc.get("team"),
         is_admin=bool(doc.get("is_admin", False)), is_blocked=True,
         permissions=doc.get("permissions", []),
         created_at=doc.get("created_at"), last_login_at=doc.get("last_login_at"),
@@ -242,6 +252,7 @@ async def unblock_user(user_id: str, admin: UserPublic = Depends(require_admin))
     doc = await users.find_one({"_id": _id})
     return UserListItem(
         id=str(doc["_id"]), email=doc["email"], full_name=doc.get("full_name"),
+        team=doc.get("team"),
         is_admin=bool(doc.get("is_admin", False)), is_blocked=False,
         permissions=doc.get("permissions", []),
         created_at=doc.get("created_at"), last_login_at=doc.get("last_login_at"),
