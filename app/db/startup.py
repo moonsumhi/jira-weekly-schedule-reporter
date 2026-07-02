@@ -18,6 +18,9 @@ _SYSTEM_MENUS = [
     {"slug": "watch",    "title": "당직 시간표", "icon": "fa-solid fa-clock",      "sort_order": 4},
     {"slug": "account",  "title": "계정 설정",   "icon": "fa-solid fa-user-gear",  "sort_order": 5},
     {"slug": "calendar", "title": "팀캘린더",    "icon": "fa-solid fa-calendar",   "sort_order": 6},
+    {"slug": "pm",       "title": "스케줄 관리",  "icon": "fa-solid fa-diagram-project", "sort_order": 7},
+    {"slug": "sr",       "title": "SR",           "icon": "fa-solid fa-paper-plane",     "sort_order": 8},
+    {"slug": "admin",    "title": "관리자",       "icon": "fa-solid fa-user-shield",     "sort_order": 99},
 ]
 
 
@@ -96,6 +99,12 @@ async def seed_system_menus() -> None:
             })
         elif sm["slug"] == "calendar" and existing.get("link"):
             await menus_col.update_one({"slug": "calendar"}, {"$unset": {"link": ""}})
+        elif sm["slug"] == "pm" and existing.get("title") == "PM":
+            await menus_col.update_one({"slug": "pm"}, {"$set": {"title": "스케줄 관리"}})
+
+    # 구 SR 개별 메뉴 제거 (sr 상위 메뉴로 통합)
+    for old_slug in ("sr-new", "sr-my", "sr-manage"):
+        await menus_col.delete_one({"slug": old_slug})
 
 
 
@@ -129,3 +138,11 @@ async def run_startup() -> None:
     await create_indexes()
     await seed_system_menus()
     await migrate_assets()
+
+    from app.db.pm_indexes import create_pm_indexes
+    await create_pm_indexes()
+    logger.info("PM 인덱스 생성 완료")
+
+    from app.db.sr_indexes import create_sr_indexes
+    await create_sr_indexes()
+    logger.info("SR 인덱스 생성 완료")

@@ -52,6 +52,28 @@ class MongoClientManager:
     LINKS = "links"
     DDAYS = "ddays"
 
+    # ── Service Request (SR) ─────────────────────────────────────
+    SERVICE_REQUESTS        = "service_requests"
+    SR_COMMENTS             = "sr_comments"
+    SR_ATTACHMENTS          = "sr_attachments"
+    SR_HISTORIES            = "sr_histories"
+    SR_STATUS_HISTORIES     = "sr_status_histories"
+    SR_DUE_DATE_HISTORIES   = "sr_due_date_histories"
+    SR_COUNTER              = "sr_counters"
+
+    # ── Project Management (PM) ──────────────────────────────────
+    PM_ORGANIZATIONS = "pm_organizations"
+    PM_ORG_MEMBERS = "pm_org_members"
+    PM_PROJECTS = "pm_projects"
+    PM_PROJECT_MEMBERS = "pm_project_members"
+    PM_ISSUES = "pm_issues"
+    PM_SPRINTS = "pm_sprints"
+    PM_LABELS = "pm_labels"
+    PM_ISSUE_COMMENTS = "pm_issue_comments"
+    PM_ISSUE_HISTORY = "pm_issue_history"
+    PM_WEEKLY_REPORTS = "pm_weekly_reports"
+    PM_MONTHLY_REPORTS = "pm_monthly_reports"
+
 
     @classmethod
     def init_client(cls) -> None:
@@ -183,6 +205,51 @@ class MongoClientManager:
     @classmethod
     def get_activity_logs_collection(cls):
         return cls.get_db()[cls.ACTIVITY_LOGS]
+
+    # ── PM 컬렉션 접근자 ─────────────────────────────────────────
+    @classmethod
+    def get_pm_organizations_collection(cls):
+        return cls.get_db()[cls.PM_ORGANIZATIONS]
+
+    @classmethod
+    def get_pm_org_members_collection(cls):
+        return cls.get_db()[cls.PM_ORG_MEMBERS]
+
+    @classmethod
+    def get_pm_projects_collection(cls):
+        return cls.get_db()[cls.PM_PROJECTS]
+
+    @classmethod
+    def get_pm_project_members_collection(cls):
+        return cls.get_db()[cls.PM_PROJECT_MEMBERS]
+
+    @classmethod
+    def get_pm_issues_collection(cls):
+        return cls.get_db()[cls.PM_ISSUES]
+
+    @classmethod
+    def get_pm_sprints_collection(cls):
+        return cls.get_db()[cls.PM_SPRINTS]
+
+    @classmethod
+    def get_pm_labels_collection(cls):
+        return cls.get_db()[cls.PM_LABELS]
+
+    @classmethod
+    def get_pm_issue_comments_collection(cls):
+        return cls.get_db()[cls.PM_ISSUE_COMMENTS]
+
+    @classmethod
+    def get_pm_issue_history_collection(cls):
+        return cls.get_db()[cls.PM_ISSUE_HISTORY]
+
+    @classmethod
+    def get_pm_weekly_reports_collection(cls):
+        return cls.get_db()[cls.PM_WEEKLY_REPORTS]
+
+    @classmethod
+    def get_pm_monthly_reports_collection(cls):
+        return cls.get_db()[cls.PM_MONTHLY_REPORTS]
 
     @classmethod
     async def close_client(cls) -> None:

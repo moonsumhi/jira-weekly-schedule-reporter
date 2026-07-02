@@ -1,10 +1,12 @@
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO)
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
@@ -15,6 +17,8 @@ BUILD_ID = str(int(time.time()))
 
 from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot, inspection, job, job_result, job_non_service, test, form_templates, form_entries, menus, boards, health_reports, health_actions, links, ddays, calendar as calendar_router, documents
 from app.routers import settings as settings_router
+from app.routers import pm as pm_router
+from app.routers import sr as sr_router
 
 from app.core.config import settings
 from app.db.mongo import MongoClientManager
@@ -108,6 +112,12 @@ app.include_router(links.router, prefix="/links", tags=["links"])
 app.include_router(ddays.router, prefix="/ddays", tags=["ddays"])
 app.include_router(calendar_router.router, prefix="/calendar", tags=["calendar"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
+app.include_router(pm_router.router,      prefix="/pm",       tags=["pm"])
+app.include_router(sr_router.router,                          tags=["sr"])
+
+_UPLOAD_DIR = "/app/uploads"
+os.makedirs(_UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=_UPLOAD_DIR), name="uploads")
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
