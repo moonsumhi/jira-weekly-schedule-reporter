@@ -2,9 +2,13 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Literal, List
 
 
+TEAM_OPTIONS = ["데이터운영팀", "데이터구축팀", "데이터활용팀", "데이터결합팀"]
+
+
 class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
+    team: Optional[str] = None
     is_admin: bool = False
     permissions: List[str] = []
 
@@ -27,6 +31,7 @@ class PendingUserPublic(BaseModel):
     id: str
     email: EmailStr
     full_name: Optional[str] = None
+    team: Optional[str] = None
     status: Literal["PENDING", "APPROVED", "REJECTED"]
 
 

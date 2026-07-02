@@ -106,8 +106,14 @@
             </q-item>
             <q-item>
               <q-item-section>
-                <q-item-label><b>Name</b></q-item-label>
+                <q-item-label><b>이름</b></q-item-label>
                 <q-item-label caption>{{ selected?.fullName || '-' }}</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item>
+              <q-item-section>
+                <q-item-label><b>소속 팀</b></q-item-label>
+                <q-item-label caption>{{ selected?.team || '-' }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -145,8 +151,14 @@
             </q-item>
             <q-item>
               <q-item-section>
-                <q-item-label><b>Name</b></q-item-label>
+                <q-item-label><b>이름</b></q-item-label>
                 <q-item-label caption>{{ selected?.fullName || '-' }}</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-item>
+              <q-item-section>
+                <q-item-label><b>소속 팀</b></q-item-label>
+                <q-item-label caption>{{ selected?.team || '-' }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -196,6 +208,7 @@ type PendingUser = {
   id: string | number
   email: string
   fullName?: string | null
+  team?: string | null
   status: PendingStatus
   requestedAt?: string // ISO
 }
@@ -232,10 +245,11 @@ const pagination = ref<QTableProps['pagination']>({
 
 const columns: NonNullable<QTableProps['columns']> = [
   { name: 'email', label: 'Email', field: 'email', align: 'left', sortable: true },
-  { name: 'fullName', label: 'Name', field: 'fullName', align: 'left', sortable: true },
-  { name: 'status', label: 'Status', field: 'status', align: 'left', sortable: true },
-  { name: 'requestedAt', label: 'Requested At', field: 'requestedAt', align: 'left', sortable: true },
-  { name: 'actions', label: 'Actions', field: 'actions', align: 'right' },
+  { name: 'fullName', label: '이름', field: 'fullName', align: 'left', sortable: true },
+  { name: 'team', label: '소속 팀', field: 'team', align: 'left', sortable: true },
+  { name: 'status', label: '상태', field: 'status', align: 'left', sortable: true },
+  { name: 'requestedAt', label: '신청일', field: 'requestedAt', align: 'left', sortable: true },
+  { name: 'actions', label: '', field: 'actions', align: 'right' },
 ]
 
 function statusLabel(s: PendingStatus) {
