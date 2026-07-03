@@ -5,7 +5,9 @@ services:
     image: ${HARBOR_URL:-x.x.x.x(HARBOR_URL)}/dev/jira-reporter-backend:${TAG:-latest}
     build:
       context: .
-      dockerfile: Dockerfile  # <-- your backend Dockerfile path
+      dockerfile: ${BACKEND_DOCKERFILE:-Dockerfile}
+      args:
+        BASE_REGISTRY: ${BASE_REGISTRY}
     container_name: jira-backend
     ports:
       - "8000:8000"
