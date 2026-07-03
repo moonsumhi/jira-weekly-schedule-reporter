@@ -18,9 +18,13 @@ _SYSTEM_MENUS = [
     {"slug": "watch",    "title": "당직 시간표", "icon": "fa-solid fa-clock",      "sort_order": 4},
     {"slug": "account",  "title": "계정 설정",   "icon": "fa-solid fa-user-gear",  "sort_order": 5},
     {"slug": "calendar", "title": "팀캘린더",    "icon": "fa-solid fa-calendar",   "sort_order": 6},
-    {"slug": "pm",       "title": "스케줄 관리",  "icon": "fa-solid fa-diagram-project", "sort_order": 7},
-    {"slug": "sr",       "title": "SR",           "icon": "fa-solid fa-paper-plane",     "sort_order": 8},
-    {"slug": "admin",    "title": "관리자",       "icon": "fa-solid fa-user-shield",     "sort_order": 99},
+    {"slug": "pm",           "title": "스케줄 관리",  "icon": "fa-solid fa-diagram-project",  "sort_order": 7},
+    {"slug": "sr",           "title": "SR",           "icon": "fa-solid fa-paper-plane",      "sort_order": 8},
+    {"slug": "inspection",   "title": "점검",         "icon": "fa-solid fa-clipboard-check",  "sort_order": 9},
+    {"slug": "server_check", "title": "서버 점검",    "icon": "fa-solid fa-server",           "sort_order": 10},
+    {"slug": "documents",    "title": "문서 관리",    "icon": "fa-solid fa-folder-open",      "sort_order": 11},
+    {"slug": "isms-p",       "title": "ISMS-P",       "icon": "fa-solid fa-shield-halved",    "sort_order": 12},
+    {"slug": "admin",        "title": "관리자",       "icon": "fa-solid fa-user-shield",      "sort_order": 99},
 ]
 
 
