@@ -27,7 +27,7 @@ pipeline {
                     rm -rf ${env.REMOTE_DIR}
 
                     echo "===== 2. Git Clone (Build 서버에서 수행) ====="
-                    git clone -b main http://${GIT_USER}:${GIT_TOKEN}@${env.GIT_SERVER}/${env.GIT_REPO} ${env.REMOTE_DIR}
+                    git clone -b main http://${GIT_USER}:${GIT_TOKEN}@${env.GIT_SERVER}/${env.BO_GIT_REPO} ${env.REMOTE_DIR}
 
                     cd ${env.REMOTE_DIR}
 
@@ -45,8 +45,8 @@ pipeline {
                     echo "===== 4. 이미지 빌드 ====="
                     echo "백엔드 빌드 시작"
                     docker build -f ${env.REMOTE_DIR}/Dockerfile \
-                        --build-arg BASE_IMAGE=${env.BASE_IMAGE} \
-                        --build-arg SKIP_SYS_DEPS=${env.SKIP_SYS_DEPS} \
+                        --build-arg BASE_IMAGE=${env.BO_BASE_IMAGE} \
+                        --build-arg SKIP_SYS_DEPS=${env.BO_SKIP_SYS_DEPS} \
                         -t ${env.HARBOR_URL}/dev/jira-reporter-backend:${params.TAG} \
                         ${env.REMOTE_DIR}/
                     echo "백엔드 빌드 완료 및 프론트엔드 빌드 시작"

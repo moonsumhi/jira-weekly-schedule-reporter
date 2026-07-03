@@ -2,7 +2,7 @@ pipeline {
     agent any
     parameters {
         string(name: 'TAG', defaultValue: 'latest', description: 'Run 할 이미지 태그')
-        string(name: 'IP', defaultValue: '', description: '배포 서버 IP (비우면 Jenkins Global Env의 APP_SERVER 사용)')
+        string(name: 'IP', defaultValue: '', description: '배포 서버 IP (비우면 Jenkins Global Env의 BO_APP_SERVER 사용)')
     }
     stages {
 
@@ -21,7 +21,7 @@ pipeline {
                         passwordVariable: 'GIT_TOKEN'),
                 ]) {
                     sh """
-                        ssh -i ${SSH_KEY} -p 50022 -o StrictHostKeyChecking=no jenkins@${params.IP ?: env.APP_SERVER} '
+                        ssh -i ${SSH_KEY} -p 50022 -o StrictHostKeyChecking=no jenkins@${params.IP ?: env.BO_APP_SERVER} '
                             export XDG_RUNTIME_DIR=/run/user/\$(id -u)
 
                             echo "===== 작업 디렉토리로 이동 ====="
@@ -30,7 +30,7 @@ pipeline {
                             hostname
 
                             echo "===== Git pull (docker-compose.yml 최신화) ====="
-                            git pull http://${GIT_USER}:${GIT_TOKEN}@${env.GIT_SERVER}/${env.GIT_REPO} main
+                            git pull http://${GIT_USER}:${GIT_TOKEN}@${env.GIT_SERVER}/${env.BO_GIT_REPO} main
 
                             echo "===== Harbor 로그인 ====="
                             echo "${HB_PW}" | docker login ${env.HARBOR_URL} \
