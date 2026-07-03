@@ -2,24 +2,9 @@ pipeline {
     agent any
     parameters {
         string(name: 'TAG', defaultValue: 'latest', description: 'Run 할 이미지 태그')
-        string(name: 'IP', defaultValue: '', description: '배포 서버 IP (비우면 deploy/.env의 APP_SERVER 사용)')
+        string(name: 'IP', defaultValue: '', description: '배포 서버 IP (비우면 Jenkins Global Env의 APP_SERVER 사용)')
     }
     stages {
-
-        stage('Load Config') {
-            steps {
-                script {
-                    readFile('.env').split('\n').each { line ->
-                        def trimmed = line.trim()
-                        if (trimmed && !trimmed.startsWith('#') && trimmed.contains('=')) {
-                            def idx = trimmed.indexOf('=')
-                            env[trimmed[0..<idx].trim()] = trimmed[(idx + 1)..-1].trim()
-                        }
-                    }
-                    env.TARGET_IP = params.IP ?: env.APP_SERVER
-                }
-            }
-        }
 
         stage('1. Docker Run') {
             steps {
@@ -36,7 +21,7 @@ pipeline {
                         passwordVariable: 'GIT_TOKEN'),
                 ]) {
                     sh """
-                        ssh -i ${SSH_KEY} -p 50022 -o StrictHostKeyChecking=no jenkins@${env.TARGET_IP} '
+                        ssh -i ${SSH_KEY} -p 50022 -o StrictHostKeyChecking=no jenkins@${params.IP ?: env.APP_SERVER} '
                             export XDG_RUNTIME_DIR=/run/user/\$(id -u)
 
                             echo "===== 작업 디렉토리로 이동 ====="

@@ -4,20 +4,6 @@ pipeline {
 
     stages {
 
-        stage('Load Config') {
-            steps {
-                script {
-                    readFile('.env').split('\n').each { line ->
-                        def trimmed = line.trim()
-                        if (trimmed && !trimmed.startsWith('#') && trimmed.contains('=')) {
-                            def idx = trimmed.indexOf('=')
-                            env[trimmed[0..<idx].trim()] = trimmed[(idx + 1)..-1].trim()
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Build 서버에서 전체 작업 수행') {
             steps {
                 withCredentials([
