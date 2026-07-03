@@ -7,7 +7,7 @@ pipeline {
         stage('Load Config') {
             steps {
                 script {
-                    readFile('deploy/.env').split('\n').each { line ->
+                    readFile('.env').split('\n').each { line ->
                         def trimmed = line.trim()
                         if (trimmed && !trimmed.startsWith('#') && trimmed.contains('=')) {
                             def idx = trimmed.indexOf('=')
