@@ -58,8 +58,9 @@ pipeline {
 
                     echo "===== 4. 이미지 빌드 ====="
                     echo "백엔드 빌드 시작"
-                    docker build -f ${env.REMOTE_DIR}/Dockerfile.internal \
-                        --build-arg BASE_REGISTRY=${env.HARBOR_URL} \
+                    docker build -f ${env.REMOTE_DIR}/Dockerfile \
+                        --build-arg BASE_IMAGE=${env.BASE_IMAGE} \
+                        --build-arg SKIP_SYS_DEPS=${env.SKIP_SYS_DEPS} \
                         -t ${env.HARBOR_URL}/dev/jira-reporter-backend:${params.TAG} \
                         ${env.REMOTE_DIR}/
                     echo "백엔드 빌드 완료 및 프론트엔드 빌드 시작"
