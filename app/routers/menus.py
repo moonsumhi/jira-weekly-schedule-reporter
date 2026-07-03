@@ -5,7 +5,7 @@ from datetime import datetime, timezone  # datetime: create_menuì˜ created_atì—
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.db.mongo import MongoClientManager
-from app.models.menu import MenuCreate, MenuOut, MenuPatch
+from app.models.menu import MenuCreate, MenuOut, MenuPatch, SubMenuItem
 from app.routers.admin import require_admin
 from app.utils.mongo import fmt_dt, oid as parse_oid
 
@@ -13,6 +13,8 @@ router = APIRouter()
 
 
 def _to_out(doc: dict) -> MenuOut:
+    raw_submenus = doc.get("submenus", [])
+    submenus = [SubMenuItem(**s) for s in raw_submenus if isinstance(s, dict)]
     return MenuOut(
         id=str(doc["_id"]),
         title=doc.get("title", ""),
@@ -26,6 +28,7 @@ def _to_out(doc: dict) -> MenuOut:
         sub_icons=doc.get("sub_icons"),
         sub_order=doc.get("sub_order"),
         link=doc.get("link"),
+        submenus=submenus,
         created_at=fmt_dt(doc.get("created_at")),
     )
 

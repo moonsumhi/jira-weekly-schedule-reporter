@@ -1,6 +1,13 @@
 import { api } from 'boot/axios'
 
 // camelcaseKeys 인터셉터로 인해 응답은 camelCase로 변환됨
+export interface SubMenuItem {
+  title: string
+  icon: string
+  link: string
+  requireAdmin?: boolean
+}
+
 export interface MenuOut {
   id: string
   title: string
@@ -14,6 +21,7 @@ export interface MenuOut {
   subIcons?: Record<string, string> | null
   subOrder?: string[] | null
   link?: string | null
+  submenus?: SubMenuItem[]
   createdAt: string | null
 }
 

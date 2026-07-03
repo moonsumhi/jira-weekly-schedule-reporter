@@ -16,7 +16,6 @@ _SYSTEM_MENUS = [
     {"slug": "job",      "title": "작업 관리",   "icon": "fa-solid fa-briefcase",  "sort_order": 2},
     {"slug": "asset",    "title": "자산",        "icon": "fa-solid fa-computer",   "sort_order": 3},
     {"slug": "watch",    "title": "당직 시간표", "icon": "fa-solid fa-clock",      "sort_order": 4},
-    {"slug": "account",  "title": "계정 설정",   "icon": "fa-solid fa-user-gear",  "sort_order": 5},
     {"slug": "calendar", "title": "팀캘린더",    "icon": "fa-solid fa-calendar",   "sort_order": 6},
     {"slug": "pm",           "title": "스케줄 관리",  "icon": "fa-solid fa-diagram-project",  "sort_order": 7},
     {"slug": "sr",           "title": "SR",           "icon": "fa-solid fa-paper-plane",      "sort_order": 8},
@@ -106,10 +105,250 @@ async def seed_system_menus() -> None:
         elif sm["slug"] == "pm" and existing.get("title") == "PM":
             await menus_col.update_one({"slug": "pm"}, {"$set": {"title": "스케줄 관리"}})
 
+    # account 메뉴는 하단 유저 카드로 대체 — DB에서 제거
+    await menus_col.delete_one({"slug": "account"})
+
     # 구 SR 개별 메뉴 제거 (sr 상위 메뉴로 통합)
     for old_slug in ("sr-new", "sr-my", "sr-manage"):
         await menus_col.delete_one({"slug": old_slug})
 
+
+
+_COMMON_PLAN_SECTIONS = [
+    {
+        "title": "기본 정보",
+        "fields": [
+            {"label": "작업명",   "type": "text",     "required": True,  "placeholder": "작업명을 입력하세요"},
+            {"label": "작업 일시","type": "text",     "required": True,  "placeholder": "YYYY-MM-DD HH:MM"},
+            {"label": "작업자",   "type": "text",     "required": True},
+            {"label": "신청자",   "type": "text",     "required": True},
+            {"label": "시스템명", "type": "text",     "required": True},
+            {"label": "작업 구분","type": "select",   "required": True,  "options": ["정기", "긴급", "임시"]},
+        ],
+    },
+    {
+        "title": "작업 내용",
+        "fields": [
+            {"label": "작업 목적",      "type": "textarea", "required": True},
+            {"label": "작업 범위",      "type": "textarea", "required": True},
+            {"label": "작업 상세 내용", "type": "textarea", "required": True},
+        ],
+    },
+    {
+        "title": "사전 준비",
+        "fields": [
+            {"label": "백업 여부", "type": "checkbox", "required": False},
+            {"label": "백업 내용", "type": "textarea", "required": False},
+        ],
+    },
+    {
+        "title": "사전 작업",
+        "multiple": True,
+        "fields": [
+            {"label": "작업 내용", "type": "textarea", "required": False},
+            {"label": "담당자",   "type": "text",     "required": False},
+        ],
+    },
+    {
+        "title": "세부 작업 절차",
+        "multiple": True,
+        "fields": [
+            {"label": "세부 작업 내용", "type": "textarea", "required": False},
+            {"label": "담당자",        "type": "text",     "required": False},
+            {"label": "작업 이미지",   "type": "image",    "required": False},
+        ],
+    },
+    {
+        "title": "롤백 계획",
+        "fields": [
+            {"label": "롤백 가능 여부", "type": "checkbox", "required": False},
+            {"label": "롤백 절차",     "type": "textarea", "required": False},
+            {"label": "롤백 소요 시간","type": "text",     "required": False},
+        ],
+    },
+]
+
+_JOB_FORM_TEMPLATES = [
+    {
+        "title": "작업계획서(서비스)",
+        "jira_issue_key": "JOB-PLAN-SERVICE",
+        "menu": "Job",
+        "sort_order": 1,
+        "sections": [
+            _COMMON_PLAN_SECTIONS[0],  # 기본 정보
+            _COMMON_PLAN_SECTIONS[1],  # 작업 내용
+            {
+                "title": "영향도 분석",
+                "fields": [
+                    {"label": "서비스 영향 여부", "type": "checkbox", "required": False},
+                    {"label": "서비스 중단 시간", "type": "text",     "required": False},
+                    {"label": "영향 범위",        "type": "text",     "required": False},
+                ],
+            },
+            *_COMMON_PLAN_SECTIONS[2:],  # 사전 준비, 사전 작업, 세부 작업 절차, 롤백 계획
+        ],
+    },
+    {
+        "title": "작업계획서(서비스 외)",
+        "jira_issue_key": "JOB-PLAN-NONSERVICE",
+        "menu": "Job",
+        "sort_order": 2,
+        "sections": list(_COMMON_PLAN_SECTIONS),
+    },
+    {
+        "title": "작업결과서",
+        "jira_issue_key": "JOB-RESULT",
+        "menu": "Job",
+        "sort_order": 3,
+        "sections": [
+            {
+                "title": "기본 정보",
+                "fields": [
+                    {"label": "작업명",   "type": "text",   "required": True,  "placeholder": "작업명을 입력하세요"},
+                    {"label": "작업 일시","type": "text",   "required": True,  "placeholder": "YYYY-MM-DD HH:MM"},
+                    {"label": "작업자",   "type": "text",   "required": True},
+                    {"label": "신청자",   "type": "text",   "required": True},
+                    {"label": "시스템명", "type": "text",   "required": True},
+                    {"label": "작업 구분","type": "select", "required": True,  "options": ["정기", "긴급", "임시"]},
+                ],
+            },
+            {
+                "title": "작업 결과",
+                "multiple": True,
+                "fields": [
+                    {"label": "작업 최종 결과",  "type": "select",   "required": True,  "options": ["성공", "부분성공", "실패"]},
+                    {"label": "실제 시작 시간",  "type": "text",     "required": False},
+                    {"label": "실제 종료 시간",  "type": "text",     "required": False},
+                    {"label": "작업 결과 요약",  "type": "textarea", "required": True},
+                    {"label": "작업 이미지",     "type": "image",    "required": False},
+                ],
+            },
+            {
+                "title": "작업 대상",
+                "multiple": True,
+                "fields": [
+                    {"label": "작업 대상", "type": "textarea", "required": False, "placeholder": "작업 대상을 입력하세요"},
+                ],
+            },
+            {
+                "title": "작업 내용",
+                "multiple": True,
+                "fields": [
+                    {"label": "작업 내용", "type": "textarea", "required": False, "placeholder": "작업 내용을 입력하세요"},
+                    {"label": "작업 이미지", "type": "image",  "required": False},
+                ],
+            },
+            {
+                "title": "문제 및 조치",
+                "fields": [
+                    {"label": "문제 발생 여부", "type": "checkbox", "required": False},
+                    {"label": "문제 내용",      "type": "textarea", "required": False},
+                    {"label": "조치 내용",      "type": "textarea", "required": False},
+                ],
+            },
+            {
+                "title": "사후 점검",
+                "fields": [
+                    {"label": "사후 점검 여부", "type": "checkbox", "required": False},
+                    {"label": "사후 점검 내용", "type": "textarea", "required": False},
+                ],
+            },
+        ],
+    },
+]
+
+
+# 시스템 메뉴별 하위 메뉴 및 leaf link 초기값
+# job: form templates에서 동적으로 로드 → 여기서 정의 안 함
+# account: 하단 유저 카드 표시 → 여기서 정의 안 함
+_SYSTEM_MENU_EXTRAS: dict[str, dict] = {
+    "jira": {
+        "submenus": [
+            {"title": "검색",    "icon": "fa-solid fa-list",          "link": "/jira/search"},
+            {"title": "주간보고", "icon": "fa-solid fa-calendar-week", "link": "/report/weekly"},
+        ],
+    },
+    "asset": {
+        "submenus": [
+            {"title": "전체",          "icon": "fa-solid fa-layer-group",   "link": "/asset/list"},
+            {"title": "서버",          "icon": "fa-solid fa-server",        "link": "/asset/list?category=서버"},
+            {"title": "네트워크",      "icon": "fa-solid fa-network-wired", "link": "/asset/list?category=네트워크"},
+            {"title": "정보보호시스템", "icon": "fa-solid fa-shield-halved", "link": "/asset/list?category=정보보호시스템"},
+            {"title": "DBMS",         "icon": "fa-solid fa-database",      "link": "/asset/list?category=DBMS"},
+            {"title": "VMware",       "icon": "fa-brands fa-vuejs",        "link": "/asset/list?category=VMware"},
+        ],
+    },
+    "watch":      {"link": "/watch/timetable"},
+    "inspection": {"link": "/inspection/checklist"},
+    "calendar":   {"link": "/calendar"},
+    "documents":  {"link": "/documents"},
+    "pm": {
+        "submenus": [
+            {"title": "대시보드", "icon": "fa-solid fa-gauge",            "link": "/pm/dashboard"},
+            {"title": "업무 현황","icon": "fa-solid fa-chart-bar",        "link": "/pm/work-status"},
+            {"title": "프로젝트", "icon": "fa-solid fa-diagram-project",  "link": "/pm/projects"},
+            {"title": "조직",    "icon": "fa-solid fa-building",         "link": "/pm/organizations"},
+            {"title": "주간 보고","icon": "fa-solid fa-calendar-week",    "link": "/pm/weekly-report",  "require_admin": True},
+            {"title": "월간 보고","icon": "fa-solid fa-calendar-days",    "link": "/pm/monthly-report", "require_admin": True},
+        ],
+    },
+    "sr": {
+        "submenus": [
+            {"title": "SR 접수",    "icon": "fa-solid fa-paper-plane", "link": "/pm/sr/new"},
+            {"title": "내 SR 목록", "icon": "fa-solid fa-list-check",  "link": "/pm/sr/my"},
+            {"title": "SR 관리",   "icon": "fa-solid fa-tasks",       "link": "/pm/sr/manage"},
+        ],
+    },
+    "server_check": {
+        "submenus": [
+            {"title": "요약",      "icon": "fa-solid fa-table-list",   "link": "/inspection/health-summary"},
+            {"title": "서버리스트", "icon": "fa-solid fa-server",       "link": "/inspection/health-servers"},
+            {"title": "월별 비교", "icon": "fa-solid fa-code-compare", "link": "/inspection/health-compare"},
+        ],
+    },
+    "isms-p": {
+        "submenus": [
+            {"title": "단계별 산출물", "icon": "fa-solid fa-folder-open", "link": "/isms-p/01. ISMS-P_단계별산출물"},
+        ],
+    },
+    "admin": {
+        "submenus": [
+            {"title": "회원가입 승인", "icon": "fa-regular fa-thumbs-up",     "link": "/admin/approvals"},
+            {"title": "회원 목록",    "icon": "fa-solid fa-users",           "link": "/admin/users"},
+            {"title": "메뉴 관리",   "icon": "fa-solid fa-bars",            "link": "/admin/menus"},
+            {"title": "Audit Log",  "icon": "fa-solid fa-clipboard-list",  "link": "/admin/audit-log"},
+        ],
+    },
+}
+
+
+async def seed_system_menu_extras() -> None:
+    """시스템 메뉴에 link / submenus 초기값을 설정한다 (필드가 없을 때만)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    for slug, extras in _SYSTEM_MENU_EXTRAS.items():
+        doc = await menus_col.find_one({"slug": slug})
+        if not doc:
+            continue
+        update: dict = {}
+        if "link" in extras and not doc.get("link"):
+            update["link"] = extras["link"]
+        if "submenus" in extras and not doc.get("submenus"):
+            update["submenus"] = extras["submenus"]
+        if update:
+            await menus_col.update_one({"slug": slug}, {"$set": update})
+
+
+async def seed_job_form_templates() -> None:
+    """Job 폼 템플릿이 없으면 초기 데이터를 삽입한다."""
+    col = MongoClientManager.get_form_templates_collection()
+    for tmpl in _JOB_FORM_TEMPLATES:
+        existing = await col.find_one({"jira_issue_key": tmpl["jira_issue_key"]})
+        if not existing:
+            await col.insert_one({
+                **tmpl,
+                "is_deleted": False,
+                "created_at": datetime.now(timezone.utc),
+            })
 
 
 async def migrate_assets() -> None:
@@ -141,6 +380,8 @@ async def run_startup() -> None:
     """lifespan startup에서 호출하는 진입점."""
     await create_indexes()
     await seed_system_menus()
+    await seed_system_menu_extras()
+    await seed_job_form_templates()
     await migrate_assets()
 
     from app.db.pm_indexes import create_pm_indexes

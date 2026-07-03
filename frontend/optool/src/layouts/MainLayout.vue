@@ -46,140 +46,40 @@
 
             <!-- 모든 메뉴를 sortOrder 순서대로 렌더링 -->
             <template v-for="menu in sortedVisibleMenus" :key="menu.id">
-              <!-- Jira -->
+              <!-- Job: form template 기반 동적 하위 메뉴 -->
               <EssentialLink
-                v-if="menu.slug === 'jira' && hasPerm('jira')"
-                :title="menu.title"
-                :icon="menu.icon"
-                :children="applySubOrder([
-                  { title: '검색', icon: menu.subIcons?.['/jira/search'] ?? 'fa-solid fa-list', link: '/jira/search' },
-                  { title: '주간보고', icon: menu.subIcons?.['/report/weekly'] ?? 'fa-solid fa-calendar-week', link: '/report/weekly' },
-                ], menu)"
-              />
-
-
-              <!-- Job -->
-              <EssentialLink
-                v-else-if="menu.slug === 'job' && hasPerm('job')"
+                v-if="menu.slug === 'job'"
                 :title="menu.title"
                 :icon="menu.icon"
                 :children="jobMenuItems"
               />
 
-              <!-- 자산 -->
+              <!-- Admin: 승인 대기 badge 포함 -->
               <EssentialLink
-                v-else-if="menu.slug === 'asset' && hasPerm('asset')"
-                :title="menu.title"
-                :icon="menu.icon"
-                :children="applySubOrder([
-                  { title: '전체',          icon: menu.subIcons?.['/asset/list']                      ?? 'fa-solid fa-layer-group',   link: '/asset/list' },
-                  { title: '서버',          icon: menu.subIcons?.['/asset/list?category=서버']         ?? 'fa-solid fa-server',        link: '/asset/list?category=서버' },
-                  { title: '네트워크',      icon: menu.subIcons?.['/asset/list?category=네트워크']     ?? 'fa-solid fa-network-wired', link: '/asset/list?category=네트워크' },
-                  { title: '정보보호시스템', icon: menu.subIcons?.['/asset/list?category=정보보호시스템'] ?? 'fa-solid fa-shield-halved', link: '/asset/list?category=정보보호시스템' },
-                  { title: 'DBMS',         icon: menu.subIcons?.['/asset/list?category=DBMS']         ?? 'fa-solid fa-database',       link: '/asset/list?category=DBMS' },
-                  { title: 'VMware',       icon: menu.subIcons?.['/asset/list?category=VMware']       ?? 'fa-brands fa-vuejs',         link: '/asset/list?category=VMware' },
-                ], menu)"
-              />
-
-              <!-- Timetable -->
-              <EssentialLink
-                v-else-if="menu.slug === 'watch' && hasPerm('watch')"
-                :title="menu.title"
-                :icon="menu.icon"
-                link="/watch/timetable"
-              />
-
-              <!-- 계정 설정: 하단 유저 카드로 이동, 여기서는 숨김 -->
-              <template v-else-if="menu.slug === 'account'" />
-
-              <!-- 서버실 점검 -->
-              <EssentialLink
-                v-else-if="menu.slug === 'inspection' && hasPerm('inspection')"
-                :title="menu.title"
-                :icon="menu.icon"
-                link="/inspection/checklist"
-              />
-
-              <!-- 서버점검 (월1회) -->
-              <EssentialLink
-                v-else-if="menu.slug === 'server_check' && hasPerm('server_check')"
-                :title="menu.title"
-                :icon="menu.icon"
-                :children="applySubOrder([
-                  { title: '요약', icon: menu.subIcons?.['/inspection/health-summary'] ?? 'fa-solid fa-table-list', link: '/inspection/health-summary' },
-                  { title: '서버리스트', icon: menu.subIcons?.['/inspection/health-servers'] ?? 'fa-solid fa-server', link: '/inspection/health-servers' },
-                  { title: '월별 비교', icon: menu.subIcons?.['/inspection/health-compare'] ?? 'fa-solid fa-code-compare', link: '/inspection/health-compare' },
-                ], menu)"
-              />
-
-              <!-- ISMS-P -->
-              <EssentialLink
-                v-else-if="menu.slug === 'isms-p'"
-                :title="menu.title"
-                :icon="menu.icon"
-                :children="[
-                  { title: '단계별 산출물', icon: 'fa-solid fa-folder-open', link: '/isms-p/01. ISMS-P_단계별산출물' },
-                ]"
-              />
-
-              <!-- PM -->
-              <EssentialLink
-                v-else-if="menu.slug === 'pm' && hasPerm('pm')"
-                :title="menu.title"
-                :icon="menu.icon"
-                :children="applySubOrder([
-                  { title: '대시보드', icon: menu.subIcons?.['/pm/dashboard'] ?? 'fa-solid fa-gauge', link: '/pm/dashboard' },
-                  { title: '업무 현황', icon: menu.subIcons?.['/pm/work-status'] ?? 'fa-solid fa-chart-bar', link: '/pm/work-status' },
-                  { title: '프로젝트', icon: menu.subIcons?.['/pm/projects'] ?? 'fa-solid fa-diagram-project', link: '/pm/projects' },
-                  { title: '조직', icon: menu.subIcons?.['/pm/organizations'] ?? 'fa-solid fa-building', link: '/pm/organizations' },
-                  ...(auth.me?.isAdmin ? [
-                    { title: '주간 보고', icon: menu.subIcons?.['/pm/weekly-report'] ?? 'fa-solid fa-calendar-week', link: '/pm/weekly-report' },
-                    { title: '월간 보고', icon: menu.subIcons?.['/pm/monthly-report'] ?? 'fa-solid fa-calendar-days', link: '/pm/monthly-report' },
-                  ] : []),
-                ], menu)"
-              />
-
-              <!-- SR (Service Request) -->
-              <EssentialLink
-                v-else-if="menu.slug === 'sr' && hasPerm('sr')"
-                :title="menu.title"
-                :icon="menu.icon"
-                :children="applySubOrder([
-                  { title: 'SR 접수',    icon: menu.subIcons?.['/pm/sr/new']    ?? 'fa-solid fa-paper-plane', link: '/pm/sr/new' },
-                  { title: '내 SR 목록', icon: menu.subIcons?.['/pm/sr/my']     ?? 'fa-solid fa-list-check',  link: '/pm/sr/my' },
-                  { title: 'SR 관리',    icon: menu.subIcons?.['/pm/sr/manage'] ?? 'fa-solid fa-tasks',       link: '/pm/sr/manage' },
-                ], menu)"
-              />
-
-              <!-- Admin -->
-              <EssentialLink
-                v-else-if="menu.slug === 'admin' && auth.me?.isAdmin"
+                v-else-if="menu.slug === 'admin'"
                 :title="menu.title"
                 :icon="menu.icon"
                 :badge="pendingCount"
-                :children="applySubOrder([
-                  { title: '회원가입 승인', icon: menu.subIcons?.['/admin/approvals'] ?? 'fa-regular fa-thumbs-up', link: '/admin/approvals', badge: pendingCount },
-                  { title: '회원 목록', icon: menu.subIcons?.['/admin/users'] ?? 'fa-solid fa-users', link: '/admin/users' },
-                  { title: '메뉴 관리', icon: menu.subIcons?.['/admin/menus'] ?? 'fa-solid fa-bars', link: '/admin/menus' },
-                  { title: 'Audit Log', icon: menu.subIcons?.['/admin/audit-log'] ?? 'fa-solid fa-clipboard-list', link: '/admin/audit-log' },
-                ], menu)"
+                :children="menuChildren(menu, '/admin/approvals')"
               />
 
-              <!-- 팀캘린더 -->
-              <EssentialLink
-                v-else-if="menu.slug === 'calendar' && hasPerm('calendar')"
-                :title="menu.title"
-                :icon="menu.icon"
-                link="/calendar"
-              />
-
-              <!-- 동적 메뉴 (관리자가 추가한 메뉴 > 게시판, 또는 알 수 없는 slug) -->
+              <!-- leaf 링크 메뉴 -->
               <EssentialLink
                 v-else-if="menu.link"
                 :title="menu.title"
                 :icon="menu.icon"
                 :link="menu.link"
               />
+
+              <!-- DB submenus 기반 메뉴 -->
+              <EssentialLink
+                v-else-if="menu.submenus?.length"
+                :title="menu.title"
+                :icon="menu.icon"
+                :children="menuChildren(menu)"
+              />
+
+              <!-- 동적 게시판 메뉴 (관리자가 추가한 메뉴) -->
               <EssentialLink
                 v-else
                 :title="menu.title"
@@ -353,6 +253,7 @@ import { storeToRefs } from 'pinia'
 import { useAuthStore } from 'stores/auth'
 import { useMenuStore } from 'stores/menus'
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue'
+import type { MenuOut } from 'src/services/menus'
 import { useQuasar } from 'quasar'
 import { fetchLinks, createLink, patchLink, deleteLink, type Link } from 'src/services/links'
 
@@ -411,6 +312,18 @@ function applySubOrder<T extends { link: string }>(items: T[], menu: { subOrder?
     .sort((a, b) => (orderMap.get(a.link) ?? Infinity) - (orderMap.get(b.link) ?? Infinity))
   const unordered = items.filter((item) => !orderMap.has(item.link))
   return [...ordered, ...unordered]
+}
+
+function menuChildren(menu: MenuOut, badgeLink?: string): EssentialLinkProps[] {
+  const items = (menu.submenus ?? [])
+    .filter((s) => !s.requireAdmin || !!auth.me?.isAdmin)
+    .map((s) => ({
+      title: s.title,
+      icon: menu.subIcons?.[s.link] ?? s.icon,
+      link: s.link,
+      badge: badgeLink === s.link ? pendingCount.value : 0,
+    }))
+  return applySubOrder(items, menu)
 }
 
 function boardChildrenOf(menuId: string) {

@@ -1,6 +1,13 @@
 from pydantic import BaseModel
 
 
+class SubMenuItem(BaseModel):
+    title: str
+    icon: str
+    link: str
+    require_admin: bool = False
+
+
 class MenuCreate(BaseModel):
     title: str
     icon: str = "fa-solid fa-folder"
@@ -34,4 +41,5 @@ class MenuOut(BaseModel):
     sub_icons: dict[str, str] | None = None
     sub_order: list[str] | None = None
     link: str | None = None
+    submenus: list[SubMenuItem] = []
     created_at: str | None = None
