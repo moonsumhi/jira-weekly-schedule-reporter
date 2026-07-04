@@ -205,6 +205,59 @@ _PLAN_TEST_CASES = {
     ],
 }
 
+# NCDC포털_작업결과서_260604.hwp 실제 양식에서 추출한 섹션 구조.
+# 작업 대상/작업자 정보/검토·서명은 작업계획서와 동일해 위 _PLAN_* 섹션을 그대로 재사용.
+_RESULT_BASIC_INFO = {
+    "title": "기본 정보",
+    "fields": [
+        {"label": "작업명",           "type": "text",     "required": True,  "placeholder": "작업명을 입력하세요"},
+        {"label": "작업 일시",        "type": "text",     "required": True,  "placeholder": "YYYY.MM.DD HH:MM-HH:MM"},
+        {"label": "서비스 명",        "type": "text",     "required": True},
+        {"label": "회사명/성함/직책", "type": "text",     "required": True},
+        {"label": "구분",             "type": "select",   "required": True,  "options": ["서버", "네트워크", "보안", "개발"]},
+        {"label": "서비스 영향도",    "type": "select",   "required": True,  "options": ["유", "무"]},
+        {"label": "목적",             "type": "textarea", "required": True},
+    ],
+}
+_RESULT_WORK_CONTENT = {
+    "title": "작업 내용",
+    "multiple": True,
+    "fields": [
+        {"label": "작업 내용", "type": "textarea", "required": False},
+        {"label": "비고",     "type": "text",     "required": False},
+    ],
+}
+_RESULT_BEFORE_AFTER = {
+    "title": "작업 결과",
+    "multiple": True,
+    "fields": [
+        {"label": "작업 전",   "type": "textarea", "required": False},
+        {"label": "작업 후",   "type": "textarea", "required": False},
+        {"label": "작업사진", "type": "image",    "required": False},
+    ],
+}
+_RESULT_TEST_SUCCESS = {
+    "title": "테스트 케이스(성공)",
+    "multiple": True,
+    "fields": [
+        {"label": "테스트 케이스 ID", "type": "text", "required": False},
+        {"label": "결과",            "type": "select", "required": False, "options": ["성공", "실패"]},
+        {"label": "시간",            "type": "text", "required": False},
+        {"label": "발견된 이슈",     "type": "text", "required": False},
+        {"label": "담당자",          "type": "text", "required": False},
+    ],
+}
+_RESULT_TEST_FAIL = {
+    "title": "테스트 케이스(실패)",
+    "multiple": True,
+    "fields": [
+        {"label": "테스트 케이스 ID",       "type": "text",     "required": False},
+        {"label": "실패 원인",              "type": "textarea", "required": False},
+        {"label": "이슈 해결 방안",         "type": "textarea", "required": False},
+        {"label": "해결 방안 적용 계획 일자","type": "text",     "required": False},
+    ],
+}
+
 _JOB_FORM_TEMPLATES = [
     {
         "title": "작업계획서(서비스)",
@@ -241,77 +294,19 @@ _JOB_FORM_TEMPLATES = [
         ],
     },
     {
-        # ServiceWorkResultBase 필드와 1:1로 맞춤
         "title": "작업결과서",
         "jira_issue_key": "JOB-RESULT",
         "menu": "Job",
         "sort_order": 3,
         "sections": [
-            {
-                "title": "기본 정보",
-                "fields": [
-                    {"label": "작업명",   "type": "text",   "required": True,  "placeholder": "작업명을 입력하세요"},
-                    {"label": "작업 일시","type": "text",   "required": True,  "placeholder": "YYYY-MM-DD HH:MM"},
-                    {"label": "작업자",   "type": "text",   "required": True},
-                    {"label": "신청자",   "type": "text",   "required": True},
-                    {"label": "시스템명", "type": "text",   "required": True},
-                    {"label": "작업 구분","type": "select", "required": True,  "options": ["정기", "긴급", "임시"]},
-                ],
-            },
-            {
-                # result / actual_start_time / actual_end_time / summary — 단일 필드 (반복 아님)
-                "title": "작업 결과",
-                "fields": [
-                    {"label": "결과",         "type": "select",   "required": True,  "options": ["성공", "부분성공", "실패"]},
-                    {"label": "실제 시작 시간","type": "text",     "required": False},
-                    {"label": "실제 종료 시간","type": "text",     "required": False},
-                    {"label": "작업 요약",     "type": "textarea", "required": True},
-                ],
-            },
-            {
-                # service_affected / actual_downtime
-                "title": "서비스 영향",
-                "fields": [
-                    {"label": "서비스 영향 여부", "type": "checkbox", "required": False},
-                    {"label": "실제 중단 시간",   "type": "text",     "required": False},
-                ],
-            },
-            {
-                # step_results: List[JobWorkStepResult] (order, task, person, completed, notes)
-                "title": "작업 절차 결과",
-                "multiple": True,
-                "fields": [
-                    {"label": "작업 내용", "type": "textarea", "required": False},
-                    {"label": "담당자",   "type": "text",     "required": False},
-                    {"label": "완료 여부", "type": "checkbox", "required": False},
-                    {"label": "비고",     "type": "textarea", "required": False},
-                ],
-            },
-            {
-                # issues_occurred / issue_details / action_taken
-                "title": "문제 및 조치",
-                "fields": [
-                    {"label": "문제 발생 여부", "type": "checkbox", "required": False},
-                    {"label": "문제 내용",      "type": "textarea", "required": False},
-                    {"label": "조치 내용",      "type": "textarea", "required": False},
-                ],
-            },
-            {
-                # post_check_done / post_check_details
-                "title": "사후 점검",
-                "fields": [
-                    {"label": "사후 점검 여부", "type": "checkbox", "required": False},
-                    {"label": "사후 점검 내용", "type": "textarea", "required": False},
-                ],
-            },
-            {
-                # plan_id / notes
-                "title": "비고",
-                "fields": [
-                    {"label": "연관 작업계획서 ID", "type": "text",     "required": False},
-                    {"label": "비고",              "type": "textarea", "required": False},
-                ],
-            },
+            _RESULT_BASIC_INFO,
+            _PLAN_TARGETS,
+            _RESULT_WORK_CONTENT,
+            _PLAN_WORKERS,
+            _PLAN_REVIEW,
+            _RESULT_BEFORE_AFTER,
+            _RESULT_TEST_SUCCESS,
+            _RESULT_TEST_FAIL,
         ],
     },
 ]

@@ -149,6 +149,7 @@
                           @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
                           @paste.stop="onPasteImage(section.title, rowIdx, field.label, $event)"
                         >
+                          <div class="text-caption text-grey-6" style="width:100%;text-align:center;padding-top:2px;">{{ rowIdx + 1 }}-{{ field.label }}</div>
                           <!-- 배치된 이미지 목록 -->
                           <div v-if="getRowImages(section.title, rowIdx, field.label).length > 0" style="display:flex;flex-wrap:wrap;gap:4px;padding:4px;">
                             <div
@@ -465,6 +466,7 @@
                         :style="field.type === 'image' ? 'min-width:160px; width:160px' : ''"
                       >
                         <template v-if="field.type === 'image'">
+                          <div class="text-caption text-grey-6" style="text-align:center;">{{ rowIdx + 1 }}-{{ field.label }}</div>
                           <div v-if="toImageArray(rowData[field.label]).length > 0" style="padding:4px;display:flex;flex-wrap:wrap;gap:4px;">
                             <img
                               v-for="(imgSrc, imgIdx) in toImageArray(rowData[field.label])"
