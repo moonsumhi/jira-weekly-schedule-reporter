@@ -309,6 +309,16 @@ def _normalize_text(text: str) -> str:
     return text
 
 
+def _flexible_label_pattern(label: str) -> str:
+    """라벨 글자 사이 공백 유무에 관계없이 매칭되는 정규식 패턴 생성.
+
+    문서마다 "서비스명"/"서비스 명"처럼 공백 표기가 들쭉날쭉하므로,
+    라벨의 공백을 제거한 뒤 각 글자 사이에 \\s*를 끼워 유연하게 매칭한다.
+    """
+    chars = [c for c in label if not c.isspace()]
+    return r'\s*'.join(re.escape(c) for c in chars)
+
+
 def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
     """추출된 텍스트에서 폼 필드 값을 파싱."""
     text = _normalize_text(text)
@@ -365,7 +375,7 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
         return text  # 직전 섹션도 없으면 전체 텍스트
 
     def find_value(label: str, scope: str, is_textarea: bool = False) -> str:
-        m = re.search(re.escape(label), scope)
+        m = re.search(re.escape(label), scope) or re.search(_flexible_label_pattern(label), scope)
         if not m:
             logger.info("Field not found: [%s]", label)
             return ""
