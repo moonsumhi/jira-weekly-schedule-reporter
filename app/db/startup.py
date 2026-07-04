@@ -114,88 +114,107 @@ async def seed_system_menus() -> None:
 
 
 
-_COMMON_PLAN_SECTIONS = [
-    {
-        "title": "기본 정보",
-        "fields": [
-            {"label": "작업명",   "type": "text",     "required": True,  "placeholder": "작업명을 입력하세요"},
-            {"label": "작업 일시","type": "text",     "required": True,  "placeholder": "YYYY-MM-DD HH:MM"},
-            {"label": "작업자",   "type": "text",     "required": True},
-            {"label": "신청자",   "type": "text",     "required": True},
-            {"label": "시스템명", "type": "text",     "required": True},
-            {"label": "작업 구분","type": "select",   "required": True,  "options": ["정기", "긴급", "임시"]},
-        ],
-    },
-    {
-        "title": "작업 내용",
-        "fields": [
-            {"label": "작업 목적",      "type": "textarea", "required": True},
-            {"label": "작업 범위",      "type": "textarea", "required": True},
-            {"label": "작업 상세 내용", "type": "textarea", "required": True},
-        ],
-    },
-    {
-        "title": "사전 준비",
-        "fields": [
-            {"label": "백업 여부", "type": "checkbox", "required": False},
-            {"label": "백업 내용", "type": "textarea", "required": False},
-        ],
-    },
-    {
-        "title": "사전 작업",
-        "multiple": True,
-        "fields": [
-            {"label": "작업 내용", "type": "textarea", "required": False},
-            {"label": "담당자",   "type": "text",     "required": False},
-        ],
-    },
-    {
-        "title": "세부 작업 절차",
-        "multiple": True,
-        "fields": [
-            {"label": "세부 작업 내용", "type": "textarea", "required": False},
-            {"label": "담당자",        "type": "text",     "required": False},
-            {"label": "작업 이미지",   "type": "image",    "required": False},
-        ],
-    },
-    {
-        "title": "롤백 계획",
-        "fields": [
-            {"label": "롤백 가능 여부", "type": "checkbox", "required": False},
-            {"label": "롤백 절차",     "type": "textarea", "required": False},
-            {"label": "롤백 소요 시간","type": "text",     "required": False},
-        ],
-    },
-]
+# app/models/job.py의 ServiceWorkPlanBase / NonServiceWorkPlanBase 필드와 1:1로 맞춘 섹션들.
+_PLAN_BASIC_INFO = {
+    "title": "기본 정보",
+    "fields": [
+        {"label": "작업명",   "type": "text",     "required": True,  "placeholder": "작업명을 입력하세요"},
+        {"label": "작업 일시","type": "text",     "required": True,  "placeholder": "YYYY-MM-DD HH:MM"},
+        {"label": "작업자",   "type": "text",     "required": True},
+        {"label": "신청자",   "type": "text",     "required": True},
+        {"label": "시스템명", "type": "text",     "required": True},
+        {"label": "작업 구분","type": "select",   "required": True,  "options": ["정기", "긴급", "임시"]},
+    ],
+}
+_PLAN_WORK_DETAIL = {
+    "title": "작업 내용",
+    "fields": [
+        {"label": "작업 목적",      "type": "textarea", "required": True},
+        {"label": "작업 범위",      "type": "textarea", "required": True},
+        {"label": "작업 상세 내용", "type": "textarea", "required": True},
+    ],
+}
+# service_affected / downtime / impact_scope — Service/NonService 둘 다 갖는 필드 (job.py 참고)
+_PLAN_IMPACT_ANALYSIS = {
+    "title": "영향도 분석",
+    "fields": [
+        {"label": "서비스 영향 여부", "type": "checkbox", "required": False},
+        {"label": "서비스 중단 시간", "type": "text",     "required": False},
+        {"label": "영향 범위",       "type": "text",     "required": False},
+    ],
+}
+_PLAN_PREP = {
+    "title": "사전 준비",
+    "fields": [
+        {"label": "백업 여부", "type": "checkbox", "required": False},
+        {"label": "백업 내용", "type": "textarea", "required": False},
+    ],
+}
+# steps: List[JobWorkStep] (order, task, person, duration) — 이미지 필드 없음
+_PLAN_STEPS = {
+    "title": "세부 작업 절차",
+    "multiple": True,
+    "fields": [
+        {"label": "세부 작업 내용", "type": "textarea", "required": False},
+        {"label": "담당자",        "type": "text",     "required": False},
+        {"label": "소요 시간",     "type": "text",     "required": False},
+    ],
+}
+_PLAN_ROLLBACK = {
+    "title": "롤백 계획",
+    "fields": [
+        {"label": "롤백 가능 여부", "type": "checkbox", "required": False},
+        {"label": "롤백 절차",     "type": "textarea", "required": False},
+        {"label": "롤백 소요 시간","type": "text",     "required": False},
+    ],
+}
+# result_notes / work_summary / outcome / issues_found / resolution
+_PLAN_RESULT = {
+    "title": "작업 결과",
+    "fields": [
+        {"label": "결과",           "type": "select",   "required": False, "options": ["성공", "부분성공", "실패"]},
+        {"label": "수행 작업 요약", "type": "textarea", "required": False},
+        {"label": "발생 문제",      "type": "textarea", "required": False},
+        {"label": "조치 내용",      "type": "textarea", "required": False},
+        {"label": "특이 사항",      "type": "textarea", "required": False},
+    ],
+}
 
 _JOB_FORM_TEMPLATES = [
     {
+        # ServiceWorkPlanBase 필드 순서: ...detail → service_affected/downtime/impact_scope → backup_done → steps → rollback → result
         "title": "작업계획서(서비스)",
         "jira_issue_key": "JOB-PLAN-SERVICE",
         "menu": "Job",
         "sort_order": 1,
         "sections": [
-            _COMMON_PLAN_SECTIONS[0],  # 기본 정보
-            _COMMON_PLAN_SECTIONS[1],  # 작업 내용
-            {
-                "title": "영향도 분석",
-                "fields": [
-                    {"label": "서비스 영향 여부", "type": "checkbox", "required": False},
-                    {"label": "서비스 중단 시간", "type": "text",     "required": False},
-                    {"label": "영향 범위",        "type": "text",     "required": False},
-                ],
-            },
-            *_COMMON_PLAN_SECTIONS[2:],  # 사전 준비, 사전 작업, 세부 작업 절차, 롤백 계획
+            _PLAN_BASIC_INFO,
+            _PLAN_WORK_DETAIL,
+            _PLAN_IMPACT_ANALYSIS,
+            _PLAN_PREP,
+            _PLAN_STEPS,
+            _PLAN_ROLLBACK,
+            _PLAN_RESULT,
         ],
     },
     {
+        # NonServiceWorkPlanBase 필드 순서: ...rollback → service_affected/downtime/impact_scope → result
         "title": "작업계획서(서비스 외)",
         "jira_issue_key": "JOB-PLAN-NONSERVICE",
         "menu": "Job",
         "sort_order": 2,
-        "sections": list(_COMMON_PLAN_SECTIONS),
+        "sections": [
+            _PLAN_BASIC_INFO,
+            _PLAN_WORK_DETAIL,
+            _PLAN_PREP,
+            _PLAN_STEPS,
+            _PLAN_ROLLBACK,
+            _PLAN_IMPACT_ANALYSIS,
+            _PLAN_RESULT,
+        ],
     },
     {
+        # ServiceWorkResultBase 필드와 1:1로 맞춤
         "title": "작업결과서",
         "jira_issue_key": "JOB-RESULT",
         "menu": "Job",
@@ -213,32 +232,36 @@ _JOB_FORM_TEMPLATES = [
                 ],
             },
             {
+                # result / actual_start_time / actual_end_time / summary — 단일 필드 (반복 아님)
                 "title": "작업 결과",
-                "multiple": True,
                 "fields": [
-                    {"label": "작업 최종 결과",  "type": "select",   "required": True,  "options": ["성공", "부분성공", "실패"]},
-                    {"label": "실제 시작 시간",  "type": "text",     "required": False},
-                    {"label": "실제 종료 시간",  "type": "text",     "required": False},
-                    {"label": "작업 결과 요약",  "type": "textarea", "required": True},
-                    {"label": "작업 이미지",     "type": "image",    "required": False},
+                    {"label": "결과",         "type": "select",   "required": True,  "options": ["성공", "부분성공", "실패"]},
+                    {"label": "실제 시작 시간","type": "text",     "required": False},
+                    {"label": "실제 종료 시간","type": "text",     "required": False},
+                    {"label": "작업 요약",     "type": "textarea", "required": True},
                 ],
             },
             {
-                "title": "작업 대상",
-                "multiple": True,
+                # service_affected / actual_downtime
+                "title": "서비스 영향",
                 "fields": [
-                    {"label": "작업 대상", "type": "textarea", "required": False, "placeholder": "작업 대상을 입력하세요"},
+                    {"label": "서비스 영향 여부", "type": "checkbox", "required": False},
+                    {"label": "실제 중단 시간",   "type": "text",     "required": False},
                 ],
             },
             {
-                "title": "작업 내용",
+                # step_results: List[JobWorkStepResult] (order, task, person, completed, notes)
+                "title": "작업 절차 결과",
                 "multiple": True,
                 "fields": [
-                    {"label": "작업 내용", "type": "textarea", "required": False, "placeholder": "작업 내용을 입력하세요"},
-                    {"label": "작업 이미지", "type": "image",  "required": False},
+                    {"label": "작업 내용", "type": "textarea", "required": False},
+                    {"label": "담당자",   "type": "text",     "required": False},
+                    {"label": "완료 여부", "type": "checkbox", "required": False},
+                    {"label": "비고",     "type": "textarea", "required": False},
                 ],
             },
             {
+                # issues_occurred / issue_details / action_taken
                 "title": "문제 및 조치",
                 "fields": [
                     {"label": "문제 발생 여부", "type": "checkbox", "required": False},
@@ -247,10 +270,19 @@ _JOB_FORM_TEMPLATES = [
                 ],
             },
             {
+                # post_check_done / post_check_details
                 "title": "사후 점검",
                 "fields": [
                     {"label": "사후 점검 여부", "type": "checkbox", "required": False},
                     {"label": "사후 점검 내용", "type": "textarea", "required": False},
+                ],
+            },
+            {
+                # plan_id / notes
+                "title": "비고",
+                "fields": [
+                    {"label": "연관 작업계획서 ID", "type": "text",     "required": False},
+                    {"label": "비고",              "type": "textarea", "required": False},
                 ],
             },
         ],

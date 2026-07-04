@@ -77,11 +77,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
 import { api } from 'boot/axios'
 
 const $q = useQuasar()
 const auth = useAuthStore()
+const router = useRouter()
 
 const currentPw = ref('')
 const newPw = ref('')
@@ -103,6 +105,7 @@ async function onChangePw() {
     currentPw.value = ''
     newPw.value = ''
     newPwConfirm.value = ''
+    void router.push('/app')
   } catch (e: unknown) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || '비밀번호 변경에 실패했습니다.'
     $q.notify({ type: 'negative', message: msg })

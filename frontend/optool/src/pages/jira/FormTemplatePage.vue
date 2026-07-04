@@ -2,6 +2,10 @@
   <q-page class="q-pa-md">
     <q-inner-loading :showing="loading" />
 
+    <!-- 파일 선택창이 열려있는 동안 DOM에서 제거되면 브라우저가 창을 강제로 닫으므로,
+         v-if 블록 밖에 항상 마운트된 상태로 둔다 -->
+    <input ref="fileInput" type="file" accept=".pdf,.hwp" style="display:none" @change="handleFileImport" />
+
     <template v-if="!loading && template">
       <!-- Header -->
       <div class="row items-center q-gutter-sm q-mb-md">
@@ -13,7 +17,6 @@
         <q-toggle v-model="includeDeleted" label="삭제 포함" dense @update:model-value="load" />
         <q-btn outline icon="refresh" label="새로고침" :loading="tableLoading" @click="load" />
         <q-btn outline icon="upload_file" label="Import" :loading="importing" @click="triggerImport" />
-        <input ref="fileInput" type="file" accept=".pdf,.hwp" style="display:none" @change="handleFileImport" />
         <q-btn color="primary" icon="add" :label="`${template.title} 추가`" @click="openCreate" />
       </div>
 
@@ -992,6 +995,31 @@ async function openDetail(row: FormEntry) {
 }
 
 function validate(): boolean {
+  for (const section of sections.value) {
+    const requiredFields = section.fields.filter((f) => f.required)
+    if (requiredFields.length === 0) continue
+
+    if (section.multiple) {
+      const rowsArr = getRows(section.title)
+      for (let i = 0; i < rowsArr.length; i++) {
+        for (const field of requiredFields) {
+          const v = rowsArr[i]?.[field.label]
+          const empty = Array.isArray(v) ? v.length === 0 : !v
+          if (empty) {
+            $q.notify({ type: 'negative', message: `[${section.title}] ${i + 1}번째 행의 "${field.label}"은(는) 필수 입력입니다.` })
+            return false
+          }
+        }
+      }
+    } else {
+      for (const field of requiredFields) {
+        if (!getVal(section.title, field.label)) {
+          $q.notify({ type: 'negative', message: `[${section.title}] "${field.label}"은(는) 필수 입력입니다.` })
+          return false
+        }
+      }
+    }
+  }
   return true
 }
 

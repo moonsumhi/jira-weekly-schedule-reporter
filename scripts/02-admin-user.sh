@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eu
 
 DB_NAME="${APP_DB_NAME}"
 DB_USER="${APP_DB_USER}"
