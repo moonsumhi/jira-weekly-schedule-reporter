@@ -29,9 +29,9 @@ services:
       context: .
       dockerfile: frontend/optool/Dockerfile
       args:
-        NODE_BASE_IMAGE: ${FE_NODE_BASE_IMAGE:-node:22-alpine}
-        NGINX_BASE_IMAGE: ${FE_NGINX_BASE_IMAGE:-nginx:alpine}
-        SKIP_NPM_INSTALL: ${FE_SKIP_NPM_INSTALL:-false}
+        NODE_BASE_IMAGE: ${BO_FE_NODE_BASE_IMAGE:-node:22-alpine}
+        NGINX_BASE_IMAGE: ${BO_FE_NGINX_BASE_IMAGE:-nginx:alpine}
+        SKIP_NPM_INSTALL: ${BO_FE_SKIP_NPM_INSTALL:-false}
     container_name: jira-frontend
     ports:
       - "9000:80"
