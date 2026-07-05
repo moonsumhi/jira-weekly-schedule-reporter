@@ -45,16 +45,16 @@ pipeline {
                     echo "===== 4. 이미지 빌드 ====="
                     echo "백엔드 빌드 시작"
                     docker build -f ${env.REMOTE_DIR}/Dockerfile \
-                        --build-arg BASE_IMAGE=${env.BO_BASE_IMAGE} \
-                        --build-arg SKIP_SYS_DEPS=${env.BO_SKIP_SYS_DEPS} \
+                        --build-arg BASE_IMAGE=${env.HARBOR_URL}/dev/python-base:3.12-slim \
+                        --build-arg SKIP_SYS_DEPS=true \
                         -t ${env.HARBOR_URL}/dev/jira-reporter-backend:${params.TAG} \
                         ${env.REMOTE_DIR}/
                     echo "백엔드 빌드 완료 및 프론트엔드 빌드 시작"
 
                     docker build -f ${env.REMOTE_DIR}/frontend/optool/Dockerfile \
-                        --build-arg NODE_BASE_IMAGE=${env.BO_FE_NODE_BASE_IMAGE} \
-                        --build-arg NGINX_BASE_IMAGE=${env.BO_FE_NGINX_BASE_IMAGE} \
-                        --build-arg SKIP_NPM_INSTALL=${env.BO_FE_SKIP_NPM_INSTALL} \
+                        --build-arg NODE_BASE_IMAGE=${env.HARBOR_URL}/dev/node-base:22-alpine \
+                        --build-arg NGINX_BASE_IMAGE=${env.HARBOR_URL}/dev/nginx:alpine \
+                        --build-arg SKIP_NPM_INSTALL=true \
                         -t ${env.HARBOR_URL}/dev/jira-reporter-frontend:${params.TAG} \
                         ${env.REMOTE_DIR}/
                     echo "프론트엔드 빌드 완료"
