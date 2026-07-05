@@ -1,32 +1,25 @@
-# Stage 1: Build Quasar app
-FROM node:22-alpine AS builder
+ARG NODE_BASE_IMAGE=node:22-alpine
+ARG NGINX_BASE_IMAGE=nginx:alpine
 
-# Set working directory inside container
+# Stage 1: Build
+FROM ${NODE_BASE_IMAGE} AS builder
+
+ARG SKIP_NPM_INSTALL=false
+
 WORKDIR /app
+COPY frontend/optool/ .
 
-# Copy everything from the Quasar project
-COPY . .
+RUN if [ "$SKIP_NPM_INSTALL" = "false" ]; then \
+    npm install -g @quasar/cli && \
+    npm install --legacy-peer-deps; \
+fi
 
-# Install global Quasar CLI
-RUN npm install -g @quasar/cli
-
-# Install dependencies
-RUN npm install --legacy-peer-deps
-
-# Build production version
 RUN npx quasar build
 
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
-
-# Remove default Nginx files
+# Stage 2: Serve
+FROM ${NGINX_BASE_IMAGE}
 RUN rm -rf /usr/share/nginx/html/*
-
-# Copy built SPA from builder
 COPY --from=builder /app/dist/spa /usr/share/nginx/html
-
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
+COPY frontend/optool/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]

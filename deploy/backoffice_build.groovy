@@ -52,7 +52,9 @@ pipeline {
                     echo "백엔드 빌드 완료 및 프론트엔드 빌드 시작"
 
                     docker build -f ${env.REMOTE_DIR}/frontend/optool/Dockerfile \
-                        --build-arg BASE_REGISTRY=${env.HARBOR_URL} \
+                        --build-arg NODE_BASE_IMAGE=${env.FE_NODE_BASE_IMAGE} \
+                        --build-arg NGINX_BASE_IMAGE=${env.FE_NGINX_BASE_IMAGE} \
+                        --build-arg SKIP_NPM_INSTALL=${env.FE_SKIP_NPM_INSTALL} \
                         -t ${env.HARBOR_URL}/dev/jira-reporter-frontend:${params.TAG} \
                         ${env.REMOTE_DIR}/
                     echo "프론트엔드 빌드 완료"

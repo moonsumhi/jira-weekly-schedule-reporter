@@ -26,8 +26,12 @@ services:
   frontend:
     image: ${HARBOR_URL:-x.x.x.x(HARBOR_URL)}/dev/jira-reporter-frontend:${TAG:-latest}
     build:
-      context: ./frontend/optool
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/optool/Dockerfile
+      args:
+        NODE_BASE_IMAGE: ${FE_NODE_BASE_IMAGE:-node:22-alpine}
+        NGINX_BASE_IMAGE: ${FE_NGINX_BASE_IMAGE:-nginx:alpine}
+        SKIP_NPM_INSTALL: ${FE_SKIP_NPM_INSTALL:-false}
     container_name: jira-frontend
     ports:
       - "9000:80"
