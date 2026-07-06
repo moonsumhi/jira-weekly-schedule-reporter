@@ -10,6 +10,7 @@ services:
         BASE_IMAGE: ${BO_BASE_IMAGE:-python:3.12-slim}
         SKIP_SYS_DEPS: ${BO_SKIP_SYS_DEPS:-false}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple/}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-}
     container_name: jira-backend
     ports:
       - "8000:8000"

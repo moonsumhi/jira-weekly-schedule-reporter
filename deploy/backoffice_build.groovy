@@ -48,6 +48,7 @@ pipeline {
                         --build-arg BASE_IMAGE=${env.HARBOR_URL}/dev/python-base:3.12-slim \
                         --build-arg SKIP_SYS_DEPS=true \
                         --build-arg PIP_INDEX_URL=${env.PIP_INDEX_URL} \
+                        --build-arg PIP_TRUSTED_HOST=${env.PIP_TRUSTED_HOST} \
                         -t ${env.HARBOR_URL}/dev/jira-reporter-backend:${params.TAG} \
                         ${env.REMOTE_DIR}/
                     echo "백엔드 빌드 완료 및 프론트엔드 빌드 시작"
