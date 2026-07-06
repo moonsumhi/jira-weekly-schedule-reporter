@@ -21,8 +21,6 @@ ARG PIP_TRUSTED_HOST=
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
-    --index-url ${PIP_INDEX_URL} \
-    ${PIP_TRUSTED_HOST:+--trusted-host ${PIP_TRUSTED_HOST}} \
  && pip install --no-cache-dir \
     --index-url ${PIP_INDEX_URL} \
     ${PIP_TRUSTED_HOST:+--trusted-host ${PIP_TRUSTED_HOST}} \
