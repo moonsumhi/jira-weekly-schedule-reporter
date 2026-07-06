@@ -59,6 +59,7 @@ services:
       - ./scripts:/docker-entrypoint-initdb.d:ro
 
   pilot:
+    profiles: ["dev"]
     build:
       context: ./pilot
       dockerfile: Dockerfile
