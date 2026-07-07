@@ -11,7 +11,7 @@
       <div class="row items-center q-gutter-sm q-mb-md">
         <div>
           <div class="text-h6">{{ template.title }}</div>
-          <div class="text-caption text-grey">{{ template.jira_issue_key }}</div>
+          <div class="text-caption text-grey">{{ template.jiraIssueKey }}</div>
         </div>
         <q-space />
         <q-toggle v-model="includeDeleted" label="삭제 포함" dense @update:model-value="load" />
@@ -114,118 +114,179 @@
               <table class="doc-table full-width">
                 <thead>
                   <tr>
-                    <th :colspan="section.fields.length + 2" class="section-title-cell">{{ section.title }}</th>
+                    <th :colspan="cellFields(section).length + 2" class="section-title-cell">{{ section.title }}</th>
                   </tr>
                   <tr>
                     <th class="label-cell no-col">No.</th>
-                    <th v-for="field in section.fields" :key="field.label" class="label-cell" :style="fieldColStyle(field.label)">{{ field.label }}</th>
+                    <th v-for="field in cellFields(section)" :key="field.label" class="label-cell" :style="fieldColStyle(field.label)">{{ field.label }}</th>
                     <th class="label-cell" style="width:32px"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(row, rowIdx) in getRows(section.title)" :key="rowIdx">
-                    <td class="no-cell">{{ rowIdx + 1 }}</td>
-                    <td
-                      v-for="field in section.fields"
-                      :key="field.label"
-                      class="value-cell"
-                      :style="field.type === 'image' ? 'min-width:160px; width:160px; padding:0;' : ''"
-
-                      @dragover.prevent="field.type === 'image' ? (dragOverCell = `${section.title}__${rowIdx}__${field.label}`) : undefined"
-                      @dragleave="field.type === 'image' ? (dragOverCell = '') : undefined"
-                      @drop.prevent="field.type === 'image' ? onDropImage(section.title, rowIdx, field.label, $event) : undefined"
-                    >
-                      <!-- 이미지 필드 -->
-                      <template v-if="field.type === 'image'">
-                        <div
-                          class="image-drop-zone"
-                          :class="{
-                            'has-image': getRowImages(section.title, rowIdx, field.label).length > 0,
-                            'drag-over': dragOverCell === `${section.title}__${rowIdx}__${field.label}`,
-                            'paste-ready': activePasteCell?.sectionTitle === section.title && activePasteCell?.rowIdx === rowIdx && activePasteCell?.fieldLabel === field.label
-                          }"
-                          @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
-                          @dragleave="dragOverCell = ''"
-                          @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
-                          @paste.stop="onPasteImage(section.title, rowIdx, field.label, $event)"
-                        >
-                          <div class="text-caption text-grey-6" style="width:100%;text-align:center;padding-top:2px;">{{ rowIdx + 1 }}-{{ field.label }}</div>
-                          <!-- 배치된 이미지 목록 -->
-                          <div v-if="getRowImages(section.title, rowIdx, field.label).length > 0" style="display:flex;flex-wrap:wrap;gap:4px;padding:4px;">
+                  <template v-for="(row, rowIdx) in getRows(section.title)" :key="rowIdx">
+                    <tr>
+                      <td class="no-cell">{{ rowIdx + 1 }}</td>
+                      <td
+                        v-for="field in cellFields(section)"
+                        :key="field.label"
+                        class="value-cell"
+                        :style="field.type === 'image' ? 'min-width:160px; width:160px; padding:0;' : ''"
+                      >
+                        <!-- 이미지 필드 (imagesBelow가 아닌 섹션에서는 같은 행의 열로 표시) -->
+                        <template v-if="field.type === 'image'">
+                          <div
+                            class="image-drop-zone"
+                            :class="{
+                              'has-image': getRowImages(section.title, rowIdx, field.label).length > 0,
+                              'drag-over': dragOverCell === `${section.title}__${rowIdx}__${field.label}`,
+                              'paste-ready': activePasteCell?.sectionTitle === section.title && activePasteCell?.rowIdx === rowIdx && activePasteCell?.fieldLabel === field.label
+                            }"
+                            @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
+                            @dragleave="dragOverCell = ''"
+                            @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
+                            @paste.stop="onPasteImage(section.title, rowIdx, field.label, $event)"
+                          >
+                            <div v-if="getRowImages(section.title, rowIdx, field.label).length > 0" style="display:flex;flex-wrap:wrap;gap:4px;padding:4px;">
+                              <div
+                                v-for="(imgSrc, imgIdx) in getRowImages(section.title, rowIdx, field.label)"
+                                :key="imgIdx"
+                                style="position:relative;display:inline-block;"
+                              >
+                                <img
+                                  :src="imgSrc"
+                                  style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                  @click.stop="previewImage(imgSrc)"
+                                />
+                                <q-btn
+                                  flat dense round icon="close" size="xs"
+                                  style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.45);color:white;padding:0;min-width:16px;min-height:16px;"
+                                  @click.stop="removeRowImage(section.title, rowIdx, field.label, imgIdx)"
+                                />
+                              </div>
+                            </div>
                             <div
-                              v-for="(imgSrc, imgIdx) in getRowImages(section.title, rowIdx, field.label)"
-                              :key="imgIdx"
-                              style="position:relative;display:inline-block;"
+                              style="display:flex;align-items:center;justify-content:center;min-height:36px;cursor:pointer;padding:2px;"
+                              @click.stop="onImageCellClick(section.title, rowIdx, field.label)"
+                              @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
+                              @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
                             >
-                              <img
-                                :src="imgSrc"
-                                style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
-                                @click.stop="previewImage(imgSrc)"
-                              />
-                              <q-btn
-                                flat dense round icon="close" size="xs"
-                                style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.45);color:white;padding:0;min-width:16px;min-height:16px;"
-                                @click.stop="removeRowImage(section.title, rowIdx, field.label, imgIdx)"
-                              />
+                              <div v-if="importedImages.length > 0 && !selectedPanelImage" style="display:flex;flex-wrap:wrap;gap:2px;">
+                                <img
+                                  v-for="(img, imgIdx) in importedImages"
+                                  :key="imgIdx"
+                                  :src="img"
+                                  draggable="false"
+                                  style="width:36px;height:28px;object-fit:cover;border:1px solid #ccc;border-radius:2px;opacity:0.6;pointer-events:none;"
+                                />
+                              </div>
+                              <div v-else class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, field.label).length > 0 ? '+ 추가' : '이미지 선택 후 클릭 또는 드래그') }}</div>
                             </div>
                           </div>
-                          <!-- 이미지 추가 영역 -->
+                        </template>
+                        <q-input
+                          v-else-if="field.type !== 'boolean' && field.type !== 'select'"
+                          :model-value="getRowVal(section.title, rowIdx, field.label)"
+                          @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
+                          :placeholder="field.placeholder"
+                          :type="tableInputType(field.type)"
+                          borderless dense autogrow
+                          class="table-input"
+                        />
+                        <q-select
+                          v-else-if="field.type === 'select'"
+                          :model-value="getRowVal(section.title, rowIdx, field.label)"
+                          @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
+                          :options="field.options ?? []"
+                          borderless dense
+                          class="table-input"
+                        />
+                        <q-toggle
+                          v-else
+                          :model-value="getRowVal(section.title, rowIdx, field.label) === 'true'"
+                          @update:model-value="setRowVal(section.title, rowIdx, field.label, String($event))"
+                        />
+                      </td>
+                      <td class="no-cell">
+                        <q-btn
+                          v-if="getRows(section.title).length > 1"
+                          icon="remove"
+                          flat dense size="xs"
+                          color="negative"
+                          @click="removeRow(section.title, rowIdx)"
+                        />
+                      </td>
+                    </tr>
+                    <!-- imagesBelow 섹션만: 이미지 필드를 행 아래 전체 폭을 차지하는 별도 줄로 표시.
+                         이미지 필드가 여러 개면 한 줄 안에서 폭을 균등하게 나눠 나란히 배치 (예: 작업 전/후 사진) -->
+                    <tr v-if="section.imagesBelow && imageFields(section).length > 0">
+                      <td :colspan="cellFields(section).length + 2" class="value-cell" style="padding:0;">
+                        <div style="display:flex;">
                           <div
-                            style="display:flex;align-items:center;justify-content:center;min-height:36px;cursor:pointer;padding:2px;"
-                            @click.stop="onImageCellClick(section.title, rowIdx, field.label)"
-                            @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
-                            @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
+                            v-for="(field, fIdx) in imageFields(section)"
+                            :key="field.label"
+                            style="flex:1;min-width:0;"
+                            :style="fIdx > 0 ? 'border-left:1px solid #9e9e9e' : ''"
                           >
-                            <div v-if="importedImages.length > 0 && !selectedPanelImage" style="display:flex;flex-wrap:wrap;gap:2px;">
-                              <img
-                                v-for="(img, imgIdx) in importedImages"
-                                :key="imgIdx"
-                                :src="img"
-                                draggable="false"
-                                style="width:36px;height:28px;object-fit:cover;border:1px solid #ccc;border-radius:2px;opacity:0.6;pointer-events:none;"
-                              />
+                            <div
+                              class="image-drop-zone"
+                              :class="{
+                                'has-image': getRowImages(section.title, rowIdx, field.label).length > 0,
+                                'drag-over': dragOverCell === `${section.title}__${rowIdx}__${field.label}`,
+                                'paste-ready': activePasteCell?.sectionTitle === section.title && activePasteCell?.rowIdx === rowIdx && activePasteCell?.fieldLabel === field.label
+                              }"
+                              @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
+                              @dragleave="dragOverCell = ''"
+                              @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
+                              @paste.stop="onPasteImage(section.title, rowIdx, field.label, $event)"
+                            >
+                              <div class="text-caption text-grey-6" style="width:100%;text-align:center;padding-top:2px;">{{ rowIdx + 1 }}-{{ field.label }}</div>
+                              <!-- 배치된 이미지 목록 -->
+                              <div v-if="getRowImages(section.title, rowIdx, field.label).length > 0" style="display:flex;flex-wrap:wrap;gap:4px;padding:4px;justify-content:center;">
+                                <div
+                                  v-for="(imgSrc, imgIdx) in getRowImages(section.title, rowIdx, field.label)"
+                                  :key="imgIdx"
+                                  style="position:relative;display:inline-block;"
+                                >
+                                  <img
+                                    :src="imgSrc"
+                                    style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                    @click.stop="previewImage(imgSrc)"
+                                  />
+                                  <q-btn
+                                    flat dense round icon="close" size="xs"
+                                    style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.45);color:white;padding:0;min-width:16px;min-height:16px;"
+                                    @click.stop="removeRowImage(section.title, rowIdx, field.label, imgIdx)"
+                                  />
+                                </div>
+                              </div>
+                              <!-- 이미지 추가 영역 -->
+                              <div
+                                style="display:flex;align-items:center;justify-content:center;min-height:36px;cursor:pointer;padding:2px;"
+                                @click.stop="onImageCellClick(section.title, rowIdx, field.label)"
+                                @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
+                                @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
+                              >
+                                <div v-if="importedImages.length > 0 && !selectedPanelImage" style="display:flex;flex-wrap:wrap;gap:2px;">
+                                  <img
+                                    v-for="(img, imgIdx) in importedImages"
+                                    :key="imgIdx"
+                                    :src="img"
+                                    draggable="false"
+                                    style="width:36px;height:28px;object-fit:cover;border:1px solid #ccc;border-radius:2px;opacity:0.6;pointer-events:none;"
+                                  />
+                                </div>
+                                <div v-else class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, field.label).length > 0 ? '+ 추가' : '이미지 선택 후 클릭 또는 드래그') }}</div>
+                              </div>
                             </div>
-                            <div v-else class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, field.label).length > 0 ? '+ 추가' : '이미지 선택 후 클릭 또는 드래그') }}</div>
                           </div>
                         </div>
-                      </template>
-                      <q-input
-                        v-else-if="field.type !== 'boolean' && field.type !== 'select'"
-                        :model-value="getRowVal(section.title, rowIdx, field.label)"
-                        @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
-                        :placeholder="field.placeholder"
-                        :type="tableInputType(field.type)"
-                        borderless dense autogrow
-                        class="table-input"
-                      />
-                      <q-select
-                        v-else-if="field.type === 'select'"
-                        :model-value="getRowVal(section.title, rowIdx, field.label)"
-                        @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
-                        :options="field.options ?? []"
-                        borderless dense
-                        class="table-input"
-                      />
-                      <q-toggle
-                        v-else
-                        :model-value="getRowVal(section.title, rowIdx, field.label) === 'true'"
-                        @update:model-value="setRowVal(section.title, rowIdx, field.label, String($event))"
-                      />
-                    </td>
-                    <td class="no-cell">
-                      <q-btn
-                        v-if="getRows(section.title).length > 1"
-                        icon="remove"
-                        flat dense size="xs"
-                        color="negative"
-                        @click="removeRow(section.title, rowIdx)"
-                      />
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                  </template>
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td :colspan="section.fields.length + 2" class="add-row-cell">
+                    <td :colspan="cellFields(section).length + 2" class="add-row-cell">
                       <q-btn icon="add" label="항목 추가" size="sm" flat color="primary" @click="addRow(section)" />
                     </td>
                   </tr>
@@ -449,44 +510,72 @@
                 <table class="doc-table full-width">
                   <thead>
                     <tr>
-                      <th :colspan="section.fields.length + 1" class="section-title-cell">{{ section.title }}</th>
+                      <th :colspan="cellFields(section).length + 1" class="section-title-cell">{{ section.title }}</th>
                     </tr>
                     <tr>
                       <th class="label-cell no-col">No.</th>
-                      <th v-for="field in section.fields" :key="field.label" class="label-cell" :style="fieldColStyle(field.label)">{{ field.label }}</th>
+                      <th v-for="field in cellFields(section)" :key="field.label" class="label-cell" :style="fieldColStyle(field.label)">{{ field.label }}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(rowData, rowIdx) in detailMultipleRows(detailRow, section.title)" :key="rowIdx">
-                      <td class="no-cell">{{ rowIdx + 1 }}</td>
-                      <td
-                        v-for="field in section.fields"
-                        :key="field.label"
-                        class="value-cell"
-                        :style="field.type === 'image' ? 'min-width:160px; width:160px' : ''"
-                      >
-                        <template v-if="field.type === 'image'">
-                          <div class="text-caption text-grey-6" style="text-align:center;">{{ rowIdx + 1 }}-{{ field.label }}</div>
-                          <div v-if="toImageArray(rowData[field.label]).length > 0" style="padding:4px;display:flex;flex-wrap:wrap;gap:4px;">
-                            <img
-                              v-for="(imgSrc, imgIdx) in toImageArray(rowData[field.label])"
-                              :key="imgIdx"
-                              :src="imgSrc"
-                              style="max-width:120px;max-height:100px;cursor:pointer;border:1px solid #eee;border-radius:4px;"
-                              @click="previewImage(imgSrc)"
-                            />
+                    <template v-for="(rowData, rowIdx) in detailMultipleRows(detailRow, section.title)" :key="rowIdx">
+                      <tr>
+                        <td class="no-cell">{{ rowIdx + 1 }}</td>
+                        <td
+                          v-for="field in cellFields(section)"
+                          :key="field.label"
+                          class="value-cell"
+                          :style="field.type === 'image' ? 'min-width:160px; width:160px' : ''"
+                        >
+                          <!-- 이미지 필드 (imagesBelow가 아닌 섹션에서는 같은 행의 열로 표시) -->
+                          <template v-if="field.type === 'image'">
+                            <div v-if="toImageArray(rowData[field.label]).length > 0" style="padding:4px;display:flex;flex-wrap:wrap;gap:4px;">
+                              <img
+                                v-for="(imgSrc, imgIdx) in toImageArray(rowData[field.label])"
+                                :key="imgIdx"
+                                :src="imgSrc"
+                                style="max-width:120px;max-height:100px;cursor:pointer;border:1px solid #eee;border-radius:4px;"
+                                @click="previewImage(imgSrc)"
+                              />
+                            </div>
+                            <span v-else class="text-grey-5 text-caption" style="padding: 4px;">-</span>
+                          </template>
+                          <q-input
+                            v-else
+                            :model-value="(rowData[field.label] as string) || ''"
+                            :type="field.type !== 'boolean' && field.type !== 'select' ? tableInputType(field.type) : 'text'"
+                            borderless dense readonly autogrow
+                            class="table-input"
+                          />
+                        </td>
+                      </tr>
+                      <!-- imagesBelow 섹션만: 이미지 필드를 행 아래 전체 폭을 차지하는 별도 줄로 표시.
+                           이미지 필드가 여러 개면 한 줄 안에서 폭을 균등하게 나눠 나란히 배치 (예: 작업 전/후 사진) -->
+                      <tr v-if="section.imagesBelow && imageFields(section).length > 0">
+                        <td :colspan="cellFields(section).length + 1" class="value-cell" style="padding:0;">
+                          <div style="display:flex;">
+                            <div
+                              v-for="(field, fIdx) in imageFields(section)"
+                              :key="field.label"
+                              style="flex:1;min-width:0;"
+                              :style="fIdx > 0 ? 'border-left:1px solid #9e9e9e' : ''"
+                            >
+                              <div class="text-caption text-grey-6" style="text-align:center;padding-top:2px;">{{ rowIdx + 1 }}-{{ field.label }}</div>
+                              <div v-if="toImageArray(rowData[field.label]).length > 0" style="padding:4px;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
+                                <img
+                                  v-for="(imgSrc, imgIdx) in toImageArray(rowData[field.label])"
+                                  :key="imgIdx"
+                                  :src="imgSrc"
+                                  style="max-width:120px;max-height:100px;cursor:pointer;border:1px solid #eee;border-radius:4px;"
+                                  @click="previewImage(imgSrc)"
+                                />
+                              </div>
+                              <span v-else class="text-grey-5 text-caption" style="padding: 4px;display:block;text-align:center;">-</span>
+                            </div>
                           </div>
-                          <span v-else class="text-grey-5 text-caption" style="padding: 4px;">-</span>
-                        </template>
-                        <q-input
-                          v-else
-                          :model-value="(rowData[field.label] as string) || ''"
-                          :type="field.type !== 'boolean' && field.type !== 'select' ? tableInputType(field.type) : 'text'"
-                          borderless dense readonly autogrow
-                          class="table-input"
-                        />
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </template>
@@ -888,6 +977,22 @@ function fieldColStyle(label: string): string {
   return NARROW_COLS[label] ? `width:${NARROW_COLS[label]};min-width:${NARROW_COLS[label]}` : ''
 }
 
+// 반복 섹션 테이블: imagesBelow가 true인 섹션(예: 작업 결과 전/후 비교)만 이미지 필드를
+// 같은 행의 열이 아니라 행 아래 전체 폭을 차지하는 별도 줄("N-필드명")로 렌더링한다.
+// 그 외 섹션(예: 검토/서명, 세부 작업 내용)은 이미지 필드도 그대로 같은 행의 열로 렌더링한다.
+function nonImageFields(section: FormSection): FormField[] {
+  return section.fields.filter((f) => f.type !== 'image')
+}
+
+function imageFields(section: FormSection): FormField[] {
+  return section.fields.filter((f) => f.type === 'image')
+}
+
+// 같은 행의 열로 렌더링할 필드 목록 (imagesBelow면 이미지 필드 제외, 아니면 전체)
+function cellFields(section: FormSection): FormField[] {
+  return section.imagesBelow ? nonImageFields(section) : section.fields
+}
+
 // 테이블 셀용: 일반 텍스트도 autogrow textarea로 렌더링해 잘림 방지
 function tableInputType(type: string): 'textarea' | 'date' | 'datetime-local' | 'time' {
   if (type === 'date') return 'date'
@@ -1090,12 +1195,11 @@ async function load() {
 async function loadPage(id: string) {
   loading.value = true
   try {
-    const [tmpl, entries] = await Promise.all([
-      formTemplateService.get(id),
-      formEntryService.list(id),
-    ])
+    // id는 mongo ObjectId일 수도, 사람이 읽기 쉬운 슬러그(jira_issue_key)일 수도 있음.
+    // form-entries는 실제 template의 mongo id로 저장되므로, 템플릿을 먼저 조회해 실제 id를 확보한다.
+    const tmpl = await formTemplateService.get(id)
     template.value = tmpl
-    rows.value = entries
+    rows.value = await formEntryService.list(tmpl.id)
   } finally {
     loading.value = false
   }

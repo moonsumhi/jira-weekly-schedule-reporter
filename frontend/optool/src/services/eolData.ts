@@ -116,6 +116,9 @@ export function eolStatusColor(v: unknown): string {
 }
 
 export function getAutoEol(dist: string, version: string): EolResult | null {
+  // fields는 느슨한 타입이라 실제로는 문자열이 아닌 값(숫자 등)이 들어올 수 있음
+  dist = String(dist ?? '')
+  version = String(version ?? '')
   if (!dist) return null
 
   // dist|version 직접 조회

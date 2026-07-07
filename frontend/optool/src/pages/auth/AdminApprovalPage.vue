@@ -56,6 +56,12 @@
             </q-td>
           </template>
 
+          <template #body-cell-requestedAt="props">
+            <q-td :props="props">
+              {{ props.row.requestedAt ? formatKst(props.row.requestedAt) : '-' }}
+            </q-td>
+          </template>
+
           <template #body-cell-actions="props">
             <q-td :props="props" class="q-gutter-xs">
               <q-btn
@@ -197,6 +203,7 @@ import { api } from 'boot/axios'
 
 import { getErrorMessage } from 'src/utils/http/error'
 import { useAuthStore } from 'src/stores/auth'
+import { formatKst } from 'src/utils/time/kst'
 
 const auth = useAuthStore()
 

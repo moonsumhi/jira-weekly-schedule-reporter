@@ -25,7 +25,7 @@
         </q-item-section>
         <q-item-section>
           <q-item-label>{{ tmpl.title }}</q-item-label>
-          <q-item-label caption>{{ tmpl.jira_issue_key }}</q-item-label>
+          <q-item-label caption>{{ tmpl.jiraIssueKey }}</q-item-label>
         </q-item-section>
         <q-item-section side>
           <q-item-label caption>{{ tmpl.menu }}</q-item-label>
@@ -64,7 +64,7 @@
           </q-item-section>
           <q-item-section>
             <q-item-label class="text-grey-5 text-strike">{{ tmpl.title }}</q-item-label>
-            <q-item-label caption class="text-grey-5">{{ tmpl.jira_issue_key }}</q-item-label>
+            <q-item-label caption class="text-grey-5">{{ tmpl.jiraIssueKey }}</q-item-label>
           </q-item-section>
           <q-item-section side>
             <q-badge color="grey-4" text-color="grey-7" label="삭제됨" />

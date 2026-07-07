@@ -43,6 +43,12 @@ export async function restoreServer(id: string, category?: string): Promise<Serv
   return res.data
 }
 
+export async function purgeServer(id: string, category?: string): Promise<void> {
+  await api.delete(`${SERVERS}/${id}/purge`, {
+    params: category ? { category } : {},
+  })
+}
+
 export async function getServerHistory(id: string, category?: string): Promise<AssetHistory[]> {
   const res = await api.get<AssetHistory[]>(`${SERVERS}/${id}/history`, {
     params: category ? { category } : {},

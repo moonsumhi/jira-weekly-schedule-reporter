@@ -20,6 +20,7 @@ from app.models.assets import (
     ServerAssetReplace,
 )
 from app.models.user import UserPublic
+from app.routers.admin import require_admin
 from app.routers.auth import get_current_user
 from app.services.assets_service import AssetsService, list_all_assets
 from app.services.eos_service import EosService
@@ -203,6 +204,18 @@ async def restore_server(
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return ServerAssetOut(**out)
+
+
+@router.delete("/{server_id}/purge", status_code=status.HTTP_204_NO_CONTENT)
+async def purge_server(
+    server_id: str,
+    category: Optional[str] = Query(None),
+    current_user: UserPublic = Depends(require_admin),
+):
+    try:
+        await _svc(category).purge(_id=oid(server_id), actor_email=current_user.email)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/{server_id}/history", response_model=List[AssetHistoryOut])

@@ -29,7 +29,7 @@ export const useMenuStore = defineStore('menus', () => {
         .map((t) => ({
           title: t.title,
           icon: 'fa-solid fa-file-alt',
-          link: `/job/forms/${t.id}`,
+          link: `/job/forms/${t.jiraIssueKey || t.id}`,
           menu: t.menu as string,
         }))
     } catch (e) {

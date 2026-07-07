@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db.mongo import MongoClientManager
@@ -69,14 +70,14 @@ async def create_form_template(payload: FormTemplateCreate, _=Depends(require_ad
 @router.patch("/{template_id}", response_model=FormTemplateOut)
 async def patch_form_template(template_id: str, payload: FormTemplatePatch, _=Depends(require_admin)):
     col = MongoClientManager.get_form_templates_collection()
-    _oid = parse_oid(template_id, "Invalid template id")
+    query = {"_id": ObjectId(template_id)} if ObjectId.is_valid(template_id) else {"jira_issue_key": template_id}
     update: dict = {}
     if payload.sort_order is not None:
         update["sort_order"] = payload.sort_order
     if not update:
         raise HTTPException(status_code=400, detail="No fields to update")
     doc = await col.find_one_and_update(
-        {"_id": _oid},
+        query,
         {"$set": update},
         return_document=True,
     )
@@ -88,8 +89,11 @@ async def patch_form_template(template_id: str, payload: FormTemplatePatch, _=De
 @router.get("/{template_id}", response_model=FormTemplateOut)
 async def get_form_template(template_id: str):
     col = MongoClientManager.get_form_templates_collection()
-    _oid = parse_oid(template_id, "Invalid template id")
-    doc = await col.find_one({"_id": _oid})
+    # URL을 사람이 읽기 쉽게 하기 위해, ObjectId 형식이 아니면 jira_issue_key(슬러그)로 조회
+    if ObjectId.is_valid(template_id):
+        doc = await col.find_one({"_id": ObjectId(template_id)})
+    else:
+        doc = await col.find_one({"jira_issue_key": template_id})
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
     return _to_out(doc)

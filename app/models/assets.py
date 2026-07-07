@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, Literal, List
 from pydantic import BaseModel, Field
 
 # history action
-AssetAction = Literal["CREATE", "UPDATE", "DELETE"]
+AssetAction = Literal["CREATE", "UPDATE", "DELETE", "PURGE"]
 
 
 class ServerAssetBase(BaseModel):

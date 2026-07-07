@@ -12,6 +12,23 @@
       />
 
       <q-btn
+        v-if="includeDeleted"
+        outline
+        :color="bulkDeleteMode ? 'primary' : undefined"
+        icon="checklist"
+        :label="bulkDeleteMode ? '선택 취소' : '선택 삭제'"
+        @click="toggleBulkDeleteMode"
+      />
+      <q-btn
+        v-if="bulkDeleteMode && selectedIds.size > 0"
+        color="negative"
+        icon="delete_forever"
+        :label="`영구삭제 (${selectedIds.size})`"
+        :loading="bulkPurging"
+        @click="confirmBulkPurge"
+      />
+
+      <q-btn
         outline
         icon="refresh"
         label="새로고침"
@@ -118,26 +135,26 @@
               <th
                 v-for="(col, idx) in props.cols"
                 :key="idx"
-                :class="['text-' + (col.align ?? 'left'), 'q-table__th', col.name !== 'actions' ? 'cursor-pointer select-none' : 'sticky-actions-col']"
+                :class="['text-' + (col.align ?? 'left'), 'q-table__th', col.name !== 'actions' && col.name !== 'select' ? 'cursor-pointer select-none' : 'sticky-actions-col']"
                 :style="col.headerStyle"
-                @click="col.name !== 'actions' && toggleSort(col)"
+                @click="col.name !== 'actions' && col.name !== 'select' && toggleSort(col)"
               >
                 <div class="row items-center no-wrap q-gutter-xs">
                   <span>{{ col.label }}</span>
                   <q-icon
-                    v-if="col.name !== 'actions' && tableSortKey === getSortKey(col)"
+                    v-if="col.name !== 'actions' && col.name !== 'select' && tableSortKey === getSortKey(col)"
                     :name="tableSortDesc ? 'arrow_downward' : 'arrow_upward'"
                     size="xs"
                     color="primary"
                   />
                   <q-icon
-                    v-else-if="col.name !== 'actions'"
+                    v-else-if="col.name !== 'actions' && col.name !== 'select'"
                     name="unfold_more"
                     size="xs"
                     color="grey-4"
                   />
                   <q-checkbox
-                    v-if="col.name !== 'actions' && col.name !== 'assetType'"
+                    v-if="col.name !== 'actions' && col.name !== 'assetType' && col.name !== 'select'"
                     :model-value="true"
                     dense
                     size="xs"
@@ -150,6 +167,18 @@
               </th>
             </q-tr>
           </template>
+          <!-- 일괄 삭제 선택 체크박스 (삭제된 항목만 선택 가능) -->
+          <template #body-cell-select="props">
+            <q-td :props="props">
+              <q-checkbox
+                v-if="props.row.isDeleted"
+                :model-value="selectedIds.has(props.row.id)"
+                dense
+                @update:model-value="toggleRowSelected(props.row.id)"
+              />
+            </q-td>
+          </template>
+
           <!-- Asset Type (전체 탭) -->
           <template #body-cell-assetType="props">
             <q-td :props="props" :class="{ 'cell-deleted': props.row.isDeleted }">
@@ -302,6 +331,15 @@
                     color="positive"
                     label="복원"
                     @click="doRestore(props.row)"
+                  />
+                  <q-btn
+                    dense
+                    outline
+                    size="12px"
+                    icon="delete_forever"
+                    color="negative"
+                    label="영구삭제"
+                    @click="confirmPurge(props.row)"
                   />
                 </template>
               </div>
@@ -2064,7 +2102,7 @@ import {
   getAutoEos, getNetworkEos,
 } from 'src/services/eosDetection'
 
-import { listServers, createServer, patchServer, deleteServer, restoreServer, getServerHistory } from 'src/services/assets'
+import { listServers, createServer, patchServer, deleteServer, restoreServer, purgeServer, getServerHistory } from 'src/services/assets'
 import { eolStatusColor, eolStatusLabel, getAutoEol } from 'src/services/eolData'
 
 const VADA_KEY = 'vada_installed' as const
@@ -2485,6 +2523,10 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
   }
 
   const result: NonNullable<QTableProps['columns']> = []
+
+  if (bulkDeleteMode.value) {
+    result.push({ name: 'select', label: '', field: 'select', align: 'center', style: 'width: 1px' })
+  }
 
   // 전체 탭에서만 자산 종류 컬럼을 맨 앞에 추가
   if (!category.value) {
@@ -3002,6 +3044,105 @@ async function doRestore(row: ServerAsset) {
   }
 }
 
+/** 영구 삭제 (단건) */
+function confirmPurge(row: ServerAsset) {
+  $q.dialog({
+    title: '영구 삭제',
+    message: `"${row.name}" 자산을 완전히 삭제하시겠습니까?<br>이 작업은 되돌릴 수 없습니다.`,
+    html: true,
+    cancel: true,
+    persistent: true,
+    ok: { label: '삭제', color: 'negative' },
+  }).onOk(() => {
+    $q.dialog({
+      title: '최종 확인',
+      message: `"${row.name}" 자산을 정말로 영구 삭제하시겠습니까?<br>복구할 수 없습니다.`,
+      html: true,
+      cancel: true,
+      persistent: true,
+      ok: { label: '영구 삭제', color: 'negative' },
+    }).onOk(() => void doPurge(row))
+  })
+}
+
+async function doPurge(row: ServerAsset) {
+  actingId.value = String(row.id)
+  actingType.value = 'delete'
+  try {
+    await purgeServer(row.id, (row.fields?.['자산유형'] as string) || category.value || '서버')
+    rows.value = rows.value.filter((r) => r.id !== row.id)
+    selectedIds.value.delete(row.id)
+    $q.notify({ type: 'positive', message: '영구 삭제됨' })
+  } catch (err: unknown) {
+    $q.notify({ type: 'negative', message: getErrorMessage(err, '영구 삭제 실패') })
+  } finally {
+    actingId.value = null
+    actingType.value = null
+  }
+}
+
+/** 영구 삭제 (일괄 선택) */
+const bulkDeleteMode = ref(false)
+const selectedIds = ref<Set<string>>(new Set())
+const bulkPurging = ref(false)
+
+function toggleBulkDeleteMode() {
+  bulkDeleteMode.value = !bulkDeleteMode.value
+  selectedIds.value = new Set()
+}
+
+function toggleRowSelected(id: string) {
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedIds.value = next
+}
+
+function confirmBulkPurge() {
+  const targets = rows.value.filter((r) => selectedIds.value.has(r.id))
+  if (targets.length === 0) return
+  $q.dialog({
+    title: '영구 삭제',
+    message: `선택한 ${targets.length}건을 완전히 삭제하시겠습니까?<br>이 작업은 되돌릴 수 없습니다.`,
+    html: true,
+    cancel: true,
+    persistent: true,
+    ok: { label: '삭제', color: 'negative' },
+  }).onOk(() => {
+    $q.dialog({
+      title: '최종 확인',
+      message: `선택한 ${targets.length}건을 정말로 영구 삭제하시겠습니까?<br>복구할 수 없습니다.`,
+      html: true,
+      cancel: true,
+      persistent: true,
+      ok: { label: '영구 삭제', color: 'negative' },
+    }).onOk(() => void doBulkPurge(targets))
+  })
+}
+
+async function doBulkPurge(targets: ServerAsset[]) {
+  bulkPurging.value = true
+  try {
+    const results = await Promise.allSettled(
+      targets.map((r) => purgeServer(r.id, (r.fields?.['자산유형'] as string) || category.value || '서버')),
+    )
+    const succeededIds = new Set(
+      targets.filter((_, i) => results[i]?.status === 'fulfilled').map((r) => r.id),
+    )
+    rows.value = rows.value.filter((r) => !succeededIds.has(r.id))
+    selectedIds.value = new Set([...selectedIds.value].filter((id) => !succeededIds.has(id)))
+    const failedCount = targets.length - succeededIds.size
+    if (failedCount > 0) {
+      $q.notify({ type: 'negative', message: `${succeededIds.size}건 영구 삭제됨, ${failedCount}건 실패` })
+    } else {
+      $q.notify({ type: 'positive', message: `${succeededIds.size}건 영구 삭제됨` })
+      bulkDeleteMode.value = false
+    }
+  } finally {
+    bulkPurging.value = false
+  }
+}
+
 /** History */
 /** Detail view */
 const detailDialog = ref(false)
@@ -3279,6 +3420,7 @@ type TemplateCol = { key: string; label: string; sample?: string }
 
 const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
   '서버': [
+    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'SRV-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'web-server-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
@@ -3320,6 +3462,7 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '비고',          label: '비고',                                                            sample: '' },
   ],
   '네트워크': [
+    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'NW-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'sw-core-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
@@ -3356,6 +3499,7 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '비고',          label: '비고',                                                            sample: '' },
   ],
   'DBMS': [
+    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'DB-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'db-server-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
@@ -3393,6 +3537,7 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '비고',          label: '비고',                                                            sample: '' },
   ],
   '정보보호시스템': [
+    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'SEC-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'sec-device-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
@@ -3430,6 +3575,7 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '비고',          label: '비고',                                                            sample: '' },
   ],
   'VMware': [
+    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'VM-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'vm-host-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
@@ -3470,6 +3616,7 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
 
 // 전체 탭용 — 모든 컬럼
 const DEFAULT_TEMPLATE_COLS: TemplateCol[] = [
+  { key: 'asset_id',    label: 'Asset ID (고유키, 재import 시 매칭용)', sample: '' },
   { key: 'ip',          label: 'IP' },
   { key: 'name',        label: 'HostName' },
   { key: '자산유형',    label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)', sample: '' },
@@ -3898,7 +4045,11 @@ async function _runImport(buf: ArrayBuffer, password: string) {
     console.log('[Import] headerRow:', headerRow)
     console.log('[Import] colKeys:', colKeys)
     console.log('[Import] assetIdIndex:', assetIdIndex, '/ ipIndex will be:', colKeys.indexOf('ip'))
-    const existingByAssetId = new Map(rows.value.filter(r => r.assetId).map(r => [r.assetId!, r]))
+    // asset_id 매칭은 현재 탭(카테고리)에 국한되지 않고 전체 카테고리를 대상으로 해야 한다.
+    // (예: "서버" 탭에서 import해도, 자산유형이 비어있는 행이 실제로는 DBMS 자산일 수 있으므로
+    //  asset_id로 전체에서 찾아, 그 자산의 실제 자산유형으로 업데이트해야 카테고리별 중복 생성을 막을 수 있음)
+    const allAssetsForMatching = await listServers(includeDeleted.value)
+    const existingByAssetId = new Map(allAssetsForMatching.filter(r => r.assetId).map(r => [r.assetId!, r]))
     console.log('[Import] existingByAssetId size:', existingByAssetId.size)
 
     // IP 기준으로 기존 서버 맵 (폴백)
@@ -3968,7 +4119,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
           if (existingByNo2Empty) {
             const nextFields2Empty = { ...(existingByNo2Empty.fields ?? {}), ...fields2Empty }
             try {
-              const updated2Empty = await patchServer(String(existingByNo2Empty.id), { fields: nextFields2Empty, asset_id: importAssetId2Empty ?? existingByNo2Empty.assetId ?? null } as Parameters<typeof patchServer>[1], (fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버'))
+              const updated2Empty = await patchServer(String(existingByNo2Empty.id), { fields: nextFields2Empty, asset_id: importAssetId2Empty ?? existingByNo2Empty.assetId ?? null } as Parameters<typeof patchServer>[1], ((existingByNo2Empty.fields?.['자산유형'] as string) || fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버'))
               rows.value = rows.value.map(r => r.id === existingByNo2Empty.id ? updated2Empty : r)
               existingByAssetId.set(importAssetId2Empty!, updated2Empty)
               updatedIds.add(String(existingByNo2Empty.id))
@@ -4040,7 +4191,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
             const existingByNo2 = importAssetId2 ? existingByAssetId.get(importAssetId2) : undefined
             if (existingByNo2) {
               const nextFields2 = { ...(existingByNo2.fields ?? {}), ...fields2 }
-              const updated2 = await patchServer(String(existingByNo2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existingByNo2.assetId ?? null } as Parameters<typeof patchServer>[1], rowAssetType2)
+              const updated2 = await patchServer(String(existingByNo2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existingByNo2.assetId ?? null } as Parameters<typeof patchServer>[1], (existingByNo2.fields?.['자산유형'] as string) || rowAssetType2)
               rows.value = rows.value.map(r => r.id === existingByNo2.id ? updated2 : r)
               existingByName.set(nameKey, updated2)
               existingByAssetId.set(importAssetId2!, updated2)
@@ -4129,7 +4280,10 @@ async function _runImport(buf: ArrayBuffer, password: string) {
           const patch: Record<string, unknown> = { fields: nextFields, asset_id: importAssetId ?? existing.assetId ?? null }
           if (hostname && hostname !== existing.name) patch['name'] = hostname
           if (ip && ip !== existing.ip) patch['ip'] = ip
-          const updated_ = await patchServer(String(existing.id), patch as Parameters<typeof patchServer>[1], rowAssetType)
+          // asset_id로 다른 카테고리의 기존 자산을 찾은 경우, import 행의 (비어있을 수 있는) 자산유형이 아니라
+          // 기존 자산의 실제 자산유형을 우선해 그 카테고리로 업데이트한다.
+          const patchCategory = (existing.fields?.['자산유형'] as string) || rowAssetType
+          const updated_ = await patchServer(String(existing.id), patch as Parameters<typeof patchServer>[1], patchCategory)
           rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
           existingByIp.set(rowKey, updated_)
           if (importAssetId) existingByAssetId.set(importAssetId, updated_)

@@ -65,6 +65,9 @@ function lookupEosDate(key: string): string | undefined {
 }
 
 export function getAutoEos(dist: string, version: string): { status: EosActionStatus; date: string } | null {
+  // fields는 느슨한 타입이라 실제로는 문자열이 아닌 값(숫자 등)이 들어올 수 있음
+  dist = String(dist ?? '')
+  version = String(version ?? '')
   if (!dist || !version) return null
   let eosDate = lookupEosDate(`${dist}|${version}`)
   if (!eosDate) {

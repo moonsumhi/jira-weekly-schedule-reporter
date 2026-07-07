@@ -13,12 +13,15 @@ export type FormSection = {
   title: string
   fields: FormField[]
   multiple?: boolean
+  // axios 인터셉터가 camelCase로 변환 (백엔드는 images_below)
+  imagesBelow?: boolean
 }
 
 export type FormTemplate = {
   id: string
   title: string
-  jira_issue_key: string
+  // axios 인터셉터가 응답 키를 camelCase로 변환하므로 jiraIssueKey (백엔드는 jira_issue_key)
+  jiraIssueKey: string
   sections: FormSection[]
   menu: string | null
   sort_order: number | null

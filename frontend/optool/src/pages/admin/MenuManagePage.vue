@@ -358,7 +358,7 @@ function systemSubsOf(slug: string | null): { title: string; icon: string; link:
     return jobTemplates.value.map((t) => ({
       title: t.title,
       icon: 'fa-solid fa-file-alt',
-      link: `/job/forms/${t.id}`,
+      link: `/job/forms/${t.jiraIssueKey || t.id}`,
     }))
   }
   return SYSTEM_SUBS[slug ?? ''] ?? []
@@ -388,7 +388,7 @@ function buildSysSubsMap() {
       items = jobTemplates.value.map((t) => ({
         title: t.title,
         icon: 'fa-solid fa-file-alt',
-        link: `/job/forms/${t.id}`,
+        link: `/job/forms/${t.jiraIssueKey || t.id}`,
       }))
     } else {
       items = [...(SYSTEM_SUBS[menu.slug ?? ''] ?? [])]
@@ -407,7 +407,7 @@ function hiddenSysSubsOf(menu: MenuOut): { title: string; icon: string; link: st
   const visibleLinks = new Set((sysSubsMap.value[menu.id] ?? []).map((s) => s.link))
   if (menu.slug === 'job') {
     return jobTemplates.value
-      .map((t) => ({ title: t.title, icon: 'fa-solid fa-file-alt', link: `/job/forms/${t.id}` }))
+      .map((t) => ({ title: t.title, icon: 'fa-solid fa-file-alt', link: `/job/forms/${t.jiraIssueKey || t.id}` }))
       .filter((s) => !visibleLinks.has(s.link))
   }
   const allSubs = SYSTEM_SUBS[menu.slug ?? ''] ?? []

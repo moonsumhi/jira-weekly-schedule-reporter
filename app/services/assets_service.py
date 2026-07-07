@@ -376,6 +376,25 @@ class AssetsService:
         )
         return to_out(after)
 
+    async def purge(self, *, _id: ObjectId, actor_email: str) -> None:
+        """소프트 삭제된 자산을 완전히 삭제한다. 되돌릴 수 없다."""
+        col = self._col()
+
+        existing = await col.find_one({"_id": _id, "is_deleted": True})
+        if not existing:
+            raise KeyError("Not found or not deleted")
+
+        await _write_history(
+            asset_id=str(_id),
+            action="PURGE",
+            changed_by=actor_email,
+            before=to_out(existing),
+            after=None,
+            patch=None,
+            history_col=self._hist(),
+        )
+        await col.delete_one({"_id": _id})
+
     async def get_history(self, *, server_id: str) -> List[Dict[str, Any]]:
         h = self._hist()
         cursor = h.find({"asset_id": server_id}).sort("changed_at", -1)
