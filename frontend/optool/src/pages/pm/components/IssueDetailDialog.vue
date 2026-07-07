@@ -714,7 +714,7 @@ watch(() => props.modelValue, (open) => {
   } else if (!open) {
     issueStack.value = []
   }
-})
+}, { immediate: true })
 
 function fmtDate(d: string) {
   if (!d) return '-'

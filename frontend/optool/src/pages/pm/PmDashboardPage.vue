@@ -217,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { Notify } from 'quasar'
 import { api } from 'src/boot/axios'
 import {
@@ -258,6 +258,11 @@ const detailOpen = ref(false)
 
 const showAssigned = computed(() => activeGroup.value === 'all' || activeGroup.value === 'assigned')
 const showReported = computed(() => activeGroup.value === 'all' || activeGroup.value === 'reported')
+
+watch(activeGroup, (val) => {
+  if (val === 'assigned') assignedOpen.value = true
+  if (val === 'reported') reportedOpen.value = true
+})
 
 function matchSearch(issue: Issue): boolean {
   if (!search.value) return true
