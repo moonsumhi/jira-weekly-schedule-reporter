@@ -151,6 +151,31 @@
         </div>
       </div>
 
+      <!-- 스케줄 관리: 담당 중 -->
+      <div v-if="hasPmPerm" class="dash-card pm-card">
+        <div class="card-header">
+          <q-icon name="fa-solid fa-diagram-project" size="18px" color="indigo-7" />
+          <span class="card-title">스케줄 관리 — 담당 중</span>
+          <q-space />
+          <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push('/pm/dashboard')" />
+        </div>
+
+        <div v-if="pmLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+        <div v-else-if="pmMyIssues.length === 0" class="text-center text-grey text-caption q-pa-md">담당 중인 이슈가 없습니다.</div>
+        <div v-else class="pm-issue-list">
+          <div
+            v-for="issue in pmMyIssues"
+            :key="issue.id"
+            class="pm-issue-item"
+            @click="$router.push('/pm/dashboard')"
+          >
+            <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
+            <span class="pm-issue-title">{{ issue.title }}</span>
+            <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+          </div>
+        </div>
+      </div>
+
       <!-- 이번 달 당직 일정 -->
       <div class="dash-card watch-card">
         <div class="card-header">
@@ -215,6 +240,7 @@ import { useQuasar } from 'quasar'
 import { useAuthStore } from 'stores/auth'
 import { api } from 'boot/axios'
 import { fetchDDays, createDDay, patchDDay, deleteDDay, type DDay } from 'src/services/ddays'
+import { STATUS_LABEL, STATUS_COLOR, type Issue } from 'src/services/pm/issue'
 
 const auth = useAuthStore()
 const $q = useQuasar()
@@ -509,11 +535,29 @@ async function loadDangerSummary() {
   }
 }
 
+// ── 스케줄 관리(PM) 담당 중 ──────────────────────────────────────────────────
+const pmLoading = ref(false)
+const pmMyIssues = ref<Issue[]>([])
+const hasPmPerm = computed(() => auth.me?.isAdmin || (auth.me?.permissions ?? []).includes('pm'))
+
+async function loadPmDashboard() {
+  pmLoading.value = true
+  try {
+    const { data } = await api.get<{ myIssues: Issue[] }>('/pm/dashboard')
+    pmMyIssues.value = data.myIssues
+  } catch {
+    pmMyIssues.value = []
+  } finally {
+    pmLoading.value = false
+  }
+}
+
 onMounted(() => {
   void loadDDays()
   void loadWatch()
   void loadEosSummary()
   void loadDangerSummary()
+  if (hasPmPerm.value) void loadPmDashboard()
 })
 </script>
 
@@ -731,6 +775,50 @@ onMounted(() => {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
+}
+
+/* 스케줄 관리 */
+.pm-card {
+  grid-column: 1 / -1;
+}
+
+.pm-issue-list {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pm-issue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #f8f9fc;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pm-issue-item:hover {
+  background: #eef1f8;
+}
+
+.pm-issue-key {
+  font-size: 12px;
+  font-weight: 700;
+  color: #3949ab;
+  flex-shrink: 0;
+}
+
+.pm-issue-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 당직 */
