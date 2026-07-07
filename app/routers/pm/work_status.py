@@ -23,25 +23,7 @@ async def get_work_status(
     current_user: UserPublic = Depends(get_current_user),
 ):
     """기간 내 업데이트된 이슈 또는 마감 예정 미완료 이슈 조회 (크로스 프로젝트)."""
-    uid = ObjectId(current_user.id)
     issues_col = MongoClientManager.get_pm_issues_collection()
-    members_col = MongoClientManager.get_pm_project_members_collection()
-
-    # 사용자가 속한 프로젝트 목록
-    memberships = await members_col.find({"user_id": uid}).to_list(None)
-    all_project_ids = [m["project_id"] for m in memberships]
-
-    if not all_project_ids:
-        return []
-
-    # 특정 프로젝트 필터
-    if project_id:
-        pid = ObjectId(project_id)
-        if pid not in all_project_ids:
-            return []
-        project_ids = [pid]
-    else:
-        project_ids = all_project_ids
 
     # 날짜 파싱 (UTC 기준 하루 범위)
     try:
@@ -50,9 +32,14 @@ async def get_work_status(
     except ValueError:
         return []
 
-    # 기간 내 업데이트된 이슈 OR 기간 내 마감인 미완료 이슈
+    # 특정 프로젝트 필터 (선택)
+    project_filter: dict = {}
+    if project_id:
+        project_filter = {"project_id": ObjectId(project_id)}
+
+    # 기간 내 업데이트된 이슈 OR 기간 내 마감인 미완료 이슈 (전체 프로젝트)
     query: dict = {
-        "project_id": {"$in": project_ids},
+        **project_filter,
         "$or": [
             {"updated_at": {"$gte": start_dt, "$lt": end_dt}},
             {
