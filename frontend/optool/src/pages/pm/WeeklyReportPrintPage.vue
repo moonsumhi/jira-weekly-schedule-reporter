@@ -329,7 +329,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Notify } from 'quasar'
-import { getWeeklyReport, type WeeklyReport, type ManualItem } from 'src/services/pm/reports'
+import { getWeeklyReport, type WeeklyReport } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 
 const route = useRoute()

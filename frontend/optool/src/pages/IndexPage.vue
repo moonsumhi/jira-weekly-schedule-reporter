@@ -152,26 +152,47 @@
       </div>
 
       <!-- 스케줄 관리: 담당 중 -->
-      <div v-if="hasPmPerm" class="dash-card pm-card">
+      <div v-if="hasPmPerm || hasSrPerm" class="dash-card pm-card">
         <div class="card-header">
           <q-icon name="fa-solid fa-diagram-project" size="18px" color="indigo-7" />
           <span class="card-title">스케줄 관리 — 담당 중</span>
           <q-space />
-          <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push('/pm/dashboard')" />
+          <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push(hasPmPerm ? '/pm/dashboard' : '/pm/sr/my')" />
         </div>
 
-        <div v-if="pmLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-        <div v-else-if="pmMyIssues.length === 0" class="text-center text-grey text-caption q-pa-md">담당 중인 이슈가 없습니다.</div>
-        <div v-else class="pm-issue-list">
-          <div
-            v-for="issue in pmMyIssues"
-            :key="issue.id"
-            class="pm-issue-item"
-            @click="$router.push('/pm/dashboard')"
-          >
-            <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
-            <span class="pm-issue-title">{{ issue.title }}</span>
-            <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+        <div v-if="hasPmPerm" class="pm-subsection">
+          <div class="pm-subheader">담당 이슈</div>
+          <div v-if="pmLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+          <div v-else-if="pmMyIssues.length === 0" class="text-center text-grey text-caption q-pa-md">담당 중인 이슈가 없습니다.</div>
+          <div v-else class="pm-issue-list">
+            <div
+              v-for="issue in pmMyIssues"
+              :key="issue.id"
+              class="pm-issue-item"
+              @click="$router.push('/pm/dashboard')"
+            >
+              <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
+              <span class="pm-issue-title">{{ issue.title }}</span>
+              <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+            </div>
+          </div>
+        </div>
+
+        <div v-if="hasSrPerm" class="pm-subsection" :class="{ 'q-mt-md': hasPmPerm }">
+          <div class="pm-subheader">내 SR 목록</div>
+          <div v-if="srLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+          <div v-else-if="mySrList.length === 0" class="text-center text-grey text-caption q-pa-md">접수한 SR이 없습니다.</div>
+          <div v-else class="pm-issue-list">
+            <div
+              v-for="sr in mySrList"
+              :key="sr.id"
+              class="pm-issue-item"
+              @click="$router.push(`/pm/sr/${sr.id}`)"
+            >
+              <span class="pm-issue-key">{{ sr.srNo }}</span>
+              <span class="pm-issue-title">{{ sr.title }}</span>
+              <q-badge :color="SR_STATUS_COLOR[sr.status]" :label="SR_STATUS_LABEL[sr.status]" />
+            </div>
           </div>
         </div>
       </div>
@@ -241,6 +262,7 @@ import { useAuthStore } from 'stores/auth'
 import { api } from 'boot/axios'
 import { fetchDDays, createDDay, patchDDay, deleteDDay, type DDay } from 'src/services/ddays'
 import { STATUS_LABEL, STATUS_COLOR, type Issue } from 'src/services/pm/issue'
+import { listMySRs, SR_STATUS_LABEL, SR_STATUS_COLOR, type SRListItem } from 'src/services/sr'
 
 const auth = useAuthStore()
 const $q = useQuasar()
@@ -552,12 +574,29 @@ async function loadPmDashboard() {
   }
 }
 
+// ── 내 SR 목록 ───────────────────────────────────────────────────────────
+const srLoading = ref(false)
+const mySrList = ref<SRListItem[]>([])
+const hasSrPerm = computed(() => auth.me?.isAdmin || (auth.me?.permissions ?? []).includes('sr'))
+
+async function loadMySrList() {
+  srLoading.value = true
+  try {
+    mySrList.value = await listMySRs()
+  } catch {
+    mySrList.value = []
+  } finally {
+    srLoading.value = false
+  }
+}
+
 onMounted(() => {
   void loadDDays()
   void loadWatch()
   void loadEosSummary()
   void loadDangerSummary()
   if (hasPmPerm.value) void loadPmDashboard()
+  if (hasSrPerm.value) void loadMySrList()
 })
 </script>
 
@@ -780,6 +819,13 @@ onMounted(() => {
 /* 스케줄 관리 */
 .pm-card {
   grid-column: 1 / -1;
+}
+
+.pm-subheader {
+  font-size: 12px;
+  font-weight: 700;
+  color: #78909c;
+  margin-bottom: 6px;
 }
 
 .pm-issue-list {
