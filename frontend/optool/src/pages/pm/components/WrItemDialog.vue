@@ -70,6 +70,8 @@
             </q-select>
           </div>
 
+          <q-separator spaced="md" />
+
           <!-- ③ MAIN_AGENDA 전용 -->
           <template v-if="section === 'MAIN_AGENDA'">
             <div class="row q-col-gutter-md">
