@@ -16,7 +16,7 @@
       <q-separator />
 
       <!-- 폼 바디 (스크롤) -->
-      <q-scroll-area style="height: min(65vh, 520px)">
+      <q-scroll-area style="height: min(72vh, 620px)">
         <div class="q-px-lg q-py-md column q-gutter-y-md">
 
           <!-- ① 제목 -->
@@ -421,7 +421,7 @@ async function save() {
 
 <style scoped>
 .wr-dialog {
-  width: 620px;
+  width: 780px;
   max-width: 96vw;
   border-radius: 12px !important;
 }
