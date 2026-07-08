@@ -14,7 +14,16 @@
       <q-card-section class="q-gutter-sm">
         <!-- 공통 -->
         <q-input v-model="form.title" label="제목 *" outlined dense autofocus />
-        <q-input v-model="form.owner" label="담당자" outlined dense />
+        <q-select
+          v-model="form.owner"
+          :options="ownerOptions"
+          label="담당자"
+          outlined dense clearable
+          emit-value map-options
+          option-value="value"
+          option-label="label"
+          :loading="loadingUsers"
+        />
 
         <!-- MAIN_AGENDA -->
         <template v-if="section === 'MAIN_AGENDA'">
@@ -68,9 +77,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { Notify } from 'quasar'
 import { addManualItem, updateManualItem, type ManualItem, type ManualItemCreate, type ManualItemSection } from 'src/services/pm/reports'
+import { listPmUsers } from 'src/services/pm/users'
 import { getErrorMessage } from 'src/utils/http/error'
 
 const props = defineProps<{
@@ -98,6 +108,20 @@ const IMPACT_LEVELS     = ['높음', '보통', '낮음'].map(v => ({ label: v, v
 
 const saving = ref(false)
 const isEdit = ref(false)
+const loadingUsers = ref(false)
+const ownerOptions = ref<{ label: string; value: string }[]>([])
+
+onMounted(async () => {
+  loadingUsers.value = true
+  try {
+    const users = await listPmUsers('데이터운영팀')
+    ownerOptions.value = users.map(u => ({ label: u.name || u.email, value: u.name || u.email }))
+  } catch {
+    // 실패 시 빈 목록 유지
+  } finally {
+    loadingUsers.value = false
+  }
+})
 
 type FormType = {
   title: string
