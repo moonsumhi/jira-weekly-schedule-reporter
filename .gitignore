@@ -3,5 +3,7 @@ app/secret/*
 frontend/node_modules/*
 .idea
 .env
+.env.*
+!.env.example
 data/
 .agent/docs/*.md

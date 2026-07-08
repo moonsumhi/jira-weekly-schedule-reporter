@@ -399,13 +399,23 @@ async def seed_job_form_templates() -> None:
     """Job 폼 템플릿이 없으면 초기 데이터를 삽입한다."""
     col = MongoClientManager.get_form_templates_collection()
     for tmpl in _JOB_FORM_TEMPLATES:
-        existing = await col.find_one({"jira_issue_key": tmpl["jira_issue_key"]})
+        existing = await col.find_one({
+            "$or": [
+                {"jira_issue_key": tmpl["jira_issue_key"]},
+                {"title": tmpl["title"]},
+            ]
+        })
         if not existing:
             await col.insert_one({
                 **tmpl,
                 "is_deleted": False,
                 "created_at": datetime.now(timezone.utc),
             })
+        elif not existing.get("jira_issue_key"):
+            await col.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"jira_issue_key": tmpl["jira_issue_key"]}},
+            )
 
 
 async def migrate_assets() -> None:

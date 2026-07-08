@@ -195,7 +195,7 @@
                     <span v-if="field.required" class="text-negative"> *</span>
                     <span class="editor-tip">
                       <q-icon name="info" size="13px" color="grey-5" />
-                      이미지/파일을 본문에 직접 첨부할 수 있습니다.
+                      이미지 붙여넣기(Ctrl+V)로 본문에 삽입할 수 있습니다.
                     </span>
                   </div>
                   <q-editor
