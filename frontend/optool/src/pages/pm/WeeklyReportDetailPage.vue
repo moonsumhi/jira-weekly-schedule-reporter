@@ -31,6 +31,7 @@
         <q-btn v-if="report.status === 'CONFIRMED'" flat icon="lock_open" label="확정 해제" color="grey-7" no-caps
           @click="changeStatus('REVIEWING')" />
         <q-btn flat icon="preview" label="미리보기" color="primary" no-caps @click="previewOpen = true" />
+        <q-btn flat icon="picture_as_pdf" label="PDF 출력" color="deep-orange" no-caps @click="openPrint" />
         <q-btn flat icon="download" label="Excel" color="positive" no-caps @click="downloadExcel" />
       </template>
     </div>
@@ -425,6 +426,11 @@ async function removeItem(item: ManualItem) {
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '삭제 실패') })
   }
+}
+
+// ── PDF 출력 ──────────────────────────────────────────────────────────
+function openPrint() {
+  window.open(`/pm/weekly-report/${reportId}/print`, '_blank')
 }
 
 // ── Excel ──────────────────────────────────────────────────────────────
