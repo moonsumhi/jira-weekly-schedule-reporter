@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
@@ -42,6 +42,7 @@ async def authenticate_user(email: str, password: str) -> Optional[dict]:
 
 async def get_current_user(
     request: Request,
+    response: Response,
     token: str = Depends(oauth2_scheme),
 ) -> UserPublic:
     from app.utils.ip import is_internal_ip
@@ -59,6 +60,16 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="User not found")
 
     internal = await is_internal_ip(request)
+
+    # 내부망: 활동(요청)이 있을 때마다 만료시간을 연장(슬라이딩 세션).
+    # 이렇게 하면 계속 사용 중일 땐 로그인이 유지되고, ACCESS_TOKEN_EXPIRE_MINUTES(내부망) 동안
+    # 아무 요청도 없어야만(=안 움직였을 때) 실제로 로그아웃된다.
+    if internal:
+        refreshed = create_access_token(
+            subject=email,
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+        response.headers["X-Refreshed-Token"] = refreshed
 
     return UserPublic(
         id=str(user["_id"]),

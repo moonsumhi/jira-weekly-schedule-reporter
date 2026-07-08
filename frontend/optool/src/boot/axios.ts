@@ -78,6 +78,12 @@ export default defineBoot(({ app, router }) => {
         ;(res.data as WithFields).fields = savedFields
       }
 
+      // 내부망 슬라이딩 세션: 요청마다 백엔드가 갱신된 토큰을 헤더로 내려주면 조용히 교체
+      const refreshed = res.headers?.['x-refreshed-token']
+      if (typeof refreshed === 'string' && refreshed && refreshed !== auth.token) {
+        auth.setToken(refreshed)
+      }
+
       return res
     },
     (err: unknown) => {
