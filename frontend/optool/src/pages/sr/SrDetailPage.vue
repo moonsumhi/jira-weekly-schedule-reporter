@@ -894,9 +894,9 @@
             </div>
           </div>
 
-          <div class="field-label">예상 공수</div>
-          <q-input v-model="assignForm.estimatedEffort" outlined
-            placeholder="예: 3일" hide-bottom-space class="q-mb-md" />
+          <div class="field-label">예상 공수 <span style="font-size:11px;color:#aaa;font-weight:400">(시작일·완료일 기준 자동 계산)</span></div>
+          <q-input v-model="assignForm.estimatedEffort" outlined readonly
+            placeholder="시작일과 완료일을 입력하면 자동 계산됩니다" hide-bottom-space class="q-mb-md" bg-color="grey-1" />
 
           <div class="row q-gutter-xl q-mt-xs">
             <q-toggle v-model="assignForm.deploymentRequired" color="orange-7" size="sm">
@@ -962,7 +962,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
@@ -1030,6 +1030,16 @@ const assignForm = ref({
   plannedStartDate: null as string | null, plannedDueDate: null as string | null,
   estimatedEffort: '', deploymentRequired: false, securityReviewRequired: false,
 })
+
+watch(
+  () => [assignForm.value.plannedStartDate, assignForm.value.plannedDueDate],
+  ([start, end]) => {
+    if (start && end) {
+      const days = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000)
+      if (days > 0) assignForm.value.estimatedEffort = `${days}일`
+    }
+  }
+)
 
 // 사용자 선택 (담당자 배정 / 검토 다이얼로그 공유)
 const allUsers       = ref<PmUser[]>([])
