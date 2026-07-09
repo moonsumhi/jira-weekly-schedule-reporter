@@ -231,6 +231,8 @@ class ColPreset(BaseModel):
 
 class UserPrefs(BaseModel):
     asset_col_presets: list[ColPreset] = []
+    dashboard_card_order: list[str] = []
+    dashboard_card_sizes: dict[str, dict[str, str]] = {}
 
 
 @router.get("/prefs", response_model=UserPrefs)
@@ -239,7 +241,11 @@ async def get_prefs(current_user: UserPublic = Depends(get_current_user)):
     doc = await users.find_one({"email": current_user.email}, {"prefs": 1})
     raw = (doc or {}).get("prefs", {})
     presets = raw.get("asset_col_presets", [])
-    return UserPrefs(asset_col_presets=[ColPreset(**p) for p in presets])
+    return UserPrefs(
+        asset_col_presets=[ColPreset(**p) for p in presets],
+        dashboard_card_order=raw.get("dashboard_card_order", []),
+        dashboard_card_sizes=raw.get("dashboard_card_sizes", {}),
+    )
 
 
 @router.put("/prefs", response_model=UserPrefs)
@@ -252,7 +258,11 @@ async def save_prefs(
     users = MongoClientManager.get_users_collection()
     await users.update_one(
         {"email": current_user.email},
-        {"$set": {"prefs.asset_col_presets": [p.model_dump() for p in body.asset_col_presets]}},
+        {"$set": {
+            "prefs.asset_col_presets": [p.model_dump() for p in body.asset_col_presets],
+            "prefs.dashboard_card_order": body.dashboard_card_order,
+            "prefs.dashboard_card_sizes": body.dashboard_card_sizes,
+        }},
     )
     return body
 
