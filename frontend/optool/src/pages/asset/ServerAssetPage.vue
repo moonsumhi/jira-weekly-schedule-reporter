@@ -700,6 +700,24 @@
                 <div class="field-label">백신 비고</div>
                 <q-input v-model="createFields['백신비고']" borderless dense class="field-input" />
               </div>
+              <div class="col-4 form-field">
+                <div class="field-label">폐기 여부</div>
+                <q-select
+                  v-model="createFields[DISPOSAL_KEY]"
+                  :options="disposalOptions"
+                  borderless dense emit-value map-options
+                  clearable
+                  class="field-input"
+                />
+              </div>
+              <div class="col-4 form-field">
+                <div class="field-label">폐기 일정</div>
+                <q-input v-model="createFields['폐기일정']" borderless dense class="field-input" :type="('date' as any)" />
+              </div>
+              <div class="col form-field">
+                <div class="field-label">폐기 관련 비고</div>
+                <q-input v-model="createFields['폐기비고']" borderless dense class="field-input" />
+              </div>
             </template>
             <div class="col-12 form-field">
               <div class="field-label">비고</div>
@@ -824,6 +842,17 @@
               :options="ismsPOptions"
               outlined dense emit-value map-options
               label="ISMS-P 대상 여부"
+              class="q-mt-md"
+            />
+          </template>
+
+          <!-- 폐기 여부 -->
+          <template v-else-if="editFieldKey === DISPOSAL_KEY">
+            <q-select
+              v-model="editFieldText"
+              :options="disposalOptions"
+              outlined dense emit-value map-options
+              label="폐기 여부"
               class="q-mt-md"
             />
           </template>
@@ -1317,6 +1346,24 @@
                 <div class="field-label">백신 비고</div>
                 <q-input v-model="rowEditValues['백신비고']" borderless dense class="field-input" />
               </div>
+              <div class="col-4 form-field">
+                <div class="field-label">폐기 여부</div>
+                <q-select
+                  v-model="rowEditValues[DISPOSAL_KEY]"
+                  :options="disposalOptions"
+                  borderless dense emit-value map-options
+                  clearable
+                  class="field-input"
+                />
+              </div>
+              <div class="col-4 form-field">
+                <div class="field-label">폐기 일정</div>
+                <q-input v-model="rowEditValues['폐기일정']" borderless dense class="field-input" :type="('date' as any)" />
+              </div>
+              <div class="col form-field">
+                <div class="field-label">폐기 관련 비고</div>
+                <q-input v-model="rowEditValues['폐기비고']" borderless dense class="field-input" />
+              </div>
             </template>
             <div class="col-12 form-field">
               <div class="field-label">비고</div>
@@ -1597,6 +1644,20 @@
                 <div class="col form-field">
                   <div class="field-label">VADA 비고</div>
                   <div class="detail-value">{{ displayValue(detailTarget.fields?.['VADA비고']) }}</div>
+                </div>
+              </div>
+              <div class="row q-col-gutter-x-md q-mt-sm">
+                <div class="col-4 form-field">
+                  <div class="field-label">폐기 여부</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.[DISPOSAL_KEY]) }}</div>
+                </div>
+                <div class="col-4 form-field">
+                  <div class="field-label">폐기 일정</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['폐기일정']) }}</div>
+                </div>
+                <div class="col form-field">
+                  <div class="field-label">폐기 관련 비고</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['폐기비고']) }}</div>
                 </div>
               </div>
             </template>
@@ -2108,6 +2169,7 @@ import { eolStatusColor, eolStatusLabel, getAutoEol } from 'src/services/eolData
 const VADA_KEY = 'vada_installed' as const
 const ANTIVIRUS_KEY = 'antivirus_installed' as const
 const ISMS_P_KEY = 'isms_p_target' as const
+const DISPOSAL_KEY = 'disposal_status' as const
 const TAGS_KEY = 'tags' as const
 const EOL_STATUS_KEY = 'eol_status' as const
 const EOL_DATE_KEY = 'eol_date' as const
@@ -2120,6 +2182,10 @@ const antivirusOptions = [
   { label: 'X', value: 'X' },
 ]
 const ismsPOptions = [
+  { label: 'O', value: 'O' },
+  { label: 'X', value: 'X' },
+]
+const disposalOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
 ]
@@ -2180,6 +2246,9 @@ const PREFERRED_FIELD_KEYS = [
   'VADA비고',
   ANTIVIRUS_KEY,
   '백신비고',
+  DISPOSAL_KEY,
+  '폐기일정',
+  '폐기비고',
   '제품명',
   '사양',
   '도입사업',
@@ -2225,6 +2294,9 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   'VADA비고': 'VADA 비고',
   [ANTIVIRUS_KEY]: '백신 여부',
   '백신비고': '백신 비고',
+  [DISPOSAL_KEY]: '폐기 여부',
+  '폐기일정': '폐기 일정',
+  '폐기비고': '폐기 관련 비고',
   '제품명': '제품명(모델명)',
   '사양': '사양',
   '도입사업': '도입사업',
@@ -2365,7 +2437,7 @@ function colKey(col: unknown): string {
 // 컬럼 표시 순서 — '__ip__'/'__name__'은 IP/HostName 고정 컬럼 위치 마커
 const COLUMN_DISPLAY_ORDER = [
   'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
-  EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', TAGS_KEY, '비고',
+  EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', TAGS_KEY, '비고',
 ] as const
 
 // 컬럼 선택 다이얼로그
@@ -3195,7 +3267,7 @@ const rowEditFields = computed(() => {
 // 편집 다이얼로그 템플릿에서 이미 하드코딩된 필드 키 목록
 const EDIT_DIALOG_COVERED_KEYS = new Set([
   '자산유형', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
-  '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고',
+  '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고',
   '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자',
   '비고', TAGS_KEY,
 ])
@@ -3448,6 +3520,9 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'VADA비고',      label: 'VADA비고',                                                        sample: '' },
     { key: ANTIVIRUS_KEY,   label: '백신여부',                                                        sample: 'O' },
     { key: '백신비고',       label: '백신비고',                                                        sample: '' },
+    { key: DISPOSAL_KEY,    label: '폐기여부',                                                        sample: 'O' },
+    { key: '폐기일정',      label: '폐기일정',                                                        sample: '' },
+    { key: '폐기비고',      label: '폐기 관련 비고',                                                  sample: '' },
     { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
     { key: '사양',          label: '사양',                                                            sample: '' },
     { key: '도입사업',      label: '도입사업',                                                        sample: '' },

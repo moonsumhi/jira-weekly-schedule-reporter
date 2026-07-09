@@ -35,32 +35,12 @@
                   <span :class="menu.isVisible ? 'text-positive' : 'text-grey'">
                     {{ menu.isVisible ? '표시' : '숨김' }}
                   </span>
-                  · 내부: <span :class="menu.isInternalVisible ? 'text-positive' : 'text-grey'">{{ menu.isInternalVisible ? '공개' : '숨김' }}</span>
-                  · 외부: <span :class="menu.isExternalVisible ? 'text-positive' : 'text-grey'">{{ menu.isExternalVisible ? '공개' : '숨김' }}</span>
                   · 하위 {{ subsOf(menu.id).length + systemSubsOf(menu.slug).length }}개
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
                 <div class="row no-wrap items-center">
                   <q-badge v-if="menu.isSystem" color="blue-grey" label="시스템" class="q-mr-xs" />
-                  <q-btn
-                    flat dense round size="sm"
-                    :icon="menu.isInternalVisible ? 'corporate_fare' : 'corporate_fare'"
-                    :color="menu.isInternalVisible ? 'primary' : 'grey-4'"
-                    :title="'내부: ' + (menu.isInternalVisible ? '공개' : '숨김')"
-                    @click.stop="toggleInternalVisible(menu)"
-                  >
-                    <q-tooltip>내부망 {{ menu.isInternalVisible ? '공개 (클릭시 숨김)' : '숨김 (클릭시 공개)' }}</q-tooltip>
-                  </q-btn>
-                  <q-btn
-                    flat dense round size="sm"
-                    :icon="menu.isExternalVisible ? 'public' : 'public_off'"
-                    :color="menu.isExternalVisible ? 'positive' : 'grey-4'"
-                    :title="'외부: ' + (menu.isExternalVisible ? '공개' : '숨김')"
-                    @click.stop="toggleExternalVisible(menu)"
-                  >
-                    <q-tooltip>외부망 {{ menu.isExternalVisible ? '공개 (클릭시 숨김)' : '숨김 (클릭시 공개)' }}</q-tooltip>
-                  </q-btn>
                   <q-btn flat dense round icon="edit" size="sm" @click.stop="openEditMenu(menu)" />
                   <q-btn v-if="!menu.isSystem" flat dense round icon="delete" size="sm" color="negative" @click.stop="confirmDeleteMenu(menu)" />
                 </div>
@@ -219,12 +199,15 @@
         <q-card-section class="q-gutter-sm">
           <template v-if="!editMenuTarget?.isSystem">
             <q-input v-model="menuForm.title" label="메뉴 이름" outlined dense />
-            <div>
-              <div class="text-caption text-grey q-mb-xs">아이콘</div>
-              <IconPicker v-model="menuForm.icon" />
-            </div>
-            <q-toggle v-model="menuForm.is_visible" label="사이드바에 표시" />
           </template>
+          <div v-else class="text-caption text-grey">
+            {{ editMenuTarget?.title }} <span class="text-grey-5">(시스템 메뉴 — 이름 변경 불가)</span>
+          </div>
+          <div>
+            <div class="text-caption text-grey q-mb-xs">아이콘</div>
+            <IconPicker v-model="menuForm.icon" />
+          </div>
+          <q-toggle v-if="!editMenuTarget?.isSystem" v-model="menuForm.is_visible" label="사이드바에 표시" />
           <q-input v-model="menuForm.link" label="링크 (직접 이동할 URL, 비우면 하위 메뉴 방식)" outlined dense clearable />
         </q-card-section>
         <q-card-actions align="right">
@@ -568,24 +551,6 @@ async function onSysSubDragEnd(menu: MenuOut) {
   } catch {
     $q.notify({ type: 'negative', message: '순서 저장 실패' })
     await load()
-  }
-}
-
-async function toggleInternalVisible(menu: MenuOut) {
-  try {
-    await menuService.patch(menu.id, { is_internal_visible: !menu.isInternalVisible })
-    await load()
-  } catch {
-    $q.notify({ type: 'negative', message: '저장에 실패했습니다' })
-  }
-}
-
-async function toggleExternalVisible(menu: MenuOut) {
-  try {
-    await menuService.patch(menu.id, { is_external_visible: !menu.isExternalVisible })
-    await load()
-  } catch {
-    $q.notify({ type: 'negative', message: '저장에 실패했습니다' })
   }
 }
 
