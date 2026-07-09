@@ -430,7 +430,7 @@ async function removeItem(item: ManualItem) {
 
 // ── PDF 출력 ──────────────────────────────────────────────────────────
 function openPrint() {
-  window.open(`/pm/weekly-report/${reportId}/print`, '_blank')
+  void router.push(`/pm/weekly-report/${reportId}/print`)
 }
 
 // ── Excel ──────────────────────────────────────────────────────────────
