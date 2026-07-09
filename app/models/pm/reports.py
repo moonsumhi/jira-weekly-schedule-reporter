@@ -78,6 +78,32 @@ class WeeklyReportStatusPatch(BaseModel):
     status: str  # DRAFT | REVIEWING | CONFIRMED
 
 
+class SrItem(BaseModel):
+    sr_no: str
+    title: str
+    status: str
+    status_label: str
+    request_type: str
+    request_type_label: str
+    requester_name: str
+    requester_department: str
+    assignee_name: Optional[str] = None
+    is_urgent: bool = False
+    desired_due_date: Optional[datetime] = None
+    created_at: datetime
+
+
+class SrSummary(BaseModel):
+    new_this_week: List[SrItem] = Field(default_factory=list)      # 이번 주 신규 접수
+    completed_this_week: List[SrItem] = Field(default_factory=list) # 이번 주 완료
+    pending_items: List[SrItem] = Field(default_factory=list)       # 미접수 (SUBMITTED)
+    open_items: List[SrItem] = Field(default_factory=list)          # 처리 중 전체 (비완료·비취소)
+    by_status: dict = Field(default_factory=dict)                   # 상태별 카운트
+    total_open: int = 0
+    total_new: int = 0
+    total_completed: int = 0
+
+
 class ReportStats(BaseModel):
     total: int = 0
     completed: int = 0
@@ -163,6 +189,7 @@ class WeeklyReportOut(BaseModel):
     upcoming_items: List[WorkItem] = Field(default_factory=list)
     stats: ReportStats = Field(default_factory=ReportStats)
     manual_items: List[ManualItemOut] = Field(default_factory=list)
+    sr_summary: Optional[SrSummary] = None
     admin_comment: Optional[str] = None
     created_by: str
     created_by_name: Optional[str] = None

@@ -100,6 +100,33 @@ export interface ManualItemCreate {
   desired_date?: string | null
 }
 
+// ── SR 요약 ──────────────────────────────────────────────────────────
+export interface SrItem {
+  srNo: string
+  title: string
+  status: string
+  statusLabel: string
+  requestType: string
+  requestTypeLabel: string
+  requesterName: string
+  requesterDepartment: string
+  assigneeName: string | null
+  isUrgent: boolean
+  desiredDueDate: string | null
+  createdAt: string
+}
+
+export interface SrSummary {
+  newThisWeek: SrItem[]
+  completedThisWeek: SrItem[]
+  pendingItems: SrItem[]
+  openItems: SrItem[]
+  byStatus: Record<string, number>
+  totalOpen: number
+  totalNew: number
+  totalCompleted: number
+}
+
 // ── 주간 보고 ────────────────────────────────────────────────────────
 export interface WeeklyReport {
   id: string
@@ -116,6 +143,7 @@ export interface WeeklyReport {
   upcomingItems: WorkItem[]
   stats: ReportStats
   manualItems: ManualItem[]
+  srSummary: SrSummary | null
   adminComment: string | null
   createdBy: string
   createdByName: string | null

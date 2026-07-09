@@ -13,7 +13,9 @@ from app.models.pm.reports import (
     WeeklyReportCreate, WeeklyReportPatch, WeeklyReportOut,
     WeeklyReportStatusPatch, ManualItemCreate, ManualItemPatch, ManualItemOut,
     ProjectBreakdown, PersonBreakdown, WorkItem, ReportStats,
+    SrItem, SrSummary,
 )
+from app.models.sr.service_request import SR_STATUS_LABEL, REQUEST_TYPE_LABEL
 from app.routers.auth import get_current_user
 from app.routers.pm.report_agg import aggregate_period
 
@@ -87,6 +89,82 @@ def _parse_breakdown(raw: list, cls):
     return result
 
 
+OPEN_STATUSES = {"SUBMITTED", "REVIEWING", "PENDING_INFO", "APPROVED", "ASSIGNED", "IN_PROGRESS", "CONFIRMING", "ON_HOLD"}
+DONE_STATUSES = {"COMPLETED", "CLOSED"}
+
+
+def _sr_doc_to_item(d: dict) -> SrItem:
+    return SrItem(
+        sr_no=d.get("sr_no", ""),
+        title=d.get("title", ""),
+        status=d.get("status", ""),
+        status_label=SR_STATUS_LABEL.get(d.get("status", ""), d.get("status", "")),
+        request_type=d.get("request_type", ""),
+        request_type_label=REQUEST_TYPE_LABEL.get(d.get("request_type", ""), d.get("request_type", "")),
+        requester_name=d.get("requester_name", ""),
+        requester_department=d.get("requester_department", ""),
+        assignee_name=d.get("assignee_name"),
+        is_urgent=d.get("is_urgent", False),
+        desired_due_date=d.get("desired_due_date"),
+        created_at=d["created_at"],
+    )
+
+
+async def _aggregate_sr(start_date: datetime, end_date: datetime) -> SrSummary:
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    end_inclusive = end_date.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+    start_utc = start_date.replace(tzinfo=timezone.utc) if start_date.tzinfo is None else start_date
+
+    # 이번 주 신규 접수 (DRAFT 제외)
+    new_docs = await col.find({
+        "created_at": {"$gte": start_utc, "$lte": end_inclusive},
+        "status": {"$ne": "DRAFT"},
+        "deleted_at": None,
+    }).sort("created_at", 1).to_list(None)
+
+    # 이번 주 완료 처리
+    completed_docs = await col.find({
+        "$or": [
+            {"actual_completed_at": {"$gte": start_utc, "$lte": end_inclusive}},
+            {
+                "status": {"$in": list(DONE_STATUSES)},
+                "updated_at": {"$gte": start_utc, "$lte": end_inclusive},
+                "actual_completed_at": None,
+            },
+        ],
+        "deleted_at": None,
+    }).sort("updated_at", -1).to_list(None)
+
+    # 미접수 (SUBMITTED 상태 = 접수됐지만 검토 미시작)
+    pending_docs = await col.find({
+        "status": "SUBMITTED",
+        "deleted_at": None,
+    }).sort("created_at", 1).to_list(None)
+
+    # 처리 중 전체 (완료·취소·임시저장 제외)
+    open_docs = await col.find({
+        "status": {"$in": list(OPEN_STATUSES)},
+        "deleted_at": None,
+    }).sort("created_at", 1).to_list(None)
+
+    # 상태별 카운트 (전체 비완료·비취소)
+    by_status: dict[str, int] = {}
+    for d in open_docs:
+        lbl = SR_STATUS_LABEL.get(d.get("status", ""), d.get("status", ""))
+        by_status[lbl] = by_status.get(lbl, 0) + 1
+
+    return SrSummary(
+        new_this_week=[_sr_doc_to_item(d) for d in new_docs],
+        completed_this_week=[_sr_doc_to_item(d) for d in completed_docs],
+        pending_items=[_sr_doc_to_item(d) for d in pending_docs],
+        open_items=[_sr_doc_to_item(d) for d in open_docs],
+        by_status=by_status,
+        total_open=len(open_docs),
+        total_new=len(new_docs),
+        total_completed=len(completed_docs),
+    )
+
+
 def _doc_to_out(doc: dict) -> WeeklyReportOut:
     return WeeklyReportOut(
         id=str(doc["_id"]),
@@ -103,6 +181,7 @@ def _doc_to_out(doc: dict) -> WeeklyReportOut:
         upcoming_items=_parse_items(doc.get("upcoming_items", [])),
         stats=ReportStats(**doc["stats"]) if doc.get("stats") else ReportStats(),
         manual_items=_parse_manual_items(doc.get("manual_items", [])),
+        sr_summary=SrSummary(**doc["sr_summary"]) if doc.get("sr_summary") else None,
         admin_comment=doc.get("admin_comment"),
         created_by=str(doc["created_by"]),
         created_by_name=None,
@@ -272,6 +351,7 @@ async def create_weekly_report(
     all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
         body.start_date, body.end_date, ns, ne
     )
+    sr_summary = await _aggregate_sr(body.start_date, body.end_date)
 
     result = await col.insert_one({
         "report_year":    body.report_year,
@@ -287,6 +367,7 @@ async def create_weekly_report(
         "upcoming_items": [i.model_dump() for i in upcoming_items],
         "stats":          stats.model_dump(),
         "manual_items":   [],
+        "sr_summary":     sr_summary.model_dump(),
         "admin_comment":  body.admin_comment,
         "created_by":     ObjectId(current_user.id),
         "updated_by":     None,
@@ -338,6 +419,7 @@ async def refresh_weekly_report(
     all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
         doc["start_date"], doc["end_date"], ns, ne
     )
+    sr_summary = await _aggregate_sr(doc["start_date"], doc["end_date"])
     updated = await col.find_one_and_update(
         {"_id": ObjectId(report_id)},
         {"$set": {
@@ -346,6 +428,7 @@ async def refresh_weekly_report(
             "all_items":      [i.model_dump() for i in all_items],
             "upcoming_items": [i.model_dump() for i in upcoming_items],
             "stats":          stats.model_dump(),
+            "sr_summary":     sr_summary.model_dump(),
             "updated_by":     ObjectId(current_user.id),
             "updated_at":     datetime.now(timezone.utc),
         }},
