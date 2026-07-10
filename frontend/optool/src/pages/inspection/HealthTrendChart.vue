@@ -153,7 +153,9 @@ const showTable = ref(false)
 
 const tooltipLeftPct = computed(() => {
   if (hoverIndex.value === null) return 0
-  return (xFor(hoverIndex.value) / W) * 100
+  // 툴팁이 차트 좌우 바깥으로 삐져나가 가로 스크롤바가 생기지 않도록 범위를 살짝 안쪽으로 제한
+  const pct = (xFor(hoverIndex.value) / W) * 100
+  return Math.min(92, Math.max(8, pct))
 })
 </script>
 
@@ -187,6 +189,7 @@ const tooltipLeftPct = computed(() => {
 
 .trend-svg-wrap {
   position: relative;
+  overflow: hidden;
 }
 
 .trend-svg {
