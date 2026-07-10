@@ -99,6 +99,13 @@ class HealthReportOut(BaseModel):
     uploaded_by: str = ""
 
 
+class HistoryPoint(BaseModel):
+    report_date: str
+    cpu_pct: float
+    ram_pct: float
+    disk_pct: float
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _fmt_dt(dt: Any) -> Optional[str]:
@@ -332,6 +339,13 @@ def _parse_excel(contents: bytes) -> tuple[str, str, list[dict], list[dict]]:
 
 # ── routes ───────────────────────────────────────────────────────────────────
 
+def _pct(val: Any) -> float:
+    try:
+        return float(str(val).replace("%", "").strip())
+    except (ValueError, TypeError):
+        return 0.0
+
+
 @router.get("/danger")
 async def get_danger_summary(current_user: UserPublic = Depends(get_current_user)):
     """최신 서버 점검 보고서에서 RAM 또는 Disk가 80% 이상인 서버 목록 반환"""
@@ -339,12 +353,6 @@ async def get_danger_summary(current_user: UserPublic = Depends(get_current_user
     doc = await col.find_one({}, {"summary": 1, "report_date": 1}, sort=[("report_date", -1)])
     if not doc:
         return {"report_date": None, "servers": []}
-
-    def _pct(val: str) -> float:
-        try:
-            return float(str(val).replace("%", "").strip())
-        except (ValueError, TypeError):
-            return 0.0
 
     danger = []
     for row in (doc.get("summary") or []):
@@ -362,6 +370,30 @@ async def get_danger_summary(current_user: UserPublic = Depends(get_current_user
 
     danger.sort(key=lambda x: max(x["ram_pct"], x["disk_pct"]), reverse=True)
     return {"report_date": doc.get("report_date"), "servers": danger}
+
+
+@router.get("/history/{host_name}", response_model=list[HistoryPoint])
+async def get_host_history(host_name: str, current_user: UserPublic = Depends(get_current_user)):
+    """특정 호스트의 월별 점검 보고서에서 RAM/Disk 사용률 추이를 반환 (오래된 순)"""
+    col = MongoClientManager.get_db()[MongoClientManager.HEALTH_REPORTS]
+    docs = await col.find({}, {"summary": 1, "report_date": 1}).sort("report_date", 1).to_list(None)
+
+    target = host_name.strip().lower()
+    points: list[HistoryPoint] = []
+    for doc in docs:
+        row = next(
+            (r for r in (doc.get("summary") or []) if str(r.get("host_name", "")).strip().lower() == target),
+            None,
+        )
+        if not row:
+            continue
+        points.append(HistoryPoint(
+            report_date=doc.get("report_date", ""),
+            cpu_pct=_pct(row.get("cpu", "")),
+            ram_pct=_pct(row.get("ram", "")),
+            disk_pct=_pct(row.get("disk_max", "")),
+        ))
+    return points
 
 
 @router.get("", response_model=list[HealthReportListItem])
