@@ -391,13 +391,15 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "조직",    "icon": "fa-solid fa-building",         "link": "/pm/organizations"},
             {"title": "주간 보고","icon": "fa-solid fa-calendar-week",    "link": "/pm/weekly-report",  "require_admin": True},
             {"title": "월간 보고","icon": "fa-solid fa-calendar-days",    "link": "/pm/monthly-report", "require_admin": True},
+            {"title": "사용 가이드","icon": "fa-solid fa-circle-question","link": "/pm/schedule/guide"},
         ],
     },
     "sr": {
         "submenus": [
-            {"title": "SR 접수",    "icon": "fa-solid fa-paper-plane", "link": "/pm/sr/new"},
-            {"title": "내 SR 목록", "icon": "fa-solid fa-list-check",  "link": "/pm/sr/my"},
-            {"title": "SR 관리",   "icon": "fa-solid fa-tasks",       "link": "/pm/sr/manage"},
+            {"title": "SR 접수",    "icon": "fa-solid fa-paper-plane",    "link": "/pm/sr/new"},
+            {"title": "내 SR 목록", "icon": "fa-solid fa-list-check",     "link": "/pm/sr/my"},
+            {"title": "SR 관리",   "icon": "fa-solid fa-tasks",          "link": "/pm/sr/manage"},
+            {"title": "사용 가이드","icon": "fa-solid fa-circle-question","link": "/pm/sr/guide"},
         ],
     },
     "server_check": {
@@ -438,6 +440,23 @@ async def seed_system_menu_extras() -> None:
             update["submenus"] = extras["submenus"]
         if update:
             await menus_col.update_one({"slug": slug}, {"$set": update})
+
+
+async def migrate_guide_submenus() -> None:
+    """pm·sr 메뉴에 사용 가이드 서브메뉴가 없으면 추가한다 (멱등)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    guide_items = {
+        "pm": {"title": "사용 가이드", "icon": "fa-solid fa-circle-question", "link": "/pm/schedule/guide"},
+        "sr": {"title": "사용 가이드", "icon": "fa-solid fa-circle-question", "link": "/pm/sr/guide"},
+    }
+    for slug, item in guide_items.items():
+        doc = await menus_col.find_one({"slug": slug})
+        if not doc:
+            continue
+        existing_links = [s.get("link") for s in doc.get("submenus", [])]
+        if item["link"] not in existing_links:
+            await menus_col.update_one({"slug": slug}, {"$push": {"submenus": item}})
+            logger.info("가이드 서브메뉴 추가: %s → %s", slug, item["link"])
 
 
 async def seed_job_form_templates() -> None:
@@ -493,6 +512,7 @@ async def run_startup() -> None:
     await create_indexes()
     await seed_system_menus()
     await seed_system_menu_extras()
+    await migrate_guide_submenus()
     await seed_job_form_templates()
     await migrate_assets()
 

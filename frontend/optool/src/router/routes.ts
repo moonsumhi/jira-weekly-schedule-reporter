@@ -241,6 +241,14 @@ const routes: RouteRecordRaw[] = [
             meta: { requiresPermission: 'sr' },
             component: () => import('pages/sr/SrDetailPage.vue')
           },
+          {
+            path: 'sr/guide',
+            component: () => import('pages/guide/SrGuidePage.vue')
+          },
+          {
+            path: 'schedule/guide',
+            component: () => import('pages/guide/ScheduleGuidePage.vue')
+          },
         ]
       },
       {

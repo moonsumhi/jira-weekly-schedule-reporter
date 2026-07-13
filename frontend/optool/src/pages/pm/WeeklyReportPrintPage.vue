@@ -5,6 +5,7 @@
     <span v-if="report" class="toolbar-title">{{ report.title }}</span>
     <button class="btn-print" @click="triggerPrint()">🖨 인쇄 / PDF 저장</button>
   </div>
+  <div v-if="isPreview" class="preview-banner">미리보기 모드 — 실제 인쇄 시 상단 툴바는 출력되지 않습니다.</div>
 
   <div v-if="loading" class="loading-wrap">
     <span>보고서 불러오는 중...</span>
@@ -56,6 +57,45 @@
           <td class="sum-prog">{{ report.stats.inProgress }}건</td>
           <td class="sum-delay">{{ report.stats.delayed }}건</td>
           <td class="sum-rate">{{ report.stats.completionRate }}%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ━━━━ 개인별 업무 일정 (캘린더) ━━━━ -->
+    <div class="section-heading">▪ 개인별 업무 일정</div>
+    <div class="gantt-legend">
+      <span class="gl gl-done">완료</span>
+      <span class="gl gl-prog">진행 중</span>
+      <span class="gl gl-delay">지연</span>
+      <span class="gl gl-todo">계획/미시작</span>
+    </div>
+    <table class="gantt-table">
+      <thead>
+        <tr>
+          <th class="gantt-name-th">담당자 / 업무</th>
+          <th v-for="d in ganttDays" :key="d.iso"
+            :class="['gantt-day-th', d.isWeekend ? 'g-weekend' : '', d.inReport ? 'g-in-report' : '']">
+            <div class="gantt-day-name">{{ d.dayName }}</div>
+            <div class="gantt-day-date">{{ d.mmdd }}</div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <template v-for="pb in ganttPersons" :key="pb.userId">
+          <tr class="gantt-person-row">
+            <td :colspan="ganttDays.length + 1">
+              {{ pb.userName }}
+              <span class="gantt-person-stats">완료 {{ pb.doneCount }} · 진행 {{ pb.progCount }} · 지연 {{ pb.delayCount }}</span>
+            </td>
+          </tr>
+          <tr v-for="item in pb.items" :key="item.issueId" class="gantt-task-row">
+            <td class="gantt-task-label" :title="item.title">{{ item.title }}</td>
+            <td v-for="d in ganttDays" :key="d.iso"
+              :class="['gantt-day-cell', ganttCellClass(item, d.iso)]"></td>
+          </tr>
+        </template>
+        <tr v-if="!ganttPersons.length">
+          <td :colspan="ganttDays.length + 1" class="gantt-empty">집계된 업무가 없습니다.</td>
         </tr>
       </tbody>
     </table>
@@ -315,14 +355,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getWeeklyReport, type WeeklyReport } from 'src/services/pm/reports'
+import { getWeeklyReport, type WeeklyReport, type WorkItem } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 
-const route    = useRoute()
-const router   = useRouter()
-const reportId = route.params.id as string
-const loading  = ref(true)
-const report   = ref<WeeklyReport | null>(null)
+const route      = useRoute()
+const router     = useRouter()
+const reportId   = route.params.id as string
+const isPreview  = route.query.preview === 'true'
+const loading    = ref(true)
+const report     = ref<WeeklyReport | null>(null)
 
 const STATUS_KO: Record<string, string> = { DRAFT: '초안', REVIEWING: '검토중', CONFIRMED: '확정' }
 const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -334,6 +375,61 @@ const riskItems     = computed(() => (report.value?.manualItems ?? []).filter(i 
 const decisionItems = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'DECISION_REQUIRED' && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
 const completedItems  = computed(() => (report.value?.allItems ?? []).filter(i => i.status === 'DONE'))
 const inProgressItems = computed(() => (report.value?.allItems ?? []).filter(i => ['IN_PROGRESS', 'IN_REVIEW', 'TODO', 'BACKLOG'].includes(i.status)))
+
+// ── 개인별 업무 일정 (Gantt) ─────────────────────────────────────────
+const ganttDays = computed(() => {
+  if (!report.value) return []
+  const reportStart = report.value.startDate.slice(0, 10)
+  const reportEnd   = report.value.endDate.slice(0, 10)
+  const from = new Date(reportStart)
+  from.setDate(from.getDate() - 3)
+  const to = new Date(reportEnd)
+  to.setDate(to.getDate() + 10)
+  const days: { iso: string; dayName: string; mmdd: string; isWeekend: boolean; inReport: boolean }[] = []
+  const cur = new Date(from)
+  while (cur <= to) {
+    const iso = cur.toISOString().slice(0, 10)
+    const dow = cur.getDay()
+    days.push({
+      iso,
+      dayName: ['일','월','화','수','목','금','토'][dow]!,
+      mmdd: `${cur.getMonth() + 1}/${cur.getDate()}`,
+      isWeekend: dow === 0 || dow === 6,
+      inReport: iso >= reportStart && iso <= reportEnd,
+    })
+    cur.setDate(cur.getDate() + 1)
+  }
+  return days
+})
+
+const ganttPersons = computed(() => {
+  if (!report.value) return []
+  return report.value.byPerson
+    .filter(p => p.completed.length || p.inProgress.length || p.delayed.length || p.upcoming.length)
+    .map(p => ({
+      userId:     p.userId,
+      userName:   p.userName,
+      doneCount:  p.completed.length,
+      progCount:  p.inProgress.length,
+      delayCount: p.delayed.length,
+      items: (() => {
+        const seen = new Set<string>()
+        return [...p.delayed, ...p.inProgress, ...p.completed, ...p.upcoming]
+          .filter(item => { if (seen.has(item.issueId)) return false; seen.add(item.issueId); return true })
+      })(),
+    }))
+})
+
+function ganttCellClass(item: WorkItem, dayIso: string): string {
+  const fallback = report.value!.startDate.slice(0, 10)
+  const s = (item.startDate ?? fallback).slice(0, 10)
+  const e = (item.dueDate   ?? item.startDate ?? fallback).slice(0, 10)
+  if (dayIso < s || dayIso > e) return ''
+  if (item.isDelayed)                                           return 'gc-delay'
+  if (item.status === 'DONE')                                   return 'gc-done'
+  if (item.status === 'IN_PROGRESS' || item.status === 'IN_REVIEW') return 'gc-prog'
+  return 'gc-todo'
+}
 
 function agendaStatusBadge(s?: string | null) {
   return { 예정: 'badge-blue', 진행중: 'badge-orange', 완료: 'badge-green', 지연: 'badge-red', 보류: 'badge-grey' }[s ?? ''] ?? 'badge-grey'
@@ -347,11 +443,13 @@ function triggerPrint() { window.print() }
 function onAfterPrint() { void router.back() }
 
 onMounted(async () => {
-  window.addEventListener('afterprint', onAfterPrint)
+  if (!isPreview) window.addEventListener('afterprint', onAfterPrint)
   try {
     report.value = await getWeeklyReport(reportId)
-    await new Promise(r => setTimeout(r, 300))
-    window.print()
+    if (!isPreview) {
+      await new Promise(r => setTimeout(r, 300))
+      window.print()
+    }
   } catch (e) {
     alert(getErrorMessage(e, '보고서를 불러오지 못했습니다.'))
   } finally {
@@ -394,9 +492,17 @@ onUnmounted(() => {
 .btn-back  { background: none; border: 1px solid #475569; color: #cbd5e1; padding: 5px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
 .btn-print { background: #3b82f6; border: none; color: white; padding: 6px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .loading-wrap { text-align: center; padding: 80px; color: #666; font-size: 14px; }
+.preview-banner {
+  background: #fef9c3;
+  color: #854d0e;
+  font-size: 12px;
+  text-align: center;
+  padding: 6px;
+  border-bottom: 1px solid #fde68a;
+}
 
 @media print {
-  .screen-toolbar, .loading-wrap { display: none; }
+  .screen-toolbar, .loading-wrap, .preview-banner { display: none; }
 }
 
 /* ═══════════════════════════════════════
@@ -658,6 +764,118 @@ onUnmounted(() => {
   line-height: 1.8;
   white-space: pre-wrap;
   color: #1e293b;
+}
+
+/* ═══════════════════════════════════════
+   개인별 업무 일정 (Gantt)
+═══════════════════════════════════════ */
+.gantt-legend {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-size: 7.5pt;
+  align-items: center;
+}
+.gl {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.gl::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 10px;
+  border-radius: 1px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.gl-done::before  { background: #15803d; }
+.gl-prog::before  { background: #1d4ed8; }
+.gl-delay::before { background: #b91c1c; }
+.gl-todo::before  { background: #94a3b8; }
+
+.gantt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 7pt;
+  margin-bottom: 16px;
+  table-layout: fixed;
+}
+.gantt-name-th {
+  background: #1e293b;
+  color: white;
+  border: 1px solid #0f172a;
+  padding: 4px 6px;
+  text-align: left;
+  font-weight: 600;
+  width: 130px;
+  white-space: nowrap;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.gantt-day-th {
+  background: #475569;
+  color: white;
+  border: 1px solid #0f172a;
+  padding: 2px 1px;
+  text-align: center;
+  line-height: 1.3;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.gantt-day-th.g-weekend  { background: #64748b; }
+.gantt-day-th.g-in-report { background: #1e3a8a; }
+.gantt-day-name { font-size: 6.5pt; font-weight: 700; }
+.gantt-day-date { font-size: 5.5pt; opacity: 0.9; }
+
+.gantt-person-row td {
+  background: #e2e8f0;
+  border: 1px solid #94a3b8;
+  border-top: 2px solid #334155;
+  padding: 3px 8px;
+  font-weight: 700;
+  font-size: 8pt;
+  color: #1e293b;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.gantt-person-stats {
+  font-weight: 400;
+  font-size: 6.5pt;
+  color: #64748b;
+  margin-left: 8px;
+}
+
+.gantt-task-row { height: 16px; }
+.gantt-task-label {
+  border: 1px solid #e2e8f0;
+  border-right: 2px solid #94a3b8;
+  padding: 2px 4px 2px 8px;
+  font-size: 6.5pt;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #f8fafc;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.gantt-day-cell {
+  border: 1px solid #e2e8f0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.gc-done  { background: #15803d; }
+.gc-prog  { background: #1d4ed8; }
+.gc-delay { background: #b91c1c; }
+.gc-todo  { background: #94a3b8; }
+.gantt-empty {
+  padding: 8px;
+  color: #94a3b8;
+  font-style: italic;
+  text-align: center;
+  font-size: 8pt;
 }
 
 /* ═══════════════════════════════════════

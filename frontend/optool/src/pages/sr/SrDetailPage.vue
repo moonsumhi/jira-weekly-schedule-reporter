@@ -14,6 +14,8 @@
           <span class="text-caption text-grey-5 q-mr-xs">{{ sr.srNo }}</span>
           <span class="text-caption text-grey-4">·</span>
           <span class="text-caption text-grey-5 q-ml-xs">{{ fmtDateTime(sr.createdAt) }} 접수</span>
+          <q-space />
+          <HelpButton feature="sr-detail" guide-path="/pm/sr/guide" />
         </div>
         <div class="text-h5 text-weight-bold q-mb-sm">{{ sr.title }}</div>
         <div class="row items-center q-gutter-xs flex-wrap">
@@ -480,10 +482,10 @@
               <!-- ── 탭2: 처리/증적 ── -->
               <q-tab-panel name="process" class="q-pa-lg q-gutter-lg">
 
-                <!-- 연결된 PM 이슈 배너 -->
+                <!-- 연결된 스케줄 관리 이슈 배너 -->
                 <q-banner v-if="sr.convertedIssueId && sr.convertedProjectId" class="bg-indigo-1 rounded-borders q-mb-sm" dense>
                   <template #avatar><q-icon name="link" color="indigo-7" /></template>
-                  <span class="text-indigo-9 text-weight-medium">연결된 PM 이슈</span>
+                  <span class="text-indigo-9 text-weight-medium">연결된 스케줄 관리 이슈</span>
                   <q-btn flat dense size="sm" color="indigo-7" icon="open_in_new"
                     label="이슈 바로가기" class="q-ml-sm"
                     @click="$router.push(`/pm/projects/${sr.convertedProjectId}/backlog`)" />
@@ -616,23 +618,75 @@
                   </div>
                   <div class="comment-bubble q-ml-lg"
                     :class="c.isInternal ? 'comment-bubble--internal' : 'comment-bubble--user'">
-                    {{ c.content }}
+                    <div v-if="c.content" class="q-mb-xs">{{ c.content }}</div>
+                    <!-- 첨부파일 -->
+                    <div v-if="c.attachments?.length" class="column q-gutter-xs q-mt-xs">
+                      <template v-for="att in c.attachments" :key="att.fileId">
+                        <!-- 이미지 -->
+                        <div v-if="att.contentType?.startsWith('image/')">
+                          <a :href="att.url" target="_blank">
+                            <img :src="att.url" :alt="att.originalName"
+                              style="max-width:100%;max-height:320px;border-radius:6px;display:block;cursor:pointer" />
+                          </a>
+                          <div class="text-caption text-grey-5 q-mt-xs">{{ att.originalName }}</div>
+                        </div>
+                        <!-- 일반 파일 -->
+                        <div v-else
+                          class="row items-center q-gutter-xs comment-file-link no-wrap cursor-pointer"
+                          @click="downloadFile(att.url, att.originalName)">
+                          <q-icon name="attach_file" size="14px" color="grey-6" />
+                          <span class="text-caption ellipsis">{{ att.originalName }}</span>
+                          <span class="text-caption text-grey-5" style="white-space:nowrap;flex-shrink:0">
+                            ({{ formatFileSize(att.size) }})
+                          </span>
+                        </div>
+                      </template>
+                    </div>
                   </div>
                 </div>
 
                 <q-separator class="q-my-md" />
+
+                <!-- 첨부 미리보기 -->
+                <div v-if="commentFiles.length" class="q-mb-sm">
+                  <!-- 이미지 썸네일 -->
+                  <div v-if="commentFiles.some(it => it.previewUrl)" class="row wrap q-gutter-sm q-mb-xs">
+                    <div v-for="(it, i) in commentFiles.filter(it => it.previewUrl)" :key="i" class="relative-position">
+                      <img :src="it.previewUrl!" style="height:80px;max-width:160px;border-radius:6px;object-fit:cover;display:block" />
+                      <q-btn round dense flat size="xs" icon="close"
+                        style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.45);color:#fff"
+                        @click="removeCommentFile(commentFiles.indexOf(it))" />
+                    </div>
+                  </div>
+                  <!-- 일반 파일 칩 -->
+                  <div v-if="commentFiles.some(it => !it.previewUrl)" class="row wrap q-gutter-xs">
+                    <q-chip
+                      v-for="(it, i) in commentFiles.filter(it => !it.previewUrl)" :key="i"
+                      dense removable size="sm" color="blue-1" text-color="blue-9" icon="attach_file"
+                      @remove="removeCommentFile(commentFiles.indexOf(it))"
+                    >{{ it.file.name }}</q-chip>
+                  </div>
+                </div>
+
                 <div class="row q-col-gutter-sm items-end">
                   <div class="col">
-                    <q-input v-model="newComment" placeholder="댓글을 입력하세요..." outlined dense
-                      type="textarea" rows="3" />
-                    <q-checkbox v-if="isOperatorUser" v-model="newCommentInternal"
-                      label="내부 메모 (운영팀에만 공개)" size="xs" color="grey-7" dense class="q-mt-xs" />
+                    <q-input v-model="newComment" placeholder="댓글을 입력하세요... (이미지 붙여넣기 가능)" outlined dense
+                      type="textarea" rows="3" @paste="onCommentPaste" />
+                    <div class="row items-center q-mt-xs q-gutter-sm">
+                      <q-checkbox v-if="isOperatorUser" v-model="newCommentInternal"
+                        label="내부 메모 (운영팀에만 공개)" size="xs" color="grey-7" dense />
+                      <q-btn flat dense size="xs" icon="attach_file" color="grey-7" label="파일 첨부"
+                        @click="commentFileInput?.click()" />
+                    </div>
                   </div>
                   <div class="col-auto">
                     <q-btn unelevated color="primary" label="등록" size="sm"
                       @click="submitComment" :loading="commenting" />
                   </div>
                 </div>
+                <input ref="commentFileInput" type="file" multiple style="display:none"
+                  accept="image/*,.pdf,.xls,.xlsx,.doc,.docx,.txt,.csv,.zip"
+                  @change="onCommentFileChange" />
 
               </q-tab-panel>
 
@@ -894,7 +948,7 @@
             </div>
           </div>
 
-          <div class="field-label">예상 공수 <span style="font-size:11px;color:#aaa;font-weight:400">(시작일·완료일 기준 자동 계산)</span></div>
+          <div class="field-label">예상 공수 <span style="font-size:11px;color:#aaa;font-weight:400">(시작일·완료일 기준 자동 계산, 주말 제외)</span></div>
           <q-input v-model="assignForm.estimatedEffort" outlined readonly
             placeholder="시작일과 완료일을 입력하면 자동 계산됩니다" hide-bottom-space class="q-mb-md" bg-color="grey-1" />
 
@@ -968,11 +1022,11 @@ import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import {
-  getSR, getAdminSR, listComments, listHistory, addComment,
+  getSR, getAdminSR, listComments, listHistory, addComment, uploadSRAttachment,
   cancelSR, reviewSR, assignSR, changeSRStatus,
   SR_STATUS_LABEL, SR_STATUS_COLOR, SR_PRIORITY_LABEL,
   REQUEST_TYPE_LABEL,
-  type SR, type SRComment, type SRHistory, type SRStatus, type ReviewResult,
+  type SR, type SRComment, type SRHistory, type SRStatus, type ReviewResult, type SRAttachment,
 } from 'src/services/sr'
 import { SR_TYPE_FIELDS } from 'src/services/sr-type-fields'
 import type { SRTypeField } from 'src/services/sr-type-fields'
@@ -1014,6 +1068,9 @@ const activeTab      = ref('content')
 const newComment     = ref('')
 const newCommentInternal = ref(false)
 const commenting     = ref(false)
+type CommentFileItem = { file: File; previewUrl: string | null }
+const commentFiles   = ref<CommentFileItem[]>([])
+const commentFileInput = ref<HTMLInputElement | null>(null)
 const actionLoading  = ref(false)
 const activeAction   = ref<string | null>(null)
 const cancelDialog   = ref(false)
@@ -1035,8 +1092,15 @@ watch(
   () => [assignForm.value.plannedStartDate, assignForm.value.plannedDueDate],
   ([start, end]) => {
     if (start && end) {
-      const days = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000)
-      if (days > 0) assignForm.value.estimatedEffort = `${days}일`
+      let count = 0
+      const cur = new Date(start)
+      const last = new Date(end)
+      while (cur <= last) {
+        const day = cur.getDay()
+        if (day !== 0 && day !== 6) count++
+        cur.setDate(cur.getDate() + 1)
+      }
+      if (count > 0) assignForm.value.estimatedEffort = `${count}일`
     }
   }
 )
@@ -1101,7 +1165,7 @@ const actionButtons = computed(() => {
   const btns: { key: string; label: string; color: string; outline?: boolean; icon: string; action: () => void }[] = []
 
   if (isMyRequest.value) {
-    if (s === 'PENDING_INFO') {
+    if (s !== 'CLOSED') {
       btns.push({ key: 'edit', label: 'SR 수정', color: 'amber-8', icon: 'edit', action: () => { void router.push(`/pm/sr/${sr.value!.id}/edit`) } })
     }
     if (!['CLOSED', 'CANCELLED', 'REJECTED'].includes(s)) {
@@ -1125,7 +1189,7 @@ const actionButtons = computed(() => {
     }
   }
 
-  if (isOperatorUser.value && !['CLOSED', 'CANCELLED', 'REJECTED', 'DRAFT'].includes(s)) {
+  if (isOperatorUser.value && !['CLOSED', 'REJECTED', 'DRAFT'].includes(s)) {
     btns.push({ key: 'status', label: '상태 변경', color: 'blue-7', icon: 'swap_horiz', action: () => { statusDialog.value = true } })
   }
 
@@ -1136,7 +1200,7 @@ const actionButtons = computed(() => {
 
 const reviewResultOptions    = Object.entries(REVIEW_RESULT_LABEL).map(([value, label]) => ({ value, label }))
 const availableStatusOptions = computed(() =>
-  ['REVIEWING', 'PENDING_INFO', 'APPROVED', 'REJECTED', 'ASSIGNED', 'IN_PROGRESS',
+  ['SUBMITTED', 'REVIEWING', 'PENDING_INFO', 'APPROVED', 'REJECTED', 'ASSIGNED', 'IN_PROGRESS',
    'COMPLETED', 'CONFIRMING', 'CLOSED', 'ON_HOLD', 'CANCELLED']
     .map(s => ({ value: s, label: statusLabel(s) }))
 )
@@ -1284,13 +1348,79 @@ async function load() {
   }
 }
 
+function makeItem(file: File): CommentFileItem {
+  return { file, previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null }
+}
+
+function onCommentPaste(e: ClipboardEvent) {
+  const items = e.clipboardData?.items
+  if (!items) return
+  const newItems: CommentFileItem[] = []
+  for (const item of Array.from(items)) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const raw = item.getAsFile()
+      if (raw) {
+        const named = new File([raw], `paste-${Date.now()}.${item.type.split('/')[1] || 'png'}`, { type: item.type })
+        newItems.push(makeItem(named))
+      }
+    }
+  }
+  if (newItems.length > 0) {
+    e.preventDefault()
+    commentFiles.value = [...commentFiles.value, ...newItems]
+  }
+}
+
+function onCommentFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (!input.files) return
+  commentFiles.value = [...commentFiles.value, ...Array.from(input.files).map(makeItem)]
+  input.value = ''
+}
+
+function removeCommentFile(idx: number) {
+  const item = commentFiles.value[idx]
+  if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl)
+  commentFiles.value = commentFiles.value.filter((_, i) => i !== idx)
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
+async function downloadFile(url: string, filename: string) {
+  try {
+    const token = useAuthStore().token
+    const resp = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!resp.ok) throw new Error(`${resp.status}`)
+    const blob = await resp.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch {
+    $q.notify({ type: 'negative', message: '파일 다운로드에 실패했습니다.' })
+  }
+}
+
 async function submitComment() {
-  if (!newComment.value.trim()) return
+  if (!newComment.value.trim() && commentFiles.value.length === 0) return
   commenting.value = true
   try {
-    await addComment(srId, newComment.value, newCommentInternal.value)
+    let uploaded: SRAttachment[] = []
+    if (commentFiles.value.length > 0) {
+      uploaded = await Promise.all(commentFiles.value.map(item => uploadSRAttachment(item.file)))
+    }
+    await addComment(srId, newComment.value, newCommentInternal.value, uploaded)
     newComment.value         = ''
     newCommentInternal.value = false
+    commentFiles.value.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl) })
+    commentFiles.value       = []
     comments.value           = await listComments(srId)
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -1530,5 +1660,22 @@ onMounted(async () => {
   white-space: pre-wrap;
 }
 .comment-bubble--user     { background: #e8f1fd; border-left: 3px solid var(--q-primary); }
+.comment-file-link {
+  text-decoration: none;
+  color: #555;
+  background: rgba(0,0,0,0.04);
+  border-radius: 4px;
+  padding: 3px 6px;
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+.comment-file-link .ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.comment-file-link:hover { background: rgba(0,0,0,0.08); }
 .comment-bubble--internal { background: #f5f5f5; border-left: 3px solid #bdbdbd; }
 </style>

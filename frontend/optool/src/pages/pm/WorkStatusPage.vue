@@ -4,8 +4,13 @@
 
       <!-- 헤더 -->
       <div class="col-12">
-        <div class="text-h5 text-weight-bold">업무 현황</div>
-        <div class="text-caption text-grey-6">담당자별 업무 일정 현황</div>
+        <div class="row items-center">
+          <div class="col">
+            <div class="text-h5 text-weight-bold">업무 현황</div>
+            <div class="text-caption text-grey-6">담당자별 업무 일정 현황</div>
+          </div>
+          <HelpButton feature="work-status" guide-path="/pm/schedule/guide" />
+        </div>
       </div>
 
       <!-- 담당자 필터 -->
@@ -217,7 +222,7 @@ const filteredEvents = computed<EventInput[]>(() => {
     : allIssues.value.filter(i => i.assigneeId !== null && selectedIds.value.has(i.assigneeId))
 
   return base
-    .filter(i => i.type === 'TASK' && (i.dueDate ?? i.startDate))
+    .filter(i => (i.type === 'TASK' || i.type === 'SUB_TASK') && (i.dueDate ?? i.startDate))
     .map(i => {
       const color = getAssigneeColor(i.assigneeId)
       const start = (i.startDate ?? i.dueDate)!.slice(0, 10)
