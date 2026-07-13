@@ -102,18 +102,34 @@
             </q-card-section>
           </q-card>
 
+          <!-- 목록 테이블 컬럼 안내 -->
+          <div class="text-subtitle2 text-weight-bold q-mb-sm">목록 테이블 컬럼</div>
+          <div class="row q-gutter-xs q-mb-md" style="flex-wrap:wrap">
+            <q-chip v-for="col in listColumns" :key="col" outline color="primary" size="sm">{{ col }}</q-chip>
+          </div>
+
+          <div class="text-subtitle2 text-weight-bold q-mb-sm">행별 액션 아이콘</div>
+          <div class="row q-col-gutter-xs q-mb-md">
+            <div v-for="act in rowActions" :key="act.label" class="col-auto">
+              <q-card flat bordered class="q-pa-xs text-center" style="min-width:80px">
+                <q-icon :name="act.icon" color="grey-7" size="20px" />
+                <div class="text-caption text-grey-7">{{ act.label }}</div>
+              </q-card>
+            </div>
+          </div>
+
           <div class="text-subtitle2 text-weight-bold q-mb-sm">새 보고서 생성 방법</div>
           <q-timeline color="primary">
-            <q-timeline-entry title="[새 보고서 생성] 버튼 클릭" icon="add_circle" color="primary">
+            <q-timeline-entry title="[생성 (자동 집계)] 버튼 클릭" icon="add_circle" color="primary">
               <div class="text-body2">오른쪽 상단의 파란 버튼을 클릭합니다.</div>
             </q-timeline-entry>
-            <q-timeline-entry title="연도·주차·기간 입력" icon="event" color="primary">
-              <div class="text-body2 q-mb-sm">주차와 기간(월요일~금요일)을 설정합니다.</div>
+            <q-timeline-entry title="연도·주차 입력" icon="event" color="primary">
+              <div class="text-body2 q-mb-sm">연도와 주차를 입력하면 기간(ISO 8601)과 제목이 자동 생성됩니다.</div>
               <div class="mockup-box" style="padding:12px">
                 <div class="row q-gutter-sm">
                   <q-chip outline color="primary" size="sm">2026년</q-chip>
                   <q-chip outline color="primary" size="sm">28주차</q-chip>
-                  <q-chip outline color="grey" size="sm">2026-07-07 ~ 2026-07-11</q-chip>
+                  <q-chip outline color="grey" size="sm">제목: "2026년 28주차 주간 보고" (자동)</q-chip>
                 </div>
               </div>
             </q-timeline-entry>
@@ -145,43 +161,35 @@
             </div>
           </div>
 
-          <!-- 개인별 탭 간트 설명 -->
+          <!-- 프로젝트별/개인별 탭 공통 설명 -->
           <div class="text-subtitle2 text-weight-bold q-mb-sm">
-            <q-icon name="view_timeline" color="primary" class="q-mr-xs" />개인별 업무 일정 (간트 차트)
+            <q-icon name="expand_more" color="primary" class="q-mr-xs" />프로젝트별 / 개인별 탭 구성
           </div>
           <q-card flat bordered class="q-mb-md">
             <q-card-section>
-              <div class="text-body2 text-grey-8 q-mb-sm">개인별 탭에서는 담당자별 업무를 <strong>간트 차트</strong> 형식으로 보여줍니다. 누가 어떤 업무를 언제 하고 있는지 한눈에 파악할 수 있습니다.</div>
-              <!-- 간트 범례 모형 -->
+              <div class="text-body2 text-grey-8 q-mb-sm">각 탭은 <strong>접이식(expansion-item)</strong> 구조입니다. 클릭하면 해당 구분의 업무 목록을 펼쳐 볼 수 있습니다.</div>
               <div class="row q-gutter-sm q-mb-sm" style="flex-wrap:wrap">
-                <div v-for="legend in ganttLegend" :key="legend.label" class="row items-center q-gutter-xs">
-                  <div :style="`width:32px;height:14px;background:${legend.color};border-radius:3px`"></div>
-                  <span class="text-caption">{{ legend.label }}</span>
+                <div v-for="legend in detailBreakdown" :key="legend.label" class="row items-center q-gutter-xs">
+                  <q-badge :color="legend.color" :label="legend.label" />
                 </div>
               </div>
-              <!-- 간트 미니 모형 -->
-              <div style="overflow-x:auto">
-                <table class="mini-gantt">
-                  <thead>
-                    <tr>
-                      <th class="mg-name">담당자 / 업무</th>
-                      <th v-for="d in miniDays" :key="d" class="mg-day">{{ d }}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template v-for="p in miniPersons" :key="p.name">
-                      <tr class="mg-person-row">
-                        <td :colspan="miniDays.length + 1" class="text-caption text-weight-bold">{{ p.name }}</td>
-                      </tr>
-                      <tr v-for="task in p.tasks" :key="task.name">
-                        <td class="mg-task-name text-caption">{{ task.name }}</td>
-                        <td v-for="(d, di) in miniDays" :key="d"
-                          :style="`background:${task.cells[di] ?? 'transparent'};border-radius:${getCellRadius(task.cells, di)}`">
-                        </td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
+              <div class="text-caption text-grey-6">업무 테이블 컬럼: 번호 / 업무명 / 담당자 / 우선순위 / 상태 / 마감일</div>
+            </q-card-section>
+          </q-card>
+
+          <!-- 상태 변경 버튼 -->
+          <div class="text-subtitle2 text-weight-bold q-mb-sm">
+            <q-icon name="swap_horiz" color="orange" class="q-mr-xs" />상태 변경 버튼
+          </div>
+          <q-card flat bordered class="q-mb-md">
+            <q-card-section>
+              <div class="row q-col-gutter-sm">
+                <div v-for="sb in statusButtons" :key="sb.from" class="col-12 col-sm-4">
+                  <q-card flat class="bg-grey-1 q-pa-sm">
+                    <q-chip :color="sb.fromColor" text-color="white" dense size="sm">{{ sb.from }}</q-chip>
+                    <div class="text-caption text-grey-7 q-mt-xs">{{ sb.buttons }}</div>
+                  </q-card>
+                </div>
               </div>
             </q-card-section>
           </q-card>
@@ -320,62 +328,46 @@ const modules = [
   { icon: 'picture_as_pdf', color: 'deep-orange', bg: '#FFF7ED', label: 'PDF 출력', desc: '인쇄용 보고서 생성' },
 ]
 
+const listColumns = ['주차', '기간', '제목', '상태', '업무현황', '완료율', '작성자', '액션']
+
+const rowActions = [
+  { icon: 'open_in_new', label: '상세보기' },
+  { icon: 'edit',        label: '수정' },
+  { icon: 'refresh',     label: '재집계' },
+  { icon: 'download',    label: 'Excel' },
+  { icon: 'delete',      label: '삭제' },
+]
+
 const reportCards = [
-  { week: 28, title: '2026년 28주차 주간보고', period: '2026-07-07 ~ 2026-07-11', status: '초안',   color: 'grey-6' },
-  { week: 27, title: '2026년 27주차 주간보고', period: '2026-06-30 ~ 2026-07-04', status: '확정',   color: 'positive' },
-  { week: 26, title: '2026년 26주차 주간보고', period: '2026-06-23 ~ 2026-06-27', status: '검토중', color: 'orange' },
+  { week: 28, title: '2026년 28주차 주간 보고', period: '2026-07-07 ~ 2026-07-11', status: '초안',   color: 'grey-6' },
+  { week: 27, title: '2026년 27주차 주간 보고', period: '2026-06-30 ~ 2026-07-04', status: '확정',   color: 'positive' },
+  { week: 26, title: '2026년 26주차 주간 보고', period: '2026-06-23 ~ 2026-06-27', status: '검토중', color: 'orange' },
 ]
 
 const detailTabs = [
-  { icon: 'folder',         color: 'primary',    name: '프로젝트별 탭', desc: '프로젝트 기준으로 완료/진행/지연 업무를 확인합니다.' },
-  { icon: 'person',         color: 'teal',       name: '개인별 탭',     desc: '담당자별 업무 현황을 간트 차트로 시각화합니다.' },
-  { icon: 'edit',           color: 'orange',     name: '수기 항목',     desc: '자동 집계에 없는 항목을 직접 입력합니다.' },
-  { icon: 'history',        color: 'grey-6',     name: '수정 이력',     desc: '보고서 수정 이력을 확인합니다.' },
+  { icon: 'folder_open',    color: 'primary',    name: '프로젝트별 탭', desc: '프로젝트 기준으로 완료/진행/지연 업무를 펼쳐서 확인합니다.' },
+  { icon: 'person',         color: 'teal',       name: '개인별 탭',     desc: '담당자 기준으로 완료/진행/지연/예정 업무를 확인합니다.' },
+  { icon: 'list_alt',       color: 'indigo',     name: '전체업무 탭',   desc: '번호/제목/담당자/우선순위/상태/마감일 컬럼의 테이블로 전체 업무를 봅니다.' },
+  { icon: 'event_upcoming', color: 'grey-6',     name: '차주계획 탭',   desc: '다음 주 예정 업무 목록입니다. 차주 계획이 있는 경우에만 탭이 표시됩니다.' },
 ]
 
-const ganttLegend = [
-  { label: '완료',   color: '#15803d' },
-  { label: '진행 중', color: '#1d4ed8' },
-  { label: '지연',   color: '#b91c1c' },
-  { label: '예정',   color: '#94a3b8' },
+const detailBreakdown = [
+  { label: '✅ 완료',      color: 'positive' },
+  { label: '🔄 진행 중',   color: 'primary'  },
+  { label: '⚠ 지연',       color: 'negative' },
+  { label: '📌 차주 계획', color: 'grey-7'   },
 ]
 
-const G = '#15803d'; const B = '#1d4ed8'; const R = '#b91c1c'; const S = '#94a3b8'
-const miniDays = ['7/7', '7/8', '7/9', '7/10', '7/11', '7/14', '7/15']
-const miniPersons = [
-  {
-    name: '김민준',
-    tasks: [
-      { name: '대시보드 위젯', cells: [G, G, G, '', '', '', ''] },
-      { name: 'PDF 스타일 개선', cells: ['', '', B, B, B, B, ''] },
-      { name: '메뉴 권한 제어', cells: [R, R, R, '', '', '', ''] },
-      { name: 'SR 다운로드', cells: ['', '', '', '', '', S, S] },
-    ],
-  },
-  {
-    name: '이서연',
-    tasks: [
-      { name: 'SR 상태 흐름', cells: [G, G, '', '', '', '', ''] },
-      { name: 'PM 보드 UI', cells: ['', '', B, B, B, '', ''] },
-      { name: '월간보고 취합', cells: [R, R, R, R, '', '', ''] },
-    ],
-  },
+const statusButtons = [
+  { from: '초안(DRAFT)',     fromColor: 'grey-6',   buttons: '[재집계] — Jira 데이터 다시 불러오기\n[검토 완료] — 상태를 검토중으로 변경' },
+  { from: '검토중(REVIEWING)',fromColor: 'orange',  buttons: '[보고 확정] — 상태를 확정으로 변경' },
+  { from: '확정(CONFIRMED)', fromColor: 'positive', buttons: '[확정 해제] — 검토중으로 되돌리기' },
 ]
-
-function getCellRadius(cells: (string|undefined)[], i: number): string {
-  const cur = cells[i]
-  if (!cur) return '0'
-  const prev = cells[i - 1]
-  const next = cells[i + 1]
-  const l = !prev || prev !== cur ? '4px' : '0'
-  const r = !next || next !== cur ? '4px' : '0'
-  return `${l} ${r} ${r} ${l}`
-}
 
 const manualSections = [
-  { icon: 'push_pin',      color: 'primary',    title: '주요 안건',        desc: '이번 주 주요 이슈와 결정사항' },
-  { icon: 'warning',       color: 'negative',   title: '이슈 / 리스크',    desc: '발생한 문제와 대응 방안' },
-  { icon: 'gavel',         color: 'orange',     title: '결정 필요 사항',   desc: '승인이나 의사결정이 필요한 항목' },
+  { icon: 'task_alt',       color: 'blue',     title: '주요 안건',            desc: '제목·카테고리·진행상태·내용·담당자를 입력합니다.' },
+  { icon: 'warning_amber',  color: 'orange',   title: '특이사항 및 리스크',   desc: '이슈 내용과 대응(actionPlan)을 함께 입력합니다.' },
+  { icon: 'gavel',          color: 'purple',   title: '결정 필요 사항',       desc: '배경·선택지·요청 내용·희망 결정일을 입력합니다.' },
 ]
 
 const workStatusFeats = [
@@ -426,19 +418,4 @@ const faqs = [
   padding: 16px;
   background: #f8fafc;
 }
-.mini-gantt {
-  border-collapse: collapse;
-  font-size: 12px;
-  width: 100%;
-}
-.mini-gantt th, .mini-gantt td {
-  border: 1px solid #e2e8f0;
-  padding: 3px 6px;
-  white-space: nowrap;
-}
-.mini-gantt .mg-name { width: 130px; background: #f1f5f9; font-weight: 600; }
-.mini-gantt .mg-day  { width: 44px; text-align: center; background: #f8fafc; font-weight: 600; }
-.mini-gantt .mg-task-name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
-.mini-gantt .mg-person-row td { background: #e2e8f0; color: #334155; padding: 4px 8px; }
-.mini-gantt td[style*='background'] { border: none; }
 </style>

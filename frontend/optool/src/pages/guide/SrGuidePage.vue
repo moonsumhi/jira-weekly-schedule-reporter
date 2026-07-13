@@ -55,12 +55,16 @@
           </q-card>
 
           <!-- SR 상태 흐름 -->
-          <div class="text-subtitle2 text-weight-bold q-mb-sm">SR 처리 단계</div>
-          <div class="row items-center q-mb-md" style="flex-wrap:wrap;gap:4px">
+          <div class="text-subtitle2 text-weight-bold q-mb-sm">SR 처리 단계 (정상 흐름)</div>
+          <div class="row items-center q-mb-sm" style="flex-wrap:wrap;gap:4px">
             <template v-for="(s, i) in srFlow" :key="s.label">
               <q-chip :color="s.color" text-color="white" dense class="text-weight-bold">{{ s.label }}</q-chip>
               <q-icon v-if="i < srFlow.length - 1" name="chevron_right" color="grey-4" />
             </template>
+          </div>
+          <div class="row items-center q-mb-md" style="flex-wrap:wrap;gap:4px">
+            <span class="text-caption text-grey-5 q-mr-xs">분기 상태:</span>
+            <q-chip v-for="s in srBranchFlow" :key="s.label" :color="s.color" text-color="white" dense>{{ s.label }}</q-chip>
           </div>
           <q-banner rounded class="bg-blue-1 q-mb-md">
             <template #avatar><q-icon name="info" color="blue-7" /></template>
@@ -105,21 +109,30 @@
               </div>
             </q-timeline-entry>
 
-            <q-timeline-entry title="3단계 · 첨부 파일 추가 (선택)" icon="attach_file" color="grey-5">
-              <div class="text-body2 q-mb-sm">참고 자료나 오류 화면 캡처를 첨부하면 담당자가 더 빨리 처리할 수 있습니다.</div>
-              <div class="mockup-box">
-                <q-icon name="cloud_upload" color="grey-4" size="32px" />
-                <div class="text-caption text-grey-5 q-mt-xs">파일을 여기에 끌어다 놓거나 클릭하여 선택</div>
-                <div class="text-caption text-grey-4" style="font-size:11px">최대 50MB · 이미지, PDF, Excel 등 지원</div>
-              </div>
+            <q-timeline-entry title="3단계 · 유형별 추가 정보 입력" icon="dynamic_form" color="primary">
+              <div class="text-body2 q-mb-sm">1단계에서 선택한 유형에 따라 입력 항목이 달라집니다. 각 유형별 주요 필드 예시:</div>
+              <q-card flat bordered class="q-pa-sm q-mb-sm">
+                <div class="text-caption text-weight-bold q-mb-xs">유형별 필수 필드 예시</div>
+                <div class="row q-gutter-xs" style="flex-wrap:wrap">
+                  <div v-for="tf in typeFieldExamples" :key="tf.type" class="col-12 col-sm-6 q-mb-xs">
+                    <q-chip :color="tf.color" text-color="white" dense size="sm">{{ tf.type }}</q-chip>
+                    <div class="text-caption text-grey-7 q-mt-xs">{{ tf.fields }}</div>
+                  </div>
+                </div>
+              </q-card>
+              <q-banner rounded class="bg-blue-1" style="font-size:13px">
+                <template #avatar><q-icon name="info" color="blue-7" size="18px" /></template>
+                리치 텍스트 에디터를 사용하는 필드에서는 이미지를 <strong>Ctrl+V</strong>로 붙여넣기 할 수 있습니다.
+              </q-banner>
             </q-timeline-entry>
 
-            <q-timeline-entry title="4단계 · 제출 또는 임시저장" icon="send" color="teal">
-              <div class="row q-gutter-sm">
+            <q-timeline-entry title="4단계 · 첨부 파일 및 제출" icon="send" color="teal">
+              <div class="text-body2 q-mb-sm">참고 자료나 오류 화면 캡처를 첨부할 수 있습니다. (최대 20MB, pdf/hwp/docx/xlsx/pptx/zip/jpg/png/gif 지원)</div>
+              <div class="row q-gutter-sm q-mb-sm">
                 <q-btn unelevated color="primary" icon="send" label="접수하기" no-caps style="pointer-events:none" />
                 <q-btn outline color="grey-7" icon="save" label="임시저장" no-caps style="pointer-events:none" />
               </div>
-              <div class="text-caption text-grey-6 q-mt-sm">임시저장 후 나중에 접속하면 이어서 작성할 수 있습니다. 임시저장 SR은 접수 전까지 목록에 나타나지 않습니다.</div>
+              <div class="text-caption text-grey-6">임시저장 후 나중에 접속하면 이어서 작성할 수 있습니다. SR 접수 화면 진입 시 임시저장 목록이 상단에 표시됩니다.</div>
             </q-timeline-entry>
           </q-timeline>
         </div>
@@ -170,6 +183,7 @@
 
           <div class="text-body2 text-grey-7 q-mb-md">목록에서 SR을 클릭하면 상세 화면이 열립니다. 여기서 진행 상황을 확인하고 담당자와 소통할 수 있습니다.</div>
 
+          <div class="text-subtitle2 text-weight-bold q-mb-sm">탭 구성 (4개)</div>
           <div class="row q-col-gutter-md q-mb-md">
             <div v-for="detail in detailParts" :key="detail.title" class="col-12 col-sm-6">
               <q-card flat bordered class="full-height">
@@ -184,9 +198,22 @@
             </div>
           </div>
 
+          <div class="text-subtitle2 text-weight-bold q-mb-sm">우측 요약 패널 (항상 표시)</div>
+          <q-card flat bordered class="q-mb-md">
+            <q-card-section>
+              <q-list dense>
+                <q-item v-for="item in detailSidePanelItems" :key="item" class="q-px-none" style="min-height:28px">
+                  <q-item-section avatar style="min-width:24px"><q-icon name="arrow_right" color="grey-5" size="16px" /></q-item-section>
+                  <q-item-section class="text-body2 text-grey-8">{{ item }}</q-item-section>
+                </q-item>
+              </q-list>
+              <div class="text-caption text-grey-5 q-mt-sm">희망 완료일은 D-Day 형식으로 표시되며, 3일 이하이면 주황색, 기한 초과이면 빨간색으로 강조됩니다.</div>
+            </q-card-section>
+          </q-card>
+
           <q-banner rounded class="bg-green-1">
             <template #avatar><q-icon name="check_circle" color="green-7" /></template>
-            <span class="text-green-9 text-body2">처리가 완료되면 담당자가 알림을 보내줍니다. <strong>[최종 확인]</strong> 버튼을 눌러 SR을 닫으세요. 수정이 필요하면 댓글로 요청하세요.</span>
+            <span class="text-green-9 text-body2">처리가 완료되면 담당자가 상태를 "처리 완료"로 변경합니다. 요청자가 <strong>[최종 확인]</strong> 버튼을 눌러야 SR이 완전히 닫힙니다.</span>
           </q-banner>
         </div>
 
@@ -284,35 +311,51 @@ const srBenefits = [
 ]
 
 const srFlow = [
-  { label: '접수',    color: 'grey-6' },
-  { label: '검토 중', color: 'blue' },
-  { label: '처리 중', color: 'orange' },
-  { label: '처리 완료', color: 'teal' },
-  { label: '확인 중', color: 'purple' },
-  { label: '최종 완료', color: 'positive' },
+  { label: '접수',       color: 'grey-6'   },
+  { label: '검토 중',    color: 'blue'     },
+  { label: '추가 확인',  color: 'orange'   },
+  { label: '승인',       color: 'cyan-7'   },
+  { label: '배정',       color: 'indigo'   },
+  { label: '처리 중',    color: 'primary'  },
+  { label: '처리 완료',  color: 'teal'     },
+  { label: '확인 중',    color: 'purple'   },
+  { label: '최종 완료',  color: 'positive' },
+]
+
+const srBranchFlow = [
+  { label: '보류',   color: 'grey-7'    },
+  { label: '반려',   color: 'negative'  },
+  { label: '취소',   color: 'grey-5'    },
 ]
 
 const srTypes = [
-  { label: '시스템 문의', color: 'blue-6' },
-  { label: '오류 신고',   color: 'red-6' },
-  { label: '데이터 요청', color: 'teal-6' },
-  { label: '권한 요청',   color: 'purple-6' },
-  { label: '기타',        color: 'grey-6' },
+  { label: '개선 요청',   color: 'blue-6'    },
+  { label: '오류 신고',   color: 'red-6'     },
+  { label: '데이터 요청', color: 'teal-6'    },
+  { label: '권한 요청',   color: 'purple-6'  },
+  { label: '설정 변경',   color: 'orange-7'  },
+  { label: '서버/인프라', color: 'brown-6'   },
+  { label: '보안 요청',   color: 'deep-orange-7' },
+  { label: '기타',        color: 'grey-6'    },
 ]
 
 const srFields = [
-  { icon: 'title',       label: '제목',        required: true,  desc: '요청 내용을 한 줄로 요약합니다.' },
-  { icon: 'notes',       label: '상세 내용',   required: true,  desc: '무엇을, 언제, 왜 필요한지 구체적으로 적습니다.' },
-  { icon: 'computer',    label: '관련 시스템', required: false, desc: '어떤 시스템과 관련된 요청인지 선택합니다.' },
-  { icon: 'event',       label: '희망 처리일', required: false, desc: '언제까지 처리가 필요한지 알려주세요.' },
-  { icon: 'bolt',        label: '긴급 여부',   required: false, desc: '긴급 처리가 필요한 경우 체크합니다.' },
+  { icon: 'title',       label: '요청 제목',    required: true,  desc: '요청 내용을 한 줄로 요약합니다.' },
+  { icon: 'business',    label: '요청 부서',    required: true,  desc: '요청자의 소속 부서를 입력합니다.' },
+  { icon: 'computer',    label: '대상 시스템',  required: true,  desc: '어떤 시스템에 대한 요청인지 입력합니다.' },
+  { icon: 'notes',       label: '요청 배경',    required: false, desc: '왜 이 요청이 필요한지 배경을 설명합니다.' },
+  { icon: 'event',       label: '희망 완료일',  required: false, desc: '언제까지 처리가 필요한지 알려주세요.' },
+  { icon: 'flag',        label: '중요도',       required: false, desc: '기본값은 MEDIUM(중간)이며 선택 변경 가능합니다.' },
+  { icon: 'bolt',        label: '긴급 여부',    required: false, desc: '긴급 토글 활성화 시 긴급 사유 입력이 필수입니다.' },
 ]
 
 const myListTabs = [
-  { label: '전체', color: 'grey-6',    active: true  },
-  { label: '접수', color: 'grey-5',    active: false },
-  { label: '처리 중', color: 'orange', active: false },
-  { label: '완료', color: 'positive',  active: false },
+  { label: '전체',     color: 'grey-6',   active: true  },
+  { label: '임시저장', color: 'grey-5',   active: false },
+  { label: '진행 중',  color: 'primary',  active: false },
+  { label: '확인 요청',color: 'orange',   active: false },
+  { label: '완료',     color: 'positive', active: false },
+  { label: '반려/취소',color: 'negative', active: false },
 ]
 
 const sampleCards = [
@@ -322,39 +365,65 @@ const sampleCards = [
 ]
 
 const myListTips = [
-  { icon: 'filter_list',  label: '상태 탭 필터',  desc: '전체 / 접수 / 처리 중 / 완료 탭을 클릭하면 해당 상태의 SR만 표시됩니다.' },
-  { icon: 'search',       label: '빠른 검색',      desc: '제목, 시스템명, SR 번호로 검색할 수 있습니다.' },
-  { icon: 'bolt',         label: '긴급 SR 표시',   desc: '긴급 표시된 SR은 주황색 번개 아이콘으로 구분됩니다.' },
-  { icon: 'add_circle',   label: '새 SR 접수',     desc: '오른쪽 상단 [SR 접수] 버튼으로 바로 새 요청을 할 수 있습니다.' },
+  { icon: 'filter_list',  label: '상태 탭 필터',   desc: '전체/임시저장/진행중/확인요청/완료/반려취소 탭으로 SR을 분류해 볼 수 있습니다. 건수가 있는 탭만 표시됩니다.' },
+  { icon: 'search',       label: '빠른 검색',       desc: '제목, 관련 시스템명, SR 번호로 검색할 수 있습니다.' },
+  { icon: 'bolt',         label: '긴급/지연 뱃지',  desc: '긴급 SR은 주황색 번개 아이콘, 기한 초과 SR은 지연 뱃지로 표시됩니다.' },
+  { icon: 'cancel',       label: 'SR 취소',         desc: '완료/취소/반려 상태가 아닌 SR에서 취소 버튼이 활성화됩니다. 취소 시 사유를 입력해야 합니다.' },
+  { icon: 'add_circle',   label: '새 SR 접수',      desc: '오른쪽 상단 [SR 접수] 버튼으로 바로 새 요청을 할 수 있습니다.' },
 ]
 
 const detailParts = [
-  { icon: 'linear_scale', color: 'primary',  title: '진행 상태 표시줄', desc: '화면 상단에 현재 처리 단계가 강조되어 있습니다. 단계가 진행될수록 자동으로 업데이트됩니다.' },
-  { icon: 'info',         color: 'teal',     title: 'SR 기본 정보',     desc: '요청 제목, 유형, 관련 시스템, 담당자, 접수일 등 기본 정보를 확인합니다.' },
-  { icon: 'forum',        color: 'orange',   title: '댓글 / 소통',       desc: '담당자와 요청자가 댓글로 소통할 수 있습니다. 파일 첨부도 가능합니다.' },
-  { icon: 'history',      color: 'purple',   title: '처리 이력',         desc: '상태 변경, 담당자 변경 등 모든 이력이 시간 순서대로 자동 기록됩니다.' },
+  { icon: 'description',  color: 'primary',  title: '요청 내용 탭',   desc: '접수 시 입력한 유형별 상세 내용, 첨부파일, 비고 등을 확인합니다.' },
+  { icon: 'engineering',  color: 'teal',     title: '처리/증적 탭',   desc: '검토 결과(승인/반려/보류), 담당자 배정 정보, 처리 완료 내용을 확인합니다. 연결된 PM 이슈도 여기서 표시됩니다.' },
+  { icon: 'forum',        color: 'orange',   title: '댓글/문의 탭',   desc: '요청자와 담당자가 댓글로 소통합니다. 파일 첨부와 이미지 붙여넣기(Ctrl+V)도 가능합니다. 운영팀은 내부 메모 작성도 가능합니다.' },
+  { icon: 'history',      color: 'purple',   title: '이력 탭',         desc: '상태 변경, 담당자 변경 등 모든 이력이 시간 순서대로 자동 기록됩니다.' },
+]
+
+const detailSidePanelItems = [
+  '요청자 / 부서 / 이메일',
+  '대상 시스템',
+  '우선순위 / 긴급 여부',
+  '접수일 / 희망 완료일 (D-Day 표시)',
+  '담당자 / 처리 예정일',
+  '최근 이력 최대 3건',
 ]
 
 const manageParts = [
-  { num: '1', color: 'primary', title: '신규 SR 확인',    desc: '접수 탭에서 새로 들어온 SR을 확인합니다.' },
-  { num: '2', color: 'orange',  title: '검토 및 배정',    desc: '담당자를 지정하고 상태를 "검토 중"으로 변경합니다.' },
-  { num: '3', color: 'teal',    title: '처리 및 완료',    desc: '처리 완료 후 상태를 "처리 완료"로 변경합니다.' },
-  { num: '4', color: 'positive',title: '지연 SR 모니터링', desc: '⏰ 지연 탭에서 기한 초과 SR을 집중 관리합니다.' },
+  { num: '1', color: 'primary',  title: '신규 SR 확인',      desc: '접수(SUBMITTED) 탭에서 새로 들어온 SR을 확인합니다.' },
+  { num: '2', color: 'blue',     title: '검토',               desc: 'SR 상세에서 [검토] 버튼으로 결과(승인/반려/보류/추가확인)를 선택합니다.' },
+  { num: '3', color: 'indigo',   title: '담당자 배정',        desc: '승인 후 [담당자 배정]에서 담당자, 처리 예정 기간, 배포·보안 검토 여부를 설정합니다.' },
+  { num: '4', color: 'teal',     title: '처리 및 완료',       desc: '처리 완료 후 상태를 "처리 완료"로 변경합니다. 요청자가 확인하면 최종 완료됩니다.' },
+  { num: '5', color: 'negative', title: '지연 SR 모니터링',   desc: '⏰ 지연 탭에서 기한 초과 SR을 별도로 모아서 확인합니다.' },
+  { num: '6', color: 'grey-7',   title: 'Excel 다운로드',     desc: '현재 탭·필터 기준으로 SR 목록을 SR_목록.xlsx 파일로 다운로드합니다.' },
 ]
 
 const manageFeats = [
-  { icon: 'person_add',  color: 'primary',  label: '담당자 배정',    desc: 'SR별로 처리 담당자를 지정하거나 변경할 수 있습니다.' },
-  { icon: 'swap_horiz',  color: 'orange',   label: '상태 변경',      desc: 'SR 상태를 단계별로 변경하고 요청자에게 알립니다.' },
-  { icon: 'timer_off',   color: 'negative', label: '지연 SR 관리',   desc: '처리 기한이 지난 SR을 별도 탭에서 확인하고 신속히 처리합니다.' },
-  { icon: 'download',    color: 'positive', label: 'Excel 내보내기', desc: '전체 SR 목록을 Excel로 다운로드하여 보고에 활용합니다.' },
+  { icon: 'dashboard',    color: 'primary',  label: '통계 카드 (8개)', desc: '전체/진행중/완료/지연/보류/반려/긴급/평균처리(일) 현황을 한눈에 확인합니다.' },
+  { icon: 'filter_list',  color: 'teal',     label: '다양한 필터',     desc: '요청부서, 요청자, 요청유형, 관련시스템, 중요도, 긴급 여부, 내 배정 필터를 사용합니다.' },
+  { icon: 'person_add',   color: 'blue',     label: '담당자 배정',     desc: '승인 후 배정 다이얼로그에서 처리 기간과 예상 공수(주말 제외 자동 계산)를 설정합니다.' },
+  { icon: 'swap_horiz',   color: 'orange',   label: '상태 변경',       desc: '운영팀(sr_operator/sr_manager)은 CLOSED·REJECTED·DRAFT를 제외한 상태를 변경할 수 있습니다.' },
+  { icon: 'timer_off',    color: 'negative', label: '⏰ 지연 탭',      desc: '희망 완료일이 지났으나 처리되지 않은 SR을 별도 탭에서 빠르게 확인합니다.' },
+  { icon: 'settings',     color: 'grey-7',   label: 'Jira 프로젝트 설정 (관리자)', desc: '담당자 배정 시 PM 이슈가 자동 등록될 Jira 기본 프로젝트를 설정합니다.' },
+]
+
+const typeFieldExamples = [
+  { type: '개선 요청',   color: 'blue-6',    fields: '현재문제점, 개선요청내용(에디터), 기대효과, 관련화면/메뉴' },
+  { type: '오류 신고',   color: 'red-6',     fields: '오류발생화면, 발생일시, 오류내용, 재현절차(에디터)' },
+  { type: '데이터 요청', color: 'teal-6',    fields: '목적, 항목(에디터), 기간, 개인정보포함여부, 제공형식' },
+  { type: '권한 요청',   color: 'purple-6',  fields: '대상자, 요청권한, 사유(에디터), 기간(상시/임시/특정기간)' },
+  { type: '설정 변경',   color: 'orange-7',  fields: '설정대상, 현재값, 요청값, 변경사유, 서비스중단여부' },
+  { type: '서버/인프라', color: 'brown-6',   fields: '대상서버, 작업유형, 요청상세(에디터), 서비스영향여부' },
+  { type: '보안 요청',   color: 'deep-orange-7', fields: '보안요청유형, 취약점/보안이슈(에디터), 위험도, 조치기한' },
+  { type: '기타',        color: 'grey-6',    fields: '요청상세내용(에디터) 만 입력하면 됩니다.' },
 ]
 
 const faqs = [
-  { q: 'SR을 접수하고 나서 수정할 수 있나요?',             a: '네! 접수(SUBMITTED) 상태일 때는 요청자가 직접 수정할 수 있습니다. 검토 중 이후 상태에서는 담당자에게 댓글로 수정 요청을 해주세요.' },
-  { q: '처리 현황은 어떻게 확인하나요?',                   a: '내 SR 목록에서 해당 SR을 클릭하면 현재 처리 단계를 확인할 수 있습니다. 상태 변경 시 시스템 알림이 발송됩니다.' },
-  { q: '긴급 SR은 어떻게 표시하나요?',                    a: 'SR 접수 시 "긴급" 체크박스를 선택하면 목록에서 번개 아이콘으로 표시되어 담당자가 우선 처리할 수 있습니다.' },
-  { q: 'SR이 반려되면 어떻게 하나요?',                    a: '반려 사유를 확인하고 내용을 수정하여 다시 접수할 수 있습니다. 반려 사유는 댓글 또는 이력에 기록됩니다.' },
-  { q: '임시저장한 SR은 어디서 찾나요?',                   a: 'SR 접수 화면에 다시 들어가면 임시저장된 SR 목록이 상단에 표시됩니다. 클릭하면 이어서 작성할 수 있습니다.' },
+  { q: 'SR을 접수하고 나서 수정할 수 있나요?',         a: '최종 완료(CLOSED) 상태가 아닌 경우 요청자가 직접 수정할 수 있습니다. SR 상세 화면에서 [SR 수정] 버튼을 누르면 내용 수정 화면으로 이동합니다.' },
+  { q: '긴급 SR은 어떻게 표시하나요?',                a: 'SR 접수 2단계에서 긴급 토글을 활성화하면 됩니다. 긴급 시 긴급 사유 입력이 필수입니다. 목록에서는 번개 아이콘으로 표시됩니다.' },
+  { q: '임시저장한 SR은 어디서 찾나요?',               a: 'SR 접수 화면에 다시 들어가면 상단에 임시저장 목록이 배너로 표시됩니다. 클릭하면 이어서 작성할 수 있습니다. 또는 내 SR 목록의 "임시저장" 탭에서도 확인할 수 있습니다.' },
+  { q: 'SR이 반려/보류되면 어떻게 하나요?',            a: '처리/증적 탭에서 반려 사유 또는 보류 사유를 확인할 수 있습니다. 내용을 수정하여 다시 접수하거나, 담당자에게 댓글로 문의하세요.' },
+  { q: '담당자 배정은 언제 되나요?',                   a: '검토 결과가 "승인"으로 처리된 후 담당자가 배정됩니다. 배정 시 처리 예정 기간과 예상 공수(주말 제외 자동 계산)가 설정됩니다.' },
+  { q: '추가 확인 요청을 받았어요.',                   a: '담당자가 요청 내용을 확인하는 중 추가 정보가 필요한 상태입니다. 댓글/문의 탭에서 담당자 질문을 확인하고 답변해주세요.' },
 ]
 </script>
 
