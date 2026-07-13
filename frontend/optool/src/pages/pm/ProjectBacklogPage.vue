@@ -301,7 +301,7 @@
                 >
                   {{ row.issue.assigneeName.charAt(0).toUpperCase() }}
                 </q-avatar>
-                <span class="text-caption" :class="row.issue.assigneeName ? 'text-grey-7' : 'text-grey-4'">
+                <span class="text-caption" :class="row.issue.assigneeName ? 'text-grey-7' : 'text-grey-5'">
                   {{ row.issue.assigneeName ?? '미배정' }}
                 </span>
               </div>

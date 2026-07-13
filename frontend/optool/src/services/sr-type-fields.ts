@@ -63,6 +63,7 @@ export const SR_TYPE_FIELDS: Record<string, SRTypeField[]> = {
 
   CONFIG_CHANGE: [
     { key: 'configTarget',        label: '설정 대상',        required: true,  type: 'text',    placeholder: '시스템, 서버, 모듈, 메뉴 등' },
+    { key: 'changeDetail',        label: '변경 요청 상세 내용', required: true, type: 'editor' },
     { key: 'currentValue',        label: '현재 설정값',      required: true,  type: 'textarea', rows: 2,                            half: true },
     { key: 'requestedValue',      label: '변경 요청값',      required: true,  type: 'textarea', rows: 2,                            half: true },
     { key: 'changeReason',        label: '변경 사유',        required: true,  type: 'textarea', rows: 3 },

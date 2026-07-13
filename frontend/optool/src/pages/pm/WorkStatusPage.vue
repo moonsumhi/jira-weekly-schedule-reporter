@@ -170,12 +170,15 @@ const PALETTE = [
   '#f57c00', '#0097a7', '#5d4037', '#455a64',
   '#e91e63', '#00897b',
 ]
+// 미배정은 팔레트에 없는 고정 회색을 써서 실제 담당자 색과 절대 겹치지 않게 한다.
+// STATUS_COLOR.BACKLOG(grey-5)와 동일한 회색으로 맞춰 "백로그"와 시각적으로 통일.
+const UNASSIGNED_COLOR = '#bdbdbd'
 const colorMap = new Map<string, string>()
 
 function getAssigneeColor(assigneeId: string | null): string {
-  const key = assigneeId ?? '__none__'
-  if (!colorMap.has(key)) colorMap.set(key, PALETTE[colorMap.size % PALETTE.length]!)
-  return colorMap.get(key) ?? '#9e9e9e'
+  if (!assigneeId) return UNASSIGNED_COLOR
+  if (!colorMap.has(assigneeId)) colorMap.set(assigneeId, PALETTE[colorMap.size % PALETTE.length]!)
+  return colorMap.get(assigneeId)!
 }
 
 // ── 상태 ─────────────────────────────────────────────────────────────
