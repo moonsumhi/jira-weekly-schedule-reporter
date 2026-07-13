@@ -29,8 +29,9 @@ pipeline {
                             pwd
                             hostname
 
-                            echo "===== Git pull (docker-compose.yml 최신화) ====="
-                            git pull http://${GIT_USER}:${GIT_TOKEN}@${env.GIT_SERVER}/${env.BO_GIT_REPO} main
+                            echo "===== docker-compose.yml 최신화 ====="
+                            git fetch http://${GIT_USER}:${GIT_TOKEN}@${env.GIT_SERVER}/${env.BO_GIT_REPO} main
+                            git checkout FETCH_HEAD -- docker-compose.yml
 
                             echo "===== Harbor 로그인 ====="
                             echo "${HB_PW}" | docker login ${env.HARBOR_URL} \
