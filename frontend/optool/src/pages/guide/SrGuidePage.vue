@@ -374,7 +374,7 @@ const myListTips = [
 
 const detailParts = [
   { icon: 'description',  color: 'primary',  title: '요청 내용 탭',   desc: '접수 시 입력한 유형별 상세 내용, 첨부파일, 비고 등을 확인합니다.' },
-  { icon: 'engineering',  color: 'teal',     title: '처리/증적 탭',   desc: '검토 결과(승인/반려/보류), 담당자 배정 정보, 처리 완료 내용을 확인합니다. 연결된 PM 이슈도 여기서 표시됩니다.' },
+  { icon: 'engineering',  color: 'teal',     title: '처리/증적 탭',   desc: '검토 결과(승인/반려/보류), 담당자 배정 정보, 처리 완료 내용을 확인합니다. 연결된 스케줄 관리 이슈도 여기서 표시됩니다.' },
   { icon: 'forum',        color: 'orange',   title: '댓글/문의 탭',   desc: '요청자와 담당자가 댓글로 소통합니다. 파일 첨부와 이미지 붙여넣기(Ctrl+V)도 가능합니다. 운영팀은 내부 메모 작성도 가능합니다.' },
   { icon: 'history',      color: 'purple',   title: '이력 탭',         desc: '상태 변경, 담당자 변경 등 모든 이력이 시간 순서대로 자동 기록됩니다.' },
 ]
@@ -403,7 +403,7 @@ const manageFeats = [
   { icon: 'person_add',   color: 'blue',     label: '담당자 배정',     desc: '승인 후 배정 다이얼로그에서 처리 기간과 예상 공수(주말 제외 자동 계산)를 설정합니다.' },
   { icon: 'swap_horiz',   color: 'orange',   label: '상태 변경',       desc: '운영팀(sr_operator/sr_manager)은 CLOSED·REJECTED·DRAFT를 제외한 상태를 변경할 수 있습니다.' },
   { icon: 'timer_off',    color: 'negative', label: '⏰ 지연 탭',      desc: '희망 완료일이 지났으나 처리되지 않은 SR을 별도 탭에서 빠르게 확인합니다.' },
-  { icon: 'settings',     color: 'grey-7',   label: 'SR 기본 프로젝트 설정 (관리자)', desc: '담당자 배정 시 PM 이슈가 자동 등록될 기본 프로젝트를 설정합니다.' },
+  { icon: 'settings',     color: 'grey-7',   label: 'SR 기본 프로젝트 설정 (관리자)', desc: '담당자 배정 시 스케줄 관리 이슈가 자동 등록될 기본 프로젝트를 설정합니다.' },
 ]
 
 const typeFieldExamples = [

@@ -482,10 +482,10 @@
               <!-- ── 탭2: 처리/증적 ── -->
               <q-tab-panel name="process" class="q-pa-lg q-gutter-lg">
 
-                <!-- 연결된 PM 이슈 배너 -->
+                <!-- 연결된 스케줄 관리 이슈 배너 -->
                 <q-banner v-if="sr.convertedIssueId && sr.convertedProjectId" class="bg-indigo-1 rounded-borders q-mb-sm" dense>
                   <template #avatar><q-icon name="link" color="indigo-7" /></template>
-                  <span class="text-indigo-9 text-weight-medium">연결된 PM 이슈</span>
+                  <span class="text-indigo-9 text-weight-medium">연결된 스케줄 관리 이슈</span>
                   <q-btn flat dense size="sm" color="indigo-7" icon="open_in_new"
                     label="이슈 바로가기" class="q-ml-sm"
                     @click="$router.push(`/pm/projects/${sr.convertedProjectId}/backlog`)" />

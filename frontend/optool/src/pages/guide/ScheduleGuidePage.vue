@@ -4,7 +4,7 @@
     <div class="row items-center q-mb-lg">
       <q-btn flat round dense icon="arrow_back" class="q-mr-sm" @click="$router.back()" />
       <div>
-        <div class="text-h5 text-weight-bold">PM 시스템 사용 가이드</div>
+        <div class="text-h5 text-weight-bold">스케줄 관리 시스템 사용 가이드</div>
         <div class="text-caption text-grey-6">조직·프로젝트·이슈·스프린트·보드·주간 보고 전체 기능 안내</div>
       </div>
     </div>
@@ -33,9 +33,9 @@
       <!-- 본문 -->
       <div class="col-12 col-md-9">
 
-        <!-- ① PM 시스템이란? -->
+        <!-- ① 스케줄 관리 시스템이란? -->
         <div :id="sections[0]!.id" class="guide-section">
-          <div class="section-title"><q-icon name="info" color="primary" class="q-mr-sm" />PM 시스템이란?</div>
+          <div class="section-title"><q-icon name="info" color="primary" class="q-mr-sm" />스케줄 관리 시스템이란?</div>
 
           <q-card flat bordered class="q-mb-md">
             <q-card-section>
@@ -64,7 +64,7 @@
           <div class="section-title"><q-icon name="dashboard" color="primary" class="q-mr-sm" />내 이슈 (대시보드)</div>
 
           <div class="text-body2 text-grey-7 q-mb-md">
-            메뉴에서 <strong>PM → 내 이슈</strong>를 클릭하면 나와 관련된 이슈를 한눈에 확인할 수 있습니다.
+            메뉴에서 <strong>스케줄 관리 → 내 이슈</strong>를 클릭하면 나와 관련된 이슈를 한눈에 확인할 수 있습니다.
           </div>
 
           <div class="text-subtitle2 text-weight-bold q-mb-sm">그룹 필터 버튼</div>
@@ -111,7 +111,7 @@
           <div class="section-title"><q-icon name="business" color="teal" class="q-mr-sm" />조직 관리</div>
 
           <div class="text-body2 text-grey-7 q-mb-md">
-            조직은 여러 프로젝트를 묶는 상위 단위입니다. 메뉴에서 <strong>PM → 조직</strong>을 클릭합니다.
+            조직은 여러 프로젝트를 묶는 상위 단위입니다. 메뉴에서 <strong>스케줄 관리 → 조직</strong>을 클릭합니다.
           </div>
 
           <div class="text-subtitle2 text-weight-bold q-mb-sm">조직 목록 화면</div>
@@ -166,7 +166,7 @@
           <div class="section-title"><q-icon name="fa-solid fa-diagram-project" color="primary" class="q-mr-sm" />프로젝트</div>
 
           <div class="text-body2 text-grey-7 q-mb-md">
-            메뉴에서 <strong>PM → 프로젝트</strong>를 클릭하면 전체 프로젝트 목록이 표시됩니다.
+            메뉴에서 <strong>스케줄 관리 → 프로젝트</strong>를 클릭하면 전체 프로젝트 목록이 표시됩니다.
             각 카드에서 보드·백로그로 바로 이동할 수 있습니다.
           </div>
 
@@ -670,7 +670,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 const active = ref('pm-overview')
 
 const sections = [
-  { id: 'pm-overview',    label: 'PM 시스템이란?',      icon: 'info' },
+  { id: 'pm-overview',    label: '스케줄 관리 시스템이란?',      icon: 'info' },
   { id: 'dashboard',      label: '내 이슈 (대시보드)',   icon: 'dashboard' },
   { id: 'organizations',  label: '조직 관리',            icon: 'business' },
   { id: 'projects',       label: '프로젝트',             icon: 'folder_open' },
@@ -777,7 +777,7 @@ const projectIssueStatuses = [
 
 const projectRoles = [
   { role: 'ADMIN',           color: 'primary',    desc: '프로젝트 전체 관리' },
-  { role: 'PROJECT_MANAGER', color: 'teal',       desc: 'PM 권한' },
+  { role: 'PROJECT_MANAGER', color: 'teal',       desc: '스케줄 관리 권한' },
   { role: 'DEVELOPER',       color: 'grey-7',     desc: '개발자 권한' },
   { role: 'VIEWER',          color: 'grey-5',     desc: '읽기 전용' },
 ]
