@@ -30,7 +30,7 @@
           @click="changeStatus('CONFIRMED')" />
         <q-btn v-if="report.status === 'CONFIRMED'" flat icon="lock_open" label="확정 해제" color="grey-7" no-caps
           @click="changeStatus('REVIEWING')" />
-        <q-btn flat icon="preview" label="미리보기" color="primary" no-caps @click="previewOpen = true" />
+        <q-btn flat icon="preview" label="미리보기" color="primary" no-caps @click="openPreview" />
         <q-btn flat icon="picture_as_pdf" label="PDF 출력" color="deep-orange" no-caps @click="openPrint" />
         <q-btn flat icon="download" label="Excel" color="positive" no-caps @click="downloadExcel" />
       </template>
@@ -258,8 +258,6 @@
       @saved="onItemSaved"
     />
 
-    <!-- 미리보기 다이얼로그 -->
-    <WrPreviewDialog v-if="previewOpen" v-model="previewOpen" :report-id="reportId" />
 
   </q-page>
 </template>
@@ -277,7 +275,7 @@ import {
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 import WrItemDialog from './components/WrItemDialog.vue'
-import WrPreviewDialog from './components/WrPreviewDialog.vue'
+
 
 const route  = useRoute()
 const router = useRouter()
@@ -287,7 +285,6 @@ const loading   = ref(false)
 const refreshing = ref(false)
 const report    = ref<WeeklyReport | null>(null)
 const tab       = ref('project')
-const previewOpen = ref(false)
 
 const itemDialog = ref<{ open: boolean; section: ManualItemSection; item: ManualItem | null }>({
   open: false, section: 'MAIN_AGENDA', item: null,
@@ -428,7 +425,11 @@ async function removeItem(item: ManualItem) {
   }
 }
 
-// ── PDF 출력 ──────────────────────────────────────────────────────────
+// ── 미리보기 / PDF 출력 ───────────────────────────────────────────────
+function openPreview() {
+  void router.push(`/pm/weekly-report/${reportId}/print?preview=true`)
+}
+
 function openPrint() {
   void router.push(`/pm/weekly-report/${reportId}/print`)
 }
