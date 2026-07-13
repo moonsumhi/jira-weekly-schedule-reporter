@@ -796,10 +796,15 @@ const srLoading = ref(false)
 const mySrList = ref<SRListItem[]>([])
 const hasSrPerm = computed(() => auth.me?.isAdmin || (auth.me?.permissions ?? []).includes('sr'))
 
+// 대시보드 "내 SR 목록"은 처리 완료/최종 완료 건은 노출하지 않음
+// (담당 이슈 목록은 백엔드에서 DONE 제외 후 내려오므로 여기서 SR만 별도 필터)
+const DASHBOARD_HIDDEN_SR_STATUSES = new Set(['COMPLETED', 'CLOSED'])
+
 async function loadMySrList() {
   srLoading.value = true
   try {
-    mySrList.value = await listMySRs()
+    const list = await listMySRs()
+    mySrList.value = list.filter((sr) => !DASHBOARD_HIDDEN_SR_STATUSES.has(sr.status))
   } catch {
     mySrList.value = []
   } finally {
