@@ -768,7 +768,8 @@ const typeCards = [
 ]
 
 const typeExamples = [
-  { type: 'BUG_FIX',      icon: 'bug_report', color: 'red-7',    label: '오류 수정',    fields: '오류 발생 화면, 발생 일시, 오류 내용, 재현 절차 (에디터), 기대 동작, 실제 동작, 사용자 환경' },
+  { type: 'IMPROVEMENT',  icon: 'tune',       color: 'blue-7',   label: '기능 개선',   fields: '현재 문제점 *, 개선 요청 내용 (에디터) *, 기대 효과 *, 관련 화면/메뉴, 참고 사례, 완료 기준' },
+  { type: 'BUG_FIX',      icon: 'bug_report', color: 'red-7',    label: '오류 수정',   fields: '오류 발생 화면, 발생 일시, 오류 내용, 재현 절차 (에디터), 기대 동작, 실제 동작, 사용자 환경' },
   { type: 'DATA_REQUEST',  icon: 'storage',    color: 'purple-7', label: '데이터 요청',  fields: '요청 목적, 요청 항목 (에디터), 기간(시작/종료), 대상 조건, 개인정보·민감정보 포함 여부, 제공 형식(CSV/Excel/SQL/API), 제공 방식, 승인자' },
   { type: 'PERMISSION',    icon: 'lock_open',  color: 'teal-7',   label: '권한 요청',    fields: '권한 대상자, 요청 권한, 요청 사유 (에디터), 권한 사용 기간, 만료일, 승인자, 기존 권한 여부(신규/변경/회수)' },
   { type: 'CONFIG_CHANGE', icon: 'settings',   color: 'orange-8', label: '설정 변경',    fields: '설정 대상, 현재 설정값, 변경 요청값, 변경 사유, 영향 범위, 적용 희망 일시, 서비스 중단 여부, 롤백 방안' },
