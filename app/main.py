@@ -56,7 +56,7 @@ class BuildIdMiddleware(BaseHTTPMiddleware):
 
 _WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 # 외부 접속이어도 허용할 경로 프리픽스 (로그인/회원가입/비밀번호변경/설정저장)
-_INTERNAL_EXEMPT = ("/auth/login", "/auth/register", "/auth/change-password", "/auth/prefs", "/health/", "/pilot/")
+_INTERNAL_EXEMPT = ("/auth/login", "/auth/register", "/auth/change-password", "/auth/prefs", "/auth/refresh", "/health/", "/pilot/")
 
 
 class ExternalReadOnlyMiddleware(BaseHTTPMiddleware):

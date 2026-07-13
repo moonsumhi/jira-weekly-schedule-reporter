@@ -43,9 +43,12 @@ async def get_setting(key: str, _: UserPublic = Depends(get_current_user)):
 
 @router.put("/{key}", response_model=SettingOut)
 async def put_setting(key: str, payload: SettingPut, _=Depends(require_admin)):
-    from app.utils.ip import invalidate_cache
     col = MongoClientManager.get_db()[MongoClientManager.APP_SETTINGS]
     await col.update_one({"key": key}, {"$set": {"value": payload.value}}, upsert=True)
     if key == "internal_ips":
+        from app.utils.ip import invalidate_cache
+        invalidate_cache()
+    elif key in ("access_token_expire_minutes", "access_token_expire_minutes_external"):
+        from app.utils.token_expiry import invalidate_cache
         invalidate_cache()
     return SettingOut(key=key, value=payload.value)

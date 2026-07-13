@@ -13,17 +13,43 @@ export type UserMe = {
   permissions?: string[]
 }
 
+/** JWT의 exp/iat(초) 클레임을 epoch ms로 반환. 디코드 실패 시 둘 다 null. */
+function decodeTokenClaims(t: string): { exp: number | null; iat: number | null } {
+  try {
+    const payload = t.split('.')[1]
+    if (!payload) return { exp: null, iat: null }
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const json = JSON.parse(decodeURIComponent(escape(window.atob(base64)))) as { exp?: number; iat?: number }
+    return {
+      exp: typeof json.exp === 'number' ? json.exp * 1000 : null,
+      iat: typeof json.iat === 'number' ? json.iat * 1000 : null,
+    }
+  } catch {
+    return { exp: null, iat: null }
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('accessToken'))
+  const initialClaims = token.value ? decodeTokenClaims(token.value) : { exp: null, iat: null }
+  const tokenExpiresAt = ref<number | null>(initialClaims.exp)
+  const tokenIssuedAt = ref<number | null>(initialClaims.iat)
   const me = ref<UserMe | null>(null)
   const loading = ref(false)
   const lastError = ref<string | null>(null)
   const pendingCount = ref(0)
   let meFetchedAt = 0
 
-  async function fetchPendingCount() {
+  /**
+   * background=true면 30초 주기 백그라운드 폴링 호출임을 표시하는 헤더를 붙인다.
+   * 실제 사용자 활동이 아니므로 내부망 슬라이딩 세션 연장에서 제외된다 (app/routers/auth.py 참고).
+   */
+  async function fetchPendingCount(background = false) {
     try {
-      const { data } = await api.get<{ id: string }[]>('/admin/users/pending', { params: { status: 'PENDING' } })
+      const { data } = await api.get<{ id: string }[]>('/admin/users/pending', {
+        params: { status: 'PENDING' },
+        headers: background ? { 'X-Background-Poll': '1' } : {},
+      })
       pendingCount.value = Array.isArray(data) ? data.length : 0
     } catch {
       pendingCount.value = 0
@@ -34,8 +60,30 @@ export const useAuthStore = defineStore('auth', () => {
 
   function setToken(t: string | null) {
     token.value = t
-    if (t) localStorage.setItem('accessToken', t)
-    else localStorage.removeItem('accessToken')
+    if (t) {
+      localStorage.setItem('accessToken', t)
+      const claims = decodeTokenClaims(t)
+      tokenExpiresAt.value = claims.exp
+      tokenIssuedAt.value = claims.iat
+    } else {
+      localStorage.removeItem('accessToken')
+      tokenExpiresAt.value = null
+      tokenIssuedAt.value = null
+    }
+  }
+
+  /** 만료 임박 세션을 연장. 성공 시 true. */
+  async function extendSession() {
+    if (!token.value) return false
+    try {
+      const res = await api.post<{ accessToken: string }>('/auth/refresh', null, {
+        headers: authHeader(),
+      })
+      setToken(res.data.accessToken)
+      return true
+    } catch {
+      return false
+    }
   }
 
   function authHeader() {
@@ -126,10 +174,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     // state
-    token, me, loading, lastError, pendingCount,
+    token, tokenExpiresAt, tokenIssuedAt, me, loading, lastError, pendingCount,
     // getters
     isLoggedIn,
     // actions
-    login, register, fetchMe, logout, bootstrap, fetchPendingCount, setToken,
+    login, register, fetchMe, logout, bootstrap, fetchPendingCount, setToken, extendSession,
   }
 })
