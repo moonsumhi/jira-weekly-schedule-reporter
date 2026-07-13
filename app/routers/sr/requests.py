@@ -181,10 +181,6 @@ async def update_sr(
     if str(doc["requester_id"]) != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="본인의 SR만 수정할 수 있습니다.")
 
-    # 접수 이후에는 수정 불가 (DRAFT, PENDING_INFO 제외)
-    if doc["status"] not in ("DRAFT", "PENDING_INFO") and not current_user.is_admin:
-        raise HTTPException(status_code=400, detail="접수 후에는 수정할 수 없습니다.")
-
     if body.is_urgent is True and not body.urgent_reason and not doc.get("urgent_reason"):
         raise HTTPException(status_code=400, detail="긴급 요청은 긴급 사유를 입력해야 합니다.")
 

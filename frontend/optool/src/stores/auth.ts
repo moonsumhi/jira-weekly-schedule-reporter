@@ -130,6 +130,6 @@ export const useAuthStore = defineStore('auth', () => {
     // getters
     isLoggedIn,
     // actions
-    login, register, fetchMe, logout, bootstrap, fetchPendingCount,
+    login, register, fetchMe, logout, bootstrap, fetchPendingCount, setToken,
   }
 })

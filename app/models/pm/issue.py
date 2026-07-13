@@ -56,6 +56,15 @@ class IssuePatch(BaseModel):
     order: Optional[float] = None
 
 
+class SubtaskSummary(BaseModel):
+    id: str
+    number: int
+    title: str
+    status: IssueStatus
+    priority: IssuePriority
+    assignee_name: Optional[str] = None
+
+
 class IssueOut(BaseModel):
     id: str
     project_id: str
@@ -82,6 +91,7 @@ class IssueOut(BaseModel):
     attachments: List[Attachment] = []
     order: float
     linked_sr_id: Optional[str] = None
+    subtasks: List[SubtaskSummary] = []
     created_at: datetime
     updated_at: datetime
 

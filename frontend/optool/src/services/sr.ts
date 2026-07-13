@@ -350,9 +350,26 @@ export async function cancelSR(id: string, reason: string) {
   return data
 }
 
+export async function uploadSRAttachment(file: File): Promise<SRAttachment> {
+  const form = new FormData()
+  form.append('file', file)
+  const { data } = await api.post<SRAttachment>('/schedule/service-requests/uploads', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
 export async function addComment(id: string, content: string, isInternal = false, attachments: SRAttachment[] = []) {
   const { data } = await api.post<SRComment>(`/schedule/service-requests/${id}/comments`, {
-    content, is_internal: isInternal, attachments,
+    content,
+    is_internal: isInternal,
+    attachments: attachments.map(a => ({
+      file_id: a.fileId,
+      original_name: a.originalName,
+      url: a.url,
+      size: a.size,
+      content_type: a.contentType,
+    })),
   })
   return data
 }

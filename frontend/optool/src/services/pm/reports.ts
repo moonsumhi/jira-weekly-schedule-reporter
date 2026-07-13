@@ -50,6 +50,83 @@ export interface PersonBreakdown {
   upcoming: WorkItem[]
 }
 
+// ── 수기 항목 ────────────────────────────────────────────────────────
+export type ReportStatus = 'DRAFT' | 'REVIEWING' | 'CONFIRMED'
+export type ManualItemSection = 'MAIN_AGENDA' | 'ISSUE_RISK' | 'DECISION_REQUIRED'
+
+export interface ManualItem {
+  id: string
+  section: ManualItemSection
+  title: string
+  owner: string | null
+  linkedSrId: string | null
+  linkedIssueId: string | null
+  includeInReport: boolean
+  sortOrder: number
+  // MAIN_AGENDA
+  category: string | null
+  content: string | null
+  agendaStatus: string | null
+  // ISSUE_RISK
+  itemType: string | null
+  impact: string | null
+  actionPlan: string | null
+  // DECISION_REQUIRED
+  background: string | null
+  options: string | null
+  requestedDecision: string | null
+  desiredDate: string | null
+  createdBy: string
+  createdAt: string
+  updatedBy: string | null
+  updatedAt: string
+}
+
+export interface ManualItemCreate {
+  section: ManualItemSection
+  title: string
+  owner?: string | null
+  include_in_report?: boolean
+  sort_order?: number
+  category?: string | null
+  content?: string | null
+  agenda_status?: string | null
+  item_type?: string | null
+  impact?: string | null
+  action_plan?: string | null
+  background?: string | null
+  options?: string | null
+  requested_decision?: string | null
+  desired_date?: string | null
+}
+
+// ── SR 요약 ──────────────────────────────────────────────────────────
+export interface SrItem {
+  srNo: string
+  title: string
+  status: string
+  statusLabel: string
+  requestType: string
+  requestTypeLabel: string
+  requesterName: string
+  requesterDepartment: string
+  assigneeName: string | null
+  isUrgent: boolean
+  desiredDueDate: string | null
+  createdAt: string
+}
+
+export interface SrSummary {
+  newThisWeek: SrItem[]
+  completedThisWeek: SrItem[]
+  pendingItems: SrItem[]
+  openItems: SrItem[]
+  byStatus: Record<string, number>
+  totalOpen: number
+  totalNew: number
+  totalCompleted: number
+}
+
 // ── 주간 보고 ────────────────────────────────────────────────────────
 export interface WeeklyReport {
   id: string
@@ -59,11 +136,14 @@ export interface WeeklyReport {
   endDate: string
   title: string
   department: string | null
+  status: ReportStatus
   byProject: ProjectBreakdown[]
   byPerson: PersonBreakdown[]
   allItems: WorkItem[]
   upcomingItems: WorkItem[]
   stats: ReportStats
+  manualItems: ManualItem[]
+  srSummary: SrSummary | null
   adminComment: string | null
   createdBy: string
   createdByName: string | null
@@ -71,6 +151,8 @@ export interface WeeklyReport {
   updatedBy: string | null
   updatedByName: string | null
   updatedAt: string
+  confirmedBy: string | null
+  confirmedAt: string | null
 }
 
 export interface WeeklyReportCreate {
@@ -116,6 +198,31 @@ export async function refreshWeeklyReport(id: string) {
 
 export async function deleteWeeklyReport(id: string) {
   await api.delete(`/pm/weekly-reports/${id}`)
+}
+
+export async function changeWeeklyReportStatus(id: string, status: ReportStatus) {
+  const { data } = await api.patch<WeeklyReport>(`/pm/weekly-reports/${id}/status`, { status })
+  return data
+}
+
+export async function addManualItem(id: string, payload: ManualItemCreate) {
+  const { data } = await api.post<WeeklyReport>(`/pm/weekly-reports/${id}/items`, payload)
+  return data
+}
+
+export async function updateManualItem(id: string, itemId: string, payload: Partial<ManualItemCreate>) {
+  const { data } = await api.patch<WeeklyReport>(`/pm/weekly-reports/${id}/items/${itemId}`, payload)
+  return data
+}
+
+export async function deleteManualItem(id: string, itemId: string) {
+  const { data } = await api.delete<WeeklyReport>(`/pm/weekly-reports/${id}/items/${itemId}`)
+  return data
+}
+
+export async function previewWeeklyReport(id: string): Promise<string> {
+  const { data } = await api.get<{ text: string }>(`/pm/weekly-reports/${id}/preview`)
+  return data.text
 }
 
 export function weeklyExportListUrl(params: { year?: number; week?: number } = {}) {

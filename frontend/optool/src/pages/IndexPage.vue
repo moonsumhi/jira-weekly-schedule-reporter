@@ -1,43 +1,62 @@
 <template>
   <q-page class="dashboard-page q-pa-md">
 
-    <div class="dashboard-grid">
-
-      <!-- 내 정보 -->
-      <div class="dash-card profile-card">
-        <div class="card-header">
-          <q-icon name="person" size="18px" color="blue-7" />
-          <span class="card-title">내 정보</span>
-        </div>
-        <div class="profile-body">
-          <div class="profile-avatar">
-            <q-icon name="account_circle" size="56px" color="blue-3" />
-          </div>
-          <div class="profile-info">
-            <div class="profile-name">{{ auth.me?.fullName || auth.me?.email }}</div>
-            <div class="profile-email text-grey-6">{{ auth.me?.email }}</div>
-            <div class="profile-badges q-mt-sm">
-              <q-badge v-if="auth.me?.isAdmin" color="deep-purple" label="관리자" class="q-mr-xs" />
-              <q-badge
-                v-for="perm in (auth.me?.permissions ?? [])"
-                :key="perm"
-                color="blue-grey"
-                :label="perm"
-                class="q-mr-xs q-mb-xs"
-                outline
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+    <draggable
+      v-model="cardOrder"
+      :item-key="(id: string) => id"
+      class="dashboard-grid"
+      handle=".card-drag-handle"
+      ghost-class="drag-ghost"
+      @end="saveCardOrder"
+    >
+      <template #item="{ element: cardId }">
 
       <!-- D-Day -->
-      <div class="dash-card dday-card">
+      <div v-if="cardId === 'dday'" class="dash-card dday-card" :class="cardSizeClasses(cardId)">
         <div class="card-header">
+          <q-icon name="drag_indicator" class="card-drag-handle cursor-grab" color="grey-4" size="16px" />
           <q-icon name="event" size="18px" color="red-7" />
           <span class="card-title">D-Day</span>
           <q-space />
           <q-btn v-if="auth.me?.isAdmin" flat dense round icon="add" size="sm" color="grey-7" @click="openDDayCreate" />
+          <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
+            <q-tooltip>카드 크기 조절</q-tooltip>
+            <q-menu anchor="bottom right" self="top right">
+              <div class="size-picker">
+                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
+                <div class="size-icon-row q-mb-sm">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
+                    <q-tooltip>1/4 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
+                    <q-tooltip>1/2 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
+                    <q-tooltip>전체 크기</q-tooltip>
+                  </q-btn>
+                </div>
+                <q-separator class="q-mb-sm" />
+                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
+                <div class="size-icon-row">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
+                    <q-tooltip>1/4 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
+                    <q-tooltip>1/2 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
+                    <q-tooltip>기본 높이</q-tooltip>
+                  </q-btn>
+                </div>
+              </div>
+            </q-menu>
+          </q-btn>
         </div>
 
         <!-- 서버 점검일 (정기: 3번째 목요일) — D-Day 지나면 숨김 -->
@@ -55,6 +74,20 @@
           <div v-if="auth.me?.isAdmin" class="dday-actions">
             <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openInspectionEdit" />
             <q-btn v-if="inspectionOverridden" flat dense round icon="refresh" size="xs" color="grey" title="자동 계산으로 초기화" @click="resetInspection" />
+          </div>
+        </div>
+
+        <!-- 다음 당직일 — 14일 이내로 다가왔을 때만 표시 -->
+        <div v-if="showDutyDDay && nextDutyDay" class="dday-item dday-item--inspection q-mb-sm">
+          <div class="dday-count" style="background: #7b1fa2">
+            <span class="dday-label">{{ calcDDay(nextDutyDay.date) }}</span>
+          </div>
+          <div class="dday-info">
+            <div class="dday-title">
+              당직일
+              <q-badge outline color="purple" label="당직" class="q-ml-xs" style="font-size:10px" />
+            </div>
+            <div class="dday-date text-grey-6">{{ nextDutyDay.date }}</div>
           </div>
         </div>
 
@@ -82,12 +115,51 @@
       </div>
 
       <!-- EoS 현황 -->
-      <div class="dash-card eos-card">
+      <div v-else-if="cardId === 'eos'" class="dash-card eos-card" :class="cardSizeClasses(cardId)">
         <div class="card-header">
+          <q-icon name="drag_indicator" class="card-drag-handle cursor-grab" color="grey-4" size="16px" />
           <q-icon name="warning" size="18px" color="deep-orange-7" />
           <span class="card-title">서버 EoS 현황</span>
           <q-space />
           <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push('/asset/list')" />
+          <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
+            <q-tooltip>카드 크기 조절</q-tooltip>
+            <q-menu anchor="bottom right" self="top right">
+              <div class="size-picker">
+                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
+                <div class="size-icon-row q-mb-sm">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
+                    <q-tooltip>1/4 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
+                    <q-tooltip>1/2 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
+                    <q-tooltip>전체 크기</q-tooltip>
+                  </q-btn>
+                </div>
+                <q-separator class="q-mb-sm" />
+                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
+                <div class="size-icon-row">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
+                    <q-tooltip>1/4 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
+                    <q-tooltip>1/2 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
+                    <q-tooltip>기본 높이</q-tooltip>
+                  </q-btn>
+                </div>
+              </div>
+            </q-menu>
+          </q-btn>
         </div>
 
         <div v-if="eosLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
@@ -125,13 +197,52 @@
       </div>
 
       <!-- 서버 리소스 위험 현황 -->
-      <div class="dash-card resource-card">
+      <div v-else-if="cardId === 'resource'" class="dash-card resource-card" :class="cardSizeClasses(cardId)">
         <div class="card-header">
+          <q-icon name="drag_indicator" class="card-drag-handle cursor-grab" color="grey-4" size="16px" />
           <q-icon name="memory" size="18px" color="red-7" />
           <span class="card-title">서버 리소스 위험 현황</span>
           <q-space />
           <span v-if="dangerReport.reportDate" class="text-caption text-grey-6">{{ dangerReport.reportDate }} 기준</span>
           <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push('/inspection/health-summary')" />
+          <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
+            <q-tooltip>카드 크기 조절</q-tooltip>
+            <q-menu anchor="bottom right" self="top right">
+              <div class="size-picker">
+                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
+                <div class="size-icon-row q-mb-sm">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
+                    <q-tooltip>1/4 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
+                    <q-tooltip>1/2 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
+                    <q-tooltip>전체 크기</q-tooltip>
+                  </q-btn>
+                </div>
+                <q-separator class="q-mb-sm" />
+                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
+                <div class="size-icon-row">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
+                    <q-tooltip>1/4 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
+                    <q-tooltip>1/2 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
+                    <q-tooltip>기본 높이</q-tooltip>
+                  </q-btn>
+                </div>
+              </div>
+            </q-menu>
+          </q-btn>
         </div>
         <div v-if="dangerLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
         <div v-else-if="dangerReport.servers.length === 0" class="text-center text-grey text-caption q-pa-md">위험 수치 서버가 없습니다.</div>
@@ -152,37 +263,136 @@
       </div>
 
       <!-- 스케줄 관리: 담당 중 -->
-      <div v-if="hasPmPerm" class="dash-card pm-card">
+      <div v-else-if="cardId === 'pm'" class="dash-card pm-card" :class="cardSizeClasses(cardId)">
         <div class="card-header">
+          <q-icon name="drag_indicator" class="card-drag-handle cursor-grab" color="grey-4" size="16px" />
           <q-icon name="fa-solid fa-diagram-project" size="18px" color="indigo-7" />
           <span class="card-title">스케줄 관리 — 담당 중</span>
           <q-space />
-          <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push('/pm/dashboard')" />
+          <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push(hasPmPerm ? '/pm/dashboard' : '/pm/sr/my')" />
+          <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
+            <q-tooltip>카드 크기 조절</q-tooltip>
+            <q-menu anchor="bottom right" self="top right">
+              <div class="size-picker">
+                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
+                <div class="size-icon-row q-mb-sm">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
+                    <q-tooltip>1/4 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
+                    <q-tooltip>1/2 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
+                    <q-tooltip>전체 크기</q-tooltip>
+                  </q-btn>
+                </div>
+                <q-separator class="q-mb-sm" />
+                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
+                <div class="size-icon-row">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
+                    <q-tooltip>1/4 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
+                    <q-tooltip>1/2 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
+                    <q-tooltip>기본 높이</q-tooltip>
+                  </q-btn>
+                </div>
+              </div>
+            </q-menu>
+          </q-btn>
         </div>
 
-        <div v-if="pmLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-        <div v-else-if="pmMyIssues.length === 0" class="text-center text-grey text-caption q-pa-md">담당 중인 이슈가 없습니다.</div>
-        <div v-else class="pm-issue-list">
-          <div
-            v-for="issue in pmMyIssues"
-            :key="issue.id"
-            class="pm-issue-item"
-            @click="$router.push('/pm/dashboard')"
-          >
-            <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
-            <span class="pm-issue-title">{{ issue.title }}</span>
-            <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+        <div v-if="hasPmPerm" class="pm-subsection">
+          <div class="pm-subheader">담당 이슈</div>
+          <div v-if="pmLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+          <div v-else-if="pmMyIssues.length === 0" class="text-center text-grey text-caption q-pa-md">담당 중인 이슈가 없습니다.</div>
+          <div v-else class="pm-issue-list">
+            <div
+              v-for="issue in pmMyIssues"
+              :key="issue.id"
+              class="pm-issue-item"
+              @click="$router.push('/pm/dashboard')"
+            >
+              <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
+              <span class="pm-issue-title">{{ issue.title }}</span>
+              <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+            </div>
+          </div>
+        </div>
+
+        <div v-if="hasSrPerm" class="pm-subsection" :class="{ 'q-mt-md': hasPmPerm }">
+          <div class="pm-subheader">내 SR 목록</div>
+          <div v-if="srLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+          <div v-else-if="mySrList.length === 0" class="text-center text-grey text-caption q-pa-md">접수한 SR이 없습니다.</div>
+          <div v-else class="pm-issue-list">
+            <div
+              v-for="sr in mySrList"
+              :key="sr.id"
+              class="pm-issue-item"
+              @click="$router.push(`/pm/sr/${sr.id}`)"
+            >
+              <span class="pm-issue-key">{{ sr.srNo }}</span>
+              <span class="pm-issue-title">{{ sr.title }}</span>
+              <q-badge :color="SR_STATUS_COLOR[sr.status]" :label="SR_STATUS_LABEL[sr.status]" />
+            </div>
           </div>
         </div>
       </div>
 
       <!-- 이번 달 당직 일정 -->
-      <div class="dash-card watch-card">
+      <div v-else-if="cardId === 'watch'" class="dash-card watch-card" :class="cardSizeClasses(cardId)">
         <div class="card-header">
+          <q-icon name="drag_indicator" class="card-drag-handle cursor-grab" color="grey-4" size="16px" />
           <q-icon name="schedule" size="18px" color="orange-7" />
           <span class="card-title">이번 달 당직 일정</span>
           <q-space />
           <span class="text-caption text-grey-6">{{ currentMonthLabel }}</span>
+          <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
+            <q-tooltip>카드 크기 조절</q-tooltip>
+            <q-menu anchor="bottom right" self="top right">
+              <div class="size-picker">
+                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
+                <div class="size-icon-row q-mb-sm">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
+                    <q-tooltip>1/4 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
+                    <q-tooltip>1/2 크기</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
+                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
+                    <q-tooltip>전체 크기</q-tooltip>
+                  </q-btn>
+                </div>
+                <q-separator class="q-mb-sm" />
+                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
+                <div class="size-icon-row">
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
+                    <q-tooltip>1/4 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
+                    <q-tooltip>1/2 높이</q-tooltip>
+                  </q-btn>
+                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
+                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
+                    <q-tooltip>기본 높이</q-tooltip>
+                  </q-btn>
+                </div>
+              </div>
+            </q-menu>
+          </q-btn>
         </div>
 
         <div v-if="watchLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
@@ -205,7 +415,8 @@
         </div>
       </div>
 
-    </div>
+      </template>
+    </draggable>
 
     <!-- D-Day 추가/수정 다이얼로그 -->
     <q-dialog v-model="ddayDialog" persistent>
@@ -237,10 +448,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import draggable from 'vuedraggable'
 import { useAuthStore } from 'stores/auth'
 import { api } from 'boot/axios'
 import { fetchDDays, createDDay, patchDDay, deleteDDay, type DDay } from 'src/services/ddays'
 import { STATUS_LABEL, STATUS_COLOR, type Issue } from 'src/services/pm/issue'
+import { listMySRs, SR_STATUS_LABEL, SR_STATUS_COLOR, type SRListItem } from 'src/services/sr'
+import { getPrefs, savePrefs, type ColPreset, type CardSize } from 'src/services/prefs'
 
 const auth = useAuthStore()
 const $q = useQuasar()
@@ -253,25 +467,50 @@ const watchList = ref<WatchItem[]>([])
 const now = new Date()
 const currentMonthLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월`
 
-const myWatchList = computed(() => {
+function isMyWatchAssignee(assignee: string): boolean {
   const fullName = (auth.me?.fullName || '').trim()
   const email = (auth.me?.email || '').trim()
-  if (!fullName && !email) return []
+  const a = (assignee || '').trim()
+  if (!a || (!fullName && !email)) return false
+  if (email && a === email) return true
+  if (fullName && (a.includes(fullName) || fullName.includes(a))) return true
+  return false
+}
+
+const myWatchList = computed(() => {
+  if (!auth.me?.fullName && !auth.me?.email) return []
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
   return watchList.value.filter((w) => {
-    const assignee = (w.assignee || '').trim()
-    if (!assignee) return false
     // 이미 종료된 당직 제외 (end가 오늘 자정 이전이면 제외)
     if (new Date(w.end) < todayStart) return false
-    // 이메일 일치
-    if (email && assignee === email) return true
-    // 이름 포함 여부 (양방향)
-    if (fullName) {
-      if (assignee.includes(fullName) || fullName.includes(assignee)) return true
-    }
-    return false
+    return isMyWatchAssignee(w.assignee)
   })
 })
+
+// 다음 당직일 D-Day (월 경계와 무관하게 가장 가까운 미래 당직을 찾기 위해 별도 조회)
+const nextDutyDay = ref<{ date: string } | null>(null)
+
+const showDutyDDay = computed(() => {
+  if (!nextDutyDay.value) return false
+  const target = new Date(nextDutyDay.value.date); target.setHours(0, 0, 0, 0)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const diff = Math.round((target.getTime() - today.getTime()) / 86400000)
+  return diff >= 0 && diff <= 14
+})
+
+async function loadNextDutyDay() {
+  try {
+    const start = new Date(); start.setHours(0, 0, 0, 0)
+    const end = new Date(start); end.setDate(end.getDate() + 45)
+    const { data } = await api.get<WatchItem[]>('/watch', { params: { start: start.toISOString(), end: end.toISOString() } })
+    const mine = data
+      .filter((w) => new Date(w.end) >= start && isMyWatchAssignee(w.assignee))
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    nextDutyDay.value = mine.length ? { date: mine[0]!.start.substring(0, 10) } : null
+  } catch {
+    nextDutyDay.value = null
+  }
+}
 
 
 function watchShiftColor(startIso: string): string {
@@ -552,12 +791,95 @@ async function loadPmDashboard() {
   }
 }
 
+// ── 내 SR 목록 ───────────────────────────────────────────────────────────
+const srLoading = ref(false)
+const mySrList = ref<SRListItem[]>([])
+const hasSrPerm = computed(() => auth.me?.isAdmin || (auth.me?.permissions ?? []).includes('sr'))
+
+async function loadMySrList() {
+  srLoading.value = true
+  try {
+    mySrList.value = await listMySRs()
+  } catch {
+    mySrList.value = []
+  } finally {
+    srLoading.value = false
+  }
+}
+
+// ── 대시보드 카드 순서 (드래그로 배치 변경, 계정에 저장) ──────────────────────
+const cardOrder = ref<string[]>([])
+let savedAssetColPresets: ColPreset[] = []
+
+const baseCardOrder = computed(() => {
+  const order = ['watch', 'dday', 'eos', 'resource']
+  if (hasPmPerm.value || hasSrPerm.value) order.push('pm')
+  return order
+})
+
+// 저장된 순서에서 더 이상 존재/노출되지 않는 카드는 제거하고, 새로 생긴 카드는 뒤에 추가
+function reconcileCardOrder(saved: string[], base: string[]): string[] {
+  const kept = saved.filter((id) => base.includes(id))
+  const missing = base.filter((id) => !kept.includes(id))
+  return [...kept, ...missing]
+}
+
+async function loadCardOrder() {
+  try {
+    const prefs = await getPrefs()
+    savedAssetColPresets = prefs.assetColPresets ?? []
+    cardSizes.value = prefs.dashboardCardSizes ?? {}
+    cardOrder.value = prefs.dashboardCardOrder?.length
+      ? reconcileCardOrder(prefs.dashboardCardOrder, baseCardOrder.value)
+      : baseCardOrder.value
+  } catch {
+    cardOrder.value = baseCardOrder.value
+  }
+}
+
+async function saveCardOrder() {
+  try {
+    await savePrefs({ assetColPresets: savedAssetColPresets, dashboardCardOrder: cardOrder.value, dashboardCardSizes: cardSizes.value })
+  } catch {
+    // 저장 실패해도 화면 배치는 유지되므로 조용히 무시
+  }
+}
+
+// ── 카드 크기 조절 (오른쪽 아래 버튼으로 너비/높이 선택, 계정에 저장) ──────────
+const DEFAULT_CARD_SIZE: Record<string, CardSize> = {
+  dday: { w: 'half', h: 'auto' },
+  eos: { w: 'half', h: 'auto' },
+  resource: { w: 'half', h: 'auto' },
+  pm: { w: 'full', h: 'auto' },
+  watch: { w: 'full', h: 'auto' },
+}
+const cardSizes = ref<Record<string, CardSize>>({})
+
+function sizeOf(id: string): CardSize {
+  return cardSizes.value[id] ?? DEFAULT_CARD_SIZE[id] ?? { w: 'half', h: 'auto' }
+}
+
+function cardSizeClasses(id: string): string[] {
+  const s = sizeOf(id)
+  const wClass = s.w === 'quarter' ? 'card-w-quarter' : s.w === 'full' ? 'card-w-full' : 'card-w-half'
+  const hClass = s.h === 'quarter' ? 'card-h-quarter' : s.h === 'half' ? 'card-h-half' : 'card-h-full'
+  return [wClass, hClass]
+}
+
+function setCardSize(id: string, axis: 'w' | 'h', value: string) {
+  cardSizes.value = { ...cardSizes.value, [id]: { ...sizeOf(id), [axis]: value } }
+  void saveCardOrder()
+}
+
 onMounted(() => {
   void loadDDays()
   void loadWatch()
+  void loadNextDutyDay()
   void loadEosSummary()
   void loadDangerSummary()
   if (hasPmPerm.value) void loadPmDashboard()
+  if (hasSrPerm.value) void loadMySrList()
+  void loadCardOrder()
 })
 </script>
 
@@ -569,10 +891,45 @@ onMounted(() => {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 122px;
+  grid-auto-flow: dense;
   gap: 16px;
-  max-width: 1000px;
+  max-width: 1600px;
   margin: 0 auto;
+}
+
+.card-drag-handle {
+  cursor: grab;
+}
+
+.drag-ghost {
+  opacity: 0.4;
+  background: #eef1f8;
+}
+
+/* 카드 크기 조절 (헤더 오른쪽 위 버튼으로 선택) */
+.card-w-quarter { grid-column: span 1; }
+.card-w-half    { grid-column: span 2; }
+.card-w-full    { grid-column: span 4; }
+
+/* 모든 카드가 높이 모드별로 동일한 고정 높이를 갖도록 통일 (grid-auto-rows: 122px 기준) */
+.card-h-quarter {
+  grid-row: span 1;
+  height: 122px;
+  overflow-y: auto;
+}
+
+.card-h-half {
+  grid-row: span 2;
+  height: 260px;
+  overflow-y: auto;
+}
+
+.card-h-full {
+  grid-row: span 4;
+  height: 536px;
+  overflow-y: auto;
 }
 
 .dash-card {
@@ -582,35 +939,80 @@ onMounted(() => {
   padding: 20px;
 }
 
+.card-resize-btn {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.card-resize-btn:hover {
+  opacity: 1;
+}
+
+/* 카드 크기 조절 메뉴 — 그리드/아이콘 형태 선택 UI */
+.size-picker {
+  padding: 10px 12px;
+  min-width: 180px;
+}
+
+.size-icon-row {
+  display: flex;
+  gap: 6px;
+}
+
+.size-icon-btn {
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.size-icon-btn--active {
+  background: #e3f2fd;
+}
+
+.size-icon-box {
+  width: 30px;
+  height: 20px;
+  border: 1px solid #cfd8dc;
+  border-radius: 3px;
+  background: #f5f7fa;
+  position: relative;
+  overflow: hidden;
+}
+
+.size-icon-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #1e88e5;
+}
+
+.size-icon-box--vertical {
+  width: 20px;
+  height: 30px;
+}
+
+.size-icon-fill--vertical {
+  width: 100%;
+  height: auto;
+  top: auto;
+  bottom: 0;
+}
+
 .card-header {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
 }
 
 .card-title {
   font-size: 15px;
   font-weight: 700;
   color: #1a237e;
-}
-
-/* 내 정보 */
-.profile-body {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.profile-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a237e;
-}
-
-.profile-email {
-  font-size: 13px;
-  margin-top: 2px;
 }
 
 /* D-Day */
@@ -778,8 +1180,11 @@ onMounted(() => {
 }
 
 /* 스케줄 관리 */
-.pm-card {
-  grid-column: 1 / -1;
+.pm-subheader {
+  font-size: 12px;
+  font-weight: 700;
+  color: #78909c;
+  margin-bottom: 6px;
 }
 
 .pm-issue-list {
@@ -822,10 +1227,6 @@ onMounted(() => {
 }
 
 /* 당직 */
-.watch-card {
-  grid-column: 1 / -1;
-}
-
 .watch-cards {
   display: flex;
   flex-wrap: wrap;
@@ -897,13 +1298,25 @@ onMounted(() => {
   gap: 3px;
 }
 
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .card-w-quarter,
+  .card-w-half,
+  .card-w-full {
+    grid-column: span 2;
+  }
+}
+
 @media (max-width: 600px) {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-  .watch-card,
-  .eos-card {
-    grid-column: 1;
+  .card-w-quarter,
+  .card-w-half,
+  .card-w-full {
+    grid-column: span 1;
   }
 }
 </style>

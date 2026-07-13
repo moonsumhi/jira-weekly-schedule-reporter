@@ -35,32 +35,12 @@
                   <span :class="menu.isVisible ? 'text-positive' : 'text-grey'">
                     {{ menu.isVisible ? '표시' : '숨김' }}
                   </span>
-                  · 내부: <span :class="menu.isInternalVisible ? 'text-positive' : 'text-grey'">{{ menu.isInternalVisible ? '공개' : '숨김' }}</span>
-                  · 외부: <span :class="menu.isExternalVisible ? 'text-positive' : 'text-grey'">{{ menu.isExternalVisible ? '공개' : '숨김' }}</span>
-                  · 하위 {{ subsOf(menu.id).length + systemSubsOf(menu.slug).length }}개
+                  · 하위 {{ subsOf(menu.id).length + systemSubsOf(menu).length }}개
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
                 <div class="row no-wrap items-center">
                   <q-badge v-if="menu.isSystem" color="blue-grey" label="시스템" class="q-mr-xs" />
-                  <q-btn
-                    flat dense round size="sm"
-                    :icon="menu.isInternalVisible ? 'corporate_fare' : 'corporate_fare'"
-                    :color="menu.isInternalVisible ? 'primary' : 'grey-4'"
-                    :title="'내부: ' + (menu.isInternalVisible ? '공개' : '숨김')"
-                    @click.stop="toggleInternalVisible(menu)"
-                  >
-                    <q-tooltip>내부망 {{ menu.isInternalVisible ? '공개 (클릭시 숨김)' : '숨김 (클릭시 공개)' }}</q-tooltip>
-                  </q-btn>
-                  <q-btn
-                    flat dense round size="sm"
-                    :icon="menu.isExternalVisible ? 'public' : 'public_off'"
-                    :color="menu.isExternalVisible ? 'positive' : 'grey-4'"
-                    :title="'외부: ' + (menu.isExternalVisible ? '공개' : '숨김')"
-                    @click.stop="toggleExternalVisible(menu)"
-                  >
-                    <q-tooltip>외부망 {{ menu.isExternalVisible ? '공개 (클릭시 숨김)' : '숨김 (클릭시 공개)' }}</q-tooltip>
-                  </q-btn>
                   <q-btn flat dense round icon="edit" size="sm" @click.stop="openEditMenu(menu)" />
                   <q-btn v-if="!menu.isSystem" flat dense round icon="delete" size="sm" color="negative" @click.stop="confirmDeleteMenu(menu)" />
                 </div>
@@ -219,12 +199,15 @@
         <q-card-section class="q-gutter-sm">
           <template v-if="!editMenuTarget?.isSystem">
             <q-input v-model="menuForm.title" label="메뉴 이름" outlined dense />
-            <div>
-              <div class="text-caption text-grey q-mb-xs">아이콘</div>
-              <IconPicker v-model="menuForm.icon" />
-            </div>
-            <q-toggle v-model="menuForm.is_visible" label="사이드바에 표시" />
           </template>
+          <div v-else class="text-caption text-grey">
+            {{ editMenuTarget?.title }} <span class="text-grey-5">(시스템 메뉴 — 이름 변경 불가)</span>
+          </div>
+          <div>
+            <div class="text-caption text-grey q-mb-xs">아이콘</div>
+            <IconPicker v-model="menuForm.icon" />
+          </div>
+          <q-toggle v-if="!editMenuTarget?.isSystem" v-model="menuForm.is_visible" label="사이드바에 표시" />
           <q-input v-model="menuForm.link" label="링크 (직접 이동할 URL, 비우면 하위 메뉴 방식)" outlined dense clearable />
         </q-card-section>
         <q-card-actions align="right">
@@ -326,42 +309,19 @@ async function submitSysIcon() {
   }
 }
 
-// 시스템 고정 하위메뉴 (slug별 하드코딩)
-const SYSTEM_SUBS: Record<string, { title: string; icon: string; link: string }[]> = {
-  jira: [
-    { title: '검색', icon: 'fa-solid fa-list', link: '/jira/search' },
-    { title: '주간보고', icon: 'fa-solid fa-calendar-week', link: '/report/weekly' },
-  ],
-  asset: [
-    { title: '전체',          icon: 'fa-solid fa-layer-group',   link: '/asset/list' },
-    { title: '서버',          icon: 'fa-solid fa-server',        link: '/asset/list?category=서버' },
-    { title: '네트워크',      icon: 'fa-solid fa-network-wired', link: '/asset/list?category=네트워크' },
-    { title: '정보보호시스템', icon: 'fa-solid fa-shield-halved', link: '/asset/list?category=정보보호시스템' },
-    { title: 'DBMS',         icon: 'fa-solid fa-database',       link: '/asset/list?category=DBMS' },
-    { title: 'VMware',       icon: 'fa-brands fa-vuejs',         link: '/asset/list?category=VMware' },
-  ],
-  watch: [],
-  account: [
-    { title: '내 계정', icon: 'fa-solid fa-user', link: '/account/settings' },
-  ],
-  inspection: [],
-  admin: [
-    { title: '회원가입 승인', icon: 'fa-regular fa-thumbs-up', link: '/admin/approvals' },
-    { title: '회원 목록', icon: 'fa-solid fa-users', link: '/admin/users' },
-    { title: '메뉴 관리', icon: 'fa-solid fa-list', link: '/admin/menus' },
-  ],
-}
-
-
-function systemSubsOf(slug: string | null): { title: string; icon: string; link: string }[] {
-  if (slug === 'job') {
+// 시스템 고정 하위메뉴 — job(작업 양식)만 프론트에서 동적 로드하고,
+// 나머지는 메뉴 자체가 갖고 있는 menu.submenus(백엔드 시드 데이터, 사이드바가 실제로 쓰는 값)를 그대로 사용한다.
+// (예전엔 여기 프론트에 SYSTEM_SUBS를 별도로 하드코딩해뒀었는데, 백엔드에 새 하위메뉴가 추가돼도
+//  이 목록엔 반영이 안 돼서 스케줄 관리/SR/Audit Log 같은 항목의 아이콘을 여기서 수정할 수 없는 문제가 있었다.)
+function systemSubsOf(menu: MenuOut): { title: string; icon: string; link: string }[] {
+  if (menu.slug === 'job') {
     return jobTemplates.value.map((t) => ({
       title: t.title,
       icon: 'fa-solid fa-file-alt',
       link: `/job/forms/${t.jiraIssueKey || t.id}`,
     }))
   }
-  return SYSTEM_SUBS[slug ?? ''] ?? []
+  return menu.submenus ?? []
 }
 
 // 하위 메뉴 다이얼로그
@@ -383,16 +343,7 @@ function updateSysSubsEntry(menuId: string, v: unknown) {
 function buildSysSubsMap() {
   const map: Record<string, { title: string; icon: string; link: string }[]> = {}
   for (const menu of menus.value) {
-    let items: { title: string; icon: string; link: string }[]
-    if (menu.slug === 'job') {
-      items = jobTemplates.value.map((t) => ({
-        title: t.title,
-        icon: 'fa-solid fa-file-alt',
-        link: `/job/forms/${t.jiraIssueKey || t.id}`,
-      }))
-    } else {
-      items = [...(SYSTEM_SUBS[menu.slug ?? ''] ?? [])]
-    }
+    let items = systemSubsOf(menu)
     if (menu.subOrder && menu.subOrder.length > 0) {
       const orderMap = new Map(menu.subOrder.map((link, i) => [link, i]))
       items = items.filter((item) => orderMap.has(item.link))
@@ -405,13 +356,7 @@ function buildSysSubsMap() {
 
 function hiddenSysSubsOf(menu: MenuOut): { title: string; icon: string; link: string }[] {
   const visibleLinks = new Set((sysSubsMap.value[menu.id] ?? []).map((s) => s.link))
-  if (menu.slug === 'job') {
-    return jobTemplates.value
-      .map((t) => ({ title: t.title, icon: 'fa-solid fa-file-alt', link: `/job/forms/${t.jiraIssueKey || t.id}` }))
-      .filter((s) => !visibleLinks.has(s.link))
-  }
-  const allSubs = SYSTEM_SUBS[menu.slug ?? ''] ?? []
-  return allSubs.filter((s) => !visibleLinks.has(s.link))
+  return systemSubsOf(menu).filter((s) => !visibleLinks.has(s.link))
 }
 
 async function hideSysSub(menu: MenuOut, sys: { link: string }) {
@@ -434,7 +379,7 @@ async function restoreSysSub(menu: MenuOut, sub: { link: string }) {
   if (menu.slug === 'job') {
     newOrder = [...current.map((i) => i.link), sub.link]
   } else {
-    const allSubs = SYSTEM_SUBS[menu.slug ?? ''] ?? []
+    const allSubs = systemSubsOf(menu)
     const defaultIdx = allSubs.findIndex((s) => s.link === sub.link)
     newOrder = [...current.map((i) => i.link)]
     newOrder.splice(Math.min(defaultIdx, newOrder.length), 0, sub.link)
@@ -568,24 +513,6 @@ async function onSysSubDragEnd(menu: MenuOut) {
   } catch {
     $q.notify({ type: 'negative', message: '순서 저장 실패' })
     await load()
-  }
-}
-
-async function toggleInternalVisible(menu: MenuOut) {
-  try {
-    await menuService.patch(menu.id, { is_internal_visible: !menu.isInternalVisible })
-    await load()
-  } catch {
-    $q.notify({ type: 'negative', message: '저장에 실패했습니다' })
-  }
-}
-
-async function toggleExternalVisible(menu: MenuOut) {
-  try {
-    await menuService.patch(menu.id, { is_external_visible: !menu.isExternalVisible })
-    await load()
-  } catch {
-    $q.notify({ type: 'negative', message: '저장에 실패했습니다' })
   }
 }
 

@@ -84,25 +84,41 @@
               <template v-if="localIssue && localIssue.type !== 'EPIC' && localIssue.type !== 'SUB_TASK'">
                 <q-separator class="q-mb-md" />
                 <div class="text-subtitle2 q-mb-sm">하위 작업 {{ subIssues.length ? `(${subIssues.length})` : '' }}</div>
-                <div class="column q-gutter-xs q-mb-sm">
-                  <div
-                    v-for="sub in subIssues" :key="sub.id"
-                    class="row items-center q-px-sm q-py-xs sub-task-row"
-                  >
-                    <q-checkbox
-                      :model-value="sub.status === 'DONE'"
-                      dense
-                      class="q-mr-xs"
-                      @update:model-value="toggleSubTaskDone(sub)"
-                    />
-                    <span
-                      class="text-body2 col cursor-pointer"
-                      :class="{ 'text-strike text-grey-5': sub.status === 'DONE' }"
-                      @click="drillDown(sub)"
-                    >{{ sub.title }}</span>
-                  </div>
-                  <div v-if="subIssues.length === 0 && !addingSubTask" class="text-grey-6 text-caption">하위 작업이 없습니다.</div>
-                </div>
+                <draggable
+                  v-model="subIssues"
+                  item-key="id"
+                  handle=".drag-handle"
+                  class="column q-gutter-xs q-mb-sm"
+                  @end="onSubTaskDragEnd"
+                >
+                  <template #item="{ element: sub }">
+                    <div class="row items-center q-px-sm q-py-xs sub-task-row no-wrap">
+                      <q-icon name="drag_indicator" class="drag-handle text-grey-4 q-mr-xs" size="16px" style="cursor:grab" />
+                      <q-checkbox
+                        :model-value="(sub as Issue).status === 'DONE'"
+                        dense
+                        class="q-mr-xs"
+                        @update:model-value="toggleSubTaskDone(sub as Issue)"
+                      />
+                      <span
+                        class="text-body2 col ellipsis cursor-pointer"
+                        :class="{ 'text-strike text-grey-5': (sub as Issue).status === 'DONE' }"
+                        @click="drillDown(sub as Issue)"
+                      >{{ (sub as Issue).title }}</span>
+                      <span v-if="(sub as Issue).startDate" class="text-caption text-grey-5 q-ml-sm" style="white-space:nowrap">
+                        {{ (sub as Issue).startDate!.slice(0, 10) }}
+                      </span>
+                      <q-avatar
+                        v-if="(sub as Issue).assigneeName"
+                        size="20px" color="primary" text-color="white"
+                        class="q-ml-sm text-caption" style="font-size:10px;flex-shrink:0"
+                      >{{ (sub as Issue).assigneeName![0] }}</q-avatar>
+                    </div>
+                  </template>
+                  <template #footer>
+                    <div v-if="subIssues.length === 0 && !addingSubTask" class="text-grey-6 text-caption q-px-sm">하위 작업이 없습니다.</div>
+                  </template>
+                </draggable>
 
                 <!-- 인라인 추가 폼 -->
                 <div v-if="addingSubTask" class="row q-gutter-sm items-center q-mb-md">
@@ -409,6 +425,7 @@
 import { ref, computed, watch, defineComponent, h, type PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import { QIcon, QBtn } from 'quasar'
+import draggable from 'vuedraggable'
 
 // 첨부파일 표시 인라인 컴포넌트
 const CommentAttachments = defineComponent({
@@ -651,7 +668,15 @@ async function loadIssueContent(issue: Issue) {
     ])
     comments.value = cmts
     history.value = hist
-    subIssues.value = subs.filter(s => s.type === 'SUB_TASK' && s.id !== issue.id)
+    subIssues.value = subs
+      .filter(s => s.type === 'SUB_TASK' && s.id !== issue.id)
+      .sort((a, b) => {
+        if (a.order !== b.order) return a.order - b.order
+        if (!a.startDate && !b.startDate) return 0
+        if (!a.startDate) return 1
+        if (!b.startDate) return -1
+        return a.startDate.localeCompare(b.startDate)
+      })
     sprints.value = sp
     labelsData.value = lbls
     members.value = mems
@@ -676,6 +701,12 @@ function goBack() {
   }
 }
 
+function onSubTaskDragEnd() {
+  subIssues.value.forEach((sub, idx) => {
+    void updateIssue(props.projectId, sub.id, { order: idx })
+  })
+}
+
 async function toggleSubTaskDone(sub: Issue) {
   const newStatus = sub.status === 'DONE' ? 'TODO' : 'DONE'
   try {
@@ -695,6 +726,7 @@ async function submitSubTask() {
       title: newSubTaskTitle.value.trim(),
       type: 'SUB_TASK',
       parent_issue_id: localIssue.value.id,
+      assignee_id: localIssue.value.assigneeId,
     })
     subIssues.value.push(created)
     newSubTaskTitle.value = ''

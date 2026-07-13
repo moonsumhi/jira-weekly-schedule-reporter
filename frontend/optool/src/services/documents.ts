@@ -55,7 +55,8 @@ export const documentService = {
     files.forEach((f) => formData.append('files', f))
     paths.forEach((p) => formData.append('paths', p))
     if (folderId) formData.append('target_folder_id', folderId)
-    const { data } = await api.post<{ uploaded: number }>('/documents/upload', formData)
+    // 대용량 파일(최대 4G) 업로드 시 기본 180초 타임아웃을 넘길 수 있어 넉넉하게 연장
+    const { data } = await api.post<{ uploaded: number }>('/documents/upload', formData, { timeout: 30 * 60 * 1000 })
     return data
   },
 
@@ -72,7 +73,7 @@ export const documentService = {
   async replaceFile(fileId: string, file: File): Promise<DocFile> {
     const formData = new FormData()
     formData.append('file', file)
-    const { data } = await api.post<DocFile>(`/documents/files/${fileId}/replace`, formData)
+    const { data } = await api.post<DocFile>(`/documents/files/${fileId}/replace`, formData, { timeout: 30 * 60 * 1000 })
     return data
   },
 

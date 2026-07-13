@@ -50,4 +50,26 @@ async def get_work_status(
     }
 
     docs = await issues_col.find(query).sort([("assignee_id", 1), ("status", 1), ("order", 1)]).to_list(None)
-    return [await enrich_issue(d) for d in docs]
+
+    # 하위작업이 있는 TASK는 TASK 대신 하위작업들을 반환
+    task_oids = [d["_id"] for d in docs if d.get("type") == "TASK"]
+    all_subtask_docs: list = []
+    tasks_with_subtasks: set = set()
+    if task_oids:
+        sub_docs = await issues_col.find(
+            {"type": "SUB_TASK", "parent_issue_id": {"$in": task_oids}}
+        ).to_list(None)
+        all_subtask_docs = sub_docs
+        tasks_with_subtasks = {str(d["parent_issue_id"]) for d in sub_docs}
+
+    subtask_ids_from_fetch = {str(d["_id"]) for d in all_subtask_docs}
+    result_docs = []
+    for d in docs:
+        if d.get("type") == "TASK" and str(d["_id"]) in tasks_with_subtasks:
+            continue  # 하위작업이 있는 TASK 제외
+        if d.get("type") == "SUB_TASK" and str(d["_id"]) in subtask_ids_from_fetch:
+            continue  # 이미 아래에서 일괄 추가
+        result_docs.append(d)
+    result_docs.extend(all_subtask_docs)
+
+    return [await enrich_issue(d) for d in result_docs]

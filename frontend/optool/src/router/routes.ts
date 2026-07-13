@@ -206,6 +206,11 @@ const routes: RouteRecordRaw[] = [
             component: () => import('pages/pm/WeeklyReportPage.vue')
           },
           {
+            path: 'weekly-report/:id',
+            meta: { requiresAdmin: true },
+            component: () => import('pages/pm/WeeklyReportDetailPage.vue')
+          },
+          {
             path: 'monthly-report',
             meta: { requiresAdmin: true },
             component: () => import('pages/pm/MonthlyReportPage.vue')
@@ -261,6 +266,12 @@ const routes: RouteRecordRaw[] = [
         ]
       }
     ]
+  },
+
+  {
+    path: '/pm/weekly-report/:id/print',
+    meta: { requiresAuth: true },
+    component: () => import('pages/pm/WeeklyReportPrintPage.vue')
   },
 
   {

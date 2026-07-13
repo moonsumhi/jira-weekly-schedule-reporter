@@ -80,6 +80,7 @@
             <div class="text-caption text-grey-6">{{ detailServer.serverOs }} · {{ detailServer.ip }}</div>
           </div>
           <q-space />
+          <q-btn flat dense no-caps icon="show_chart" label="추이 현황" color="primary" class="q-mr-sm" @click="openTrend(detailServer.hostName)" />
           <q-btn flat round dense icon="close" v-close-popup />
         </q-card-section>
 
@@ -217,6 +218,30 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- 추이 현황 다이얼로그 -->
+    <q-dialog v-model="trendDialog" :maximized="trendMaximized">
+      <q-card :style="trendMaximized ? '' : 'min-width:640px; max-width:90vw'">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">RAM / Disk 월별 추이 — {{ trendHostName }}</div>
+          <q-space />
+          <q-btn
+            flat round dense
+            :icon="trendMaximized ? 'fullscreen_exit' : 'fullscreen'"
+            @click="trendMaximized = !trendMaximized"
+          >
+            <q-tooltip>{{ trendMaximized ? '원래 크기로' : '전체 보기' }}</q-tooltip>
+          </q-btn>
+          <q-btn flat round dense icon="close" v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <div v-if="trendLoading" class="text-center q-pa-lg">
+            <q-spinner size="32px" />
+          </div>
+          <HealthTrendChart v-else :points="trendPoints" :large="trendMaximized" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -224,6 +249,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { api } from 'boot/axios'
 import HealthActionPanel from './HealthActionPanel.vue'
+import HealthTrendChart, { type TrendPoint } from './HealthTrendChart.vue'
 
 interface PerfItem {
   beforeVal: string
@@ -334,6 +360,36 @@ const detailServer = ref<ServerDetail | null>(null)
 function openDetail(s: ServerDetail) {
   detailServer.value = s
   detailDialog.value = true
+}
+
+// ── 추이 현황 다이얼로그 ────────────────────────────────────────────────────────
+
+interface HistoryPointRes {
+  reportDate: string
+  cpuPct: number
+  ramPct: number
+  diskPct: number
+}
+
+const trendDialog = ref(false)
+const trendMaximized = ref(false)
+const trendLoading = ref(false)
+const trendHostName = ref('')
+const trendPoints = ref<TrendPoint[]>([])
+
+async function openTrend(hostName: string) {
+  trendHostName.value = hostName
+  trendDialog.value = true
+  trendMaximized.value = false
+  trendLoading.value = true
+  try {
+    const res = await api.get<HistoryPointRes[]>(`/health-reports/history/${encodeURIComponent(hostName)}`)
+    trendPoints.value = res.data.map((p) => ({ label: p.reportDate, cpu: p.cpuPct, ram: p.ramPct, disk: p.diskPct }))
+  } catch {
+    trendPoints.value = []
+  } finally {
+    trendLoading.value = false
+  }
 }
 
 function parsePercent(val: string): number {

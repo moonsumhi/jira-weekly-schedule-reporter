@@ -62,6 +62,15 @@ export const PRIORITY_COLOR: Record<IssuePriority, string> = {
   LOWEST: 'grey-4',
 }
 
+export type SubtaskSummary = {
+  id: string
+  number: number
+  title: string
+  status: IssueStatus
+  priority: IssuePriority
+  assigneeName: string | null
+}
+
 export type Issue = {
   id: string
   projectId: string
@@ -88,6 +97,7 @@ export type Issue = {
   attachments: { fileId: string; originalName: string; url: string; size: number; contentType: string }[]
   order: number
   linkedSrId: string | null
+  subtasks: SubtaskSummary[]
   createdAt: string
   updatedAt: string
 }

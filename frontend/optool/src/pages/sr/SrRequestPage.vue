@@ -5,14 +5,14 @@
       <q-btn flat dense round icon="arrow_back" class="q-mr-xs" @click="$router.back()" />
       <div>
         <div class="text-h6 text-weight-bold">{{ editId ? 'SR 수정' : 'SR 접수' }}</div>
-        <div class="text-caption text-grey-5">{{ editId ? '추가 확인 요청에 대한 내용을 수정합니다.' : '데이터운영팀에 업무 요청을 접수합니다.' }}</div>
+        <div class="text-caption text-grey-5">{{ editId ? 'SR 내용을 수정합니다.' : '데이터운영팀에 업무 요청을 접수합니다.' }}</div>
       </div>
     </div>
 
     <!-- 수정 모드 안내 배너 -->
     <q-banner v-if="editId" inline-actions rounded class="bg-amber-1 q-mb-md">
       <template #avatar><q-icon name="edit" color="amber-8" size="22px" /></template>
-      <div class="text-weight-medium text-amber-9">추가 확인 요청 상태의 SR을 수정하고 있습니다.</div>
+      <div class="text-weight-medium text-amber-9">SR을 수정하고 있습니다.</div>
       <div class="text-caption text-amber-7 q-mt-xs">수정 후 저장하면 변경 이력이 자동으로 기록됩니다.</div>
     </q-banner>
 

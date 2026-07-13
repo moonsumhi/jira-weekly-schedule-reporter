@@ -59,9 +59,14 @@
             </div>
           </q-td>
         </template>
+        <template #body-cell-status="props">
+          <q-td :props="props">
+            <q-badge :color="REPORT_STATUS_COLOR[props.row.status] ?? 'grey'" :label="REPORT_STATUS_KO[props.row.status] ?? props.row.status" />
+          </q-td>
+        </template>
         <template #body-cell-actions="props">
           <q-td :props="props" class="q-gutter-xs">
-            <q-btn flat dense icon="visibility" size="sm" color="primary" @click="openDetail(props.row)" />
+            <q-btn flat dense icon="open_in_new" size="sm" color="primary" title="상세 보기" @click="openDetail(props.row)" />
             <q-btn flat dense icon="edit" size="sm" color="grey-7" @click="openEdit(props.row)" />
             <q-btn flat dense icon="refresh" size="sm" color="teal" title="이슈 재집계"
               :loading="refreshingId === props.row.id" @click="doRefresh(props.row)" />
@@ -131,214 +136,32 @@
       </q-card>
     </q-dialog>
 
-    <!-- 상세 다이얼로그 -->
-    <q-dialog v-model="detailDialog.open" full-width>
-      <q-card v-if="detailDialog.report" style="max-width:1100px;width:100%">
-        <q-card-section class="row items-start no-wrap q-pb-none">
-          <div class="col">
-            <div class="text-h6 text-weight-bold">{{ detailDialog.report.title }}</div>
-            <div class="text-caption text-grey-6">
-              {{ detailDialog.report.reportYear }}년 {{ detailDialog.report.reportWeek }}주차
-              · {{ detailDialog.report.startDate?.slice(0,10) }} ~ {{ detailDialog.report.endDate?.slice(0,10) }}
-              <span v-if="detailDialog.report.department"> · {{ detailDialog.report.department }}</span>
-            </div>
-          </div>
-          <q-btn flat round dense icon="close" @click="detailDialog.open = false" />
-        </q-card-section>
-
-        <!-- 전체 통계 -->
-        <q-card-section class="q-pt-sm q-pb-none">
-          <div class="row q-col-gutter-sm">
-            <div v-for="card in overallCards(detailDialog.report.stats)" :key="card.label" class="col-auto">
-              <q-card flat bordered class="text-center q-pa-sm" style="min-width:88px">
-                <div class="text-h5 text-weight-bold" :class="card.color">{{ card.value }}</div>
-                <div class="text-caption text-grey-6">{{ card.label }}</div>
-              </q-card>
-            </div>
-          </div>
-        </q-card-section>
-
-        <q-separator class="q-mt-md" />
-
-        <q-tabs v-model="detailTab" dense align="left" class="q-px-md">
-          <q-tab name="project" label="프로젝트별" />
-          <q-tab name="person"  label="개인별" />
-          <q-tab name="all"     label="전체 업무" />
-          <q-tab v-if="detailDialog.report.upcomingItems.length" name="upcoming" label="차주 계획" />
-        </q-tabs>
-        <q-separator />
-
-        <q-card-section style="max-height:55vh;overflow-y:auto" class="q-pa-md">
-          <q-tab-panels v-model="detailTab" animated>
-
-            <!-- 프로젝트별 -->
-            <q-tab-panel name="project" class="q-pa-none">
-              <div v-if="!detailDialog.report.byProject.length" class="text-grey-5 text-center q-pa-lg">
-                집계된 업무가 없습니다.
-              </div>
-              <q-expansion-item v-for="(pb, i) in detailDialog.report.byProject" :key="pb.projectId"
-                default-opened :label="pb.projectName"
-                :caption="`${pb.orgName ?? ''} · 완료 ${pb.stats.completed}/${pb.stats.total} · ${pb.stats.completionRate}%`"
-                class="q-mb-sm" :header-class="`${headerBg(i)} ${headerText(i)} text-weight-bold`">
-                <q-card flat>
-                  <q-card-section class="q-pa-sm">
-                    <template v-for="sec in breakdown(pb)" :key="sec.label">
-                      <div v-if="sec.items.length" class="q-mb-sm">
-                        <div class="text-caption text-weight-bold q-mb-xs" :class="`text-${sec.color}`">{{ sec.label }}</div>
-                        <div v-for="item in sec.items" :key="item.issueId"
-                          class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders">
-                          <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
-                          <span class="text-body2 col ellipsis">{{ item.title }}</span>
-                          <span v-if="item.assigneeName" class="text-caption text-grey-7">{{ item.assigneeName }}</span>
-                          <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
-                          <q-badge :color="item.isDelayed ? 'negative' : 'grey-5'" :label="STATUS_KO[item.status] ?? item.status" />
-                          <span v-if="item.dueDate" class="text-caption text-grey-6">{{ item.dueDate.slice(0,10) }}</span>
-                        </div>
-                      </div>
-                    </template>
-                    <div v-if="!pb.completed.length && !pb.inProgress.length && !pb.delayed.length"
-                      class="text-grey-5 text-caption">업무 없음</div>
-                  </q-card-section>
-                </q-card>
-              </q-expansion-item>
-            </q-tab-panel>
-
-            <!-- 개인별 -->
-            <q-tab-panel name="person" class="q-pa-none">
-              <div v-if="!detailDialog.report.byPerson.length" class="text-grey-5 text-center q-pa-lg">
-                집계된 업무가 없습니다.
-              </div>
-              <q-expansion-item v-for="(pb, i) in detailDialog.report.byPerson" :key="pb.userId"
-                default-opened :label="pb.userName"
-                :caption="pb.stats.total ? `완료 ${pb.stats.completed}/${pb.stats.total} · ${pb.stats.completionRate}%` : '이번 주 업무 없음'"
-                class="q-mb-sm" :header-class="`${headerBg(i)} ${headerText(i)} text-weight-bold`">
-                <q-card flat>
-                  <q-card-section class="q-pa-sm">
-                    <template v-for="sec in breakdown(pb)" :key="sec.label">
-                      <div class="q-mb-sm">
-                        <div class="text-caption text-weight-bold q-mb-xs" :class="`text-${sec.color}`">{{ sec.label }}</div>
-                        <div v-if="sec.items.length">
-                          <div v-for="item in sec.items" :key="item.issueId"
-                            class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders">
-                            <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
-                            <span class="text-body2 col ellipsis">{{ item.title }}</span>
-                            <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
-                            <q-badge :color="item.isDelayed ? 'negative' : 'grey-5'" :label="STATUS_KO[item.status] ?? item.status" />
-                            <span v-if="item.dueDate" class="text-caption text-grey-6">{{ item.dueDate.slice(0,10) }}</span>
-                          </div>
-                        </div>
-                        <div v-else class="text-caption text-grey-5 q-pl-sm">없음</div>
-                      </div>
-                    </template>
-                  </q-card-section>
-                </q-card>
-              </q-expansion-item>
-            </q-tab-panel>
-
-            <!-- 전체 업무 -->
-            <q-tab-panel name="all" class="q-pa-none">
-              <div v-if="!detailDialog.report.allItems.length" class="text-grey-5 text-center q-pa-lg">업무 없음</div>
-              <q-table v-else :rows="detailDialog.report.allItems" :columns="workItemCols"
-                flat dense row-key="issueId" :pagination="{ rowsPerPage: 20 }" no-data-label="업무 없음">
-                <template #body-cell-num="props">
-                  <q-td :props="props" class="text-caption text-grey-6">
-                    {{ props.row.projectName }}-{{ props.row.issueNumber }}
-                  </q-td>
-                </template>
-                <template #body-cell-priority="props">
-                  <q-td :props="props">
-                    <q-badge :color="PRIORITY_COLOR[props.row.priority]" :label="PRIORITY_KO[props.row.priority]" />
-                  </q-td>
-                </template>
-                <template #body-cell-status="props">
-                  <q-td :props="props">
-                    <q-badge :color="props.row.isDelayed ? 'negative' : 'grey-5'"
-                      :label="STATUS_KO[props.row.status] ?? props.row.status" />
-                  </q-td>
-                </template>
-              </q-table>
-            </q-tab-panel>
-
-            <!-- 차주 계획 -->
-            <q-tab-panel name="upcoming" class="q-pa-none">
-              <div v-if="!detailDialog.report.upcomingItems.length" class="text-grey-5 text-center q-pa-lg">업무 없음</div>
-              <q-table v-else :rows="detailDialog.report.upcomingItems" :columns="workItemCols"
-                flat dense row-key="issueId" :pagination="{ rowsPerPage: 20 }" no-data-label="업무 없음">
-                <template #body-cell-num="props">
-                  <q-td :props="props" class="text-caption text-grey-6">
-                    {{ props.row.projectName }}-{{ props.row.issueNumber }}
-                  </q-td>
-                </template>
-                <template #body-cell-priority="props">
-                  <q-td :props="props">
-                    <q-badge :color="PRIORITY_COLOR[props.row.priority]" :label="PRIORITY_KO[props.row.priority]" />
-                  </q-td>
-                </template>
-                <template #body-cell-status="props">
-                  <q-td :props="props">
-                    <q-badge :color="props.row.isDelayed ? 'negative' : 'grey-5'"
-                      :label="STATUS_KO[props.row.status] ?? props.row.status" />
-                  </q-td>
-                </template>
-              </q-table>
-            </q-tab-panel>
-
-          </q-tab-panels>
-
-          <!-- 관리자 코멘트 -->
-          <div v-if="detailDialog.report.adminComment" class="q-mt-md">
-            <q-separator class="q-mb-md" />
-            <div class="text-subtitle2 text-weight-bold q-mb-xs">관리자 코멘트</div>
-            <div class="text-body2 q-pa-sm bg-grey-1 rounded-borders" style="white-space:pre-wrap">
-              {{ detailDialog.report.adminComment }}
-            </div>
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right" class="q-pa-md">
-          <q-btn flat icon="download" label="Excel" color="positive" no-caps @click="downloadDetail(detailDialog.report!.id)" />
-          <q-btn flat label="닫기" no-caps @click="detailDialog.open = false" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Notify, Dialog } from 'quasar'
 import { api } from 'boot/axios'
 import {
   listWeeklyReports, createWeeklyReport, updateWeeklyReport,
   deleteWeeklyReport, refreshWeeklyReport,
   type WeeklyReport, type WeeklyReportCreate,
-  type ReportStats, type WorkItem, type ProjectBreakdown, type PersonBreakdown,
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 
-// ── 색상 팔레트 ───────────────────────────────────────────────────────
-const PALETTE = ['blue', 'teal', 'purple', 'orange', 'green', 'deep-orange', 'indigo', 'cyan', 'pink', 'amber']
-function headerBg(index: number) { return `bg-${PALETTE[index % PALETTE.length]}-1` }
-function headerText(index: number) { return `text-${PALETTE[index % PALETTE.length]}-9` }
+const router = useRouter()
 
-// ── 레이블 맵 ─────────────────────────────────────────────────────────
-const STATUS_KO: Record<string, string> = {
-  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중', DONE: '완료',
-}
-const PRIORITY_KO: Record<string, string> = {
-  LOWEST: '최하', LOW: '낮음', MEDIUM: '중간', HIGH: '높음', HIGHEST: '최고',
-}
-const PRIORITY_COLOR: Record<string, string> = {
-  LOWEST: 'grey', LOW: 'blue-grey', MEDIUM: 'orange', HIGH: 'deep-orange', HIGHEST: 'red',
-}
+// ── 보고서 상태 ────────────────────────────────────────────────────────
+const REPORT_STATUS_KO: Record<string, string> = { DRAFT: '초안', REVIEWING: '검토중', CONFIRMED: '확정' }
+const REPORT_STATUS_COLOR: Record<string, string> = { DRAFT: 'grey-6', REVIEWING: 'orange', CONFIRMED: 'positive' }
 
 // ── 상태 ──────────────────────────────────────────────────────────────
 const now = new Date()
 const reports = ref<WeeklyReport[]>([])
 const loading = ref(false)
 const refreshingId = ref<string | null>(null)
-const detailTab = ref('project')
 
 const filter = ref<{ year: number | null; week: number | null }>({
   year: now.getFullYear(), week: null,
@@ -352,42 +175,12 @@ const columns = [
   { name: 'week',    label: '주차',      field: (r: WeeklyReport) => `${r.reportYear}년 ${r.reportWeek}주차`, align: 'left'   as const, sortable: true },
   { name: 'period',  label: '기간',      field: 'startDate',  align: 'left'   as const },
   { name: 'title',   label: '제목',      field: 'title',      align: 'left'   as const, sortable: true },
+  { name: 'status',  label: '상태',      field: 'status',     align: 'center' as const },
   { name: 'stats',   label: '업무 현황', field: 'stats',      align: 'left'   as const },
   { name: 'rate',    label: '완료율',    field: (r: WeeklyReport) => r.stats.completionRate, align: 'left' as const, sortable: true },
   { name: 'createdByName', label: '작성자', field: 'createdByName', align: 'left' as const },
   { name: 'actions', label: '',          field: 'id',         align: 'center' as const },
 ]
-
-const workItemCols = [
-  { name: 'num',      label: '번호',    field: 'issueNumber', align: 'left'   as const },
-  { name: 'title',    label: '업무명',  field: 'title',       align: 'left'   as const },
-  { name: 'epic',     label: '에픽',    field: 'epicTitle',   align: 'left'   as const },
-  { name: 'sprint',   label: '스프린트',field: 'sprintName',  align: 'left'   as const },
-  { name: 'assignee', label: '담당자',  field: 'assigneeName',align: 'left'   as const },
-  { name: 'priority', label: '우선순위',field: 'priority',    align: 'center' as const },
-  { name: 'status',   label: '상태',    field: 'status',      align: 'center' as const },
-  { name: 'due',      label: '마감일',  field: (r: WorkItem) => r.dueDate?.slice(0,10) ?? '', align: 'center' as const },
-  { name: 'sp',       label: 'SP',      field: 'storyPoints', align: 'center' as const },
-]
-
-function overallCards(stats: ReportStats) {
-  return [
-    { label: '총 업무', value: stats.total,          color: 'text-grey-8'   },
-    { label: '완료',    value: stats.completed,      color: 'text-positive' },
-    { label: '진행 중', value: stats.inProgress,     color: 'text-primary'  },
-    { label: '지연',    value: stats.delayed,        color: 'text-negative' },
-    { label: '완료율',  value: `${stats.completionRate}%`, color: 'text-teal' },
-  ]
-}
-
-function breakdown(pb: ProjectBreakdown | PersonBreakdown) {
-  return [
-    { label: '✅ 완료',     items: pb.completed,  color: 'positive' },
-    { label: '🔄 진행 중',  items: pb.inProgress, color: 'primary'  },
-    { label: '⚠ 지연',      items: pb.delayed,    color: 'negative' },
-    { label: '📌 차주 계획', items: pb.upcoming,   color: 'grey-7'   },
-  ]
-}
 
 // ── 주차 → 날짜 범위 계산 (ISO 8601) ─────────────────────────────────
 function weekToDateRange(year: number, week: number): { start: string; end: string } {
@@ -496,10 +289,6 @@ async function doRefresh(r: WeeklyReport) {
     await refreshWeeklyReport(r.id)
     Notify.create({ type: 'positive', message: '이슈 데이터를 재집계했습니다.' })
     await load()
-    if (detailDialog.value.open && detailDialog.value.report?.id === r.id) {
-      const updated = reports.value.find(x => x.id === r.id)
-      if (updated) detailDialog.value.report = updated
-    }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '재집계 실패') })
   } finally {
@@ -508,11 +297,8 @@ async function doRefresh(r: WeeklyReport) {
 }
 
 // ── 상세 ──────────────────────────────────────────────────────────────
-const detailDialog = ref<{ open: boolean; report: WeeklyReport | null }>({ open: false, report: null })
-
 function openDetail(r: WeeklyReport) {
-  detailTab.value = 'project'
-  detailDialog.value = { open: true, report: r }
+  void router.push(`/pm/weekly-report/${r.id}`)
 }
 
 // ── 삭제 ──────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 # ── 타입 정의 ─────────────────────────────────────────────────────────
 
@@ -182,9 +182,15 @@ class SRStatusChange(BaseModel):
 
 
 class SRComment(BaseModel):
-    content: str = Field(..., min_length=1)
+    content: str = Field(default="")
     is_internal: bool = False
     attachments: List[SRAttachment] = []
+
+    @model_validator(mode="after")
+    def content_or_attachments_required(self) -> "SRComment":
+        if not self.content.strip() and not self.attachments:
+            raise ValueError("댓글 내용 또는 첨부파일이 필요합니다.")
+        return self
 
 
 # ── 출력 모델 ─────────────────────────────────────────────────────────

@@ -11,14 +11,17 @@ from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.pm.reports import (
     WeeklyReportCreate, WeeklyReportPatch, WeeklyReportOut,
+    WeeklyReportStatusPatch, ManualItemCreate, ManualItemPatch, ManualItemOut,
     ProjectBreakdown, PersonBreakdown, WorkItem, ReportStats,
+    SrItem, SrSummary,
 )
+from app.models.sr.service_request import SR_STATUS_LABEL, REQUEST_TYPE_LABEL
 from app.routers.auth import get_current_user
 from app.routers.pm.report_agg import aggregate_period
 
 router = APIRouter()
 
-STATUS_KO       = {"DRAFT": "초안", "PUBLISHED": "게시됨", "ARCHIVED": "보관됨"}
+STATUS_KO       = {"DRAFT": "초안", "REVIEWING": "검토중", "CONFIRMED": "확정", "PUBLISHED": "게시됨", "ARCHIVED": "보관됨"}
 PRIORITY_KO     = {"LOWEST": "최하", "LOW": "낮음", "MEDIUM": "중간", "HIGH": "높음", "HIGHEST": "최고"}
 STATUS_ISSUE_KO = {
     "BACKLOG": "백로그", "TODO": "할 일",
@@ -44,6 +47,36 @@ def _parse_items(raw: list) -> list[WorkItem]:
     return [WorkItem(**i) for i in raw]
 
 
+def _parse_manual_items(raw: list) -> list[ManualItemOut]:
+    result = []
+    for item in raw:
+        result.append(ManualItemOut(
+            id=str(item["_id"]),
+            section=item.get("section", ""),
+            title=item.get("title", ""),
+            owner=item.get("owner"),
+            linked_sr_id=item.get("linked_sr_id"),
+            linked_issue_id=item.get("linked_issue_id"),
+            include_in_report=item.get("include_in_report", True),
+            sort_order=item.get("sort_order", 0),
+            category=item.get("category"),
+            content=item.get("content"),
+            agenda_status=item.get("agenda_status"),
+            item_type=item.get("item_type"),
+            impact=item.get("impact"),
+            action_plan=item.get("action_plan"),
+            background=item.get("background"),
+            options=item.get("options"),
+            requested_decision=item.get("requested_decision"),
+            desired_date=item.get("desired_date"),
+            created_by=str(item["created_by"]),
+            created_at=item["created_at"],
+            updated_by=str(item["updated_by"]) if item.get("updated_by") else None,
+            updated_at=item["updated_at"],
+        ))
+    return result
+
+
 def _parse_breakdown(raw: list, cls):
     result = []
     for d in raw:
@@ -56,6 +89,82 @@ def _parse_breakdown(raw: list, cls):
     return result
 
 
+OPEN_STATUSES = {"SUBMITTED", "REVIEWING", "PENDING_INFO", "APPROVED", "ASSIGNED", "IN_PROGRESS", "CONFIRMING", "ON_HOLD"}
+DONE_STATUSES = {"COMPLETED", "CLOSED"}
+
+
+def _sr_doc_to_item(d: dict) -> SrItem:
+    return SrItem(
+        sr_no=d.get("sr_no", ""),
+        title=d.get("title", ""),
+        status=d.get("status", ""),
+        status_label=SR_STATUS_LABEL.get(d.get("status", ""), d.get("status", "")),
+        request_type=d.get("request_type", ""),
+        request_type_label=REQUEST_TYPE_LABEL.get(d.get("request_type", ""), d.get("request_type", "")),
+        requester_name=d.get("requester_name", ""),
+        requester_department=d.get("requester_department", ""),
+        assignee_name=d.get("assignee_name"),
+        is_urgent=d.get("is_urgent", False),
+        desired_due_date=d.get("desired_due_date"),
+        created_at=d["created_at"],
+    )
+
+
+async def _aggregate_sr(start_date: datetime, end_date: datetime) -> SrSummary:
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    end_inclusive = end_date.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+    start_utc = start_date.replace(tzinfo=timezone.utc) if start_date.tzinfo is None else start_date
+
+    # 이번 주 신규 접수 (DRAFT 제외)
+    new_docs = await col.find({
+        "created_at": {"$gte": start_utc, "$lte": end_inclusive},
+        "status": {"$ne": "DRAFT"},
+        "deleted_at": None,
+    }).sort("created_at", 1).to_list(None)
+
+    # 이번 주 완료 처리
+    completed_docs = await col.find({
+        "$or": [
+            {"actual_completed_at": {"$gte": start_utc, "$lte": end_inclusive}},
+            {
+                "status": {"$in": list(DONE_STATUSES)},
+                "updated_at": {"$gte": start_utc, "$lte": end_inclusive},
+                "actual_completed_at": None,
+            },
+        ],
+        "deleted_at": None,
+    }).sort("updated_at", -1).to_list(None)
+
+    # 미접수 (SUBMITTED 상태 = 접수됐지만 검토 미시작)
+    pending_docs = await col.find({
+        "status": "SUBMITTED",
+        "deleted_at": None,
+    }).sort("created_at", 1).to_list(None)
+
+    # 처리 중 전체 (완료·취소·임시저장 제외)
+    open_docs = await col.find({
+        "status": {"$in": list(OPEN_STATUSES)},
+        "deleted_at": None,
+    }).sort("created_at", 1).to_list(None)
+
+    # 상태별 카운트 (전체 비완료·비취소)
+    by_status: dict[str, int] = {}
+    for d in open_docs:
+        lbl = SR_STATUS_LABEL.get(d.get("status", ""), d.get("status", ""))
+        by_status[lbl] = by_status.get(lbl, 0) + 1
+
+    return SrSummary(
+        new_this_week=[_sr_doc_to_item(d) for d in new_docs],
+        completed_this_week=[_sr_doc_to_item(d) for d in completed_docs],
+        pending_items=[_sr_doc_to_item(d) for d in pending_docs],
+        open_items=[_sr_doc_to_item(d) for d in open_docs],
+        by_status=by_status,
+        total_open=len(open_docs),
+        total_new=len(new_docs),
+        total_completed=len(completed_docs),
+    )
+
+
 def _doc_to_out(doc: dict) -> WeeklyReportOut:
     return WeeklyReportOut(
         id=str(doc["_id"]),
@@ -65,11 +174,14 @@ def _doc_to_out(doc: dict) -> WeeklyReportOut:
         end_date=doc["end_date"],
         title=doc["title"],
         department=doc.get("department"),
+        status=doc.get("status", "DRAFT"),
         by_project=_parse_breakdown(doc.get("by_project", []), ProjectBreakdown),
         by_person=_parse_breakdown(doc.get("by_person", []), PersonBreakdown),
         all_items=_parse_items(doc.get("all_items", [])),
         upcoming_items=_parse_items(doc.get("upcoming_items", [])),
         stats=ReportStats(**doc["stats"]) if doc.get("stats") else ReportStats(),
+        manual_items=_parse_manual_items(doc.get("manual_items", [])),
+        sr_summary=SrSummary(**doc["sr_summary"]) if doc.get("sr_summary") else None,
         admin_comment=doc.get("admin_comment"),
         created_by=str(doc["created_by"]),
         created_by_name=None,
@@ -77,6 +189,8 @@ def _doc_to_out(doc: dict) -> WeeklyReportOut:
         updated_by=str(doc["updated_by"]) if doc.get("updated_by") else None,
         updated_by_name=None,
         updated_at=doc["updated_at"],
+        confirmed_by=str(doc["confirmed_by"]) if doc.get("confirmed_by") else None,
+        confirmed_at=doc.get("confirmed_at"),
     )
 
 
@@ -237,6 +351,7 @@ async def create_weekly_report(
     all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
         body.start_date, body.end_date, ns, ne
     )
+    sr_summary = await _aggregate_sr(body.start_date, body.end_date)
 
     result = await col.insert_one({
         "report_year":    body.report_year,
@@ -245,17 +360,22 @@ async def create_weekly_report(
         "end_date":       body.end_date,
         "title":          body.title,
         "department":     body.department,
+        "status":         "DRAFT",
         "by_project":     [p.model_dump() for p in by_project],
         "by_person":      [p.model_dump() for p in by_person],
         "all_items":      [i.model_dump() for i in all_items],
         "upcoming_items": [i.model_dump() for i in upcoming_items],
         "stats":          stats.model_dump(),
+        "manual_items":   [],
+        "sr_summary":     sr_summary.model_dump(),
         "admin_comment":  body.admin_comment,
         "created_by":     ObjectId(current_user.id),
         "updated_by":     None,
         "created_at":     now,
         "updated_at":     now,
         "deleted_at":     None,
+        "confirmed_by":   None,
+        "confirmed_at":   None,
     })
     doc = await col.find_one({"_id": result.inserted_id})
     return await _enrich(_doc_to_out(doc), doc)
@@ -299,6 +419,7 @@ async def refresh_weekly_report(
     all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
         doc["start_date"], doc["end_date"], ns, ne
     )
+    sr_summary = await _aggregate_sr(doc["start_date"], doc["end_date"])
     updated = await col.find_one_and_update(
         {"_id": ObjectId(report_id)},
         {"$set": {
@@ -307,12 +428,256 @@ async def refresh_weekly_report(
             "all_items":      [i.model_dump() for i in all_items],
             "upcoming_items": [i.model_dump() for i in upcoming_items],
             "stats":          stats.model_dump(),
+            "sr_summary":     sr_summary.model_dump(),
             "updated_by":     ObjectId(current_user.id),
             "updated_at":     datetime.now(timezone.utc),
         }},
         return_document=True,
     )
     return await _enrich(_doc_to_out(updated), updated)
+
+
+# ════════════════════════════════════════════════════════════════════
+# 상태 관리
+# ════════════════════════════════════════════════════════════════════
+
+@router.patch("/{report_id}/status", response_model=WeeklyReportOut)
+async def change_report_status(
+    report_id: str,
+    body: WeeklyReportStatusPatch,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    allowed = {"DRAFT", "REVIEWING", "CONFIRMED"}
+    if body.status not in allowed:
+        raise HTTPException(status_code=400, detail=f"유효하지 않은 상태값입니다. ({', '.join(allowed)})")
+    col = MongoClientManager.get_pm_weekly_reports_collection()
+    doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
+    if not doc:
+        raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+
+    now = datetime.now(timezone.utc)
+    update: dict = {"status": body.status, "updated_by": ObjectId(current_user.id), "updated_at": now}
+    if body.status == "CONFIRMED":
+        update["confirmed_by"] = ObjectId(current_user.id)
+        update["confirmed_at"] = now
+    elif body.status != "CONFIRMED":
+        # 확정 해제 시 초기화
+        update["confirmed_by"] = None
+        update["confirmed_at"] = None
+
+    updated = await col.find_one_and_update(
+        {"_id": ObjectId(report_id)}, {"$set": update}, return_document=True
+    )
+    return await _enrich(_doc_to_out(updated), updated)
+
+
+# ════════════════════════════════════════════════════════════════════
+# 수기 항목 CRUD
+# ════════════════════════════════════════════════════════════════════
+
+@router.post("/{report_id}/items", response_model=WeeklyReportOut, status_code=201)
+async def add_manual_item(
+    report_id: str,
+    body: ManualItemCreate,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    col = MongoClientManager.get_pm_weekly_reports_collection()
+    doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
+    if not doc:
+        raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    if doc.get("status") == "CONFIRMED":
+        raise HTTPException(status_code=403, detail="확정된 보고서는 수정할 수 없습니다.")
+
+    now = datetime.now(timezone.utc)
+    item_data = body.model_dump(exclude_none=True)
+    item_data["_id"] = ObjectId()
+    item_data["created_by"] = ObjectId(current_user.id)
+    item_data["created_at"] = now
+    item_data["updated_by"] = None
+    item_data["updated_at"] = now
+
+    updated = await col.find_one_and_update(
+        {"_id": ObjectId(report_id)},
+        {
+            "$push": {"manual_items": item_data},
+            "$set": {"updated_at": now, "updated_by": ObjectId(current_user.id)},
+        },
+        return_document=True,
+    )
+    return await _enrich(_doc_to_out(updated), updated)
+
+
+@router.patch("/{report_id}/items/{item_id}", response_model=WeeklyReportOut)
+async def update_manual_item(
+    report_id: str,
+    item_id: str,
+    body: ManualItemPatch,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    col = MongoClientManager.get_pm_weekly_reports_collection()
+    doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
+    if not doc:
+        raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    if doc.get("status") == "CONFIRMED":
+        raise HTTPException(status_code=403, detail="확정된 보고서는 수정할 수 없습니다.")
+
+    now = datetime.now(timezone.utc)
+    patch = body.model_dump(exclude_unset=True)
+    patch["updated_by"] = ObjectId(current_user.id)
+    patch["updated_at"] = now
+
+    set_fields: dict = {f"manual_items.$[item].{k}": v for k, v in patch.items()}
+    set_fields["updated_at"] = now
+    set_fields["updated_by"] = ObjectId(current_user.id)
+
+    updated = await col.find_one_and_update(
+        {"_id": ObjectId(report_id)},
+        {"$set": set_fields},
+        array_filters=[{"item._id": ObjectId(item_id)}],
+        return_document=True,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
+    return await _enrich(_doc_to_out(updated), updated)
+
+
+@router.delete("/{report_id}/items/{item_id}", response_model=WeeklyReportOut)
+async def delete_manual_item(
+    report_id: str,
+    item_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    col = MongoClientManager.get_pm_weekly_reports_collection()
+    doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
+    if not doc:
+        raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    if doc.get("status") == "CONFIRMED":
+        raise HTTPException(status_code=403, detail="확정된 보고서는 수정할 수 없습니다.")
+
+    now = datetime.now(timezone.utc)
+    updated = await col.find_one_and_update(
+        {"_id": ObjectId(report_id)},
+        {
+            "$pull": {"manual_items": {"_id": ObjectId(item_id)}},
+            "$set": {"updated_at": now, "updated_by": ObjectId(current_user.id)},
+        },
+        return_document=True,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    return await _enrich(_doc_to_out(updated), updated)
+
+
+# ════════════════════════════════════════════════════════════════════
+# 보고서 미리보기 (텍스트)
+# ════════════════════════════════════════════════════════════════════
+
+@router.get("/{report_id}/preview")
+async def preview_weekly_report(
+    report_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    doc = await MongoClientManager.get_pm_weekly_reports_collection().find_one(
+        {"_id": ObjectId(report_id), "deleted_at": None}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    r = _doc_to_out(doc)
+    r.created_by_name = await _user_name(doc.get("created_by"))
+
+    lines: list[str] = []
+    lines.append(f"# {r.title}")
+    lines.append(f"보고 기간: {r.start_date.strftime('%Y-%m-%d')} ~ {r.end_date.strftime('%Y-%m-%d')} ({r.report_year}년 {r.report_week}주차)")
+    if r.department:
+        lines.append(f"부서: {r.department}")
+    lines.append(f"작성자: {r.created_by_name or '-'}")
+    lines.append(f"상태: {STATUS_KO.get(r.status, r.status)}")
+    lines.append("")
+
+    # 1. 금주 완료 업무
+    completed = [i for i in r.all_items if i.status == "DONE"]
+    if completed:
+        lines.append("## 1. 금주 완료 업무")
+        for item in completed:
+            delayed_mark = " ⚠️지연" if item.is_delayed else ""
+            lines.append(f"- [{item.project_name}-{item.issue_number}] {item.title}{delayed_mark}")
+        lines.append("")
+
+    # 2. 진행 중 업무
+    in_prog = [i for i in r.all_items if i.status in ("IN_PROGRESS", "IN_REVIEW")]
+    if in_prog:
+        lines.append("## 2. 진행 중 업무")
+        for item in in_prog:
+            delayed_mark = " ⚠️지연" if item.is_delayed else ""
+            due_str = f" — {item.due_date.strftime('%m/%d') if item.due_date else ''}"
+            lines.append(f"- [{item.project_name}-{item.issue_number}] {item.title}{due_str}{delayed_mark}")
+        lines.append("")
+
+    # 3. 차주 계획
+    if r.upcoming_items:
+        lines.append("## 3. 차주 계획")
+        for item in r.upcoming_items:
+            lines.append(f"- [{item.project_name}-{item.issue_number}] {item.title}")
+        lines.append("")
+
+    # 4. 주요 안건
+    agendas = [i for i in r.manual_items if i.section == "MAIN_AGENDA" and i.include_in_report]
+    if agendas:
+        lines.append("## 4. 주요 안건")
+        for item in sorted(agendas, key=lambda x: x.sort_order):
+            cat = f"[{item.category}] " if item.category else ""
+            lines.append(f"- {cat}{item.title}")
+            if item.content:
+                lines.append(f"  - 내용: {item.content}")
+            if item.agenda_status:
+                lines.append(f"  - 진행 상태: {item.agenda_status}")
+            if item.owner:
+                lines.append(f"  - 담당자: {item.owner}")
+        lines.append("")
+
+    # 5. 특이사항 및 리스크
+    risks = [i for i in r.manual_items if i.section == "ISSUE_RISK" and i.include_in_report]
+    if risks:
+        lines.append("## 5. 특이사항 및 리스크")
+        for item in sorted(risks, key=lambda x: x.sort_order):
+            type_label = f"[{item.item_type}/{item.impact}] " if item.item_type else ""
+            lines.append(f"- {type_label}{item.title}")
+            if item.content:
+                lines.append(f"  - 내용: {item.content}")
+            if item.action_plan:
+                lines.append(f"  - 대응 방안: {item.action_plan}")
+            if item.owner:
+                lines.append(f"  - 담당자: {item.owner}")
+        lines.append("")
+
+    # 6. 결정 필요 사항
+    decisions = [i for i in r.manual_items if i.section == "DECISION_REQUIRED" and i.include_in_report]
+    if decisions:
+        lines.append("## 6. 결정 필요 사항")
+        for item in sorted(decisions, key=lambda x: x.sort_order):
+            lines.append(f"- {item.title}")
+            if item.background:
+                lines.append(f"  - 배경: {item.background}")
+            if item.options:
+                lines.append(f"  - 선택지: {item.options}")
+            if item.requested_decision:
+                lines.append(f"  - 요청 결정: {item.requested_decision}")
+            if item.desired_date:
+                lines.append(f"  - 희망 결정일: {item.desired_date.strftime('%Y-%m-%d')}")
+            if item.owner:
+                lines.append(f"  - 담당자: {item.owner}")
+        lines.append("")
+
+    if r.admin_comment:
+        lines.append("## 관리자 코멘트")
+        lines.append(r.admin_comment)
+        lines.append("")
+
+    return {"text": "\n".join(lines)}
 
 
 @router.delete("/{report_id}", status_code=204)
