@@ -22,39 +22,11 @@
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
             <q-tooltip>카드 크기 조절</q-tooltip>
             <q-menu anchor="bottom right" self="top right">
-              <div class="size-picker">
-                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
-                <div class="size-icon-row q-mb-sm">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
-                    <q-tooltip>1/4 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
-                    <q-tooltip>1/2 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
-                    <q-tooltip>전체 크기</q-tooltip>
-                  </q-btn>
-                </div>
-                <q-separator class="q-mb-sm" />
-                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
-                <div class="size-icon-row">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
-                    <q-tooltip>1/4 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
-                    <q-tooltip>1/2 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
-                    <q-tooltip>기본 높이</q-tooltip>
-                  </q-btn>
-                </div>
-              </div>
+              <CardSizePicker
+                :w="sizeOf(cardId).w"
+                :h="sizeOf(cardId).h"
+                @select="(w, h) => setCardSize(cardId, w, h)"
+              />
             </q-menu>
           </q-btn>
         </div>
@@ -125,39 +97,11 @@
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
             <q-tooltip>카드 크기 조절</q-tooltip>
             <q-menu anchor="bottom right" self="top right">
-              <div class="size-picker">
-                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
-                <div class="size-icon-row q-mb-sm">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
-                    <q-tooltip>1/4 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
-                    <q-tooltip>1/2 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
-                    <q-tooltip>전체 크기</q-tooltip>
-                  </q-btn>
-                </div>
-                <q-separator class="q-mb-sm" />
-                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
-                <div class="size-icon-row">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
-                    <q-tooltip>1/4 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
-                    <q-tooltip>1/2 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
-                    <q-tooltip>기본 높이</q-tooltip>
-                  </q-btn>
-                </div>
-              </div>
+              <CardSizePicker
+                :w="sizeOf(cardId).w"
+                :h="sizeOf(cardId).h"
+                @select="(w, h) => setCardSize(cardId, w, h)"
+              />
             </q-menu>
           </q-btn>
         </div>
@@ -208,39 +152,11 @@
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
             <q-tooltip>카드 크기 조절</q-tooltip>
             <q-menu anchor="bottom right" self="top right">
-              <div class="size-picker">
-                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
-                <div class="size-icon-row q-mb-sm">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
-                    <q-tooltip>1/4 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
-                    <q-tooltip>1/2 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
-                    <q-tooltip>전체 크기</q-tooltip>
-                  </q-btn>
-                </div>
-                <q-separator class="q-mb-sm" />
-                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
-                <div class="size-icon-row">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
-                    <q-tooltip>1/4 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
-                    <q-tooltip>1/2 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
-                    <q-tooltip>기본 높이</q-tooltip>
-                  </q-btn>
-                </div>
-              </div>
+              <CardSizePicker
+                :w="sizeOf(cardId).w"
+                :h="sizeOf(cardId).h"
+                @select="(w, h) => setCardSize(cardId, w, h)"
+              />
             </q-menu>
           </q-btn>
         </div>
@@ -273,39 +189,11 @@
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
             <q-tooltip>카드 크기 조절</q-tooltip>
             <q-menu anchor="bottom right" self="top right">
-              <div class="size-picker">
-                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
-                <div class="size-icon-row q-mb-sm">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
-                    <q-tooltip>1/4 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
-                    <q-tooltip>1/2 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
-                    <q-tooltip>전체 크기</q-tooltip>
-                  </q-btn>
-                </div>
-                <q-separator class="q-mb-sm" />
-                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
-                <div class="size-icon-row">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
-                    <q-tooltip>1/4 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
-                    <q-tooltip>1/2 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
-                    <q-tooltip>기본 높이</q-tooltip>
-                  </q-btn>
-                </div>
-              </div>
+              <CardSizePicker
+                :w="sizeOf(cardId).w"
+                :h="sizeOf(cardId).h"
+                @select="(w, h) => setCardSize(cardId, w, h)"
+              />
             </q-menu>
           </q-btn>
         </div>
@@ -358,39 +246,11 @@
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
             <q-tooltip>카드 크기 조절</q-tooltip>
             <q-menu anchor="bottom right" self="top right">
-              <div class="size-picker">
-                <div class="text-caption text-grey-6 q-mb-xs">너비</div>
-                <div class="size-icon-row q-mb-sm">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'quarter' }" @click="setCardSize(cardId, 'w', 'quarter')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:25%" /></div>
-                    <q-tooltip>1/4 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'half' }" @click="setCardSize(cardId, 'w', 'half')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:50%" /></div>
-                    <q-tooltip>1/2 크기</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).w === 'full' }" @click="setCardSize(cardId, 'w', 'full')">
-                    <div class="size-icon-box"><div class="size-icon-fill" style="width:100%" /></div>
-                    <q-tooltip>전체 크기</q-tooltip>
-                  </q-btn>
-                </div>
-                <q-separator class="q-mb-sm" />
-                <div class="text-caption text-grey-6 q-mb-xs">높이</div>
-                <div class="size-icon-row">
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'quarter' }" @click="setCardSize(cardId, 'h', 'quarter')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:25%" /></div>
-                    <q-tooltip>1/4 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'half' }" @click="setCardSize(cardId, 'h', 'half')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:50%" /></div>
-                    <q-tooltip>1/2 높이</q-tooltip>
-                  </q-btn>
-                  <q-btn flat dense no-caps v-close-popup class="size-icon-btn" :class="{ 'size-icon-btn--active': sizeOf(cardId).h === 'auto' }" @click="setCardSize(cardId, 'h', 'auto')">
-                    <div class="size-icon-box size-icon-box--vertical"><div class="size-icon-fill size-icon-fill--vertical" style="height:100%" /></div>
-                    <q-tooltip>기본 높이</q-tooltip>
-                  </q-btn>
-                </div>
-              </div>
+              <CardSizePicker
+                :w="sizeOf(cardId).w"
+                :h="sizeOf(cardId).h"
+                @select="(w, h) => setCardSize(cardId, w, h)"
+              />
             </q-menu>
           </q-btn>
         </div>
@@ -455,6 +315,7 @@ import { fetchDDays, createDDay, patchDDay, deleteDDay, type DDay } from 'src/se
 import { STATUS_LABEL, STATUS_COLOR, type Issue } from 'src/services/pm/issue'
 import { listMySRs, SR_STATUS_LABEL, SR_STATUS_COLOR, type SRListItem } from 'src/services/sr'
 import { getPrefs, savePrefs, type ColPreset, type CardSize } from 'src/services/prefs'
+import CardSizePicker from 'src/components/CardSizePicker.vue'
 
 const auth = useAuthStore()
 const $q = useQuasar()
@@ -850,29 +711,28 @@ async function saveCardOrder() {
   }
 }
 
-// ── 카드 크기 조절 (오른쪽 아래 버튼으로 너비/높이 선택, 계정에 저장) ──────────
+// ── 카드 크기 조절 (오른쪽 위 버튼으로 너비x높이를 3x3 그리드에서 선택, 계정에 저장) ──
+// w, h는 각각 1~3 단계 (예: 2x2, 3x1 등 그리드 피커의 표기와 그대로 대응)
 const DEFAULT_CARD_SIZE: Record<string, CardSize> = {
-  dday: { w: 'half', h: 'auto' },
-  eos: { w: 'half', h: 'auto' },
-  resource: { w: 'half', h: 'auto' },
-  pm: { w: 'full', h: 'auto' },
-  watch: { w: 'full', h: 'auto' },
+  dday: { w: 1, h: 2 },
+  eos: { w: 1, h: 2 },
+  resource: { w: 1, h: 2 },
+  pm: { w: 3, h: 2 },
+  watch: { w: 3, h: 2 },
 }
 const cardSizes = ref<Record<string, CardSize>>({})
 
 function sizeOf(id: string): CardSize {
-  return cardSizes.value[id] ?? DEFAULT_CARD_SIZE[id] ?? { w: 'half', h: 'auto' }
+  return cardSizes.value[id] ?? DEFAULT_CARD_SIZE[id] ?? { w: 1, h: 2 }
 }
 
 function cardSizeClasses(id: string): string[] {
   const s = sizeOf(id)
-  const wClass = s.w === 'quarter' ? 'card-w-quarter' : s.w === 'full' ? 'card-w-full' : 'card-w-half'
-  const hClass = s.h === 'quarter' ? 'card-h-quarter' : s.h === 'half' ? 'card-h-half' : 'card-h-full'
-  return [wClass, hClass]
+  return [`card-w-${s.w}`, `card-h-${s.h}`]
 }
 
-function setCardSize(id: string, axis: 'w' | 'h', value: string) {
-  cardSizes.value = { ...cardSizes.value, [id]: { ...sizeOf(id), [axis]: value } }
+function setCardSize(id: string, w: number, h: number) {
+  cardSizes.value = { ...cardSizes.value, [id]: { w, h } }
   void saveCardOrder()
 }
 
@@ -896,8 +756,8 @@ onMounted(() => {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 122px;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 140px;
   grid-auto-flow: dense;
   gap: 16px;
   max-width: 1600px;
@@ -913,27 +773,27 @@ onMounted(() => {
   background: #eef1f8;
 }
 
-/* 카드 크기 조절 (헤더 오른쪽 위 버튼으로 선택) */
-.card-w-quarter { grid-column: span 1; }
-.card-w-half    { grid-column: span 2; }
-.card-w-full    { grid-column: span 4; }
+/* 카드 크기 조절 (헤더 오른쪽 위 버튼 → 3x3 그리드에서 너비x높이 선택) */
+.card-w-1 { grid-column: span 1; }
+.card-w-2 { grid-column: span 2; }
+.card-w-3 { grid-column: span 3; }
 
-/* 모든 카드가 높이 모드별로 동일한 고정 높이를 갖도록 통일 (grid-auto-rows: 122px 기준) */
-.card-h-quarter {
+/* 모든 카드가 높이 단계별로 동일한 고정 높이를 갖도록 통일 (grid-auto-rows: 140px 기준) */
+.card-h-1 {
   grid-row: span 1;
-  height: 122px;
+  height: 140px;
   overflow-y: auto;
 }
 
-.card-h-half {
+.card-h-2 {
   grid-row: span 2;
-  height: 260px;
+  height: 296px;
   overflow-y: auto;
 }
 
-.card-h-full {
-  grid-row: span 4;
-  height: 536px;
+.card-h-3 {
+  grid-row: span 3;
+  height: 452px;
   overflow-y: auto;
 }
 
@@ -951,56 +811,6 @@ onMounted(() => {
 
 .card-resize-btn:hover {
   opacity: 1;
-}
-
-/* 카드 크기 조절 메뉴 — 그리드/아이콘 형태 선택 UI */
-.size-picker {
-  padding: 10px 12px;
-  min-width: 180px;
-}
-
-.size-icon-row {
-  display: flex;
-  gap: 6px;
-}
-
-.size-icon-btn {
-  padding: 4px;
-  border-radius: 6px;
-}
-
-.size-icon-btn--active {
-  background: #e3f2fd;
-}
-
-.size-icon-box {
-  width: 30px;
-  height: 20px;
-  border: 1px solid #cfd8dc;
-  border-radius: 3px;
-  background: #f5f7fa;
-  position: relative;
-  overflow: hidden;
-}
-
-.size-icon-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: #1e88e5;
-}
-
-.size-icon-box--vertical {
-  width: 20px;
-  height: 30px;
-}
-
-.size-icon-fill--vertical {
-  width: 100%;
-  height: auto;
-  top: auto;
-  bottom: 0;
 }
 
 .card-header {
@@ -1307,9 +1117,9 @@ onMounted(() => {
   .dashboard-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  .card-w-quarter,
-  .card-w-half,
-  .card-w-full {
+  .card-w-1,
+  .card-w-2,
+  .card-w-3 {
     grid-column: span 2;
   }
 }
@@ -1318,9 +1128,9 @@ onMounted(() => {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-  .card-w-quarter,
-  .card-w-half,
-  .card-w-full {
+  .card-w-1,
+  .card-w-2,
+  .card-w-3 {
     grid-column: span 1;
   }
 }

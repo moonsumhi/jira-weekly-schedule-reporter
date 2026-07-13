@@ -1,7 +1,7 @@
 import { api } from 'src/boot/axios'
 
 export type ColPreset = { name: string; cols: string[] }
-export type CardSize = { w: string; h: string }
+export type CardSize = { w: number; h: number }
 
 export type UserPrefs = {
   assetColPresets: ColPreset[]
