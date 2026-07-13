@@ -84,33 +84,21 @@
             <div class="text-body2 text-grey-7 q-mb-sm">
               <strong>별표(*) 항목은 필수</strong>입니다. 중요도·긴급 여부는 담당자 배정 우선순위에 영향을 줍니다.
             </div>
-            <div class="mock-screen" style="max-width:520px">
+            <div class="mock-screen" style="max-width:520px;pointer-events:none">
               <div class="text-caption text-grey-5 q-mb-sm">화면 예시 — 기본 정보 입력 폼</div>
-              <div class="column q-gutter-sm" style="pointer-events:none">
-                <q-input model-value="" outlined dense label="요청 제목 *" placeholder="한 줄로 요약해주세요." />
-                <div class="row q-col-gutter-sm">
-                  <div class="col">
-                    <q-input model-value="" outlined dense label="요청 부서 *" />
-                  </div>
-                  <div class="col">
-                    <q-input model-value="" outlined dense label="대상 시스템 *" placeholder="어떤 시스템에 대한 요청인지" />
-                  </div>
-                </div>
-                <q-input model-value="" outlined dense label="요청 배경 (선택)" type="textarea" :rows="2"
-                  placeholder="이 요청이 발생하게 된 배경이나 상황을 설명해주세요." />
-                <div class="row q-col-gutter-sm items-center">
-                  <div class="col">
-                    <q-input model-value="" outlined dense label="희망 완료일" type="date" stack-label />
-                  </div>
-                  <div class="col">
-                    <q-input model-value="보통" outlined dense label="중요도" />
-                  </div>
-                  <div class="col-auto self-center">
-                    <div class="row items-center q-gutter-xs">
-                      <q-toggle :model-value="false" color="negative" dense />
-                      <span class="text-caption text-grey-7">긴급 요청</span>
-                    </div>
-                  </div>
+              <q-input model-value="" outlined dense label="요청 제목 *" placeholder="한 줄로 요약해주세요." class="q-mb-sm" />
+              <div class="row q-gutter-sm q-mb-sm">
+                <q-input model-value="" outlined dense label="요청 부서 *" class="col" />
+                <q-input model-value="" outlined dense label="대상 시스템 *" class="col" />
+              </div>
+              <q-input model-value="" outlined dense label="요청 배경 (선택)" type="textarea" :rows="2"
+                placeholder="이 요청이 발생하게 된 배경이나 상황을 설명해주세요." class="q-mb-sm" />
+              <div class="row q-gutter-sm items-center">
+                <q-input model-value="" outlined dense label="희망 완료일" type="date" stack-label class="col" />
+                <q-input model-value="보통" outlined dense label="중요도" class="col" />
+                <div class="row items-center q-gutter-xs" style="flex-shrink:0">
+                  <q-toggle :model-value="false" color="negative" dense />
+                  <span class="text-caption text-grey-7">긴급</span>
                 </div>
               </div>
             </div>
