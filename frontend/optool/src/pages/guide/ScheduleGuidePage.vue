@@ -407,8 +407,8 @@
               <div class="q-pl-md">
                 <div class="row items-center q-gutter-xs q-py-xs">
                   <q-icon name="chevron_right" color="grey-5" size="14px" />
-                  <q-icon name="bug_report" color="negative" size="14px" />
-                  <span>DATA-15 서버 모니터링 대시보드 오류</span>
+                  <q-icon name="check_box_outline_blank" color="primary" size="14px" />
+                  <span>DATA-15 서버 모니터링 대시보드 개선</span>
                   <q-badge color="grey-4" label="백로그" size="xs" />
                 </div>
               </div>
@@ -872,8 +872,8 @@ const scenarios: Scenario[] = [
         desc: '화면 우측 상단의 [이슈 생성] 버튼을 클릭하면 생성 다이얼로그가 열립니다. 다이얼로그는 기본 정보, 담당, 일정, 기타 4개 섹션으로 구성됩니다.',
       },
       {
-        label: '이슈 타입 선택 — Epic · Story · Task · Bug',
-        desc: 'Epic은 큰 업무 묶음(상위 단위), Story는 사용자 관점의 기능 단위, Task는 구체적 작업 단위, Bug는 오류·결함 처리입니다. Sub-task는 이슈 생성 폼이 아닌 이슈 상세 다이얼로그의 하위 작업 섹션에서 추가합니다.',
+        label: '이슈 타입 선택 — Epic · Story · Task',
+        desc: 'Epic은 큰 업무 묶음(상위 단위), Story는 사용자 관점의 기능 단위, Task는 구체적 작업 단위입니다. 일반 업무는 Task로 시작하세요. Sub-task는 생성 폼이 아닌 이슈 상세 다이얼로그의 하위 작업 섹션에서 추가합니다.',
       },
       {
         label: '기본 정보 입력 — 제목(필수), 타입, 우선순위, 상태',
@@ -881,7 +881,7 @@ const scenarios: Scenario[] = [
       },
       {
         label: '담당·일정 입력 — 담당자, 스프린트, 시작일·마감일',
-        desc: '담당자를 지정하면 해당 팀원의 내 이슈 화면과 업무 현황 캘린더에 표시됩니다. 보고자는 현재 로그인한 사용자로 자동 설정됩니다. Story·Task·Bug에는 상위 Epic과 스토리 포인트를 추가로 설정할 수 있습니다.',
+        desc: '담당자를 지정하면 해당 팀원의 내 이슈 화면과 업무 현황 캘린더에 표시됩니다. 보고자는 현재 로그인한 사용자로 자동 설정됩니다. Story·Task에는 상위 Epic과 스토리 포인트를 추가로 설정할 수 있습니다.',
       },
       {
         label: '라벨·설명·첨부파일 추가 (선택)',
@@ -916,7 +916,7 @@ const scenarios: Scenario[] = [
       },
       {
         label: '하위 작업 추가·완료·정렬',
-        desc: 'Story, Task, Bug 이슈에서 하위 작업(체크리스트)을 관리합니다. 체크박스 클릭으로 완료 여부를 토글하고, 드래그로 순서를 변경하며, 하단 인라인 폼으로 새 항목을 추가합니다. Epic과 Sub-task 이슈에는 이 섹션이 없습니다.',
+        desc: 'Story, Task 이슈에서 하위 작업(체크리스트)을 관리합니다. 체크박스 클릭으로 완료 여부를 토글하고, 드래그로 순서를 변경하며, 하단 인라인 폼으로 새 항목을 추가합니다. Epic과 Sub-task 이슈에는 이 섹션이 없습니다.',
       },
       {
         label: '댓글 작성·답글·파일 첨부',
@@ -942,12 +942,12 @@ const scenarios: Scenario[] = [
         desc: '프로젝트 상세 화면의 바로가기 버튼 또는 [백로그] 탭을 클릭합니다. 프로젝트의 모든 이슈(스프린트 배정 여부 무관)가 계층 구조(트리뷰)로 표시됩니다.',
       },
       {
-        label: 'Epic → Story/Task/Bug → Sub-task 트리 구조 확인',
-        desc: 'Epic은 보라색 배경으로 강조됩니다. Epic 하위에 Story/Task/Bug가 들여쓰기로 위치하고, 다시 그 하위에 Sub-task가 표시됩니다. 상위 Epic이 없는 이슈는 "에픽 없음" 구분선 아래에 별도 표시됩니다.',
+        label: 'Epic → Story/Task → Sub-task 트리 구조 확인',
+        desc: 'Epic은 보라색 배경으로 강조됩니다. Epic 하위에 Story/Task가 들여쓰기로 위치하고, 다시 그 하위에 Sub-task가 표시됩니다. 상위 Epic이 없는 이슈는 "에픽 없음" 구분선 아래에 별도 표시됩니다.',
       },
       {
         label: '필터로 원하는 이슈만 보기',
-        desc: '상단 필터 영역에서 제목 검색(이슈 키 번호 포함), 상태, 우선순위, 이슈 유형(Epic/Story/Task/Bug/Sub-task), 담당자를 동시에 필터링할 수 있습니다. [초기화] 버튼으로 모든 필터를 한 번에 해제합니다.',
+        desc: '상단 필터 영역에서 제목 검색(이슈 키 번호 포함), 상태, 우선순위, 이슈 유형(Epic/Story/Task/Sub-task), 담당자를 동시에 필터링할 수 있습니다. [초기화] 버튼으로 모든 필터를 한 번에 해제합니다.',
       },
       {
         label: '[모두 펼치기] / [모두 접기] 활용',
@@ -1064,11 +1064,10 @@ const scenarios: Scenario[] = [
 ]
 
 const issueTypes = [
-  { value: 'EPIC',     label: 'Epic',     icon: 'bolt',                    color: 'purple',   desc: '큰 업무 묶음. Story·Task·Bug의 상위 단위' },
-  { value: 'STORY',    label: 'Story',    icon: 'menu_book',               color: 'green',    desc: '사용자 관점의 기능 단위' },
-  { value: 'TASK',     label: 'Task',     icon: 'check_box_outline_blank',  color: 'primary',  desc: '구체적인 작업 단위 (일반 업무)' },
-  { value: 'BUG',      label: 'Bug',      icon: 'bug_report',              color: 'negative', desc: '버그·오류 처리 항목' },
-  { value: 'SUB_TASK', label: 'Sub-task', icon: 'subdirectory_arrow_right', color: 'grey-7',   desc: 'Task·Story의 세부 작업 (상세에서 추가)' },
+  { value: 'EPIC',     label: 'Epic',     icon: 'bolt',                    color: 'purple',  desc: '큰 업무 묶음. Story·Task의 상위 단위' },
+  { value: 'STORY',    label: 'Story',    icon: 'menu_book',               color: 'green',   desc: '사용자 관점의 기능 단위' },
+  { value: 'TASK',     label: 'Task',     icon: 'check_box_outline_blank', color: 'primary', desc: '구체적인 작업 단위 (일반 업무)' },
+  { value: 'SUB_TASK', label: 'Sub-task', icon: 'subdirectory_arrow_right', color: 'grey-7', desc: 'Task·Story의 세부 작업 (이슈 상세에서 추가)' },
 ]
 
 const kanbanCols = [
