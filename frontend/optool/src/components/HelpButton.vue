@@ -145,14 +145,14 @@ const HELP: Record<string, HelpContent> = {
   // ── 스케줄 관리 ──────────────────────────────────────────────────────
   'weekly-report': {
     title: '주간 보고',
-    summary: '팀의 주간 업무를 Jira에서 자동으로 취합하여 보고서를 생성하고 관리합니다.',
+    summary: '팀의 주간 업무를 PM 시스템에서 자동으로 취합하여 보고서를 생성하고 관리합니다.',
     steps: [
-      { label: '보고서 생성', desc: '[생성 (자동 집계)] 버튼 클릭 후 연도·주차를 입력하면 제목과 기간이 자동 생성되고 Jira 업무가 집계됩니다.', color: 'primary' },
+      { label: '보고서 생성', desc: '[생성 (자동 집계)] 버튼 클릭 후 연도·주차를 입력하면 제목과 기간이 자동 생성되고 등록된 업무가 집계됩니다.', color: 'primary' },
       { label: '보고서 클릭 → 상세', desc: '생성된 보고서를 클릭하면 프로젝트별·개인별·전체업무·차주계획 탭으로 현황을 확인합니다.', color: 'primary' },
       { label: '상태 관리', desc: '초안(DRAFT) → 검토중(REVIEWING) → 확정(CONFIRMED) 순으로 보고서 상태를 변경합니다.', color: 'orange' },
       { label: 'PDF / Excel 출력', desc: '[미리보기] 또는 [PDF 출력] 버튼으로 인쇄용 페이지를 열고, [Excel]로 데이터를 다운로드합니다.', color: 'teal' },
     ],
-    tip: '초안 상태에서 [재집계] 버튼을 누르면 Jira 최신 업무를 다시 불러옵니다.',
+    tip: '초안 상태에서 [재집계] 버튼을 누르면 최신 업무를 다시 불러옵니다.',
   },
 
   'weekly-report-detail': {

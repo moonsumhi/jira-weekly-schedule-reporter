@@ -403,7 +403,7 @@ const manageFeats = [
   { icon: 'person_add',   color: 'blue',     label: '담당자 배정',     desc: '승인 후 배정 다이얼로그에서 처리 기간과 예상 공수(주말 제외 자동 계산)를 설정합니다.' },
   { icon: 'swap_horiz',   color: 'orange',   label: '상태 변경',       desc: '운영팀(sr_operator/sr_manager)은 CLOSED·REJECTED·DRAFT를 제외한 상태를 변경할 수 있습니다.' },
   { icon: 'timer_off',    color: 'negative', label: '⏰ 지연 탭',      desc: '희망 완료일이 지났으나 처리되지 않은 SR을 별도 탭에서 빠르게 확인합니다.' },
-  { icon: 'settings',     color: 'grey-7',   label: 'Jira 프로젝트 설정 (관리자)', desc: '담당자 배정 시 PM 이슈가 자동 등록될 Jira 기본 프로젝트를 설정합니다.' },
+  { icon: 'settings',     color: 'grey-7',   label: 'SR 기본 프로젝트 설정 (관리자)', desc: '담당자 배정 시 PM 이슈가 자동 등록될 기본 프로젝트를 설정합니다.' },
 ]
 
 const typeFieldExamples = [

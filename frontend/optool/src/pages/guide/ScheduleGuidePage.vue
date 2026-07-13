@@ -40,9 +40,9 @@
 
           <q-card flat bordered class="q-mb-md">
             <q-card-section>
-              <div class="text-body1 text-weight-medium q-mb-sm">Jira와 연동된 <span class="text-primary text-weight-bold">자동 업무 취합 시스템</span>입니다.</div>
+              <div class="text-body1 text-weight-medium q-mb-sm">PM 시스템에 등록된 업무를 자동으로 취합하는 <span class="text-primary text-weight-bold">업무 보고 관리 시스템</span>입니다.</div>
               <div class="text-body2 text-grey-8 q-mb-md">
-                팀원별 Jira 이슈를 자동으로 가져와 주간 보고서를 생성하고, 업무 일정을 캘린더로 시각화합니다.
+                팀원별 이슈를 자동으로 집계하여 주간 보고서를 생성하고, 업무 일정을 캘린더로 시각화합니다.
                 매번 엑셀을 직접 정리하지 않아도 됩니다.
               </div>
               <div class="row q-col-gutter-sm">
@@ -61,7 +61,7 @@
             <div class="col-12 col-sm-6">
               <q-banner rounded class="bg-blue-1">
                 <template #avatar><q-icon name="sync" color="blue-7" /></template>
-                <span class="text-blue-9 text-body2">Jira에서 업무 정보를 <strong>자동 동기화</strong>합니다. 담당자가 Jira에 업무를 입력하면 보고서에 자동 반영됩니다.</span>
+                <span class="text-blue-9 text-body2">PM 시스템에 등록된 업무를 <strong>자동 집계</strong>합니다. 담당자가 이슈를 등록하면 보고서에 자동 반영됩니다.</span>
               </q-banner>
             </div>
             <div class="col-12 col-sm-6">
@@ -134,7 +134,7 @@
               </div>
             </q-timeline-entry>
             <q-timeline-entry title="자동 집계 실행" icon="sync" color="teal">
-              <div class="text-body2">확인을 누르면 Jira에서 해당 기간의 업무를 자동으로 가져옵니다. 잠시 기다리면 보고서가 생성됩니다.</div>
+              <div class="text-body2">확인을 누르면 해당 기간에 등록된 업무를 자동으로 집계합니다. 잠시 기다리면 보고서가 생성됩니다.</div>
             </q-timeline-entry>
           </q-timeline>
         </div>
@@ -323,7 +323,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
 
 // ── 데이터 ──────────────────────────────────────────────────────────
 const modules = [
-  { icon: 'event_note', color: 'primary', bg: '#EFF6FF', label: '주간 보고',     desc: 'Jira 업무 자동 취합 보고서' },
+  { icon: 'event_note', color: 'primary', bg: '#EFF6FF', label: '주간 보고',     desc: 'PM 업무 자동 취합 보고서' },
   { icon: 'calendar_month', color: 'teal', bg: '#F0FDFA', label: '업무 현황',    desc: '팀 전체 일정 캘린더 조회' },
   { icon: 'picture_as_pdf', color: 'deep-orange', bg: '#FFF7ED', label: 'PDF 출력', desc: '인쇄용 보고서 생성' },
 ]
@@ -359,7 +359,7 @@ const detailBreakdown = [
 ]
 
 const statusButtons = [
-  { from: '초안(DRAFT)',     fromColor: 'grey-6',   buttons: '[재집계] — Jira 데이터 다시 불러오기\n[검토 완료] — 상태를 검토중으로 변경' },
+  { from: '초안(DRAFT)',     fromColor: 'grey-6',   buttons: '[재집계] — 업무 데이터 다시 불러오기\n[검토 완료] — 상태를 검토중으로 변경' },
   { from: '검토중(REVIEWING)',fromColor: 'orange',  buttons: '[보고 확정] — 상태를 확정으로 변경' },
   { from: '확정(CONFIRMED)', fromColor: 'positive', buttons: '[확정 해제] — 검토중으로 되돌리기' },
 ]
@@ -385,7 +385,7 @@ const personColors = [
 ]
 
 const faqs = [
-  { q: '보고서를 생성했는데 업무가 아무것도 안 나와요.',          a: 'Jira에 해당 기간의 이슈가 없거나, 스프린트 날짜 설정이 맞지 않을 수 있습니다. 상세 화면의 [재집계] 버튼을 눌러보고, 그래도 안 나오면 Jira 이슈의 시작일/마감일을 확인해주세요.' },
+  { q: '보고서를 생성했는데 업무가 아무것도 안 나와요.',          a: '해당 기간에 등록된 이슈가 없거나 스프린트 날짜 설정이 맞지 않을 수 있습니다. 상세 화면의 [재집계] 버튼을 눌러보고, 그래도 안 나오면 이슈의 시작일/마감일을 확인해주세요.' },
   { q: '이미 생성한 보고서의 기간을 변경할 수 있나요?',           a: '확정 전(초안/검토 중) 상태에서는 기간을 수정하고 재집계할 수 있습니다. 확정 상태에서는 관리자에게 문의하세요.' },
   { q: 'PDF 출력 시 색상이 흰색으로 나와요.',                    a: '브라우저 인쇄 설정에서 "배경 그래픽 인쇄" 옵션을 켜주세요. Chrome 기준: 인쇄 대화상자 → 더보기 → 배경 그래픽 체크박스 활성화.' },
   { q: '업무 현황 캘린더에서 내 업무만 보려면?',                  a: '상단의 담당자 필터 칩에서 내 이름만 선택하면 됩니다. 선택을 해제하면 전체 팀의 업무가 다시 표시됩니다.' },
