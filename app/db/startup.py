@@ -261,6 +261,39 @@ _RESULT_TEST_FAIL = {
     ],
 }
 
+# 반입신청서_한국보건의료정보원 (2).hwp 실제 양식에서 추출한 섹션 구조.
+_INTAKE_APPLICANT_INFO = {
+    "title": "신청자 정보",
+    "fields": [
+        {"label": "기관명",                        "type": "text",     "required": True},
+        {"label": "사업자등록번호 또는 법인등록번호", "type": "text",     "required": False},
+        {"label": "주소",                          "type": "text",     "required": False},
+        {"label": "대표자명",                      "type": "text",     "required": False},
+        {"label": "신청자/연락처",                  "type": "text",     "required": True},
+        {"label": "신청일자",                      "type": "text",     "required": True,  "placeholder": "YYYY.MM.DD"},
+        {"label": "유형",                          "type": "select",   "required": True,  "options": ["개인", "공공기관", "비영리법인", "민간기관"]},
+    ],
+}
+_INTAKE_FILE_INFO = {
+    "title": "반입 파일 정보",
+    "fields": [
+        {"label": "파일 개수",                      "type": "text",     "required": False},
+        {"label": "파일명 (파일형식, 파일용량 포함)", "type": "text",     "required": False},
+        {"label": "처리 목적",                      "type": "text",     "required": True,  "full_width": True},
+        {"label": "내용 요약",                      "type": "textarea", "required": False},
+    ],
+}
+_INTAKE_REVIEW = {
+    "title": "적정성 검토",
+    "multiple": True,
+    "fields": [
+        {"label": "소속",     "type": "text",     "required": False},
+        {"label": "성함",     "type": "text",     "required": False},
+        {"label": "검토의견", "type": "textarea", "required": False},
+        {"label": "서명",     "type": "image",    "required": False},
+    ],
+}
+
 _JOB_FORM_TEMPLATES = [
     {
         "title": "작업계획서(서비스)",
@@ -310,6 +343,17 @@ _JOB_FORM_TEMPLATES = [
             _RESULT_BEFORE_AFTER,
             _RESULT_TEST_SUCCESS,
             _RESULT_TEST_FAIL,
+        ],
+    },
+    {
+        "title": "반입신청서",
+        "jira_issue_key": "JOB-INTAKE-REQUEST",
+        "menu": "Job",
+        "sort_order": 4,
+        "sections": [
+            _INTAKE_APPLICANT_INFO,
+            _INTAKE_FILE_INFO,
+            _INTAKE_REVIEW,
         ],
     },
 ]
@@ -374,6 +418,7 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "회원 목록",    "icon": "fa-solid fa-users",           "link": "/admin/users"},
             {"title": "메뉴 관리",   "icon": "fa-solid fa-bars",            "link": "/admin/menus"},
             {"title": "Audit Log",  "icon": "fa-solid fa-clipboard-list",  "link": "/admin/audit-log"},
+            {"title": "세션 설정",   "icon": "fa-solid fa-clock",           "link": "/admin/settings"},
         ],
     },
 }

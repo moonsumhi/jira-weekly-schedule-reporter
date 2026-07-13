@@ -7,6 +7,9 @@ export type FormField = {
   required?: boolean
   placeholder?: string
   options?: string[]
+  // axios 인터셉터가 camelCase로 변환 (백엔드는 full_width)
+  // textarea가 아니어도 값 칸을 한 줄 전체 폭으로 표시 (추출 파싱 경계는 type 그대로 유지하기 위함)
+  fullWidth?: boolean
 }
 
 export type FormSection = {

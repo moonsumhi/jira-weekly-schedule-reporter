@@ -945,14 +945,15 @@ function detailMultipleRows(row: FormEntry, sectionTitle: string): RowData[] {
 
 function groupFieldsForTable(fields: FormField[]): Array<{ full: boolean; field1: FormField; field2: FormField | undefined }> {
   const result: Array<{ full: boolean; field1: FormField; field2: FormField | undefined }> = []
+  const isFull = (f: FormField) => f.type === 'textarea' || f.fullWidth === true
   let i = 0
   while (i < fields.length) {
     const f = fields[i]!
-    if (f.type === 'textarea') {
+    if (isFull(f)) {
       result.push({ full: true, field1: f, field2: undefined })
       i++
     } else {
-      const next = (i + 1 < fields.length && fields[i + 1]?.type !== 'textarea') ? fields[i + 1] : undefined
+      const next = (i + 1 < fields.length && !isFull(fields[i + 1]!)) ? fields[i + 1] : undefined
       result.push({ full: false, field1: f, field2: next })
       i += next ? 2 : 1
     }
