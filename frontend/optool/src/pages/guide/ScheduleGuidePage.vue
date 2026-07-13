@@ -79,12 +79,76 @@
               <q-btn color="primary" icon="add" label="이슈 생성" no-caps unelevated size="sm" />
             </div>
 
-            <div v-if="si === 1 && idx === 2" class="mock-screen" style="max-width:380px">
+            <!-- 이슈 타입 선택 목업 -->
+            <div v-if="si === 1 && idx === 2" class="mock-screen">
+              <div class="row q-gutter-sm" style="flex-wrap:wrap">
+                <div v-for="t in issueTypes" :key="t.value" style="min-width:150px;flex:1">
+                  <q-card flat bordered class="q-pa-sm">
+                    <div class="row items-center q-gutter-xs q-mb-xs">
+                      <q-icon :name="t.icon" :color="t.color" size="16px" />
+                      <span class="text-caption text-weight-bold">{{ t.label }}</span>
+                    </div>
+                    <div class="text-caption text-grey-6">{{ t.desc }}</div>
+                  </q-card>
+                </div>
+              </div>
+            </div>
+
+            <!-- 폼 전체 목업 -->
+            <div v-if="si === 1 && idx === 3" class="mock-screen" style="max-width:520px">
+              <div class="mock-section-label q-mb-sm">기본 정보</div>
               <q-input model-value="" outlined dense label="제목 *" class="q-mb-sm" />
-              <q-input model-value="" outlined dense label="담당자" class="q-mb-sm" />
+              <div class="row q-gutter-sm q-mb-md">
+                <q-input model-value="Task" outlined dense label="타입" class="col">
+                  <template #prepend><q-icon name="check_box_outline_blank" color="primary" size="16px" /></template>
+                </q-input>
+                <q-input model-value="보통" outlined dense label="우선순위" class="col">
+                  <template #prepend><q-icon name="flag" color="grey-6" size="16px" /></template>
+                </q-input>
+                <q-input model-value="할 일" outlined dense label="상태" class="col" />
+              </div>
+              <q-separator class="q-mb-sm" />
+              <div class="mock-section-label q-mb-sm">담당</div>
+              <div class="row q-gutter-sm q-mb-sm">
+                <q-input model-value="" outlined dense label="담당자" class="col">
+                  <template #prepend><q-icon name="person" color="grey-6" size="16px" /></template>
+                </q-input>
+                <q-input model-value="홍길동" outlined dense label="보고자 (자동)" readonly class="col">
+                  <template #prepend><q-icon name="person_outline" color="grey-6" size="16px" /></template>
+                </q-input>
+              </div>
+              <div class="row q-gutter-sm q-mb-md">
+                <q-input model-value="" outlined dense label="상위 Epic" class="col">
+                  <template #prepend><q-icon name="bolt" color="purple" size="16px" /></template>
+                </q-input>
+                <q-input model-value="" outlined dense label="스토리 포인트" type="number" class="col">
+                  <template #prepend><q-icon name="speed" color="grey-6" size="16px" /></template>
+                </q-input>
+              </div>
+              <q-separator class="q-mb-sm" />
+              <div class="mock-section-label q-mb-sm">일정</div>
               <div class="row q-gutter-sm">
-                <q-input model-value="보통" outlined dense label="우선순위" class="col" />
-                <q-input model-value="" outlined dense label="마감일" type="date" class="col" />
+                <q-input model-value="" outlined dense label="스프린트" class="col">
+                  <template #prepend><q-icon name="loop" color="grey-6" size="16px" /></template>
+                </q-input>
+                <q-input model-value="" outlined dense label="시작일" type="date" stack-label class="col" />
+                <q-input model-value="" outlined dense label="마감일" type="date" stack-label class="col" />
+              </div>
+            </div>
+
+            <!-- 라벨·첨부파일 목업 -->
+            <div v-if="si === 1 && idx === 4" class="mock-screen" style="max-width:420px">
+              <div class="mock-section-label q-mb-sm">기타</div>
+              <div class="row q-gutter-xs q-mb-xs">
+                <q-chip dense color="blue" text-color="white" size="sm" removable>프론트엔드</q-chip>
+                <q-chip dense color="orange" text-color="white" size="sm" removable>백엔드</q-chip>
+                <q-chip dense color="green" text-color="white" size="sm" removable>DB</q-chip>
+              </div>
+              <div class="text-caption text-grey-6 q-mb-sm">↑ 라벨을 선택해 이슈를 분류합니다</div>
+              <q-input model-value="" outlined dense label="설명" type="textarea" :rows="2" class="q-mb-sm" />
+              <div style="border:1.5px dashed #ccc;border-radius:6px;padding:12px;text-align:center">
+                <q-icon name="cloud_upload" size="22px" color="grey-5" />
+                <div class="text-caption text-grey-5 q-mt-xs">파일을 끌어다 놓거나 버튼으로 첨부</div>
               </div>
             </div>
 
@@ -284,18 +348,26 @@ const scenarios: Scenario[] = [
       },
       {
         label: '[이슈 생성] 버튼 클릭',
-        desc: '프로젝트 상세 화면 상단의 [이슈 생성] 버튼을 클릭하면 생성 다이얼로그가 열립니다.',
+        desc: '프로젝트 상세 화면 우측 상단의 [이슈 생성] 버튼을 클릭하면 생성 다이얼로그가 열립니다.',
       },
       {
-        label: '제목 · 담당자 · 우선순위 · 마감일 입력',
-        desc: '제목은 필수 항목입니다. 담당자, 우선순위(낮음/보통/높음/긴급), 마감일을 설정하면 팀원이 내 이슈 화면에서 바로 확인할 수 있습니다.',
+        label: '이슈 타입 선택 — Epic / Story / Task',
+        desc: '업무 규모와 성격에 따라 타입을 고릅니다. 일반 단위 작업은 Task, 사용자 기능 단위는 Story, 큰 업무 묶음은 Epic을 사용하세요.',
       },
       {
-        label: '[저장] 클릭 → 백로그에서 확인',
-        desc: '저장하면 이슈가 백로그에 추가됩니다. 백로그 탭에서 새 이슈를 확인하세요.',
+        label: '기본 정보 · 담당 · 일정 입력',
+        desc: '제목은 필수입니다. 담당자·보고자·상위 Epic·스토리 포인트, 스프린트·시작일·마감일을 설정하면 팀원이 내 이슈 화면에서 바로 확인할 수 있습니다.',
+      },
+      {
+        label: '라벨 · 설명 · 첨부파일 추가 (선택)',
+        desc: '라벨로 이슈를 분류하고, 설명란에 상세 내용을 입력합니다. 파일은 드래그 앤 드롭으로 첨부할 수 있습니다.',
+      },
+      {
+        label: '[이슈 추가] 클릭 → 백로그에서 확인',
+        desc: '저장하면 이슈가 백로그(또는 선택한 스프린트)에 추가됩니다. 백로그 탭에서 새 이슈를 확인하고 스프린트로 이동시킬 수 있습니다.',
       },
     ],
-    tip: '이슈는 백로그에 먼저 쌓이고, 이후 스프린트로 이동시킬 수 있어요.',
+    tip: 'Epic → Story → Task 순서로 계층 구조를 만들어 작업을 체계적으로 관리할 수 있어요. 일반 업무는 Task 하나로 시작해도 충분합니다.',
   },
   {
     id: 'sc-sprint',
@@ -392,6 +464,12 @@ const scenarios: Scenario[] = [
   },
 ]
 
+const issueTypes = [
+  { value: 'EPIC',  label: 'Epic',  icon: 'bolt',                    color: 'purple',  desc: '큰 업무 묶음. Story·Task의 상위 단위' },
+  { value: 'STORY', label: 'Story', icon: 'menu_book',               color: 'green',   desc: '사용자 관점의 기능 단위' },
+  { value: 'TASK',  label: 'Task',  icon: 'check_box_outline_blank',  color: 'primary', desc: '구체적인 작업 단위 (일반 업무)' },
+]
+
 const kanbanCols = [
   { label: '할 일', color: 'grey-6', cards: ['로그인 페이지 개선'] },
   { label: '진행중', color: 'primary', cards: ['API 연동', '쿼리 최적화'] },
@@ -408,6 +486,13 @@ function scrollTo(id: string) {
 .scenario-header {
   border-left: 4px solid var(--q-primary);
   background: #f0f4ff;
+}
+.mock-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9e9e9e;
 }
 .mock-screen {
   background: #f8f9fa;
