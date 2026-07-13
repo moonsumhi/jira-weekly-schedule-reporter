@@ -6,6 +6,7 @@
         <div class="text-h5 text-weight-bold">SR 관리</div>
         <div class="text-caption text-grey-6">접수된 SR을 검토 · 배정 · 처리합니다.</div>
       </div>
+      <HelpButton feature="sr-manage" guide-path="/pm/sr/guide" class="q-mr-xs" />
       <q-btn v-if="isAdminUser" outline color="indigo-7" icon="settings" label="SR 기본 프로젝트" @click="srProjectDialog = true" class="q-mr-sm" />
       <q-btn outline color="green-7" icon="download" label="Excel" @click="downloadExcel" :loading="exporting" />
     </div>

@@ -8,6 +8,7 @@
         <div class="text-caption text-grey-6">스케줄 관리 › 주간 보고</div>
       </div>
       <q-space />
+      <HelpButton feature="weekly-report" guide-path="/pm/schedule/guide" />
       <q-btn flat icon="download" label="목록 Excel" color="positive" no-caps @click="downloadList" />
       <q-btn color="primary" icon="add" label="새 보고서 생성" no-caps @click="openCreate" />
     </div>

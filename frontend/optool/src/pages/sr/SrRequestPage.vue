@@ -3,10 +3,11 @@
 
     <div class="row items-center q-mb-md">
       <q-btn flat dense round icon="arrow_back" class="q-mr-xs" @click="$router.back()" />
-      <div>
+      <div class="col">
         <div class="text-h6 text-weight-bold">{{ editId ? 'SR 수정' : 'SR 접수' }}</div>
         <div class="text-caption text-grey-5">{{ editId ? 'SR 내용을 수정합니다.' : '데이터운영팀에 업무 요청을 접수합니다.' }}</div>
       </div>
+      <HelpButton feature="sr-new" guide-path="/pm/sr/guide" />
     </div>
 
     <!-- 수정 모드 안내 배너 -->

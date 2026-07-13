@@ -14,6 +14,8 @@
           <span class="text-caption text-grey-5 q-mr-xs">{{ sr.srNo }}</span>
           <span class="text-caption text-grey-4">·</span>
           <span class="text-caption text-grey-5 q-ml-xs">{{ fmtDateTime(sr.createdAt) }} 접수</span>
+          <q-space />
+          <HelpButton feature="sr-detail" guide-path="/pm/sr/guide" />
         </div>
         <div class="text-h5 text-weight-bold q-mb-sm">{{ sr.title }}</div>
         <div class="row items-center q-gutter-xs flex-wrap">

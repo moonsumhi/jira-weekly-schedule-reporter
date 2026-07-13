@@ -19,7 +19,7 @@
           </span>
         </div>
       </div>
-      <q-space />
+      <HelpButton feature="weekly-report-detail" guide-path="/pm/schedule/guide" />
       <!-- 액션 버튼 -->
       <template v-if="report">
         <q-btn v-if="report.status === 'DRAFT'" flat icon="refresh" label="재집계" color="teal" no-caps
