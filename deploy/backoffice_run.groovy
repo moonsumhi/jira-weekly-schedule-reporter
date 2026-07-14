@@ -1,7 +1,7 @@
 pipeline {
     agent any
     parameters {
-        string(name: 'TAG', defaultValue: 'main-latest', description: '배포할 이미지 태그 — 빌드 파이프라인 형식: {브랜치}-{태그} (예: main-latest, dev-latest, main-v1.2.0)')
+        string(name: 'TAG', defaultValue: 'main-latest', description: '배포할 이미지 태그 — 빌드 파이프라인 형식: {브랜치}-{태그} (예: main-latest, dev-latest, feature-mail-latest) ※ 브랜치명의 /는 -로 치환')
         string(name: 'IP', defaultValue: '', description: '배포 서버 IP (비우면 Jenkins Global Env의 BO_APP_SERVER 사용)')
     }
     stages {
