@@ -361,8 +361,8 @@ const activeTab = ref('all')
 const pagination = ref({
   page:        1,
   rowsPerPage: 20,
-  sortBy:      '',
-  descending:  false,
+  sortBy:      'created_at',
+  descending:  true,
   rowsNumber:  0,
 })
 
@@ -394,17 +394,17 @@ const priorityOptions    = SR_PRIORITY_OPTIONS
 
 const columns: NonNullable<QTableProps['columns']> = [
   { name: 'select',               label: '',          field: 'id',                   align: 'center', style: 'width:40px' },
-  { name: 'sr_no',               label: 'SR 번호',   field: 'sr_no',                align: 'left',   sortable: true, style: 'width:120px' },
-  { name: 'title',               label: '요청 제목', field: 'title',                align: 'left' },
-  { name: 'requester_department', label: '부서',     field: 'requester_department', align: 'left',   style: 'width:90px' },
-  { name: 'requester_name',      label: '요청자',    field: 'requester_name',       align: 'left',   style: 'width:80px' },
-  { name: 'request_type',        label: '유형',      field: 'request_type',         align: 'left',   style: 'width:110px' },
-  { name: 'priority',            label: '중요도',    field: 'priority',             align: 'center', style: 'width:70px' },
-  { name: 'status',              label: '상태',      field: 'status',               align: 'center', style: 'width:130px' },
-  { name: 'assignee_name',       label: '담당자',    field: 'assignee_name',        align: 'left',   style: 'width:80px' },
-  { name: 'desired_due_date',    label: '희망완료일', field: 'desired_due_date',    align: 'center', style: 'width:95px' },
-  { name: 'created_at',          label: '접수일',    field: 'created_at',           align: 'center', style: 'width:90px' },
-  { name: 'actions',             label: '',          field: 'id',                   align: 'center', style: 'width:50px' },
+  { name: 'sr_no',                label: 'SR 번호',   field: 'sr_no',                align: 'left',   sortable: true, style: 'width:120px' },
+  { name: 'title',                label: '요청 제목', field: 'title',                align: 'left' },
+  { name: 'requester_department', label: '부서',      field: 'requester_department', align: 'left',   sortable: true, style: 'width:90px' },
+  { name: 'requester_name',       label: '요청자',    field: 'requester_name',       align: 'left',   sortable: true, style: 'width:80px' },
+  { name: 'request_type',         label: '유형',      field: 'request_type',         align: 'left',   style: 'width:110px' },
+  { name: 'priority',             label: '중요도',    field: 'priority',             align: 'center', sortable: true, style: 'width:70px' },
+  { name: 'status',               label: '상태',      field: 'status',               align: 'center', sortable: true, style: 'width:130px' },
+  { name: 'assignee_name',        label: '담당자',    field: 'assignee_name',        align: 'left',   style: 'width:80px' },
+  { name: 'desired_due_date',     label: '희망완료일', field: 'desired_due_date',    align: 'center', sortable: true, style: 'width:95px' },
+  { name: 'created_at',           label: '접수일',    field: 'created_at',           align: 'center', sortable: true, style: 'width:90px' },
+  { name: 'actions',              label: '',          field: 'id',                   align: 'center', style: 'width:50px' },
 ]
 
 // ── computed ─────────────────────────────────────────────────────────────
@@ -471,7 +471,9 @@ async function fetchList() {
     const skip = (pagination.value.page - 1) * pagination.value.rowsPerPage
     const params: Record<string, string | number | boolean> = {
       skip,
-      limit: pagination.value.rowsPerPage,
+      limit:      pagination.value.rowsPerPage,
+      sort_by:    pagination.value.sortBy || 'created_at',
+      descending: pagination.value.descending,
     }
     // 탭 → API status 파라미터 (서버사이드 필터)
     if (activeTab.value === 'delayed') {
@@ -526,9 +528,11 @@ function resetFilter() {
 
 // ── 서버사이드 페이지네이션 핸들러 ──────────────────────────────────────
 
-function onTableRequest(props: { pagination: { page: number; rowsPerPage: number } }) {
+function onTableRequest(props: { pagination: { page: number; rowsPerPage: number; sortBy: string; descending: boolean } }) {
   pagination.value.page        = props.pagination.page
   pagination.value.rowsPerPage = props.pagination.rowsPerPage
+  pagination.value.sortBy      = props.pagination.sortBy
+  pagination.value.descending  = props.pagination.descending
   void fetchList()
   syncToUrl()
 }
