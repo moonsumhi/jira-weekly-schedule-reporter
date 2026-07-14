@@ -202,17 +202,14 @@ const routes: RouteRecordRaw[] = [
           },
           {
             path: 'weekly-report',
-            meta: { requiresAdmin: true },
             component: () => import('pages/pm/WeeklyReportPage.vue')
           },
           {
             path: 'weekly-report/:id',
-            meta: { requiresAdmin: true },
             component: () => import('pages/pm/WeeklyReportDetailPage.vue')
           },
           {
             path: 'monthly-report',
-            meta: { requiresAdmin: true },
             component: () => import('pages/pm/MonthlyReportPage.vue')
           },
           // ── SR (Service Request) ────────────────────────────

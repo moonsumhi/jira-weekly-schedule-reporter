@@ -50,10 +50,19 @@ async def list_all_srs(
     planned_due_to: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    sort_by: Optional[str] = Query(None),
+    descending: bool = Query(True),
     current_user: UserPublic = Depends(get_current_user),
 ):
     require_sr_operator(current_user)
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+
+    _SORT_FIELDS = {
+        "created_at", "desired_due_date", "sr_no",
+        "requester_name", "requester_department", "priority", "status",
+    }
+    sort_field = sort_by if sort_by in _SORT_FIELDS else "created_at"
+    sort_dir   = -1 if descending else 1
 
     q: dict = {"deleted_at": None}
     # 자신에게 배정된 SR만 보기 (operator 전용 필터)
@@ -100,11 +109,11 @@ async def list_all_srs(
 
     # is_delayed 필터는 Python 연산이므로 페이지네이션 전에 전체 조회 후 필터링
     if is_delayed is not None:
-        all_docs = await col.find(q).sort("created_at", -1).to_list(None)
+        all_docs = await col.find(q).sort(sort_field, sort_dir).to_list(None)
         items = [SRListItem(**sr_to_out(d)) for d in all_docs if SRListItem(**sr_to_out(d)).is_delayed == is_delayed]
         return items[skip: skip + limit]
 
-    docs = await col.find(q).sort("created_at", -1).skip(skip).limit(limit).to_list(None)
+    docs = await col.find(q).sort(sort_field, sort_dir).skip(skip).limit(limit).to_list(None)
     return [SRListItem(**sr_to_out(d)) for d in docs]
 
 

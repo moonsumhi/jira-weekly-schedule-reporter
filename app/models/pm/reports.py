@@ -5,6 +5,13 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class EditHistoryEntry(BaseModel):
+    editor_id: str
+    editor_name: Optional[str] = None
+    action: str
+    edited_at: datetime
+
+
 # ════════════════════════════════════════════════════════════════════
 # 수기 항목 (Manual Items for Weekly Reports)
 # ════════════════════════════════════════════════════════════════════
@@ -199,6 +206,7 @@ class WeeklyReportOut(BaseModel):
     updated_at: datetime
     confirmed_by: Optional[str] = None
     confirmed_at: Optional[datetime] = None
+    edit_history: List[EditHistoryEntry] = Field(default_factory=list)
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -237,3 +245,4 @@ class MonthlyReportOut(BaseModel):
     updated_by: Optional[str] = None
     updated_by_name: Optional[str] = None
     updated_at: datetime
+    edit_history: List[EditHistoryEntry] = Field(default_factory=list)

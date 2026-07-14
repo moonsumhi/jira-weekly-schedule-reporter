@@ -418,6 +418,11 @@ const ganttPersons = computed(() => {
           .filter(item => { if (seen.has(item.issueId)) return false; seen.add(item.issueId); return true })
       })(),
     }))
+    .sort((a, b) => {
+      if (a.userName === '미지정') return 1
+      if (b.userName === '미지정') return -1
+      return 0
+    })
 })
 
 function ganttCellClass(item: WorkItem, dayIso: string): string {

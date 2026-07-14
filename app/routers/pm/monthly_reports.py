@@ -12,12 +12,12 @@ from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.pm.reports import (
     MonthlyReportCreate, MonthlyReportPatch, MonthlyReportOut,
-    ProjectBreakdown, PersonBreakdown, WorkItem, ReportStats,
+    ProjectBreakdown, PersonBreakdown, WorkItem, ReportStats, EditHistoryEntry,
 )
 from app.routers.auth import get_current_user
 from app.routers.pm.report_agg import aggregate_period
 from app.routers.pm.weekly_reports import (
-    _require_admin, _user_name, _excel_response, _write_items_table,
+    _require_pm, _history_entry, _user_name, _excel_response, _write_items_table,
     STATUS_KO, PRIORITY_KO, STATUS_ISSUE_KO,
 )
 
@@ -59,6 +59,15 @@ def _doc_to_out(doc: dict) -> MonthlyReportOut:
         updated_by=str(doc["updated_by"]) if doc.get("updated_by") else None,
         updated_by_name=None,
         updated_at=doc["updated_at"],
+        edit_history=[
+            EditHistoryEntry(
+                editor_id=str(e["editor_id"]),
+                editor_name=e.get("editor_name"),
+                action=e.get("action", "수정"),
+                edited_at=e["edited_at"],
+            )
+            for e in doc.get("edit_history", [])
+        ],
     )
 
 
@@ -93,7 +102,7 @@ async def list_monthly_reports(
     month: Optional[int] = Query(None),
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_monthly_reports_collection()
     q: dict = {"deleted_at": None}
     if year:  q["report_year"]  = year
@@ -114,7 +123,7 @@ async def export_monthly_list(
     month: Optional[int] = Query(None),
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -160,7 +169,7 @@ async def get_monthly_report(
     report_id: str,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     doc = await MongoClientManager.get_pm_monthly_reports_collection().find_one(
         {"_id": ObjectId(report_id), "deleted_at": None}
     )
@@ -174,7 +183,7 @@ async def create_monthly_report(
     body: MonthlyReportCreate,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_monthly_reports_collection()
     now = datetime.now(timezone.utc)
 
@@ -200,6 +209,7 @@ async def create_monthly_report(
         "created_at":     now,
         "updated_at":     now,
         "deleted_at":     None,
+        "edit_history":   [_history_entry(current_user, "생성")],
     })
     doc = await col.find_one({"_id": result.inserted_id})
     return await _enrich(_doc_to_out(doc), doc)
@@ -211,7 +221,7 @@ async def patch_monthly_report(
     body: MonthlyReportPatch,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_monthly_reports_collection()
     doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
     if not doc:
@@ -222,7 +232,9 @@ async def patch_monthly_report(
     patch["updated_at"] = datetime.now(timezone.utc)
 
     updated = await col.find_one_and_update(
-        {"_id": ObjectId(report_id)}, {"$set": patch}, return_document=True
+        {"_id": ObjectId(report_id)},
+        {"$set": patch, "$push": {"edit_history": _history_entry(current_user, "수정")}},
+        return_document=True,
     )
     return await _enrich(_doc_to_out(updated), updated)
 
@@ -233,7 +245,7 @@ async def refresh_monthly_report(
     current_user: UserPublic = Depends(get_current_user),
 ):
     """이슈 데이터를 다시 집계하여 보고서 내용을 최신화합니다."""
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_monthly_reports_collection()
     doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
     if not doc:
@@ -246,15 +258,18 @@ async def refresh_monthly_report(
     )
     updated = await col.find_one_and_update(
         {"_id": ObjectId(report_id)},
-        {"$set": {
-            "by_project":     [p.model_dump() for p in by_project],
-            "by_person":      [p.model_dump() for p in by_person],
-            "all_items":      [i.model_dump() for i in all_items],
-            "upcoming_items": [i.model_dump() for i in upcoming_items],
-            "stats":          stats.model_dump(),
-            "updated_by":     ObjectId(current_user.id),
-            "updated_at":     datetime.now(timezone.utc),
-        }},
+        {
+            "$set": {
+                "by_project":     [p.model_dump() for p in by_project],
+                "by_person":      [p.model_dump() for p in by_person],
+                "all_items":      [i.model_dump() for i in all_items],
+                "upcoming_items": [i.model_dump() for i in upcoming_items],
+                "stats":          stats.model_dump(),
+                "updated_by":     ObjectId(current_user.id),
+                "updated_at":     datetime.now(timezone.utc),
+            },
+            "$push": {"edit_history": _history_entry(current_user, "데이터 새로고침")},
+        },
         return_document=True,
     )
     return await _enrich(_doc_to_out(updated), updated)
@@ -265,7 +280,7 @@ async def delete_monthly_report(
     report_id: str,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     result = await MongoClientManager.get_pm_monthly_reports_collection().update_one(
         {"_id": ObjectId(report_id), "deleted_at": None},
         {"$set": {"deleted_at": datetime.now(timezone.utc)}},
@@ -279,7 +294,7 @@ async def export_monthly_detail(
     report_id: str,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
 

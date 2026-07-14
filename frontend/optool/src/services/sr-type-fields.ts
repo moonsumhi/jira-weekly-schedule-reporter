@@ -114,6 +114,31 @@ export const SR_TYPE_FIELDS: Record<string, SRTypeField[]> = {
       options: [{ value: 'yes', label: '예외 처리 필요' }, { value: 'no', label: '해당 없음' }] },
   ],
 
+  FIREWALL: [
+    { key: 'requestKind',    label: '신청 구분',          required: true,  type: 'select',
+      options: [
+        { value: 'new',    label: '신규 오픈' }, { value: 'change', label: '정책 변경' },
+        { value: 'delete', label: '정책 삭제' }, { value: 'temp',   label: '임시 오픈' },
+      ], half: true },
+    { key: 'environment',    label: '적용 환경',          required: true,  type: 'select',
+      options: [
+        { value: 'production', label: '운영' }, { value: 'development', label: '개발' },
+      ], half: true },
+    { key: 'sourceIp',       label: '출발지 IP / 대역',   required: true,  type: 'text',    placeholder: '예: 10.1.2.3, 192.168.0.0/24', half: true },
+    { key: 'destinationIp',  label: '목적지 IP / 대역',   required: true,  type: 'text',    placeholder: '예: 10.2.3.4, 0.0.0.0/0',      half: true },
+    { key: 'portProtocol',   label: '포트 / 프로토콜',    required: true,  type: 'text',    placeholder: '예: TCP/443, UDP/53, ALL',      half: true },
+    { key: 'direction',      label: '방향',               required: true,  type: 'select',
+      options: [
+        { value: 'inbound',  label: '인바운드 (외부 → 내부 트래픽)' },
+        { value: 'outbound', label: '아웃바운드 (내부 → 외부 트래픽)' },
+        { value: 'both',     label: '양방향 (상호 통신)' },
+      ], half: true },
+    { key: 'purpose',        label: '업무 목적',          required: true,  type: 'textarea', rows: 3, placeholder: '해당 방화벽 정책이 필요한 이유를 설명해주세요.' },
+    { key: 'duration',       label: '적용 기간',          required: true,  type: 'select',
+      options: [{ value: 'permanent', label: '상시' }, { value: 'temporary', label: '임시' }], half: true },
+    { key: 'expiryDate',     label: '만료일',             required: false, type: 'date',                                                 half: true },
+  ],
+
   ETC: [
     { key: 'description', label: '요청 상세 내용', required: true, type: 'editor' },
   ],
@@ -127,5 +152,6 @@ export const TYPE_CARDS = [
   { value: 'CONFIG_CHANGE',label: '설정 변경',    icon: 'settings',   desc: '시스템 · 서버 설정 변경' },
   { value: 'SERVER_INFRA', label: '서버 / 인프라', icon: 'dns',        desc: '서버 작업 · 인프라 요청' },
   { value: 'SECURITY',     label: '보안 조치',    icon: 'security',   desc: '취약점 조치 · 보안 점검' },
+  { value: 'FIREWALL',     label: '방화벽 신청',  icon: 'lan',        desc: '방화벽 정책 오픈 · 변경 · 삭제' },
   { value: 'ETC',          label: '기타',         icon: 'more_horiz', desc: '위 항목에 해당하지 않는 요청' },
 ]
