@@ -681,9 +681,9 @@
                 </div>
 
                 <div class="row q-col-gutter-sm items-end">
-                  <div class="col">
+                  <div class="col" @paste="onCommentPaste">
                     <q-input v-model="newComment" placeholder="댓글을 입력하세요... (이미지 붙여넣기 가능)" outlined dense
-                      type="textarea" rows="3" @paste="onCommentPaste" />
+                      type="textarea" rows="3" />
                     <div class="row items-center q-mt-xs q-gutter-sm">
                       <q-checkbox v-if="isOperatorUser" v-model="newCommentInternal"
                         label="내부 메모 (운영팀에만 공개)" size="xs" color="grey-7" dense />
