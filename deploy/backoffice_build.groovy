@@ -2,6 +2,10 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'BRANCH', defaultValue: 'main', description: '빌드할 브랜치 (예: main, dev)')
+    }
+
     stages {
 
         stage('Build 서버에서 전체 작업 수행') {
@@ -26,7 +30,7 @@ echo "===== 1. 기존 디렉토리 삭제 ====="
 rm -rf ${env.REMOTE_DIR}
 
 echo "===== 2. Git Clone (Build 서버에서 수행) ====="
-git clone -b main http://\${GIT_USER}:\${GIT_TOKEN}@${env.GIT_SERVER}/${env.BO_GIT_REPO} ${env.REMOTE_DIR}
+git clone -b ${params.BRANCH} http://\${GIT_USER}:\${GIT_TOKEN}@${env.GIT_SERVER}/${env.BO_GIT_REPO} ${env.REMOTE_DIR}
 
 cd ${env.REMOTE_DIR}
 
