@@ -127,6 +127,9 @@ async def create_sr(
             dedup_key_prefix=f"sr_submit:{sr_id_str}",
         )
 
+        from app.utils.mail_notify import send_sr_notification
+        await send_sr_notification(doc, event="created")
+
     return SROut(**sr_to_out(doc))
 
 

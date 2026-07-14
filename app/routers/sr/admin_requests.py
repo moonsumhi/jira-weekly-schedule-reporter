@@ -453,6 +453,9 @@ async def change_status(
             target_url=target_url,
         )
 
+    from app.utils.mail_notify import send_sr_notification
+    await send_sr_notification(updated, event="status_changed")
+
     return SROut(**sr_to_out(updated))
 
 
