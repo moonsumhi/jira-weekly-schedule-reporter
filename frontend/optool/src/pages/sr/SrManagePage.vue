@@ -40,118 +40,115 @@
     </q-tabs>
 
     <!-- 필터 -->
-    <q-card flat bordered class="q-mb-md filter-card">
-      <q-card-section class="q-py-sm q-px-md">
-        <!-- 필터 헤더 -->
-        <div class="row items-center q-gutter-xs q-mb-sm">
-          <q-icon name="filter_list" size="16px" color="grey-6" />
-          <span class="text-caption text-weight-medium text-grey-7">상세 필터</span>
-          <q-space />
-          <!-- 프리셋 -->
-          <q-btn-dropdown flat dense size="sm" icon="bookmark_border" color="grey-6" label="프리셋" no-icon-animation>
-            <q-list dense style="min-width:180px">
-              <q-item v-if="!presets.length" dense>
-                <q-item-section class="text-grey-5 text-caption q-py-xs">저장된 프리셋 없음</q-item-section>
-              </q-item>
-              <q-item v-for="(p, i) in presets" :key="i" clickable v-close-popup @click="loadPreset(p)">
-                <q-item-section>{{ p.name }}</q-item-section>
-                <q-item-section side>
-                  <q-btn flat round dense size="xs" icon="close" color="grey-5" @click.stop="removePreset(i)" />
-                </q-item-section>
-              </q-item>
-              <q-separator v-if="presets.length" />
-              <q-item clickable v-close-popup @click="savePreset">
-                <q-item-section avatar><q-icon name="add" size="14px" /></q-item-section>
-                <q-item-section>현재 필터 저장</q-item-section>
-              </q-item>
-            </q-list>
-          </q-btn-dropdown>
-          <q-btn flat dense round icon="refresh" size="sm" color="grey-6" @click="resetFilter">
-            <q-tooltip>초기화</q-tooltip>
-          </q-btn>
-        </div>
+    <q-card flat bordered class="q-mb-md">
+      <q-card-section class="q-pa-md">
 
-        <!-- 텍스트 검색 -->
-        <div class="row q-mb-sm">
+        <!-- 검색 + 액션 -->
+        <div class="row q-col-gutter-sm items-center q-mb-md">
           <div class="col">
-            <q-input v-model="search" label="제목 · SR번호 · 요청자 검색" outlined dense clearable
-              bg-color="white" class="filter-input">
-              <template #prepend><q-icon name="search" size="16px" color="grey-5" /></template>
+            <q-input v-model="search" placeholder="제목 · SR번호 · 요청자 검색" outlined dense clearable bg-color="white">
+              <template #prepend><q-icon name="search" color="grey-5" size="18px" /></template>
             </q-input>
+          </div>
+          <div class="col-auto row items-center q-gutter-xs">
+            <q-btn-dropdown flat dense size="sm" icon="bookmark_border" color="grey-6" no-icon-animation>
+              <template #label><span class="text-caption">프리셋</span></template>
+              <q-list dense style="min-width:180px">
+                <q-item v-if="!presets.length" dense>
+                  <q-item-section class="text-grey-5 text-caption q-py-xs">저장된 프리셋 없음</q-item-section>
+                </q-item>
+                <q-item v-for="(p, i) in presets" :key="i" clickable v-close-popup @click="loadPreset(p)">
+                  <q-item-section>{{ p.name }}</q-item-section>
+                  <q-item-section side>
+                    <q-btn flat round dense size="xs" icon="close" color="grey-5" @click.stop="removePreset(i)" />
+                  </q-item-section>
+                </q-item>
+                <q-separator v-if="presets.length" />
+                <q-item clickable v-close-popup @click="savePreset">
+                  <q-item-section avatar><q-icon name="add" size="14px" /></q-item-section>
+                  <q-item-section>현재 필터 저장</q-item-section>
+                </q-item>
+              </q-list>
+            </q-btn-dropdown>
+            <q-btn flat round dense icon="refresh" color="grey-5" size="sm" @click="resetFilter">
+              <q-tooltip>필터 초기화</q-tooltip>
+            </q-btn>
+            <q-btn unelevated color="primary" icon="search" label="조회" size="sm"
+              class="q-px-sm" @click="applyFilter" :loading="loading" />
           </div>
         </div>
 
         <!-- 기본 필터 -->
-        <div class="row q-col-gutter-sm items-center">
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.requesterDepartment" label="요청 부서" outlined dense clearable
-              bg-color="white" class="filter-input">
+        <div class="row q-col-gutter-sm q-mb-md">
+          <div class="col-12 col-sm-6 col-md">
+            <q-input v-model="filter.requesterDepartment" label="요청 부서" outlined dense clearable bg-color="white">
               <template #prepend><q-icon name="business" size="16px" color="grey-5" /></template>
             </q-input>
           </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.requesterName" label="요청자" outlined dense clearable
-              bg-color="white" class="filter-input">
+          <div class="col-12 col-sm-6 col-md">
+            <q-input v-model="filter.requesterName" label="요청자" outlined dense clearable bg-color="white">
               <template #prepend><q-icon name="person" size="16px" color="grey-5" /></template>
             </q-input>
           </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-select v-model="filter.requestType" label="요청 유형" outlined dense clearable
-              bg-color="white" class="filter-input"
+          <div class="col-12 col-sm-6 col-md">
+            <q-select v-model="filter.requestType" label="요청 유형" outlined dense clearable bg-color="white"
               :options="requestTypeOptions" emit-value map-options>
               <template #prepend><q-icon name="category" size="16px" color="grey-5" /></template>
             </q-select>
           </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.relatedSystem" label="관련 시스템" outlined dense clearable
-              bg-color="white" class="filter-input">
+          <div class="col-12 col-sm-6 col-md">
+            <q-input v-model="filter.relatedSystem" label="관련 시스템" outlined dense clearable bg-color="white">
               <template #prepend><q-icon name="computer" size="16px" color="grey-5" /></template>
             </q-input>
           </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-select v-model="filter.priority" label="중요도" outlined dense clearable
-              bg-color="white" class="filter-input"
+          <div class="col-12 col-sm-6 col-md">
+            <q-select v-model="filter.priority" label="중요도" outlined dense clearable bg-color="white"
               :options="priorityOptions" emit-value map-options>
               <template #prepend><q-icon name="flag" size="16px" color="grey-5" /></template>
             </q-select>
           </div>
-          <div class="col-12 col-sm col-lg-auto">
-            <div class="row items-center q-gutter-md q-pl-xs">
-              <q-toggle v-model="filter.isUrgent" dense color="negative" size="sm">
-                <template #default>
-                  <span class="text-caption q-ml-xs" :class="filter.isUrgent ? 'text-negative text-weight-medium' : 'text-grey-7'">긴급</span>
-                </template>
-              </q-toggle>
-              <q-toggle v-model="filter.myAssigned" dense color="primary" size="sm">
-                <template #default>
-                  <span class="text-caption q-ml-xs" :class="filter.myAssigned ? 'text-primary text-weight-medium' : 'text-grey-7'">내 배정</span>
-                </template>
-              </q-toggle>
-              <q-btn color="primary" icon="search" label="조회" @click="applyFilter" :loading="loading"
-                unelevated size="sm" class="q-px-md" />
+        </div>
+
+        <!-- 날짜 범위 + 토글 -->
+        <div class="row items-end q-gutter-md">
+          <div>
+            <div class="text-caption text-grey-6 q-mb-xs">접수일</div>
+            <div class="row items-center no-wrap q-gutter-xs">
+              <q-input v-model="filter.createdFrom" type="date" outlined dense clearable
+                bg-color="white" style="width:148px" />
+              <span class="text-grey-5 text-body2">~</span>
+              <q-input v-model="filter.createdTo" type="date" outlined dense clearable
+                bg-color="white" style="width:148px" />
             </div>
+          </div>
+          <div>
+            <div class="text-caption text-grey-6 q-mb-xs">희망완료일</div>
+            <div class="row items-center no-wrap q-gutter-xs">
+              <q-input v-model="filter.dueDateFrom" type="date" outlined dense clearable
+                bg-color="white" style="width:148px" />
+              <span class="text-grey-5 text-body2">~</span>
+              <q-input v-model="filter.dueDateTo" type="date" outlined dense clearable
+                bg-color="white" style="width:148px" />
+            </div>
+          </div>
+          <div class="row items-center q-gutter-sm q-pb-xs">
+            <q-chip
+              clickable dense
+              :color="filter.isUrgent ? 'negative' : 'grey-3'"
+              :text-color="filter.isUrgent ? 'white' : 'grey-7'"
+              icon="priority_high"
+              @click="filter.isUrgent = !filter.isUrgent"
+            >긴급</q-chip>
+            <q-chip
+              clickable dense
+              :color="filter.myAssigned ? 'primary' : 'grey-3'"
+              :text-color="filter.myAssigned ? 'white' : 'grey-7'"
+              icon="person_pin"
+              @click="filter.myAssigned = !filter.myAssigned"
+            >내 배정</q-chip>
           </div>
         </div>
 
-        <!-- 날짜 범위 필터 -->
-        <div class="row q-col-gutter-sm items-center q-mt-xs">
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.createdFrom" label="접수일 시작" outlined dense clearable
-              type="date" bg-color="white" class="filter-input" />
-          </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.createdTo" label="접수일 종료" outlined dense clearable
-              type="date" bg-color="white" class="filter-input" />
-          </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.dueDateFrom" label="희망완료일 시작" outlined dense clearable
-              type="date" bg-color="white" class="filter-input" />
-          </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.dueDateTo" label="희망완료일 종료" outlined dense clearable
-              type="date" bg-color="white" class="filter-input" />
-          </div>
-        </div>
       </q-card-section>
     </q-card>
 
@@ -209,36 +206,101 @@
             <q-td>{{ row.requesterDepartment }}</q-td>
             <q-td>{{ row.requesterName }}</q-td>
             <q-td>{{ requestTypeLabel(row.requestType) }}</q-td>
-            <q-td class="text-center">
-              <q-badge :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" outline />
+            <q-td class="text-center editable-cell" @click.stop>
+              <div class="row items-center justify-center no-wrap">
+                <q-badge :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" outline />
+                <q-icon name="edit" size="11px" color="grey-4" class="edit-hint q-ml-xs" />
+              </div>
+              <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                <q-card flat>
+                  <q-list dense padding style="min-width:130px">
+                    <q-item-label header class="text-caption text-grey-6 q-pb-xs">중요도 변경</q-item-label>
+                    <q-item v-for="opt in priorityOptions" :key="opt.value"
+                      clickable v-close-popup @click="inlinePatch(row, { priority: opt.value })"
+                      :active="row.priority === opt.value" active-class="bg-blue-1">
+                      <q-item-section>
+                        <q-badge :color="priorityColor(opt.value)" :label="opt.label" outline />
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-card>
+              </q-popup-proxy>
             </q-td>
             <!-- 인라인 상태 변경 -->
-            <q-td class="text-center" @click.stop>
-              <q-chip :color="statusColor(row.status)" text-color="white" dense size="sm"
-                class="cursor-pointer" :loading="changingStatusId === row.id">
-                {{ statusLabel(row.status) }}
-                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                  <q-card flat>
-                    <q-list dense padding style="min-width:160px">
-                      <q-item-label header class="text-caption text-grey-6 q-pb-xs">상태 변경</q-item-label>
-                      <q-item v-for="opt in STATUS_OPTIONS" :key="opt.value"
-                        clickable v-close-popup @click="inlineStatusChange(row, opt.value)"
-                        :active="row.status === opt.value" active-class="bg-blue-1">
-                        <q-item-section>
-                          <q-badge :color="statusColor(opt.value)" :label="opt.label"
-                            text-color="white" style="font-size:0.72rem" />
-                        </q-item-section>
-                      </q-item>
-                    </q-list>
-                  </q-card>
-                </q-popup-proxy>
-              </q-chip>
+            <q-td class="text-center editable-cell" @click.stop>
+              <div class="inline-block relative-position">
+                <q-chip :color="statusColor(row.status)" text-color="white" dense size="sm"
+                  :class="changingStatusId === row.id ? '' : 'cursor-pointer'">
+                  <q-spinner v-if="changingStatusId === row.id" size="12px" class="q-mr-xs" />
+                  {{ statusLabel(row.status) }}
+                  <q-popup-proxy v-if="changingStatusId !== row.id" cover transition-show="scale" transition-hide="scale">
+                    <q-card flat>
+                      <q-list dense padding style="min-width:160px">
+                        <q-item-label header class="text-caption text-grey-6 q-pb-xs">상태 변경</q-item-label>
+                        <q-item v-for="opt in STATUS_OPTIONS" :key="opt.value"
+                          clickable v-close-popup @click="requestStatusChange(row, opt.value)"
+                          :active="row.status === opt.value" active-class="bg-blue-1">
+                          <q-item-section>
+                            <q-badge :color="statusColor(opt.value)" :label="opt.label"
+                              text-color="white" style="font-size:0.72rem" />
+                          </q-item-section>
+                        </q-item>
+                      </q-list>
+                    </q-card>
+                  </q-popup-proxy>
+                </q-chip>
+              </div>
             </q-td>
-            <q-td>{{ row.assigneeName || '-' }}</q-td>
-            <q-td class="text-center">
-              <span :class="row.isDelayed ? 'text-negative text-weight-medium' : 'text-grey-7'">
-                {{ fmtDate(row.desiredDueDate) }}
-              </span>
+            <q-td class="editable-cell" @click.stop="openAssigneePopup(row)">
+              <div class="row items-center no-wrap">
+                <span class="text-truncate" style="max-width:72px">{{ row.assigneeName || '-' }}</span>
+                <q-icon name="edit" size="11px" color="grey-4" class="edit-hint q-ml-xs" />
+              </div>
+              <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                <q-card flat class="q-pa-sm" style="min-width:220px">
+                  <div class="text-caption text-grey-6 q-mb-sm">담당자 변경</div>
+                  <q-select
+                    v-model="assigneeInput"
+                    :options="filteredPmUsers"
+                    option-value="id" option-label="name"
+                    emit-value map-options
+                    label="담당자 선택"
+                    dense outlined
+                    use-input hide-selected fill-input
+                    input-debounce="0"
+                    @filter="filterUsers"
+                  >
+                    <template #no-option>
+                      <q-item><q-item-section class="text-grey">없음</q-item-section></q-item>
+                    </template>
+                  </q-select>
+                  <div class="row justify-end q-mt-sm q-gutter-xs">
+                    <q-btn flat dense size="sm" label="취소" v-close-popup />
+                    <q-btn unelevated dense size="sm" color="primary" label="저장"
+                      v-close-popup :disable="!assigneeInput"
+                      @click="saveAssignee(row)" />
+                  </div>
+                </q-card>
+              </q-popup-proxy>
+            </q-td>
+            <q-td class="text-center editable-cell" @click.stop="openDatePopup(row)">
+              <div class="row items-center justify-center no-wrap">
+                <span :class="row.isDelayed ? 'text-negative text-weight-medium' : 'text-grey-7'">
+                  {{ fmtDate(row.desiredDueDate) || '미지정' }}
+                </span>
+                <q-icon name="edit" size="11px" color="grey-4" class="edit-hint q-ml-xs" />
+              </div>
+              <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                <q-card flat class="q-pa-sm" style="min-width:200px">
+                  <div class="text-caption text-grey-6 q-mb-sm">희망완료일 변경</div>
+                  <q-input v-model="dateInput" type="date" dense outlined />
+                  <div class="row justify-end q-mt-sm q-gutter-xs">
+                    <q-btn flat dense size="sm" label="취소" v-close-popup />
+                    <q-btn unelevated dense size="sm" color="primary" label="저장"
+                      v-close-popup @click="saveDueDate(row)" />
+                  </div>
+                </q-card>
+              </q-popup-proxy>
             </q-td>
             <q-td class="text-center text-grey-6">{{ fmtDate(row.createdAt) }}</q-td>
             <q-td class="text-center" @click.stop>
@@ -256,6 +318,32 @@
         </template>
       </q-table>
     </q-card>
+
+    <!-- 상태 변경 사유 다이얼로그 -->
+    <q-dialog v-model="statusDialog.open" persistent>
+      <q-card style="min-width:400px">
+        <q-card-section class="q-pb-sm">
+          <div class="text-h6">{{ statusDialog.title }}</div>
+          <div class="text-caption text-grey-6">상태를 <strong>{{ statusLabel(statusDialog.newStatus) }}</strong>으로 변경합니다.</div>
+        </q-card-section>
+        <q-card-section>
+          <q-input
+            v-model="statusDialog.input"
+            :label="statusDialog.inputLabel"
+            outlined
+            autogrow
+            :rows="3"
+            autofocus
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="취소" v-close-popup />
+          <q-btn color="primary" label="변경" unelevated
+            :disable="!statusDialog.input.trim()"
+            @click="confirmStatusChange" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- SR 기본 프로젝트 설정 다이얼로그 -->
     <q-dialog v-model="srProjectDialog">
@@ -296,12 +384,13 @@ import { useQuasar } from 'quasar'
 import type { QTableProps } from 'quasar'
 import { api } from 'src/boot/axios'
 import {
-  listAllSRs, getSRStats, changeSRStatus,
+  listAllSRs, getSRStats, changeSRStatus, patchSRInline,
   SR_STATUS_LABEL, SR_STATUS_COLOR,
   REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL, SR_PRIORITY_COLOR,
   REQUEST_TYPE_OPTIONS, SR_PRIORITY_OPTIONS,
-  type SRListItem, type SRStats, type SRStatus,
+  type SRListItem, type SRStats, type SRStatus, type SRStatusChange,
 } from 'src/services/sr'
+import { listPmUsers, type PmUser } from 'src/services/pm/users'
 import { listProjects, setSrDefaultProject, type Project } from 'src/services/pm/project'
 import { useAuthStore } from 'src/stores/auth'
 
@@ -364,8 +453,8 @@ const activeTab = ref('all')
 const pagination = ref({
   page:        1,
   rowsPerPage: 20,
-  sortBy:      '',
-  descending:  false,
+  sortBy:      'created_at',
+  descending:  true,
   rowsNumber:  0,
 })
 
@@ -387,6 +476,25 @@ const filter = ref<FilterState>({
 const changingStatusId = ref<string | null>(null)
 const bulkChanging     = ref(false)
 
+// 사유/처리결과 입력이 필요한 상태 변경 다이얼로그
+const STATUS_NEEDS_REASON      = new Set(['REJECTED', 'ON_HOLD', 'CANCELLED'])
+const STATUS_NEEDS_RESULT      = new Set(['COMPLETED'])
+const statusDialog = ref({
+  open:       false,
+  row:        null as SRListItem | null,
+  newStatus:  '' as SRStatus,
+  title:      '',
+  inputLabel: '',
+  input:      '',
+  fieldKey:   '' as 'reason' | 'process_result',
+})
+
+// 인라인 편집 - PM 유저 / 날짜 / 담당자 선택 상태
+const pmUsers         = ref<PmUser[]>([])
+const filteredPmUsers = ref<PmUser[]>([])
+const dateInput       = ref('')
+const assigneeInput   = ref<string | null>(null)
+
 // 프리셋
 const presets = ref<FilterPreset[]>(JSON.parse(localStorage.getItem(PRESET_KEY) || '[]'))
 
@@ -397,17 +505,17 @@ const priorityOptions    = SR_PRIORITY_OPTIONS
 
 const columns: NonNullable<QTableProps['columns']> = [
   { name: 'select',               label: '',          field: 'id',                   align: 'center', style: 'width:40px' },
-  { name: 'sr_no',               label: 'SR 번호',   field: 'sr_no',                align: 'left',   sortable: true, style: 'width:120px' },
-  { name: 'title',               label: '요청 제목', field: 'title',                align: 'left' },
-  { name: 'requester_department', label: '부서',     field: 'requester_department', align: 'left',   style: 'width:90px' },
-  { name: 'requester_name',      label: '요청자',    field: 'requester_name',       align: 'left',   style: 'width:80px' },
-  { name: 'request_type',        label: '유형',      field: 'request_type',         align: 'left',   style: 'width:110px' },
-  { name: 'priority',            label: '중요도',    field: 'priority',             align: 'center', style: 'width:70px' },
-  { name: 'status',              label: '상태',      field: 'status',               align: 'center', style: 'width:130px' },
-  { name: 'assignee_name',       label: '담당자',    field: 'assignee_name',        align: 'left',   style: 'width:80px' },
-  { name: 'desired_due_date',    label: '희망완료일', field: 'desired_due_date',    align: 'center', style: 'width:95px' },
-  { name: 'created_at',          label: '접수일',    field: 'created_at',           align: 'center', style: 'width:90px' },
-  { name: 'actions',             label: '',          field: 'id',                   align: 'center', style: 'width:50px' },
+  { name: 'sr_no',                label: 'SR 번호',   field: 'sr_no',                align: 'left',   sortable: true, style: 'width:120px' },
+  { name: 'title',                label: '요청 제목', field: 'title',                align: 'left' },
+  { name: 'requester_department', label: '부서',      field: 'requester_department', align: 'left',   sortable: true, style: 'width:90px' },
+  { name: 'requester_name',       label: '요청자',    field: 'requester_name',       align: 'left',   sortable: true, style: 'width:80px' },
+  { name: 'request_type',         label: '유형',      field: 'request_type',         align: 'left',   style: 'width:110px' },
+  { name: 'priority',             label: '중요도',    field: 'priority',             align: 'center', sortable: true, style: 'width:70px' },
+  { name: 'status',               label: '상태',      field: 'status',               align: 'center', sortable: true, style: 'width:130px' },
+  { name: 'assignee_name',        label: '담당자',    field: 'assignee_name',        align: 'left',   style: 'width:80px' },
+  { name: 'desired_due_date',     label: '희망완료일', field: 'desired_due_date',    align: 'center', sortable: true, style: 'width:95px' },
+  { name: 'created_at',           label: '접수일',    field: 'created_at',           align: 'center', sortable: true, style: 'width:90px' },
+  { name: 'actions',              label: '',          field: 'id',                   align: 'center', style: 'width:50px' },
 ]
 
 // ── computed ─────────────────────────────────────────────────────────────
@@ -474,7 +582,9 @@ async function fetchList() {
     const skip = (pagination.value.page - 1) * pagination.value.rowsPerPage
     const params: Record<string, string | number | boolean> = {
       skip,
-      limit: pagination.value.rowsPerPage,
+      limit:      pagination.value.rowsPerPage,
+      sort_by:    pagination.value.sortBy || 'created_at',
+      descending: pagination.value.descending,
     }
     // 탭 → API status 파라미터 (서버사이드 필터)
     if (activeTab.value === 'delayed') {
@@ -494,14 +604,10 @@ async function fetchList() {
     if (filter.value.dueDateFrom)         params.desired_due_from     = filter.value.dueDateFrom
     if (filter.value.dueDateTo)           params.desired_due_to       = filter.value.dueDateTo
 
-    rows.value  = await listAllSRs(params)
-    stats.value = await getSRStats()
-
-    // rowsNumber 추정: 가득 찼으면 다음 페이지 존재 가능
-    const loaded = rows.value.length
-    pagination.value.rowsNumber = loaded >= pagination.value.rowsPerPage
-      ? skip + loaded + 1
-      : skip + loaded
+    const [page, srStats] = await Promise.all([listAllSRs(params), getSRStats()])
+    rows.value  = page.items
+    stats.value = srStats
+    pagination.value.rowsNumber = page.total
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     $q.notify({ type: 'negative', message: msg || 'SR 목록을 불러오는데 실패했습니다.' })
@@ -529,21 +635,105 @@ function resetFilter() {
 
 // ── 서버사이드 페이지네이션 핸들러 ──────────────────────────────────────
 
-function onTableRequest(props: { pagination: { page: number; rowsPerPage: number } }) {
+function onTableRequest(props: { pagination: { page: number; rowsPerPage: number; sortBy: string; descending: boolean } }) {
   pagination.value.page        = props.pagination.page
   pagination.value.rowsPerPage = props.pagination.rowsPerPage
+  pagination.value.sortBy      = props.pagination.sortBy
+  pagination.value.descending  = props.pagination.descending
   void fetchList()
   syncToUrl()
 }
 
+// ── 인라인 필드 편집 (priority / desired_due_date / assignee) ────────────
+
+async function inlinePatch(row: SRListItem, patch: { priority?: string; desired_due_date?: string | null; assignee_id?: string | null; assignee_name?: string | null }) {
+  try {
+    await patchSRInline(row.id, patch)
+    if (patch.priority !== undefined)         row.priority        = patch.priority as SRListItem['priority']
+    if (patch.desired_due_date !== undefined) row.desiredDueDate  = patch.desired_due_date
+    if (patch.assignee_id     !== undefined)  row.assigneeId      = patch.assignee_id
+    if (patch.assignee_name   !== undefined)  row.assigneeName    = patch.assignee_name
+    $q.notify({ type: 'positive', message: '변경되었습니다.', timeout: 1500 })
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    $q.notify({ type: 'negative', message: msg || '변경에 실패했습니다.' })
+  }
+}
+
+function openDatePopup(row: SRListItem) {
+  dateInput.value = row.desiredDueDate ? row.desiredDueDate.substring(0, 10) : ''
+}
+
+function saveDueDate(row: SRListItem) {
+  const iso = dateInput.value ? `${dateInput.value}T00:00:00Z` : null
+  void inlinePatch(row, { desired_due_date: iso })
+}
+
+function openAssigneePopup(row: SRListItem) {
+  assigneeInput.value = row.assigneeId ?? null
+  filteredPmUsers.value = pmUsers.value
+}
+
+function filterUsers(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    const q = val.toLowerCase()
+    filteredPmUsers.value = q
+      ? pmUsers.value.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+      : pmUsers.value
+  })
+}
+
+function saveAssignee(row: SRListItem) {
+  const user = pmUsers.value.find(u => u.id === assigneeInput.value)
+  if (!user) return
+  void inlinePatch(row, { assignee_id: user.id, assignee_name: user.name })
+}
+
 // ── 인라인 상태 변경 ─────────────────────────────────────────────────────
 
-async function inlineStatusChange(row: SRListItem, newStatus: string) {
+function requestStatusChange(row: SRListItem, newStatus: string) {
   if (row.status === newStatus) return
+  const ns = newStatus as SRStatus
+  if (STATUS_NEEDS_REASON.has(newStatus)) {
+    statusDialog.value = {
+      open: true, row, newStatus: ns,
+      title: '변경 사유 입력',
+      inputLabel: '사유 *',
+      input: '',
+      fieldKey: 'reason',
+    }
+  } else if (STATUS_NEEDS_RESULT.has(newStatus)) {
+    statusDialog.value = {
+      open: true, row, newStatus: ns,
+      title: '처리 결과 입력',
+      inputLabel: '처리 결과 *',
+      input: '',
+      fieldKey: 'process_result',
+    }
+  } else {
+    void doStatusChange(row, ns, {})
+  }
+}
+
+function confirmStatusChange() {
+  const { row, newStatus, input, fieldKey } = statusDialog.value
+  if (!input.trim()) return
+  statusDialog.value.open = false
+  const extra: Partial<Pick<SRStatusChange, 'reason' | 'process_result'>> = fieldKey === 'reason'
+    ? { reason: input.trim() }
+    : { process_result: input.trim() }
+  if (row) {
+    void doStatusChange(row, newStatus, extra)
+  } else {
+    void doBulkStatusChange(newStatus, extra)
+  }
+}
+
+async function doStatusChange(row: SRListItem, newStatus: SRStatus, extra: Partial<Pick<SRStatusChange, 'reason' | 'process_result'>>) {
   changingStatusId.value = row.id
   try {
-    await changeSRStatus(row.id, { status: newStatus as SRStatus })
-    row.status = newStatus as SRStatus
+    await changeSRStatus(row.id, { status: newStatus, ...extra })
+    row.status = newStatus
     $q.notify({ type: 'positive', message: `"${statusLabel(newStatus)}"로 변경되었습니다.` })
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
@@ -555,14 +745,29 @@ async function inlineStatusChange(row: SRListItem, newStatus: string) {
 
 // ── 일괄 상태 변경 ───────────────────────────────────────────────────────
 
-async function bulkStatusChange(newStatus: string) {
+function bulkStatusChange(newStatus: string) {
   if (!selected.value.length) return
+  const ns = newStatus as SRStatus
+  if (STATUS_NEEDS_REASON.has(newStatus) || STATUS_NEEDS_RESULT.has(newStatus)) {
+    statusDialog.value = {
+      open: true, row: null, newStatus: ns,
+      title: STATUS_NEEDS_RESULT.has(newStatus) ? '처리 결과 입력' : '변경 사유 입력',
+      inputLabel: STATUS_NEEDS_RESULT.has(newStatus) ? '처리 결과 *' : '사유 *',
+      input: '',
+      fieldKey: STATUS_NEEDS_RESULT.has(newStatus) ? 'process_result' : 'reason',
+    }
+  } else {
+    void doBulkStatusChange(ns, {})
+  }
+}
+
+async function doBulkStatusChange(newStatus: SRStatus, extra: Partial<Pick<SRStatusChange, 'reason' | 'process_result'>>) {
   bulkChanging.value = true
   let successCount = 0
   for (const row of selected.value) {
     try {
-      await changeSRStatus(row.id, { status: newStatus as SRStatus })
-      row.status = newStatus as SRStatus
+      await changeSRStatus(row.id, { status: newStatus, ...extra })
+      row.status = newStatus
       successCount++
     } catch { /* 개별 실패 무시 */ }
   }
@@ -700,6 +905,7 @@ function initFromUrl() {
 onMounted(() => {
   initFromUrl()
   void fetchList()
+  void listPmUsers().then(users => { pmUsers.value = users; filteredPmUsers.value = users })
 })
 
 watch(activeTab, () => {
@@ -718,12 +924,26 @@ watch(srProjectDialog, (open) => { if (open) void loadProjects() })
 .stat-card:hover { transform: translateY(-2px); }
 .stat-card--clickable:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
 
-.filter-card { background: #fafafa; }
-.filter-input :deep(.q-field__control) { background: white; }
-
 .bulk-bar {
   background: #e8f0fe;
   border-radius: 4px;
   min-height: 36px;
+}
+
+/* 인라인 편집 가능 셀 */
+.editable-cell {
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+.editable-cell:hover {
+  background-color: rgba(25, 118, 210, 0.07) !important;
+}
+.editable-cell .edit-hint {
+  opacity: 0;
+  transition: opacity 0.12s;
+  flex-shrink: 0;
+}
+.editable-cell:hover .edit-hint {
+  opacity: 1;
 }
 </style>

@@ -387,12 +387,24 @@ export async function listHistory(id: string) {
 // ── 관리자용 API ──────────────────────────────────────────────────────
 
 export async function listAllSRs(filter?: SRListFilter | Record<string, string | number | boolean>) {
-  const { data } = await api.get<SRListItem[]>('/admin/schedule/service-requests', { params: filter })
+  const { data } = await api.get<{ items: SRListItem[]; total: number }>('/admin/schedule/service-requests', { params: filter })
   return data
 }
 
 export async function getAdminSR(id: string) {
   const { data } = await api.get<SR>(`/admin/schedule/service-requests/${id}`)
+  return data
+}
+
+export type SRInlinePatch = {
+  priority?:         string
+  desired_due_date?: string | null
+  assignee_id?:      string | null
+  assignee_name?:    string | null
+}
+
+export async function patchSRInline(id: string, payload: SRInlinePatch) {
+  const { data } = await api.patch<SR>(`/admin/schedule/service-requests/${id}`, payload)
   return data
 }
 

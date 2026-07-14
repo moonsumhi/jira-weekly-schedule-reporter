@@ -12,7 +12,8 @@ from fastapi.responses import StreamingResponse
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.sr.service_request import (
-    SROut, SRListItem, SRPatch, SRReview, SRAssign, SRStatusChange,
+    SROut, SRListItem, SRListPage, SRPatch, SRInlinePatch,
+    SRReview, SRAssign, SRStatusChange,
     SRStats, SR_STATUS_LABEL, REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL,
 )
 from app.routers.auth import get_current_user
@@ -32,7 +33,7 @@ def _user_label(user: UserPublic) -> str:
 
 # ── 전체 SR 목록 ──────────────────────────────────────────────────────
 
-@router.get("", response_model=List[SRListItem])
+@router.get("", response_model=SRListPage)
 async def list_all_srs(
     status: Optional[str] = Query(None),
     request_type: Optional[str] = Query(None),
@@ -50,10 +51,19 @@ async def list_all_srs(
     planned_due_to: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
+    sort_by: Optional[str] = Query(None),
+    descending: bool = Query(True),
     current_user: UserPublic = Depends(get_current_user),
 ):
     require_sr_operator(current_user)
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+
+    _SORT_FIELDS = {
+        "created_at", "desired_due_date", "sr_no",
+        "requester_name", "requester_department", "priority", "status",
+    }
+    sort_field = sort_by if sort_by in _SORT_FIELDS else "created_at"
+    sort_dir   = -1 if descending else 1
 
     q: dict = {"deleted_at": None}
     # 자신에게 배정된 SR만 보기 (operator 전용 필터)
@@ -100,12 +110,14 @@ async def list_all_srs(
 
     # is_delayed 필터는 Python 연산이므로 페이지네이션 전에 전체 조회 후 필터링
     if is_delayed is not None:
-        all_docs = await col.find(q).sort("created_at", -1).to_list(None)
+        all_docs = await col.find(q).sort(sort_field, sort_dir).to_list(None)
         items = [SRListItem(**sr_to_out(d)) for d in all_docs if SRListItem(**sr_to_out(d)).is_delayed == is_delayed]
-        return items[skip: skip + limit]
+        page = items[skip: skip + limit]
+        return SRListPage(items=page, total=len(items))
 
-    docs = await col.find(q).sort("created_at", -1).skip(skip).limit(limit).to_list(None)
-    return [SRListItem(**sr_to_out(d)) for d in docs]
+    total = await col.count_documents(q)
+    docs = await col.find(q).sort(sort_field, sort_dir).skip(skip).limit(limit).to_list(None)
+    return SRListPage(items=[SRListItem(**sr_to_out(d)) for d in docs], total=total)
 
 
 # ── SR 상세 (관리자용) ────────────────────────────────────────────────
@@ -118,6 +130,32 @@ async def get_sr_admin(
     require_sr_operator(current_user)
     doc = await get_sr_or_404(sr_id)
     return SROut(**sr_to_out(doc))
+
+
+# ── 인라인 필드 수정 (manager 이상) ─────────────────────────────────────
+
+@router.patch("/{sr_id}", response_model=SROut)
+async def patch_sr_inline(
+    sr_id: str,
+    body: SRInlinePatch,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    require_sr_manager(current_user)
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    doc = await get_sr_or_404(sr_id)
+    now = datetime.now(timezone.utc)
+    updates: dict = {"updated_at": now, "updated_by": _user_label(current_user)}
+
+    patch = body.model_dump(exclude_none=True)
+    for field, value in patch.items():
+        old_val = doc.get(field)
+        updates[field] = ObjectId(value) if field == "assignee_id" else value
+        if str(old_val) != str(value):
+            await record_sr_history(sr_id, f"FIELD_CHANGE:{field}", str(old_val), str(value), _user_label(current_user))
+
+    await col.update_one({"_id": ObjectId(sr_id)}, {"$set": updates})
+    updated = await col.find_one({"_id": ObjectId(sr_id)})
+    return SROut(**sr_to_out(updated))
 
 
 # ── SR 수정 (관리자) ──────────────────────────────────────────────────

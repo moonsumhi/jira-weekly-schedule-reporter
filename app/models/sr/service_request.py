@@ -47,6 +47,7 @@ RequestType = Literal[
     "CONFIG_CHANGE", # 설정 변경 요청
     "SERVER_INFRA",  # 서버/인프라 요청
     "SECURITY",      # 보안 조치 요청
+    "FIREWALL",      # 방화벽 신청
     "ETC",           # 기타
 ]
 
@@ -58,6 +59,7 @@ REQUEST_TYPE_LABEL: Dict[str, str] = {
     "CONFIG_CHANGE": "설정 변경 요청",
     "SERVER_INFRA": "서버/인프라 요청",
     "SECURITY": "보안 조치 요청",
+    "FIREWALL": "방화벽 신청",
     "ETC": "기타",
 }
 
@@ -305,6 +307,19 @@ class SRHistoryOut(BaseModel):
     after_value: Optional[str] = None
     changed_by: str
     changed_at: datetime
+
+
+class SRListPage(BaseModel):
+    items: List[SRListItem]
+    total: int
+
+
+class SRInlinePatch(BaseModel):
+    """목록에서 인라인 편집 가능한 필드만."""
+    priority:         Optional[SRPriority] = None
+    desired_due_date: Optional[datetime]   = None
+    assignee_id:      Optional[str]        = None
+    assignee_name:    Optional[str]        = None
 
 
 class SRStats(BaseModel):

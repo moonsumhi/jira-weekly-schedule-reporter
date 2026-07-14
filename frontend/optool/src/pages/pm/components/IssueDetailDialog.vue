@@ -311,7 +311,7 @@
         </div>
 
         <!-- 사이드바 -->
-        <div class="col-auto q-pa-md bg-grey-1" style="width: 260px; overflow-y: auto; min-height: 0; border-left: 1px solid #e0e0e0">
+        <div class="col-auto q-pa-md bg-grey-1" style="width: 320px; overflow-y: auto; overflow-x: hidden; min-height: 0; border-left: 1px solid #e0e0e0">
           <div class="column q-gutter-md">
 
             <div>
