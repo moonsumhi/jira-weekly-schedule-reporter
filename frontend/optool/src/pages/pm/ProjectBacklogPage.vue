@@ -315,38 +315,60 @@
                         </q-item-section>
                       </q-item>
 
-                      <!-- 서브태스크 (indent 2 = 56px, 드래그 없음) -->
+                      <!-- 서브태스크 (indent 2 = 56px, 드래그 가능) -->
                       <template v-if="!collapsed.has(main.id)">
-                        <div v-for="sub in visibleSubsForMain(String(main.id))" :key="sub.id">
-                          <q-item clickable @click="openDetail(sub)" class="tree-item" style="padding-left: 56px">
-                            <q-item-section class="tree-section-toggle">
-                              <div style="width: 40px" />
-                            </q-item-section>
-                            <q-item-section class="tree-section-icon">
-                              <q-icon :name="_typeIcon(sub.type)" :color="_typeColor(sub.type)" size="18px" />
-                            </q-item-section>
-                            <q-item-section>
-                              <q-item-label>
-                                <span class="text-grey-5 text-caption q-mr-xs">{{ project?.key }}-{{ sub.number }}</span>
-                                {{ sub.title }}
-                              </q-item-label>
-                              <q-item-label caption class="q-mt-xs">
-                                <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs" />
-                                <q-icon :name="_prioIcon(sub.priority)" :color="_prioClr(sub.priority)" size="xs" />
-                              </q-item-label>
-                            </q-item-section>
-                            <q-item-section side>
-                              <div class="assignee-chip">
-                                <q-avatar v-if="sub.assigneeName" size="22px" color="teal" text-color="white" font-size="10px" class="q-mr-xs">
-                                  {{ sub.assigneeName.charAt(0).toUpperCase() }}
-                                </q-avatar>
-                                <span class="text-caption" :class="sub.assigneeName ? 'text-grey-7' : 'text-grey-5'">
-                                  {{ sub.assigneeName ?? '미배정' }}
-                                </span>
-                              </div>
-                            </q-item-section>
-                          </q-item>
-                        </div>
+                        <draggable
+                          :model-value="_subsByMain(main.id)"
+                          @update:model-value="(v: Issue[]) => { orderedSubsByMain[String(main.id)] = v }"
+                          item-key="id"
+                          handle=".drag-handle-sub"
+                          :animation="150"
+                          ghost-class="drag-ghost"
+                          :disabled="hasFilter"
+                          @end="saveOrder"
+                        >
+                          <template #item="{ element: sub }">
+                            <div v-show="!hasFilter || matches(sub)">
+                              <q-item clickable @click="openDetail(sub)" class="tree-item" style="padding-left: 56px">
+                                <q-item-section class="tree-section-toggle">
+                                  <div class="row no-wrap items-center">
+                                    <q-icon
+                                      name="drag_indicator"
+                                      class="drag-handle-sub drag-handle-icon"
+                                      :class="{ 'drag-active': !hasFilter }"
+                                      size="16px"
+                                      @click.stop
+                                    />
+                                    <div style="width: 24px" />
+                                  </div>
+                                </q-item-section>
+                                <q-item-section class="tree-section-icon">
+                                  <q-icon :name="_typeIcon(sub.type)" :color="_typeColor(sub.type)" size="18px" />
+                                </q-item-section>
+                                <q-item-section>
+                                  <q-item-label>
+                                    <span class="text-grey-5 text-caption q-mr-xs">{{ project?.key }}-{{ sub.number }}</span>
+                                    {{ sub.title }}
+                                  </q-item-label>
+                                  <q-item-label caption class="q-mt-xs">
+                                    <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs" />
+                                    <q-icon :name="_prioIcon(sub.priority)" :color="_prioClr(sub.priority)" size="xs" />
+                                  </q-item-label>
+                                </q-item-section>
+                                <q-item-section side>
+                                  <div class="assignee-chip">
+                                    <q-avatar v-if="sub.assigneeName" size="22px" color="teal" text-color="white" font-size="10px" class="q-mr-xs">
+                                      {{ sub.assigneeName.charAt(0).toUpperCase() }}
+                                    </q-avatar>
+                                    <span class="text-caption" :class="sub.assigneeName ? 'text-grey-7' : 'text-grey-5'">
+                                      {{ sub.assigneeName ?? '미배정' }}
+                                    </span>
+                                  </div>
+                                </q-item-section>
+                              </q-item>
+                            </div>
+                          </template>
+                        </draggable>
                       </template>
                     </div>
                   </template>
@@ -421,38 +443,60 @@
                   </q-item-section>
                 </q-item>
 
-                <!-- 서브태스크 (indent 1 = 28px) -->
+                <!-- 서브태스크 (indent 1 = 28px, 드래그 가능) -->
                 <template v-if="!collapsed.has(main.id)">
-                  <div v-for="sub in visibleSubsForMain(String(main.id))" :key="sub.id">
-                    <q-item clickable @click="openDetail(sub)" class="tree-item" style="padding-left: 28px">
-                      <q-item-section class="tree-section-toggle">
-                        <div style="width: 40px" />
-                      </q-item-section>
-                      <q-item-section class="tree-section-icon">
-                        <q-icon :name="_typeIcon(sub.type)" :color="_typeColor(sub.type)" size="18px" />
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label>
-                          <span class="text-grey-5 text-caption q-mr-xs">{{ project?.key }}-{{ sub.number }}</span>
-                          {{ sub.title }}
-                        </q-item-label>
-                        <q-item-label caption class="q-mt-xs">
-                          <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs" />
-                          <q-icon :name="_prioIcon(sub.priority)" :color="_prioClr(sub.priority)" size="xs" />
-                        </q-item-label>
-                      </q-item-section>
-                      <q-item-section side>
-                        <div class="assignee-chip">
-                          <q-avatar v-if="sub.assigneeName" size="22px" color="teal" text-color="white" font-size="10px" class="q-mr-xs">
-                            {{ sub.assigneeName.charAt(0).toUpperCase() }}
-                          </q-avatar>
-                          <span class="text-caption" :class="sub.assigneeName ? 'text-grey-7' : 'text-grey-5'">
-                            {{ sub.assigneeName ?? '미배정' }}
-                          </span>
-                        </div>
-                      </q-item-section>
-                    </q-item>
-                  </div>
+                  <draggable
+                    :model-value="_subsByMain(main.id)"
+                    @update:model-value="(v: Issue[]) => { orderedSubsByMain[String(main.id)] = v }"
+                    item-key="id"
+                    handle=".drag-handle-sub"
+                    :animation="150"
+                    ghost-class="drag-ghost"
+                    :disabled="hasFilter"
+                    @end="saveOrder"
+                  >
+                    <template #item="{ element: sub }">
+                      <div v-show="!hasFilter || matches(sub)">
+                        <q-item clickable @click="openDetail(sub)" class="tree-item" style="padding-left: 28px">
+                          <q-item-section class="tree-section-toggle">
+                            <div class="row no-wrap items-center">
+                              <q-icon
+                                name="drag_indicator"
+                                class="drag-handle-sub drag-handle-icon"
+                                :class="{ 'drag-active': !hasFilter }"
+                                size="16px"
+                                @click.stop
+                              />
+                              <div style="width: 24px" />
+                            </div>
+                          </q-item-section>
+                          <q-item-section class="tree-section-icon">
+                            <q-icon :name="_typeIcon(sub.type)" :color="_typeColor(sub.type)" size="18px" />
+                          </q-item-section>
+                          <q-item-section>
+                            <q-item-label>
+                              <span class="text-grey-5 text-caption q-mr-xs">{{ project?.key }}-{{ sub.number }}</span>
+                              {{ sub.title }}
+                            </q-item-label>
+                            <q-item-label caption class="q-mt-xs">
+                              <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs" />
+                              <q-icon :name="_prioIcon(sub.priority)" :color="_prioClr(sub.priority)" size="xs" />
+                            </q-item-label>
+                          </q-item-section>
+                          <q-item-section side>
+                            <div class="assignee-chip">
+                              <q-avatar v-if="sub.assigneeName" size="22px" color="teal" text-color="white" font-size="10px" class="q-mr-xs">
+                                {{ sub.assigneeName.charAt(0).toUpperCase() }}
+                              </q-avatar>
+                              <span class="text-caption" :class="sub.assigneeName ? 'text-grey-7' : 'text-grey-5'">
+                                {{ sub.assigneeName ?? '미배정' }}
+                              </span>
+                            </div>
+                          </q-item-section>
+                        </q-item>
+                      </div>
+                    </template>
+                  </draggable>
                 </template>
               </div>
             </template>
@@ -584,7 +628,12 @@ const orphanSubs        = ref<Issue[]>([])
 
 const ORDER_KEY = `backlog_order_${projectId}`
 
-type SavedOrder = { epics: string[]; mainsByEpic: Record<string, string[]>; orphans: string[] }
+type SavedOrder = {
+  epics: string[]
+  mainsByEpic: Record<string, string[]>
+  orphans: string[]
+  subsByMain: Record<string, string[]>
+}
 
 function loadOrder(): SavedOrder | null {
   try { return JSON.parse(localStorage.getItem(ORDER_KEY) ?? 'null') as SavedOrder | null }
@@ -596,6 +645,7 @@ function saveOrder() {
     epics: orderedEpics.value.map(e => e.id),
     mainsByEpic: Object.fromEntries(Object.entries(orderedMainsByEpic).map(([k, v]) => [k, v.map(i => i.id)])),
     orphans: orderedOrphans.value.map(i => i.id),
+    subsByMain: Object.fromEntries(Object.entries(orderedSubsByMain).map(([k, v]) => [k, v.map(i => i.id)])),
   }
   localStorage.setItem(ORDER_KEY, JSON.stringify(order))
 }
@@ -629,10 +679,14 @@ function applyOrder(issues: Issue[]) {
   }
   orderedOrphans.value = sortByIds(orphanList, saved?.orphans)
 
-  for (const k of Object.keys(orderedSubsByMain)) delete orderedSubsByMain[k]
+  const subsByMainTmp: Record<string, Issue[]> = {}
   for (const s of subs) {
     if (s.parentIssueId && mainIds.has(s.parentIssueId))
-      (orderedSubsByMain[s.parentIssueId] ??= []).push(s)
+      (subsByMainTmp[s.parentIssueId] ??= []).push(s)
+  }
+  for (const k of Object.keys(orderedSubsByMain)) delete orderedSubsByMain[k]
+  for (const [mid, items] of Object.entries(subsByMainTmp)) {
+    orderedSubsByMain[mid] = sortByIds(items, saved?.subsByMain?.[mid])
   }
   orphanSubs.value = subs.filter(s => !s.parentIssueId || !mainIds.has(s.parentIssueId))
 }

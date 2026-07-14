@@ -387,7 +387,7 @@ export async function listHistory(id: string) {
 // ── 관리자용 API ──────────────────────────────────────────────────────
 
 export async function listAllSRs(filter?: SRListFilter | Record<string, string | number | boolean>) {
-  const { data } = await api.get<SRListItem[]>('/admin/schedule/service-requests', { params: filter })
+  const { data } = await api.get<{ items: SRListItem[]; total: number }>('/admin/schedule/service-requests', { params: filter })
   return data
 }
 

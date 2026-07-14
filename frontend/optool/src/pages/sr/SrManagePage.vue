@@ -493,14 +493,10 @@ async function fetchList() {
     if (filter.value.dueDateFrom)         params.desired_due_from     = filter.value.dueDateFrom
     if (filter.value.dueDateTo)           params.desired_due_to       = filter.value.dueDateTo
 
-    rows.value  = await listAllSRs(params)
-    stats.value = await getSRStats()
-
-    // rowsNumber 추정: 가득 찼으면 다음 페이지 존재 가능
-    const loaded = rows.value.length
-    pagination.value.rowsNumber = loaded >= pagination.value.rowsPerPage
-      ? skip + loaded + 1
-      : skip + loaded
+    const [page, srStats] = await Promise.all([listAllSRs(params), getSRStats()])
+    rows.value  = page.items
+    stats.value = srStats
+    pagination.value.rowsNumber = page.total
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     $q.notify({ type: 'negative', message: msg || 'SR 목록을 불러오는데 실패했습니다.' })

@@ -309,6 +309,11 @@ class SRHistoryOut(BaseModel):
     changed_at: datetime
 
 
+class SRListPage(BaseModel):
+    items: List[SRListItem]
+    total: int
+
+
 class SRStats(BaseModel):
     total: int
     submitted: int
