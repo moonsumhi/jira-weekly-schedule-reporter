@@ -14,7 +14,6 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
-from app.models.sr.service_request import SR_STATUS_LABEL, REQUEST_TYPE_LABEL
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +29,9 @@ def _fmt_date(value: Any) -> str:
 async def send_sr_notification(doc: dict, event: str) -> None:
     """SR 문서(dict)를 바탕으로 요청자에게 알림 메일을 발송한다.
 
+    event="created"   → 접수 메일 (issueInfo 템플릿)
+    event="completed" → 처리완료 메일 (issueFinish 템플릿, Redmine처럼 완료 시에만 발송)
+
     메일 발송 실패는 SR 접수/처리 자체를 막지 않도록 예외를 삼키고 로그만 남긴다.
     """
     email = doc.get("requester_email")
@@ -37,21 +39,16 @@ async def send_sr_notification(doc: dict, event: str) -> None:
         logger.warning("SR 메일 발송 스킵 (요청자 이메일 없음): sr_no=%s", doc.get("sr_no"))
         return
 
-    status = doc.get("status", "")
+    # 실제 메일 템플릿(issueInfo.html, th:text)이 읽는 키만 채운다:
+    # subject(제목) / description(내용) / start_date(생성일자) /
+    # adminInfo(담당자) / custom_field_values(요청자) / due_date(마감일자)
     data_map = {
-        "id": str(doc.get("_id", "")),
-        "sr_no": doc.get("sr_no", ""),
         "subject": doc.get("title") or "-",
         "description": doc.get("description") or "-",
-        "status": SR_STATUS_LABEL.get(status, status),
-        "tracker": REQUEST_TYPE_LABEL.get(doc.get("request_type", ""), doc.get("request_type", "")),
-        "author": doc.get("requester_name") or "-",
-        "requestor": doc.get("requester_name") or "-",
-        "assigned_to": doc.get("assignee_name") or "-",
-        "adminInfo": doc.get("assignee_name") or "-",
         "start_date": _fmt_date(doc.get("created_at")),
+        "adminInfo": doc.get("assignee_name") or "-",
+        "custom_field_values": doc.get("requester_name") or "-",
         "due_date": _fmt_date(doc.get("desired_due_date")),
-        "event": event,
     }
 
     form_items: list[tuple[str, str]] = [("sendUserEmail[]", email)]
@@ -60,11 +57,12 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     # 버그가 있어(RuntimeError: Attempted to send an sync request...), 폼 바디를 직접
     # urlencode해서 content로 보낸다 (Rails 쪽은 sendUserEmail[]/dataMap[key] 중첩 표기를 기대함).
     body = urllib.parse.urlencode(form_items)
+    url = settings.SR_MAIL_FINISH_URL if event == "completed" else settings.SR_MAIL_SERVICE_URL
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post(
-                settings.SR_MAIL_SERVICE_URL,
+                url,
                 content=body,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
