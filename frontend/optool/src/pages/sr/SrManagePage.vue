@@ -40,118 +40,115 @@
     </q-tabs>
 
     <!-- 필터 -->
-    <q-card flat bordered class="q-mb-md filter-card">
-      <q-card-section class="q-py-sm q-px-md">
-        <!-- 필터 헤더 -->
-        <div class="row items-center q-gutter-xs q-mb-sm">
-          <q-icon name="filter_list" size="16px" color="grey-6" />
-          <span class="text-caption text-weight-medium text-grey-7">상세 필터</span>
-          <q-space />
-          <!-- 프리셋 -->
-          <q-btn-dropdown flat dense size="sm" icon="bookmark_border" color="grey-6" label="프리셋" no-icon-animation>
-            <q-list dense style="min-width:180px">
-              <q-item v-if="!presets.length" dense>
-                <q-item-section class="text-grey-5 text-caption q-py-xs">저장된 프리셋 없음</q-item-section>
-              </q-item>
-              <q-item v-for="(p, i) in presets" :key="i" clickable v-close-popup @click="loadPreset(p)">
-                <q-item-section>{{ p.name }}</q-item-section>
-                <q-item-section side>
-                  <q-btn flat round dense size="xs" icon="close" color="grey-5" @click.stop="removePreset(i)" />
-                </q-item-section>
-              </q-item>
-              <q-separator v-if="presets.length" />
-              <q-item clickable v-close-popup @click="savePreset">
-                <q-item-section avatar><q-icon name="add" size="14px" /></q-item-section>
-                <q-item-section>현재 필터 저장</q-item-section>
-              </q-item>
-            </q-list>
-          </q-btn-dropdown>
-          <q-btn flat dense round icon="refresh" size="sm" color="grey-6" @click="resetFilter">
-            <q-tooltip>초기화</q-tooltip>
-          </q-btn>
-        </div>
+    <q-card flat bordered class="q-mb-md">
+      <q-card-section class="q-pa-md">
 
-        <!-- 텍스트 검색 -->
-        <div class="row q-mb-sm">
+        <!-- 검색 + 액션 -->
+        <div class="row q-col-gutter-sm items-center q-mb-md">
           <div class="col">
-            <q-input v-model="search" label="제목 · SR번호 · 요청자 검색" outlined dense clearable
-              bg-color="white" class="filter-input">
-              <template #prepend><q-icon name="search" size="16px" color="grey-5" /></template>
+            <q-input v-model="search" placeholder="제목 · SR번호 · 요청자 검색" outlined dense clearable bg-color="white">
+              <template #prepend><q-icon name="search" color="grey-5" size="18px" /></template>
             </q-input>
+          </div>
+          <div class="col-auto row items-center q-gutter-xs">
+            <q-btn-dropdown flat dense size="sm" icon="bookmark_border" color="grey-6" no-icon-animation>
+              <template #label><span class="text-caption">프리셋</span></template>
+              <q-list dense style="min-width:180px">
+                <q-item v-if="!presets.length" dense>
+                  <q-item-section class="text-grey-5 text-caption q-py-xs">저장된 프리셋 없음</q-item-section>
+                </q-item>
+                <q-item v-for="(p, i) in presets" :key="i" clickable v-close-popup @click="loadPreset(p)">
+                  <q-item-section>{{ p.name }}</q-item-section>
+                  <q-item-section side>
+                    <q-btn flat round dense size="xs" icon="close" color="grey-5" @click.stop="removePreset(i)" />
+                  </q-item-section>
+                </q-item>
+                <q-separator v-if="presets.length" />
+                <q-item clickable v-close-popup @click="savePreset">
+                  <q-item-section avatar><q-icon name="add" size="14px" /></q-item-section>
+                  <q-item-section>현재 필터 저장</q-item-section>
+                </q-item>
+              </q-list>
+            </q-btn-dropdown>
+            <q-btn flat round dense icon="refresh" color="grey-5" size="sm" @click="resetFilter">
+              <q-tooltip>필터 초기화</q-tooltip>
+            </q-btn>
+            <q-btn unelevated color="primary" icon="search" label="조회" size="sm"
+              class="q-px-sm" @click="applyFilter" :loading="loading" />
           </div>
         </div>
 
         <!-- 기본 필터 -->
-        <div class="row q-col-gutter-sm items-center">
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.requesterDepartment" label="요청 부서" outlined dense clearable
-              bg-color="white" class="filter-input">
+        <div class="row q-col-gutter-sm q-mb-md">
+          <div class="col-12 col-sm-6 col-md">
+            <q-input v-model="filter.requesterDepartment" label="요청 부서" outlined dense clearable bg-color="white">
               <template #prepend><q-icon name="business" size="16px" color="grey-5" /></template>
             </q-input>
           </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.requesterName" label="요청자" outlined dense clearable
-              bg-color="white" class="filter-input">
+          <div class="col-12 col-sm-6 col-md">
+            <q-input v-model="filter.requesterName" label="요청자" outlined dense clearable bg-color="white">
               <template #prepend><q-icon name="person" size="16px" color="grey-5" /></template>
             </q-input>
           </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-select v-model="filter.requestType" label="요청 유형" outlined dense clearable
-              bg-color="white" class="filter-input"
+          <div class="col-12 col-sm-6 col-md">
+            <q-select v-model="filter.requestType" label="요청 유형" outlined dense clearable bg-color="white"
               :options="requestTypeOptions" emit-value map-options>
               <template #prepend><q-icon name="category" size="16px" color="grey-5" /></template>
             </q-select>
           </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.relatedSystem" label="관련 시스템" outlined dense clearable
-              bg-color="white" class="filter-input">
+          <div class="col-12 col-sm-6 col-md">
+            <q-input v-model="filter.relatedSystem" label="관련 시스템" outlined dense clearable bg-color="white">
               <template #prepend><q-icon name="computer" size="16px" color="grey-5" /></template>
             </q-input>
           </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-select v-model="filter.priority" label="중요도" outlined dense clearable
-              bg-color="white" class="filter-input"
+          <div class="col-12 col-sm-6 col-md">
+            <q-select v-model="filter.priority" label="중요도" outlined dense clearable bg-color="white"
               :options="priorityOptions" emit-value map-options>
               <template #prepend><q-icon name="flag" size="16px" color="grey-5" /></template>
             </q-select>
           </div>
-          <div class="col-12 col-sm col-lg-auto">
-            <div class="row items-center q-gutter-md q-pl-xs">
-              <q-toggle v-model="filter.isUrgent" dense color="negative" size="sm">
-                <template #default>
-                  <span class="text-caption q-ml-xs" :class="filter.isUrgent ? 'text-negative text-weight-medium' : 'text-grey-7'">긴급</span>
-                </template>
-              </q-toggle>
-              <q-toggle v-model="filter.myAssigned" dense color="primary" size="sm">
-                <template #default>
-                  <span class="text-caption q-ml-xs" :class="filter.myAssigned ? 'text-primary text-weight-medium' : 'text-grey-7'">내 배정</span>
-                </template>
-              </q-toggle>
-              <q-btn color="primary" icon="search" label="조회" @click="applyFilter" :loading="loading"
-                unelevated size="sm" class="q-px-md" />
+        </div>
+
+        <!-- 날짜 범위 + 토글 -->
+        <div class="row items-end q-gutter-md">
+          <div>
+            <div class="text-caption text-grey-6 q-mb-xs">접수일</div>
+            <div class="row items-center no-wrap q-gutter-xs">
+              <q-input v-model="filter.createdFrom" type="date" outlined dense clearable
+                bg-color="white" style="width:148px" />
+              <span class="text-grey-5 text-body2">~</span>
+              <q-input v-model="filter.createdTo" type="date" outlined dense clearable
+                bg-color="white" style="width:148px" />
             </div>
+          </div>
+          <div>
+            <div class="text-caption text-grey-6 q-mb-xs">희망완료일</div>
+            <div class="row items-center no-wrap q-gutter-xs">
+              <q-input v-model="filter.dueDateFrom" type="date" outlined dense clearable
+                bg-color="white" style="width:148px" />
+              <span class="text-grey-5 text-body2">~</span>
+              <q-input v-model="filter.dueDateTo" type="date" outlined dense clearable
+                bg-color="white" style="width:148px" />
+            </div>
+          </div>
+          <div class="row items-center q-gutter-sm q-pb-xs">
+            <q-chip
+              clickable dense
+              :color="filter.isUrgent ? 'negative' : 'grey-3'"
+              :text-color="filter.isUrgent ? 'white' : 'grey-7'"
+              icon="priority_high"
+              @click="filter.isUrgent = !filter.isUrgent"
+            >긴급</q-chip>
+            <q-chip
+              clickable dense
+              :color="filter.myAssigned ? 'primary' : 'grey-3'"
+              :text-color="filter.myAssigned ? 'white' : 'grey-7'"
+              icon="person_pin"
+              @click="filter.myAssigned = !filter.myAssigned"
+            >내 배정</q-chip>
           </div>
         </div>
 
-        <!-- 날짜 범위 필터 -->
-        <div class="row q-col-gutter-sm items-center q-mt-xs">
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.createdFrom" label="접수일 시작" outlined dense clearable
-              type="date" bg-color="white" class="filter-input" />
-          </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.createdTo" label="접수일 종료" outlined dense clearable
-              type="date" bg-color="white" class="filter-input" />
-          </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.dueDateFrom" label="희망완료일 시작" outlined dense clearable
-              type="date" bg-color="white" class="filter-input" />
-          </div>
-          <div class="col-12 col-sm-6 col-md-3 col-lg-2">
-            <q-input v-model="filter.dueDateTo" label="희망완료일 종료" outlined dense clearable
-              type="date" bg-color="white" class="filter-input" />
-          </div>
-        </div>
       </q-card-section>
     </q-card>
 
@@ -718,8 +715,6 @@ watch(srProjectDialog, (open) => { if (open) void loadProjects() })
 .stat-card:hover { transform: translateY(-2px); }
 .stat-card--clickable:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
 
-.filter-card { background: #fafafa; }
-.filter-input :deep(.q-field__control) { background: white; }
 
 .bulk-bar {
   background: #e8f0fe;
