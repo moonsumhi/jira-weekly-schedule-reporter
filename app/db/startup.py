@@ -389,8 +389,8 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "업무 현황","icon": "fa-solid fa-chart-bar",        "link": "/pm/work-status"},
             {"title": "프로젝트", "icon": "fa-solid fa-diagram-project",  "link": "/pm/projects"},
             {"title": "조직",    "icon": "fa-solid fa-building",         "link": "/pm/organizations"},
-            {"title": "주간 보고","icon": "fa-solid fa-calendar-week",    "link": "/pm/weekly-report",  "require_admin": True},
-            {"title": "월간 보고","icon": "fa-solid fa-calendar-days",    "link": "/pm/monthly-report", "require_admin": True},
+            {"title": "주간 보고","icon": "fa-solid fa-calendar-week",    "link": "/pm/weekly-report"},
+            {"title": "월간 보고","icon": "fa-solid fa-calendar-days",    "link": "/pm/monthly-report"},
             {"title": "사용 가이드","icon": "fa-solid fa-circle-question","link": "/pm/schedule/guide"},
         ],
     },
@@ -440,6 +440,26 @@ async def seed_system_menu_extras() -> None:
             update["submenus"] = extras["submenus"]
         if update:
             await menus_col.update_one({"slug": slug}, {"$set": update})
+
+
+async def migrate_pm_report_submenu_access() -> None:
+    """주간/월간 보고 서브메뉴의 require_admin을 False로 해제한다 (멱등)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    doc = await menus_col.find_one({"slug": "pm"})
+    if not doc:
+        return
+    submenus = doc.get("submenus", [])
+    target_links = {"/pm/weekly-report", "/pm/monthly-report"}
+    updated = []
+    changed = False
+    for s in submenus:
+        if s.get("link") in target_links and s.get("require_admin"):
+            s = {**s, "require_admin": False}
+            changed = True
+        updated.append(s)
+    if changed:
+        await menus_col.update_one({"slug": "pm"}, {"$set": {"submenus": updated}})
+        logger.info("주간/월간 보고 서브메뉴 require_admin 해제 완료")
 
 
 async def migrate_guide_submenus() -> None:
@@ -512,6 +532,7 @@ async def run_startup() -> None:
     await create_indexes()
     await seed_system_menus()
     await seed_system_menu_extras()
+    await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
     await seed_job_form_templates()
     await migrate_assets()
