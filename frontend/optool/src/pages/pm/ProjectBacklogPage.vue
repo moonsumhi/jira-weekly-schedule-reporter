@@ -620,7 +620,8 @@ function applyOrder(issues: Issue[]) {
   const orphanList: Issue[] = []
   for (const m of mains) {
     const eid = m.epicId && epicIds.has(m.epicId) ? m.epicId : null
-    eid ? (mainsByEpicTmp[eid] ??= []).push(m) : orphanList.push(m)
+    if (eid) (mainsByEpicTmp[eid] ??= []).push(m)
+    else orphanList.push(m)
   }
   for (const k of Object.keys(orderedMainsByEpic)) delete orderedMainsByEpic[k]
   for (const epic of epics) {
@@ -692,7 +693,8 @@ const filteredCount = computed(() => {
 // ── 접기/펼치기 ───────────────────────────────────────────────────────
 function toggleCollapse(id: string) {
   const next = new Set(collapsed.value)
-  next.has(id) ? next.delete(id) : next.add(id)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
   collapsed.value = next
 }
 
