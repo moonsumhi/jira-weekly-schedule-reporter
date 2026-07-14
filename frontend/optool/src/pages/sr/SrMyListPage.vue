@@ -7,6 +7,7 @@
         <div class="text-h5 text-weight-bold">내 SR 목록</div>
         <div class="text-caption text-grey-6">내가 요청한 SR 현황을 확인합니다.</div>
       </div>
+      <HelpButton feature="sr-my" guide-path="/pm/sr/guide" class="q-mr-sm" />
       <q-btn color="primary" icon="add" label="SR 접수" to="/pm/sr/new" unelevated />
     </div>
 

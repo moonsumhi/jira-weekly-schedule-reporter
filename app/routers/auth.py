@@ -14,8 +14,6 @@ from app.core.security import (
     create_access_token,
     decode_token,
 )
-from app.core.config import settings
-
 router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -46,6 +44,7 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme),
 ) -> UserPublic:
     from app.utils.ip import is_internal_ip
+    from app.utils.token_expiry import get_expire_minutes
 
     email = decode_token(token)
     if email is None:
@@ -60,14 +59,16 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="User not found")
 
     internal = await is_internal_ip(request)
+    is_background_poll = request.headers.get("X-Background-Poll") == "1"
 
     # 내부망: 활동(요청)이 있을 때마다 만료시간을 연장(슬라이딩 세션).
     # 이렇게 하면 계속 사용 중일 땐 로그인이 유지되고, ACCESS_TOKEN_EXPIRE_MINUTES(내부망) 동안
     # 아무 요청도 없어야만(=안 움직였을 때) 실제로 로그아웃된다.
-    if internal:
+    # 단, 백그라운드 폴링(X-Background-Poll)은 실제 사용자 활동이 아니므로 연장에서 제외.
+    if internal and not is_background_poll:
         refreshed = create_access_token(
             subject=email,
-            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+            expires_delta=timedelta(minutes=await get_expire_minutes(is_external=False)),
         )
         response.headers["X-Refreshed-Token"] = refreshed
 
@@ -193,19 +194,39 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
         "diff": [{"path": "IP", "before": None, "after": client_ip}],
     })
 
-    origin = request.headers.get("Origin", "")
-    is_external_port = ":9001" in origin
-    expire_minutes = (
-        settings.ACCESS_TOKEN_EXPIRE_MINUTES_EXTERNAL
-        if is_external_port
-        else settings.ACCESS_TOKEN_EXPIRE_MINUTES
-    )
-    access_token_expires = timedelta(minutes=expire_minutes)
     access_token = create_access_token(
         subject=user["email"],
-        expires_delta=access_token_expires,
+        expires_delta=timedelta(minutes=await _expire_minutes_for(request)),
     )
     return Token(access_token=access_token)
+
+
+async def _expire_minutes_for(request: Request) -> int:
+    from app.utils.token_expiry import get_expire_minutes
+    origin = request.headers.get("Origin", "")
+    is_external_port = ":9001" in origin
+    return await get_expire_minutes(is_external=is_external_port)
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(request: Request, token: str = Depends(oauth2_scheme)):
+    """만료 임박 세션 연장용. 현재 유효한 토큰을 새 만료 시간의 토큰으로 재발급한다."""
+    email = decode_token(token)
+    if email is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = await get_user_by_email(email)
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    new_token = create_access_token(
+        subject=email,
+        expires_delta=timedelta(minutes=await _expire_minutes_for(request)),
+    )
+    return Token(access_token=new_token)
 
 
 @router.get("/me", response_model=UserPublic)
@@ -232,7 +253,7 @@ class ColPreset(BaseModel):
 class UserPrefs(BaseModel):
     asset_col_presets: list[ColPreset] = []
     dashboard_card_order: list[str] = []
-    dashboard_card_sizes: dict[str, dict[str, str]] = {}
+    dashboard_card_sizes: dict[str, dict[str, int]] = {}
 
 
 @router.get("/prefs", response_model=UserPrefs)

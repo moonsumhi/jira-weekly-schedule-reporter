@@ -726,10 +726,25 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
         logger.info("parse_work_period [%s] → start=%s end=%s", value[:60], start_str, end_str)
         return start_str, end_str
 
-    def convert_field_value(value: str, field_type: str) -> str:
-        """date/datetime 필드 값을 HTML input 형식으로 변환"""
+    _CHECK_MARKS = re.compile(r'[√✓✔vVoOxX●■▣◉]')
+
+    def _parse_checkbox_selection(value: str, options: list[str]) -> str:
+        """"[  ] 개인 [ √ ] 공공기관 [  ] 비영리법인" 형태의 인라인 체크박스 목록에서
+        체크 표시가 붙은 옵션만 골라낸다. 옵션 라벨 바로 앞 대괄호 안의 표시로 판단."""
+        selected = [
+            opt for opt in options
+            if (m := re.search(r'\[([^\[\]]*)\]\s*' + re.escape(opt), value)) and _CHECK_MARKS.search(m.group(1))
+        ]
+        return ', '.join(selected)
+
+    def convert_field_value(value: str, field_type: str, options: list[str] | None = None) -> str:
+        """date/datetime 필드 값을 HTML input 형식으로 변환, select 필드는 체크된 옵션만 추출"""
         if not value:
             return value
+        if field_type == 'select' and options:
+            selected = _parse_checkbox_selection(value, options)
+            if selected:
+                return selected
         if field_type == 'date':
             m = re.search(r'(\d{4})[./\-](\d{2})[./\-](\d{2})', value)
             if m:
@@ -760,7 +775,8 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
             vals = {
                 f.get("label", ""): convert_field_value(
                     find_value(f.get("label", ""), scope, is_textarea=f.get("type") == "textarea"),
-                    f.get("type", "")
+                    f.get("type", ""),
+                    f.get("options"),
                 )
                 for f in fields
             }
@@ -848,9 +864,11 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
                         _all_vals = [_fv] if _fv else []
                     if not _all_vals:
                         continue
-                    # 체크박스 패턴(■/□ 등)이 포함된 경우 find_value의 체크박스 처리에 위임
+                    # 체크박스 패턴(■/□ 등 또는 "[ ] 개인 [√] 공공기관" 인라인 형태)이 포함된 경우
+                    # find_value/convert_field_value의 체크박스 처리 결과를 그대로 유지 (재수집으로 덮어쓰지 않음)
                     _CB = re.compile(r'^[■●▣◉✔✓□○◎☐☑]')
-                    if any(_CB.match(v) for v in _all_vals):
+                    _BRACKET_CB = re.compile(r'\[[^\[\]]*\]')
+                    if any(_CB.match(v) or (_f.get('type') == 'select' and _BRACKET_CB.search(v)) for v in _all_vals):
                         continue
                     # 이후 행: ===EMPTY=== 또는 레이블 반복이면 추가 수집
                     _pos = _m.end() + _re1.end()

@@ -587,7 +587,7 @@ watch(
       void menuStore.refresh()
       if (auth.me?.isAdmin) {
         void auth.fetchPendingCount()
-        pendingTimer = setInterval(() => void auth.fetchPendingCount(), 30000)
+        pendingTimer = setInterval(() => void auth.fetchPendingCount(true), 30000)
       }
     }
   }

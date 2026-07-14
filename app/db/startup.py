@@ -261,6 +261,39 @@ _RESULT_TEST_FAIL = {
     ],
 }
 
+# 반입신청서_한국보건의료정보원 (2).hwp 실제 양식에서 추출한 섹션 구조.
+_INTAKE_APPLICANT_INFO = {
+    "title": "신청자 정보",
+    "fields": [
+        {"label": "기관명",                        "type": "text",     "required": True},
+        {"label": "사업자등록번호 또는 법인등록번호", "type": "text",     "required": False},
+        {"label": "주소",                          "type": "text",     "required": False},
+        {"label": "대표자명",                      "type": "text",     "required": False},
+        {"label": "신청자/연락처",                  "type": "text",     "required": True},
+        {"label": "신청일자",                      "type": "text",     "required": True,  "placeholder": "YYYY.MM.DD"},
+        {"label": "유형",                          "type": "select",   "required": True,  "options": ["개인", "공공기관", "비영리법인", "민간기관"]},
+    ],
+}
+_INTAKE_FILE_INFO = {
+    "title": "반입 파일 정보",
+    "fields": [
+        {"label": "파일 개수",                      "type": "text",     "required": False},
+        {"label": "파일명 (파일형식, 파일용량 포함)", "type": "text",     "required": False},
+        {"label": "처리 목적",                      "type": "text",     "required": True,  "full_width": True},
+        {"label": "내용 요약",                      "type": "textarea", "required": False},
+    ],
+}
+_INTAKE_REVIEW = {
+    "title": "적정성 검토",
+    "multiple": True,
+    "fields": [
+        {"label": "소속",     "type": "text",     "required": False},
+        {"label": "성함",     "type": "text",     "required": False},
+        {"label": "검토의견", "type": "textarea", "required": False},
+        {"label": "서명",     "type": "image",    "required": False},
+    ],
+}
+
 _JOB_FORM_TEMPLATES = [
     {
         "title": "작업계획서(서비스)",
@@ -312,6 +345,17 @@ _JOB_FORM_TEMPLATES = [
             _RESULT_TEST_FAIL,
         ],
     },
+    {
+        "title": "반입신청서",
+        "jira_issue_key": "JOB-INTAKE-REQUEST",
+        "menu": "Job",
+        "sort_order": 4,
+        "sections": [
+            _INTAKE_APPLICANT_INFO,
+            _INTAKE_FILE_INFO,
+            _INTAKE_REVIEW,
+        ],
+    },
 ]
 
 
@@ -347,13 +391,15 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "조직",    "icon": "fa-solid fa-building",         "link": "/pm/organizations"},
             {"title": "주간 보고","icon": "fa-solid fa-calendar-week",    "link": "/pm/weekly-report",  "require_admin": True},
             {"title": "월간 보고","icon": "fa-solid fa-calendar-days",    "link": "/pm/monthly-report", "require_admin": True},
+            {"title": "사용 가이드","icon": "fa-solid fa-circle-question","link": "/pm/schedule/guide"},
         ],
     },
     "sr": {
         "submenus": [
-            {"title": "SR 접수",    "icon": "fa-solid fa-paper-plane", "link": "/pm/sr/new"},
-            {"title": "내 SR 목록", "icon": "fa-solid fa-list-check",  "link": "/pm/sr/my"},
-            {"title": "SR 관리",   "icon": "fa-solid fa-tasks",       "link": "/pm/sr/manage"},
+            {"title": "SR 접수",    "icon": "fa-solid fa-paper-plane",    "link": "/pm/sr/new"},
+            {"title": "내 SR 목록", "icon": "fa-solid fa-list-check",     "link": "/pm/sr/my"},
+            {"title": "SR 관리",   "icon": "fa-solid fa-tasks",          "link": "/pm/sr/manage"},
+            {"title": "사용 가이드","icon": "fa-solid fa-circle-question","link": "/pm/sr/guide"},
         ],
     },
     "server_check": {
@@ -374,6 +420,7 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "회원 목록",    "icon": "fa-solid fa-users",           "link": "/admin/users"},
             {"title": "메뉴 관리",   "icon": "fa-solid fa-bars",            "link": "/admin/menus"},
             {"title": "Audit Log",  "icon": "fa-solid fa-clipboard-list",  "link": "/admin/audit-log"},
+            {"title": "세션 설정",   "icon": "fa-solid fa-clock",           "link": "/admin/settings"},
         ],
     },
 }
@@ -393,6 +440,23 @@ async def seed_system_menu_extras() -> None:
             update["submenus"] = extras["submenus"]
         if update:
             await menus_col.update_one({"slug": slug}, {"$set": update})
+
+
+async def migrate_guide_submenus() -> None:
+    """pm·sr 메뉴에 사용 가이드 서브메뉴가 없으면 추가한다 (멱등)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    guide_items = {
+        "pm": {"title": "사용 가이드", "icon": "fa-solid fa-circle-question", "link": "/pm/schedule/guide"},
+        "sr": {"title": "사용 가이드", "icon": "fa-solid fa-circle-question", "link": "/pm/sr/guide"},
+    }
+    for slug, item in guide_items.items():
+        doc = await menus_col.find_one({"slug": slug})
+        if not doc:
+            continue
+        existing_links = [s.get("link") for s in doc.get("submenus", [])]
+        if item["link"] not in existing_links:
+            await menus_col.update_one({"slug": slug}, {"$push": {"submenus": item}})
+            logger.info("가이드 서브메뉴 추가: %s → %s", slug, item["link"])
 
 
 async def seed_job_form_templates() -> None:
@@ -448,6 +512,7 @@ async def run_startup() -> None:
     await create_indexes()
     await seed_system_menus()
     await seed_system_menu_extras()
+    await migrate_guide_submenus()
     await seed_job_form_templates()
     await migrate_assets()
 

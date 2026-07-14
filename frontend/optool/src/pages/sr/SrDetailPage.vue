@@ -14,6 +14,20 @@
           <span class="text-caption text-grey-5 q-mr-xs">{{ sr.srNo }}</span>
           <span class="text-caption text-grey-4">·</span>
           <span class="text-caption text-grey-5 q-ml-xs">{{ fmtDateTime(sr.createdAt) }} 접수</span>
+          <q-space />
+          <!-- 이전/다음 이동 (목록에서 온 경우) -->
+          <template v-if="listIds.length > 1">
+            <q-btn flat dense round icon="chevron_left" size="sm" color="grey-6"
+              :disable="!prevId" @click="prevId && goToSR(prevId)">
+              <q-tooltip>이전 SR</q-tooltip>
+            </q-btn>
+            <span class="text-caption text-grey-5 q-mx-xs">{{ listIndex + 1 }} / {{ listIds.length }}</span>
+            <q-btn flat dense round icon="chevron_right" size="sm" color="grey-6"
+              :disable="!nextId" @click="nextId && goToSR(nextId)" class="q-mr-xs">
+              <q-tooltip>다음 SR</q-tooltip>
+            </q-btn>
+          </template>
+          <HelpButton feature="sr-detail" guide-path="/pm/sr/guide" />
         </div>
         <div class="text-h5 text-weight-bold q-mb-sm">{{ sr.title }}</div>
         <div class="row items-center q-gutter-xs flex-wrap">
@@ -480,10 +494,10 @@
               <!-- ── 탭2: 처리/증적 ── -->
               <q-tab-panel name="process" class="q-pa-lg q-gutter-lg">
 
-                <!-- 연결된 PM 이슈 배너 -->
+                <!-- 연결된 스케줄 관리 이슈 배너 -->
                 <q-banner v-if="sr.convertedIssueId && sr.convertedProjectId" class="bg-indigo-1 rounded-borders q-mb-sm" dense>
                   <template #avatar><q-icon name="link" color="indigo-7" /></template>
-                  <span class="text-indigo-9 text-weight-medium">연결된 PM 이슈</span>
+                  <span class="text-indigo-9 text-weight-medium">연결된 스케줄 관리 이슈</span>
                   <q-btn flat dense size="sm" color="indigo-7" icon="open_in_new"
                     label="이슈 바로가기" class="q-ml-sm"
                     @click="$router.push(`/pm/projects/${sr.convertedProjectId}/backlog`)" />
@@ -1058,6 +1072,16 @@ const router     = useRouter()
 const authStore  = useAuthStore()
 const srId       = route.params.id as string
 
+// 목록에서 넘어온 순서 (이전/다음 이동용)
+const listIds    = JSON.parse(sessionStorage.getItem('sr-list-ids') || '[]') as string[]
+const listIndex  = computed(() => listIds.indexOf(srId))
+const prevId     = computed(() => listIndex.value > 0 ? listIds[listIndex.value - 1] : null)
+const nextId     = computed(() => listIndex.value < listIds.length - 1 ? listIds[listIndex.value + 1] : null)
+
+function goToSR(id: string) {
+  void router.push(`/pm/sr/${id}`)
+}
+
 const loading        = ref(true)
 const sr             = ref<SR | null>(null)
 const comments       = ref<SRComment[]>([])
@@ -1334,10 +1358,11 @@ async function downloadDetail() {
 
 async function load() {
   loading.value = true
+  const id = route.params.id as string
   try {
-    sr.value            = isOperatorUser.value ? await getAdminSR(srId) : await getSR(srId)
-    comments.value      = await listComments(srId)
-    statusHistory.value = await listHistory(srId)
+    sr.value            = isOperatorUser.value ? await getAdminSR(id) : await getSR(id)
+    comments.value      = await listComments(id)
+    statusHistory.value = await listHistory(id)
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     $q.notify({ type: 'negative', message: msg || '데이터를 불러오는데 실패했습니다.' })
@@ -1525,6 +1550,10 @@ onMounted(async () => {
     allUsers.value = await listPmUsers('데이터운영팀')
     userOptions.value = allUsers.value
   } catch { /* 사용자 목록 실패 시 무시 */ }
+})
+
+watch(() => route.params.id, (newId) => {
+  if (newId) void load()
 })
 </script>
 
