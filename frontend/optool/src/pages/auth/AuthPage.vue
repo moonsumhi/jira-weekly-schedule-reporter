@@ -2,7 +2,7 @@
   <q-page class="flex flex-center bg-grey-2">
     <q-card class="q-pa-lg" style="width: 420px; max-width: 95vw;">
       <q-card-section>
-        <div class="text-h6 text-center">데이터운영팀 OPTOOL</div>
+        <div class="text-h6 text-center">데이터운영팀 {{ theme.appName }}</div>
         <div class="text-subtitle2 text-center text-grey-7">
           로그인하거나 새 계정을 만들어 주세요.
         </div>
@@ -175,12 +175,14 @@ import { computed, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
+import { useThemeStore } from 'stores/theme'
 import { api } from 'boot/axios'
 
 const $q = useQuasar()
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const theme = useThemeStore()
 
 const TEAM_OPTIONS = ['데이터운영팀', '데이터구축팀', '데이터활용팀', '데이터결합팀']
 

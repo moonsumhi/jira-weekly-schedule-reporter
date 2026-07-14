@@ -274,6 +274,10 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'settings',
             component: () => import('pages/admin/SessionSettingsPage.vue')
+          },
+          {
+            path: 'theme',
+            component: () => import('pages/admin/ThemeSettingsPage.vue')
           }
         ]
       }

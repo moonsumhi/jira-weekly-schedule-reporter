@@ -421,6 +421,7 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "메뉴 관리",   "icon": "fa-solid fa-bars",            "link": "/admin/menus"},
             {"title": "Audit Log",  "icon": "fa-solid fa-clipboard-list",  "link": "/admin/audit-log"},
             {"title": "세션 설정",   "icon": "fa-solid fa-clock",           "link": "/admin/settings"},
+            {"title": "스킨 설정",   "icon": "fa-solid fa-palette",         "link": "/admin/theme"},
         ],
     },
 }

@@ -1,6 +1,6 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <q-header elevated>
+    <q-header elevated :text-color="theme.currentTextColor()">
       <q-toolbar>
         <!-- menu button only when logged in -->
         <q-btn
@@ -13,9 +13,9 @@
           @click="toggleLeftDrawer"
         />
 
-        <q-toolbar-title>OPTOOL</q-toolbar-title>
+        <q-toolbar-title>{{ theme.appName }}</q-toolbar-title>
 
-        <div>OPTOOL v1.0</div>
+        <div>{{ theme.appName }} v1.0</div>
 
         <!-- 링크 사이드바 토글 (내부망만) -->
         <q-btn
@@ -252,6 +252,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from 'stores/auth'
 import { useMenuStore } from 'stores/menus'
+import { useThemeStore } from 'stores/theme'
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue'
 import type { MenuOut } from 'src/services/menus'
 import { useQuasar } from 'quasar'
@@ -259,6 +260,7 @@ import { fetchLinks, createLink, patchLink, deleteLink, type Link } from 'src/se
 
 const auth = useAuthStore()
 const menuStore = useMenuStore()
+const theme = useThemeStore()
 const $q = useQuasar()
 const { sidebarMenus, sidebarBoards, templateItems } = storeToRefs(menuStore)
 const router = useRouter()

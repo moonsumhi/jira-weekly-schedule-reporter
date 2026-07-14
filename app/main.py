@@ -17,6 +17,7 @@ BUILD_ID = str(int(time.time()))
 
 from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot, inspection, job, job_result, job_non_service, test, form_templates, form_entries, menus, boards, health_reports, health_actions, links, ddays, calendar as calendar_router, documents
 from app.routers import settings as settings_router
+from app.routers import branding as branding_router
 from app.routers import pm as pm_router
 from app.routers import sr as sr_router
 
@@ -108,6 +109,7 @@ app.include_router(boards.router, prefix="/boards", tags=["boards"])
 app.include_router(health_reports.router, prefix="/health-reports", tags=["health-reports"])
 app.include_router(health_actions.router, prefix="/health-reports", tags=["health-actions"])
 app.include_router(settings_router.router, prefix="/settings", tags=["settings"])
+app.include_router(branding_router.router, prefix="/branding", tags=["branding"])
 app.include_router(links.router, prefix="/links", tags=["links"])
 app.include_router(ddays.router, prefix="/ddays", tags=["ddays"])
 app.include_router(calendar_router.router, prefix="/calendar", tags=["calendar"])
