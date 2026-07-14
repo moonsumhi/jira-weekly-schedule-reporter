@@ -334,6 +334,10 @@ async def change_status(
     await record_status_history(sr_id, old_status, new_status, body.reason, _user_label(current_user))
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
+
+    from app.utils.mail_notify import send_sr_notification
+    await send_sr_notification(updated, event="status_changed")
+
     return SROut(**sr_to_out(updated))
 
 
