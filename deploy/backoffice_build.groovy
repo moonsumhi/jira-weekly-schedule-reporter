@@ -9,6 +9,9 @@ pipeline {
     stages {
 
         stage('Build 서버에서 전체 작업 수행') {
+            environment {
+                SAFE_BRANCH = "${params.BRANCH.replace('/', '-')}"
+            }
             steps {
                 withCredentials([
                     sshUserPrivateKey(credentialsId: 'jenkins-build',
@@ -38,13 +41,13 @@ echo "===== 3. Harbor 로그인 ====="
 echo "\${HB_PW}" | docker login ${env.HARBOR_URL} --username "\${HB_USER}" --password-stdin --tls-verify=false
 
 echo "===== 4. 이미지 빌드 ====="
-docker build -f ${env.REMOTE_DIR}/Dockerfile --build-arg BASE_IMAGE=${env.HARBOR_URL}/dev/python-base:3.12-slim --build-arg SKIP_SYS_DEPS=true --build-arg PIP_INDEX_URL=${env.PIP_INDEX_URL} -t ${env.HARBOR_URL}/dev/jira-reporter-backend:${params.BRANCH}-${params.TAG} ${env.REMOTE_DIR}/
+docker build -f ${env.REMOTE_DIR}/Dockerfile --build-arg BASE_IMAGE=${env.HARBOR_URL}/dev/python-base:3.12-slim --build-arg SKIP_SYS_DEPS=true --build-arg PIP_INDEX_URL=${env.PIP_INDEX_URL} -t ${env.HARBOR_URL}/dev/jira-reporter-backend:${env.SAFE_BRANCH}-${params.TAG} ${env.REMOTE_DIR}/
 
-docker build -f ${env.REMOTE_DIR}/frontend/optool/Dockerfile --build-arg NODE_BASE_IMAGE=${env.HARBOR_URL}/dev/node-base:22-alpine --build-arg NGINX_BASE_IMAGE=${env.HARBOR_URL}/dev/nginx:alpine --build-arg SKIP_NPM_INSTALL=true -t ${env.HARBOR_URL}/dev/jira-reporter-frontend:${params.BRANCH}-${params.TAG} ${env.REMOTE_DIR}/
+docker build -f ${env.REMOTE_DIR}/frontend/optool/Dockerfile --build-arg NODE_BASE_IMAGE=${env.HARBOR_URL}/dev/node-base:22-alpine --build-arg NGINX_BASE_IMAGE=${env.HARBOR_URL}/dev/nginx:alpine --build-arg SKIP_NPM_INSTALL=true -t ${env.HARBOR_URL}/dev/jira-reporter-frontend:${env.SAFE_BRANCH}-${params.TAG} ${env.REMOTE_DIR}/
 
 echo "===== 5. Push ====="
-docker push ${env.HARBOR_URL}/dev/jira-reporter-frontend:${params.BRANCH}-${params.TAG} --tls-verify=false
-docker push ${env.HARBOR_URL}/dev/jira-reporter-backend:${params.BRANCH}-${params.TAG} --tls-verify=false
+docker push ${env.HARBOR_URL}/dev/jira-reporter-frontend:${env.SAFE_BRANCH}-${params.TAG} --tls-verify=false
+docker push ${env.HARBOR_URL}/dev/jira-reporter-backend:${env.SAFE_BRANCH}-${params.TAG} --tls-verify=false
 docker logout ${env.HARBOR_URL}
 
 ENDSSH
