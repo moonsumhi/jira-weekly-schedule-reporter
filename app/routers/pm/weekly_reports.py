@@ -13,7 +13,7 @@ from app.models.pm.reports import (
     WeeklyReportCreate, WeeklyReportPatch, WeeklyReportOut,
     WeeklyReportStatusPatch, ManualItemCreate, ManualItemPatch, ManualItemOut,
     ProjectBreakdown, PersonBreakdown, WorkItem, ReportStats,
-    SrItem, SrSummary,
+    SrItem, SrSummary, EditHistoryEntry,
 )
 from app.models.sr.service_request import SR_STATUS_LABEL, REQUEST_TYPE_LABEL
 from app.routers.auth import get_current_user
@@ -29,9 +29,18 @@ STATUS_ISSUE_KO = {
 }
 
 
-def _require_admin(user: UserPublic):
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="관리자 권한이 필요합니다.")
+def _require_pm(user: UserPublic):
+    if not user.is_admin and "pm" not in (user.permissions or []):
+        raise HTTPException(status_code=403, detail="PM 팀원 권한이 필요합니다.")
+
+
+def _history_entry(user: UserPublic, action: str) -> dict:
+    return {
+        "editor_id": ObjectId(user.id),
+        "editor_name": user.full_name or user.email,
+        "action": action,
+        "edited_at": datetime.now(timezone.utc),
+    }
 
 
 async def _user_name(uid) -> Optional[str]:
@@ -191,6 +200,15 @@ def _doc_to_out(doc: dict) -> WeeklyReportOut:
         updated_at=doc["updated_at"],
         confirmed_by=str(doc["confirmed_by"]) if doc.get("confirmed_by") else None,
         confirmed_at=doc.get("confirmed_at"),
+        edit_history=[
+            EditHistoryEntry(
+                editor_id=str(e["editor_id"]),
+                editor_name=e.get("editor_name"),
+                action=e.get("action", "수정"),
+                edited_at=e["edited_at"],
+            )
+            for e in doc.get("edit_history", [])
+        ],
     )
 
 
@@ -262,7 +280,7 @@ async def list_weekly_reports(
     week: Optional[int] = Query(None),
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_weekly_reports_collection()
     q: dict = {"deleted_at": None}
     if year: q["report_year"] = year
@@ -283,7 +301,7 @@ async def export_weekly_list(
     week: Optional[int] = Query(None),
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -329,7 +347,7 @@ async def get_weekly_report(
     report_id: str,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     doc = await MongoClientManager.get_pm_weekly_reports_collection().find_one(
         {"_id": ObjectId(report_id), "deleted_at": None}
     )
@@ -343,7 +361,7 @@ async def create_weekly_report(
     body: WeeklyReportCreate,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_weekly_reports_collection()
     now = datetime.now(timezone.utc)
 
@@ -376,6 +394,7 @@ async def create_weekly_report(
         "deleted_at":     None,
         "confirmed_by":   None,
         "confirmed_at":   None,
+        "edit_history":   [_history_entry(current_user, "생성")],
     })
     doc = await col.find_one({"_id": result.inserted_id})
     return await _enrich(_doc_to_out(doc), doc)
@@ -387,7 +406,7 @@ async def patch_weekly_report(
     body: WeeklyReportPatch,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_weekly_reports_collection()
     doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
     if not doc:
@@ -398,7 +417,9 @@ async def patch_weekly_report(
     patch["updated_at"] = datetime.now(timezone.utc)
 
     updated = await col.find_one_and_update(
-        {"_id": ObjectId(report_id)}, {"$set": patch}, return_document=True
+        {"_id": ObjectId(report_id)},
+        {"$set": patch, "$push": {"edit_history": _history_entry(current_user, "수정")}},
+        return_document=True,
     )
     return await _enrich(_doc_to_out(updated), updated)
 
@@ -409,7 +430,7 @@ async def refresh_weekly_report(
     current_user: UserPublic = Depends(get_current_user),
 ):
     """이슈 데이터를 다시 집계하여 보고서 내용을 최신화합니다."""
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_weekly_reports_collection()
     doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
     if not doc:
@@ -422,16 +443,19 @@ async def refresh_weekly_report(
     sr_summary = await _aggregate_sr(doc["start_date"], doc["end_date"])
     updated = await col.find_one_and_update(
         {"_id": ObjectId(report_id)},
-        {"$set": {
-            "by_project":     [p.model_dump() for p in by_project],
-            "by_person":      [p.model_dump() for p in by_person],
-            "all_items":      [i.model_dump() for i in all_items],
-            "upcoming_items": [i.model_dump() for i in upcoming_items],
-            "stats":          stats.model_dump(),
-            "sr_summary":     sr_summary.model_dump(),
-            "updated_by":     ObjectId(current_user.id),
-            "updated_at":     datetime.now(timezone.utc),
-        }},
+        {
+            "$set": {
+                "by_project":     [p.model_dump() for p in by_project],
+                "by_person":      [p.model_dump() for p in by_person],
+                "all_items":      [i.model_dump() for i in all_items],
+                "upcoming_items": [i.model_dump() for i in upcoming_items],
+                "stats":          stats.model_dump(),
+                "sr_summary":     sr_summary.model_dump(),
+                "updated_by":     ObjectId(current_user.id),
+                "updated_at":     datetime.now(timezone.utc),
+            },
+            "$push": {"edit_history": _history_entry(current_user, "데이터 새로고침")},
+        },
         return_document=True,
     )
     return await _enrich(_doc_to_out(updated), updated)
@@ -447,7 +471,7 @@ async def change_report_status(
     body: WeeklyReportStatusPatch,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     allowed = {"DRAFT", "REVIEWING", "CONFIRMED"}
     if body.status not in allowed:
         raise HTTPException(status_code=400, detail=f"유효하지 않은 상태값입니다. ({', '.join(allowed)})")
@@ -466,8 +490,11 @@ async def change_report_status(
         update["confirmed_by"] = None
         update["confirmed_at"] = None
 
+    action = f"상태 변경: {STATUS_KO.get(body.status, body.status)}"
     updated = await col.find_one_and_update(
-        {"_id": ObjectId(report_id)}, {"$set": update}, return_document=True
+        {"_id": ObjectId(report_id)},
+        {"$set": update, "$push": {"edit_history": _history_entry(current_user, action)}},
+        return_document=True,
     )
     return await _enrich(_doc_to_out(updated), updated)
 
@@ -482,7 +509,7 @@ async def add_manual_item(
     body: ManualItemCreate,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_weekly_reports_collection()
     doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
     if not doc:
@@ -501,7 +528,7 @@ async def add_manual_item(
     updated = await col.find_one_and_update(
         {"_id": ObjectId(report_id)},
         {
-            "$push": {"manual_items": item_data},
+            "$push": {"manual_items": item_data, "edit_history": _history_entry(current_user, "항목 추가")},
             "$set": {"updated_at": now, "updated_by": ObjectId(current_user.id)},
         },
         return_document=True,
@@ -516,7 +543,7 @@ async def update_manual_item(
     body: ManualItemPatch,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_weekly_reports_collection()
     doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
     if not doc:
@@ -535,7 +562,7 @@ async def update_manual_item(
 
     updated = await col.find_one_and_update(
         {"_id": ObjectId(report_id)},
-        {"$set": set_fields},
+        {"$set": set_fields, "$push": {"edit_history": _history_entry(current_user, "항목 수정")}},
         array_filters=[{"item._id": ObjectId(item_id)}],
         return_document=True,
     )
@@ -550,7 +577,7 @@ async def delete_manual_item(
     item_id: str,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     col = MongoClientManager.get_pm_weekly_reports_collection()
     doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
     if not doc:
@@ -563,6 +590,7 @@ async def delete_manual_item(
         {"_id": ObjectId(report_id)},
         {
             "$pull": {"manual_items": {"_id": ObjectId(item_id)}},
+            "$push": {"edit_history": _history_entry(current_user, "항목 삭제")},
             "$set": {"updated_at": now, "updated_by": ObjectId(current_user.id)},
         },
         return_document=True,
@@ -685,7 +713,7 @@ async def delete_weekly_report(
     report_id: str,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     result = await MongoClientManager.get_pm_weekly_reports_collection().update_one(
         {"_id": ObjectId(report_id), "deleted_at": None},
         {"$set": {"deleted_at": datetime.now(timezone.utc)}},
@@ -699,7 +727,7 @@ async def export_weekly_detail(
     report_id: str,
     current_user: UserPublic = Depends(get_current_user),
 ):
-    _require_admin(current_user)
+    _require_pm(current_user)
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment
 
