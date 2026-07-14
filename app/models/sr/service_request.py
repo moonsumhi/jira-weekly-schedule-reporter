@@ -314,6 +314,14 @@ class SRListPage(BaseModel):
     total: int
 
 
+class SRInlinePatch(BaseModel):
+    """목록에서 인라인 편집 가능한 필드만."""
+    priority:         Optional[SRPriority] = None
+    desired_due_date: Optional[datetime]   = None
+    assignee_id:      Optional[str]        = None
+    assignee_name:    Optional[str]        = None
+
+
 class SRStats(BaseModel):
     total: int
     submitted: int

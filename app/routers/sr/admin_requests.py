@@ -12,7 +12,8 @@ from fastapi.responses import StreamingResponse
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.sr.service_request import (
-    SROut, SRListItem, SRListPage, SRPatch, SRReview, SRAssign, SRStatusChange,
+    SROut, SRListItem, SRListPage, SRPatch, SRInlinePatch,
+    SRReview, SRAssign, SRStatusChange,
     SRStats, SR_STATUS_LABEL, REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL,
 )
 from app.routers.auth import get_current_user
@@ -129,6 +130,32 @@ async def get_sr_admin(
     require_sr_operator(current_user)
     doc = await get_sr_or_404(sr_id)
     return SROut(**sr_to_out(doc))
+
+
+# ── 인라인 필드 수정 (manager 이상) ─────────────────────────────────────
+
+@router.patch("/{sr_id}", response_model=SROut)
+async def patch_sr_inline(
+    sr_id: str,
+    body: SRInlinePatch,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    require_sr_manager(current_user)
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    doc = await get_sr_or_404(sr_id)
+    now = datetime.now(timezone.utc)
+    updates: dict = {"updated_at": now, "updated_by": _user_label(current_user)}
+
+    patch = body.model_dump(exclude_none=True)
+    for field, value in patch.items():
+        old_val = doc.get(field)
+        updates[field] = ObjectId(value) if field == "assignee_id" else value
+        if str(old_val) != str(value):
+            await record_sr_history(sr_id, f"FIELD_CHANGE:{field}", str(old_val), str(value), _user_label(current_user))
+
+    await col.update_one({"_id": ObjectId(sr_id)}, {"$set": updates})
+    updated = await col.find_one({"_id": ObjectId(sr_id)})
+    return SROut(**sr_to_out(updated))
 
 
 # ── SR 수정 (관리자) ──────────────────────────────────────────────────

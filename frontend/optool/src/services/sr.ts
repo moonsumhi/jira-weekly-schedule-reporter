@@ -396,6 +396,18 @@ export async function getAdminSR(id: string) {
   return data
 }
 
+export type SRInlinePatch = {
+  priority?:         string
+  desired_due_date?: string | null
+  assignee_id?:      string | null
+  assignee_name?:    string | null
+}
+
+export async function patchSRInline(id: string, payload: SRInlinePatch) {
+  const { data } = await api.patch<SR>(`/admin/schedule/service-requests/${id}`, payload)
+  return data
+}
+
 export async function updateAdminSR(id: string, payload: SRPatch) {
   const { data } = await api.put<SR>(`/admin/schedule/service-requests/${id}`, payload)
   return data
