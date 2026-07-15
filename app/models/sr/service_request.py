@@ -107,7 +107,7 @@ class SRCreate(BaseModel):
     background: Optional[str] = None
     description: Optional[str] = Field(None, min_length=1)
     purpose: Optional[str] = None
-    desired_due_date: Optional[datetime] = None
+    desired_due_date: datetime
     desired_deploy_date: Optional[datetime] = None
     is_urgent: bool = False
     urgent_reason: Optional[str] = None
