@@ -36,19 +36,41 @@
       <q-btn color="primary" icon="add" label="이슈 추가" @click="openCreateIssue" />
     </div>
 
-    <!-- 컬럼 on/off 필터 -->
+    <!-- 컬럼 on/off 필터 + 날짜 필터 -->
     <div class="row items-center q-gutter-xs q-mb-sm">
       <q-chip
         v-for="status in ISSUE_STATUSES"
         :key="status"
-        clickable
-        dense
-        size="sm"
+        clickable dense size="sm"
         :color="visibleStatuses.has(status) ? STATUS_COLOR[status] : undefined"
         :text-color="visibleStatuses.has(status) ? 'white' : 'grey-7'"
         :outline="!visibleStatuses.has(status)"
         @click="toggleStatus(status)"
       >{{ STATUS_LABEL[status] }}</q-chip>
+
+      <q-separator vertical inset class="q-mx-xs" style="height: 20px" />
+
+      <q-chip
+        :color="filterDateFrom || filterDateTo ? 'deep-orange-7' : undefined"
+        :text-color="filterDateFrom || filterDateTo ? 'white' : 'grey-8'"
+        :outline="!(filterDateFrom || filterDateTo)"
+        clickable dense size="sm"
+        :removable="!!(filterDateFrom || filterDateTo)"
+        @remove="filterDateFrom = null; filterDateTo = null"
+      >
+        <q-icon name="event" size="10px" class="q-mr-xs" />
+        <span>{{ filterDateFrom || filterDateTo
+          ? `${filterDateFrom ?? '~'} ~ ${filterDateTo ?? '~'}`
+          : '마감일' }}</span>
+        <q-icon v-if="!(filterDateFrom || filterDateTo)" name="expand_more" size="14px" class="q-ml-xs" />
+        <q-menu :offset="[0, 4]">
+          <div class="q-pa-md" style="min-width: 240px">
+            <div class="text-caption text-grey-6 q-mb-sm">마감일 기간</div>
+            <q-input v-model="filterDateFrom" type="date" dense outlined clearable label="시작일" class="q-mb-sm" />
+            <q-input v-model="filterDateTo"   type="date" dense outlined clearable label="종료일" />
+          </div>
+        </q-menu>
+      </q-chip>
     </div>
 
     <q-inner-loading :showing="loading" />
@@ -60,13 +82,13 @@
           <q-card-section class="q-py-sm column-header">
             <div class="row items-center q-gutter-xs">
               <q-badge :color="STATUS_COLOR[status]" :label="STATUS_LABEL[status]" />
-              <q-badge outline :label="(board[status] ?? []).length" />
+              <q-badge outline :label="(filteredBoard[status] ?? []).length" />
             </div>
           </q-card-section>
           <q-separator />
 
           <draggable
-            :list="board[status]"
+            :list="filteredBoard[status]"
             group="issues"
             item-key="id"
             class="board-draggable"
@@ -169,6 +191,8 @@ const projectId = route.params.projectId as string
 
 const visibleStatuses = ref(new Set<IssueStatus>(ISSUE_STATUSES))
 const titleClamp = ref(true)
+const filterDateFrom = ref<string | null>(null)
+const filterDateTo   = ref<string | null>(null)
 
 function toggleStatus(status: IssueStatus) {
   const next = new Set(visibleStatuses.value)
@@ -192,6 +216,19 @@ const sprintOptions = computed(() => [
   { label: '전체', value: null },
   ...sprints.value.map(s => ({ label: `${s.name} (${s.status})`, value: s.id })),
 ])
+
+const filteredBoard = computed(() => {
+  if (!filterDateFrom.value && !filterDateTo.value) return board.value
+  const result = {} as Record<IssueStatus, Issue[]>
+  for (const status of ISSUE_STATUSES) {
+    result[status] = (board.value[status] ?? []).filter(issue => {
+      if (filterDateFrom.value && (!issue.dueDate || issue.dueDate < filterDateFrom.value)) return false
+      if (filterDateTo.value   && (!issue.dueDate || issue.dueDate > filterDateTo.value))   return false
+      return true
+    })
+  }
+  return result
+})
 
 onMounted(async () => {
   loading.value = true

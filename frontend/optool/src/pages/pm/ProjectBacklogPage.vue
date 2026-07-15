@@ -163,6 +163,42 @@
           </q-menu>
         </q-chip>
 
+        <!-- 마감일 기간 -->
+        <q-chip
+          :color="filterDateFrom || filterDateTo ? 'deep-orange-7' : undefined"
+          :text-color="filterDateFrom || filterDateTo ? 'white' : 'grey-8'"
+          :outline="!(filterDateFrom || filterDateTo)"
+          clickable
+          :removable="!!(filterDateFrom || filterDateTo)"
+          @remove="filterDateFrom = null; filterDateTo = null"
+          class="filter-chip"
+          size="sm"
+        >
+          <q-icon name="event" size="10px" class="q-mr-xs" />
+          <span>{{ filterDateFrom || filterDateTo
+            ? `${filterDateFrom ?? '~'} ~ ${filterDateTo ?? '~'}`
+            : '마감일' }}</span>
+          <q-icon v-if="!(filterDateFrom || filterDateTo)" name="expand_more" size="14px" class="q-ml-xs" />
+          <q-menu :offset="[0, 4]">
+            <div class="q-pa-md" style="min-width: 240px">
+              <div class="text-caption text-grey-6 q-mb-sm">마감일 기간</div>
+              <q-input
+                v-model="filterDateFrom"
+                type="date"
+                dense outlined clearable
+                label="시작일"
+                class="q-mb-sm"
+              />
+              <q-input
+                v-model="filterDateTo"
+                type="date"
+                dense outlined clearable
+                label="종료일"
+              />
+            </div>
+          </q-menu>
+        </q-chip>
+
         <!-- 필터 초기화 -->
         <q-btn
           v-if="hasFilter"
@@ -587,6 +623,8 @@ const filterStatus    = ref<IssueStatus | null>(null)
 const filterPriority  = ref<IssuePriority | null>(null)
 const filterType      = ref<IssueType | null>(null)
 const filterAssigneeId = ref<string | null>(null)
+const filterDateFrom  = ref<string | null>(null)
+const filterDateTo    = ref<string | null>(null)
 
 const FILTER_KEY = `backlog_filter_${projectId}`
 
@@ -594,6 +632,7 @@ function saveFilters() {
   localStorage.setItem(FILTER_KEY, JSON.stringify({
     search: filterSearch.value, status: filterStatus.value,
     priority: filterPriority.value, type: filterType.value, assigneeId: filterAssigneeId.value,
+    dateFrom: filterDateFrom.value, dateTo: filterDateTo.value,
   }))
 }
 
@@ -601,22 +640,24 @@ function restoreFilters() {
   try {
     const raw = localStorage.getItem(FILTER_KEY)
     if (!raw) return
-    const s = JSON.parse(raw) as { search: string; status: IssueStatus | null; priority: IssuePriority | null; type: IssueType | null; assigneeId: string | null }
+    const s = JSON.parse(raw) as { search: string; status: IssueStatus | null; priority: IssuePriority | null; type: IssueType | null; assigneeId: string | null; dateFrom: string | null; dateTo: string | null }
     filterSearch.value = s.search ?? ''; filterStatus.value = s.status ?? null
     filterPriority.value = s.priority ?? null; filterType.value = s.type ?? null
     filterAssigneeId.value = s.assigneeId ?? null
+    filterDateFrom.value = s.dateFrom ?? null; filterDateTo.value = s.dateTo ?? null
   } catch { /* ignore */ }
 }
 
-watch([filterSearch, filterStatus, filterPriority, filterType, filterAssigneeId], saveFilters)
+watch([filterSearch, filterStatus, filterPriority, filterType, filterAssigneeId, filterDateFrom, filterDateTo], saveFilters)
 
 const hasFilter = computed(() =>
-  !!(filterSearch.value || filterStatus.value || filterPriority.value || filterType.value || filterAssigneeId.value)
+  !!(filterSearch.value || filterStatus.value || filterPriority.value || filterType.value || filterAssigneeId.value || filterDateFrom.value || filterDateTo.value)
 )
 
 function clearFilters() {
   filterSearch.value = ''; filterStatus.value = null
   filterPriority.value = null; filterType.value = null; filterAssigneeId.value = null
+  filterDateFrom.value = null; filterDateTo.value = null
 }
 
 // ── 드래그 순서 관리 ──────────────────────────────────────────────────
@@ -701,6 +742,8 @@ function matches(issue: Issue): boolean {
   if (filterPriority.value   && issue.priority   !== filterPriority.value)   return false
   if (filterType.value       && issue.type       !== filterType.value)       return false
   if (filterAssigneeId.value && issue.assigneeId !== filterAssigneeId.value) return false
+  if (filterDateFrom.value   && (!issue.dueDate  || issue.dueDate < filterDateFrom.value)) return false
+  if (filterDateTo.value     && (!issue.dueDate  || issue.dueDate > filterDateTo.value))   return false
   return true
 }
 
