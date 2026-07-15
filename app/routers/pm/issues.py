@@ -17,6 +17,8 @@ from app.routers.auth import get_current_user
 from app.services.pm.permission import get_issue_or_404, require_pm_member
 from app.services.pm.issue_service import next_issue_number, record_history, enrich_issue
 from app.services.notification_service import create_notification
+from app.services.mention_service import resolve_mentions, notify_mentions
+from app.models.mention import MentionedUser
 
 router = APIRouter()
 
@@ -258,6 +260,10 @@ async def list_comments(
     result = []
     for d in docs:
         user = await users_col.find_one({"_id": d["author_id"]}, {"full_name": 1, "email": 1})
+        mentioned_users = [
+            MentionedUser(user_id=m["user_id"], display_name=m["display_name"])
+            for m in d.get("mentioned_users", [])
+        ]
         result.append(IssueCommentOut(
             id=str(d["_id"]),
             issue_id=str(d["issue_id"]),
@@ -266,6 +272,7 @@ async def list_comments(
             author_name=user.get("full_name") or user.get("email", "") if user else "",
             content=d["content"],
             attachments=d.get("attachments") or [],
+            mentioned_users=mentioned_users,
             created_at=d["created_at"],
             updated_at=d["updated_at"],
         ))
@@ -293,17 +300,30 @@ async def create_comment(
     users_col = MongoClientManager.get_users_collection()
     now = datetime.now(timezone.utc)
 
+    # 멘션 처리 — 프로젝트 멤버만 허용
+    members_col = MongoClientManager.get_pm_project_members_collection()
+    member_docs = await members_col.find({"project_id": ObjectId(project_id)}, {"user_id": 1}).to_list(None)
+    allowed_ids = {str(m["user_id"]) for m in member_docs}
+    mentioned = await resolve_mentions(
+        body.mentioned_user_ids,
+        actor_id=str(current_user.id),
+        allowed_user_ids=allowed_ids,
+    )
+
     result = await col.insert_one({
         "issue_id": ObjectId(issue_id),
         "parent_id": ObjectId(body.parent_id) if body.parent_id else None,
         "author_id": ObjectId(current_user.id),
         "content": body.content,
         "attachments": [a.model_dump() for a in body.attachments],
+        "mentioned_users": [m.model_dump() for m in mentioned],
         "created_at": now,
         "updated_at": now,
     })
+    comment_id_str = str(result.inserted_id)
     d = await col.find_one({"_id": result.inserted_id})
     user = await users_col.find_one({"_id": ObjectId(current_user.id)}, {"full_name": 1, "email": 1})
+    sender_name = current_user.full_name or current_user.email
 
     new_display = _trunc(body.content) or (f"첨부파일 {len(body.attachments)}개" if body.attachments else None)
     await record_history(ObjectId(issue_id), ObjectId(current_user.id), "comment", None, new_display)
@@ -313,7 +333,6 @@ async def create_comment(
     if issue_doc and issue_doc.get("assignee_id"):
         assignee_str = str(issue_doc["assignee_id"])
         if assignee_str != str(current_user.id):
-            sender_name = current_user.full_name or current_user.email
             preview = body.content[:40] + "…" if len(body.content) > 40 else body.content
             await create_notification(
                 recipient_user_id=assignee_str,
@@ -327,6 +346,20 @@ async def create_comment(
                 target_url=f"/pm/projects/{project_id}/board",
             )
 
+    # 멘션 알림
+    issue_title = issue_doc.get("title", "") if issue_doc else ""
+    if mentioned:
+        await notify_mentions(
+            mentioned_users=mentioned,
+            comment_id=comment_id_str,
+            target_type="PM_ISSUE",
+            target_id=issue_id,
+            target_title=issue_title,
+            actor_id=str(current_user.id),
+            actor_name=sender_name,
+            target_url=f"/pm/projects/{project_id}/board?issueId={issue_id}&commentId={comment_id_str}",
+        )
+
     return IssueCommentOut(
         id=str(d["_id"]),
         issue_id=str(d["issue_id"]),
@@ -335,6 +368,7 @@ async def create_comment(
         author_name=user.get("full_name") or user.get("email", "") if user else "",
         content=d["content"],
         attachments=d.get("attachments") or [],
+        mentioned_users=mentioned,
         created_at=d["created_at"],
         updated_at=d["updated_at"],
     )
@@ -357,9 +391,24 @@ async def patch_comment(
     if not old_doc:
         raise HTTPException(status_code=403, detail="댓글을 찾을 수 없거나 수정 권한이 없습니다.")
 
+    # 멘션 diff 처리
+    old_mention_ids = {m["user_id"] for m in old_doc.get("mentioned_users", [])}
+    members_col = MongoClientManager.get_pm_project_members_collection()
+    member_docs = await members_col.find({"project_id": ObjectId(project_id)}, {"user_id": 1}).to_list(None)
+    allowed_ids = {str(m["user_id"]) for m in member_docs}
+    new_mentioned = await resolve_mentions(
+        body.mentioned_user_ids,
+        actor_id=str(current_user.id),
+        allowed_user_ids=allowed_ids,
+    )
+
     d = await col.find_one_and_update(
         {"_id": ObjectId(comment_id)},
-        {"$set": {"content": body.content, "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {
+            "content": body.content,
+            "mentioned_users": [m.model_dump() for m in new_mentioned],
+            "updated_at": datetime.now(timezone.utc),
+        }},
         return_document=True,
     )
 
@@ -368,6 +417,23 @@ async def patch_comment(
         _trunc(old_doc.get("content")), _trunc(body.content),
     )
 
+    # 새로 추가된 멘션에만 알림
+    added_mentions = [m for m in new_mentioned if m.user_id not in old_mention_ids]
+    if added_mentions:
+        issue_doc = await MongoClientManager.get_pm_issues_collection().find_one({"_id": ObjectId(issue_id)})
+        issue_title = issue_doc.get("title", "") if issue_doc else ""
+        sender_name = current_user.full_name or current_user.email
+        await notify_mentions(
+            mentioned_users=added_mentions,
+            comment_id=comment_id,
+            target_type="PM_ISSUE",
+            target_id=issue_id,
+            target_title=issue_title,
+            actor_id=str(current_user.id),
+            actor_name=sender_name,
+            target_url=f"/pm/projects/{project_id}/board?issueId={issue_id}&commentId={comment_id}",
+        )
+
     user = await users_col.find_one({"_id": ObjectId(current_user.id)}, {"full_name": 1, "email": 1})
     return IssueCommentOut(
         id=str(d["_id"]),
@@ -375,6 +441,7 @@ async def patch_comment(
         author_id=str(d["author_id"]),
         author_name=user.get("full_name") or user.get("email", "") if user else "",
         content=d["content"],
+        mentioned_users=new_mentioned,
         created_at=d["created_at"],
         updated_at=d["updated_at"],
     )

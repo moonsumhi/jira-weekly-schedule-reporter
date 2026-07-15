@@ -5,6 +5,8 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.mention import MentionedUser
+
 
 class Attachment(BaseModel):
     file_id: str
@@ -100,10 +102,12 @@ class IssueCommentCreate(BaseModel):
     content: str = Field('', min_length=0)
     parent_id: Optional[str] = None
     attachments: List[Attachment] = []
+    mentioned_user_ids: List[str] = []
 
 
 class IssueCommentPatch(BaseModel):
     content: str = Field(..., min_length=1)
+    mentioned_user_ids: List[str] = []
 
 
 class IssueCommentOut(BaseModel):
@@ -114,6 +118,7 @@ class IssueCommentOut(BaseModel):
     author_name: str
     content: str
     attachments: List[Attachment] = []
+    mentioned_users: List[MentionedUser] = []
     created_at: datetime
     updated_at: datetime
 

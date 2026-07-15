@@ -18,6 +18,7 @@ from app.services.sr.sr_service import (
     record_status_history, sr_to_out, is_sr_requester,
 )
 from app.services.notification_service import create_notification, notify_users, get_sr_operator_ids
+from app.services.mention_service import resolve_mentions, notify_mentions
 
 router = APIRouter()
 
@@ -292,6 +293,14 @@ async def add_comment(
 
     now = datetime.now(timezone.utc)
     col = MongoClientManager.get_db()[MongoClientManager.SR_COMMENTS]
+
+    # 멘션 처리 — SR은 활성 사용자 전체 허용
+    mentioned = await resolve_mentions(
+        body.mentioned_user_ids,
+        actor_id=str(current_user.id),
+        allowed_user_ids=None,
+    )
+
     comment_doc = {
         "sr_id": sr_id,
         "writer_id": current_user.id,
@@ -299,13 +308,15 @@ async def add_comment(
         "content": body.content,
         "is_internal": body.is_internal,
         "attachments": [a.model_dump() for a in body.attachments],
+        "mentioned_users": [m.model_dump() for m in mentioned],
         "created_at": now,
         "updated_at": now,
         "deleted_at": None,
     }
     result = await col.insert_one(comment_doc)
+    comment_id_str = str(result.inserted_id)
     comment_doc["_id"] = result.inserted_id
-    comment_doc["id"] = str(result.inserted_id)
+    comment_doc["id"] = comment_id_str
 
     sender = _user_label(current_user)
     target_url = f"/pm/sr/{sr_id}"
@@ -341,6 +352,20 @@ async def add_comment(
                     target_id=sr_id,
                     target_url=target_url,
                 )
+
+    # 멘션 알림
+    if mentioned:
+        sr_title = doc.get("title", "")
+        await notify_mentions(
+            mentioned_users=mentioned,
+            comment_id=comment_id_str,
+            target_type="SR",
+            target_id=sr_id,
+            target_title=sr_title,
+            actor_id=str(current_user.id),
+            actor_name=sender,
+            target_url=f"/pm/sr/{sr_id}?commentId={comment_id_str}",
+        )
 
     return SRCommentOut(**comment_doc)
 

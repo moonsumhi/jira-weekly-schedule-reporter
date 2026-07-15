@@ -169,7 +169,12 @@
                         <q-btn flat dense round icon="reply" size="xs" color="primary" @click="toggleReply(c.id)" />
                         <q-btn flat dense round icon="delete" size="xs" color="negative" @click="removeComment(c.id)" />
                       </div>
-                      <div v-if="c.content" class="text-body2" style="white-space: pre-wrap">{{ c.content }}</div>
+                      <MentionContent
+                        v-if="c.content"
+                        :content="c.content"
+                        :mentioned-users="c.mentionedUsers || []"
+                        class="text-body2"
+                      />
                       <!-- 첨부파일 -->
                       <div v-if="c.attachments?.length" class="q-mt-sm">
                         <CommentAttachments :attachments="c.attachments" />
@@ -188,7 +193,12 @@
                             <q-space />
                             <q-btn flat dense round icon="delete" size="xs" color="negative" @click="removeComment(r.id)" />
                           </div>
-                          <div v-if="r.content" class="text-body2 q-pl-md" style="white-space: pre-wrap">{{ r.content }}</div>
+                          <MentionContent
+                            v-if="r.content"
+                            :content="r.content"
+                            :mentioned-users="r.mentionedUsers || []"
+                            class="text-body2 q-pl-md"
+                          />
                           <div v-if="r.attachments?.length" class="q-pl-md q-mt-xs">
                             <CommentAttachments :attachments="r.attachments" />
                           </div>
@@ -201,13 +211,13 @@
                       <q-separator />
                       <q-card-section class="q-py-sm q-pl-lg">
                         <div class="row q-gutter-sm items-stretch">
-                          <q-input
+                          <MentionInput
                             v-model="replyText"
+                            v-model:mentioned-users="replyMentionedUsers"
                             class="col"
-                            dense outlined autofocus
-                            type="textarea" rows="2"
-                            placeholder="답글 작성..."
-                            @keydown.esc="replyingTo = null"
+                            :rows="2"
+                            placeholder="답글 작성... (@로 멘션)"
+                            :dense="true"
                           />
                           <div class="column q-gutter-xs justify-center">
                             <q-btn color="primary" label="등록" size="sm" :loading="commentLoading" @click="submitReply(c.id)" />
@@ -232,12 +242,11 @@
                 />
 
                 <div @paste="handleCommentPaste">
-                  <q-input
+                  <MentionInput
                     v-model="newComment"
-                    dense outlined
-                    type="textarea" rows="3"
-                    placeholder="댓글 작성... (이미지 붙여넣기 가능)"
-                    style="resize: none"
+                    v-model:mentioned-users="mentionedUsers"
+                    :rows="3"
+                    placeholder="댓글 작성... (@로 멘션, 이미지 붙여넣기 가능)"
                   />
                 </div>
 
@@ -472,6 +481,9 @@ import {
   type Issue, type IssueStatus, type IssueType, type IssuePriority,
   type IssueComment, type IssueHistory, type Label, type Attachment,
 } from 'src/services/pm/issue'
+import MentionInput from 'components/MentionInput.vue'
+import MentionContent from 'components/MentionContent.vue'
+import type { MentionUser } from 'src/services/mention'
 import { listSprints, type Sprint } from 'src/services/pm/sprint'
 import { listProjectMembers, type ProjectMember } from 'src/services/pm/project'
 import { getErrorMessage } from 'src/utils/http/error'
@@ -499,9 +511,11 @@ const descriptionEditing = ref(false)
 const comments = ref<IssueComment[]>([])
 const history = ref<IssueHistory[]>([])
 const newComment = ref('')
+const mentionedUsers = ref<MentionUser[]>([])
 const commentLoading = ref(false)
 const replyingTo = ref<string | null>(null)
 const replyText = ref('')
+const replyMentionedUsers = ref<MentionUser[]>([])
 
 // ── 첨부파일 상태 ──────────────────────────────────────────────────
 interface PendingFile {
@@ -860,9 +874,11 @@ async function addComment() {
   }
   commentLoading.value = true
   try {
-    const c = await createComment(props.projectId, localIssue.value.id, text, undefined, attachments)
+    const mentionIds = mentionedUsers.value.map(m => m.userId)
+    const c = await createComment(props.projectId, localIssue.value.id, text, undefined, attachments, mentionIds)
     comments.value.push(c)
     newComment.value = ''
+    mentionedUsers.value = []
     pendingFiles.value = []
     void reloadHistory()
   } catch (e) {
@@ -876,9 +892,11 @@ async function submitReply(parentId: string) {
   if (!localIssue.value || !replyText.value.trim()) return
   commentLoading.value = true
   try {
-    const c = await createComment(props.projectId, localIssue.value.id, replyText.value.trim(), parentId)
+    const mentionIds = replyMentionedUsers.value.map(m => m.userId)
+    const c = await createComment(props.projectId, localIssue.value.id, replyText.value.trim(), parentId, [], mentionIds)
     comments.value.push(c)
     replyText.value = ''
+    replyMentionedUsers.value = []
     replyingTo.value = null
     void reloadHistory()
   } catch (e) {

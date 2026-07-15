@@ -634,7 +634,12 @@
                   </div>
                   <div class="comment-bubble q-ml-lg"
                     :class="c.isInternal ? 'comment-bubble--internal' : 'comment-bubble--user'">
-                    <div v-if="c.content" class="q-mb-xs">{{ c.content }}</div>
+                    <MentionContent
+                      v-if="c.content"
+                      :content="c.content"
+                      :mentioned-users="c.mentionedUsers || []"
+                      class="q-mb-xs"
+                    />
                     <!-- 첨부파일 -->
                     <div v-if="c.attachments?.length" class="column q-gutter-xs q-mt-xs">
                       <template v-for="att in c.attachments" :key="att.fileId">
@@ -686,8 +691,13 @@
 
                 <div class="row q-col-gutter-sm items-end">
                   <div class="col" @paste="onCommentPaste">
-                    <q-input v-model="newComment" placeholder="댓글을 입력하세요... (이미지 붙여넣기 가능)" outlined dense
-                      type="textarea" rows="3" />
+                    <MentionInput
+                      v-model="newComment"
+                      v-model:mentioned-users="mentionedUsers"
+                      :rows="3"
+                      placeholder="댓글을 입력하세요... (@로 멘션, 이미지 붙여넣기 가능)"
+                      :dense="true"
+                    />
                     <div class="row items-center q-mt-xs q-gutter-sm">
                       <q-checkbox v-if="isOperatorUser" v-model="newCommentInternal"
                         label="내부 메모 (운영팀에만 공개)" size="xs" color="grey-7" dense />
@@ -1049,6 +1059,9 @@ import { SR_TYPE_FIELDS } from 'src/services/sr-type-fields'
 import type { SRTypeField } from 'src/services/sr-type-fields'
 import { listPmUsers, type PmUser } from 'src/services/pm/users'
 import { formatKst } from 'src/utils/time/kst'
+import MentionInput from 'src/components/MentionInput.vue'
+import MentionContent from 'src/components/MentionContent.vue'
+import type { MentionUser } from 'src/services/mention'
 
 // ── 상수 ────────────────────────────────────────────────────────────
 
@@ -1093,6 +1106,7 @@ const comments       = ref<SRComment[]>([])
 const statusHistory  = ref<SRHistory[]>([])
 const activeTab      = ref('content')
 const newComment     = ref('')
+const mentionedUsers = ref<MentionUser[]>([])
 const newCommentInternal = ref(false)
 const commenting     = ref(false)
 type CommentFileItem = { file: File; previewUrl: string | null }
@@ -1444,8 +1458,10 @@ async function submitComment() {
     if (commentFiles.value.length > 0) {
       uploaded = await Promise.all(commentFiles.value.map(item => uploadSRAttachment(item.file)))
     }
-    await addComment(srId, newComment.value, newCommentInternal.value, uploaded)
+    const mentionIds = mentionedUsers.value.map(m => m.userId)
+    await addComment(srId, newComment.value, newCommentInternal.value, uploaded, mentionIds)
     newComment.value         = ''
+    mentionedUsers.value     = []
     newCommentInternal.value = false
     commentFiles.value.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl) })
     commentFiles.value       = []

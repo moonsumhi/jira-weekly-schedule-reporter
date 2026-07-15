@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.models.mention import MentionedUser
+
 # ── 타입 정의 ─────────────────────────────────────────────────────────
 
 SRStatus = Literal[
@@ -187,6 +189,7 @@ class SRComment(BaseModel):
     content: str = Field(default="")
     is_internal: bool = False
     attachments: List[SRAttachment] = []
+    mentioned_user_ids: List[str] = []
 
     @model_validator(mode="after")
     def content_or_attachments_required(self) -> "SRComment":
@@ -295,6 +298,7 @@ class SRCommentOut(BaseModel):
     content: str
     is_internal: bool
     attachments: List[SRAttachment] = []
+    mentioned_users: List[MentionedUser] = []
     created_at: datetime
     updated_at: datetime
 

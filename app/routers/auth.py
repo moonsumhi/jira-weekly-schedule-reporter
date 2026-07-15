@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
@@ -306,3 +306,35 @@ async def change_password(
         {"email": current_user.email},
         {"$set": {"hashed_password": hash_password(body.new_password)}}
     )
+
+
+@router.get("/mention-search")
+async def mention_search(
+    q: str = Query("", max_length=50),
+    limit: int = Query(15, ge=1, le=30),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """멘션용 사용자 검색. 인증된 사용자 전용."""
+    if not q.strip():
+        return {"items": []}
+
+    users_col = MongoClientManager.get_users_collection()
+    keyword = q.strip()
+    regex = {"$regex": keyword, "$options": "i"}
+    docs = await users_col.find(
+        {
+            "$or": [{"full_name": regex}, {"email": regex}],
+            "is_blocked": {"$ne": True},
+        },
+        {"full_name": 1, "email": 1, "team": 1},
+    ).limit(limit).to_list(None)
+
+    items = []
+    for d in docs:
+        items.append({
+            "user_id": str(d["_id"]),
+            "display_name": d.get("full_name") or d.get("email", ""),
+            "team": d.get("team"),
+            "email": d.get("email", ""),
+        })
+    return {"items": items}
