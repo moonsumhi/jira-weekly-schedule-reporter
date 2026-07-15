@@ -97,11 +97,17 @@
             <div class="section-label">기본 정보</div>
             <div class="row q-col-gutter-md">
               <div class="col-12 col-sm-6">
-                <q-input v-model="form.requesterDepartment" label="요청 부서" outlined dense
-                  :rules="[v => !!v || '필수 항목입니다.']" />
+                <q-field label="요청자" outlined dense stack-label readonly>
+                  <template #control>
+                    <div class="self-center full-width text-body2">
+                      {{ form.requesterName || form.requesterEmail }}
+                      <span v-if="form.requesterDepartment" class="text-grey-6 text-caption q-ml-xs">({{ form.requesterDepartment }})</span>
+                    </div>
+                  </template>
+                </q-field>
               </div>
               <div class="col-12 col-sm-6">
-                <q-input v-model="form.relatedSystem" label="대상 시스템" outlined dense
+                <q-input v-model="form.relatedSystem" label="대상 시스템 *" outlined dense
                   placeholder="어떤 시스템에 대한 요청인지"
                   :rules="[v => !!v || '필수 항목입니다.']" />
               </div>
@@ -325,7 +331,7 @@ const draftLoading     = ref<string | null>(null)
 const form = ref({
   title:                '',
   requesterName:        authStore.me?.fullName || '',
-  requesterDepartment:  '',
+  requesterDepartment:  authStore.me?.team || '',
   requesterEmail:       authStore.me?.email || '',
   requestType:          null as string | null,
   relatedSystem:        '',
@@ -371,10 +377,6 @@ function goToStep2() {
 function goToStep3() {
   if (!form.value.title.trim()) {
     $q.notify({ type: 'warning', message: '요청 제목을 입력해주세요.', position: 'top' })
-    return
-  }
-  if (!form.value.requesterDepartment.trim()) {
-    $q.notify({ type: 'warning', message: '요청 부서를 입력해주세요.', position: 'top' })
     return
   }
   if (!form.value.relatedSystem.trim()) {
@@ -469,7 +471,7 @@ function resetDraft() {
   draftId.value = null
   form.value = {
     title: '', requesterName: authStore.me?.fullName || '',
-    requesterDepartment: '', requesterEmail: authStore.me?.email || '',
+    requesterDepartment: authStore.me?.team || '', requesterEmail: authStore.me?.email || '',
     requestType: null, relatedSystem: '', background: '', description: '',
     desiredDueDate: null, priority: 'MEDIUM', isUrgent: false, urgentReason: '', note: '',
   }
