@@ -26,6 +26,20 @@ def _fmt_date(value: Any) -> str:
     return str(value)[:10]
 
 
+async def _get_assignee_email(assignee_id: Any) -> str | None:
+    if not assignee_id:
+        return None
+    from bson import ObjectId
+    from app.db.mongo import MongoClientManager
+    try:
+        oid = assignee_id if isinstance(assignee_id, ObjectId) else ObjectId(str(assignee_id))
+    except Exception:
+        return None
+    users = MongoClientManager.get_users_collection()
+    user = await users.find_one({"_id": oid})
+    return user.get("email") if user else None
+
+
 _EVENT_URLS = {
     "reviewed": lambda: settings.SR_MAIL_SERVICE_URL,   # 검토 완료(승인) → issueInfo 템플릿
     "assigned": lambda: settings.SR_MAIL_ASSIGN_URL,    # 담당자 배정 → issueAssign 템플릿(신규)
@@ -36,15 +50,24 @@ _EVENT_URLS = {
 async def send_sr_notification(doc: dict, event: str) -> None:
     """SR 문서(dict)를 바탕으로 요청자에게 알림 메일을 발송한다.
 
-    event="reviewed"  → 검토 완료(승인) 메일 (issueInfo 템플릿)
-    event="assigned"  → 담당자 배정 메일 (issueAssign 템플릿, 신규 — 사내 메일 서버에 추가 필요)
-    event="completed" → 처리완료 메일 (issueFinish 템플릿, Redmine처럼 완료 시에만 발송)
+    event="reviewed"  → 검토 완료(승인) 메일. 수신자: 요청자
+    event="assigned"  → 담당자 배정 메일 (issueAssign 템플릿, 신규). 수신자: 요청자 + 담당자
+    event="completed" → 처리완료 메일. 수신자: 요청자 + 담당자
 
     메일 발송 실패는 SR 접수/처리 자체를 막지 않도록 예외를 삼키고 로그만 남긴다.
     """
-    email = doc.get("requester_email")
-    if not email:
-        logger.warning("SR 메일 발송 스킵 (요청자 이메일 없음): sr_no=%s", doc.get("sr_no"))
+    recipients: list[str] = []
+    requester_email = doc.get("requester_email")
+    if requester_email:
+        recipients.append(requester_email)
+
+    if event in ("assigned", "completed"):
+        assignee_email = await _get_assignee_email(doc.get("assignee_id"))
+        if assignee_email and assignee_email not in recipients:
+            recipients.append(assignee_email)
+
+    if not recipients:
+        logger.warning("SR 메일 발송 스킵 (수신자 없음): sr_no=%s, event=%s", doc.get("sr_no"), event)
         return
 
     # 실제 메일 템플릿(issueInfo.html, th:text)이 읽는 키만 채운다:
@@ -59,7 +82,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
         "due_date": _fmt_date(doc.get("desired_due_date")),
     }
 
-    form_items: list[tuple[str, str]] = [("sendUserEmail[]", email)]
+    form_items: list[tuple[str, str]] = [("sendUserEmail[]", r) for r in recipients]
     form_items += [(f"dataMap[{k}]", str(v)) for k, v in data_map.items()]
     # httpx 0.28의 data=list[tuple] 조합이 AsyncClient에서 비동기 스트림을 만들지 못하는
     # 버그가 있어(RuntimeError: Attempted to send an sync request...), 폼 바디를 직접
@@ -76,7 +99,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
             )
             logger.info(
                 "SR 메일 발송 요청: sr_no=%s event=%s to=%s status_code=%s",
-                doc.get("sr_no"), event, email, resp.status_code,
+                doc.get("sr_no"), event, recipients, resp.status_code,
             )
     except Exception as e:
         logger.warning(
