@@ -198,14 +198,13 @@
             </q-td>
             <q-td>
               <div class="row items-center q-gutter-xs no-wrap">
-                <span>{{ row.title }}</span>
+                <span>{{ formatTitle(row) }}</span>
                 <q-badge v-if="row.isUrgent"  color="red"      label="긴급" />
                 <q-badge v-if="row.isDelayed" color="negative" label="지연" />
               </div>
             </q-td>
             <q-td>{{ row.requesterDepartment }}</q-td>
             <q-td>{{ row.requesterName }}</q-td>
-            <q-td>{{ requestTypeLabel(row.requestType) }}</q-td>
             <q-td class="text-center editable-cell" @click.stop>
               <div class="row items-center justify-center no-wrap">
                 <q-badge :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" outline />
@@ -509,7 +508,6 @@ const columns: NonNullable<QTableProps['columns']> = [
   { name: 'title',                label: '요청 제목', field: 'title',                align: 'left' },
   { name: 'requester_department', label: '부서',      field: 'requester_department', align: 'left',   sortable: true, style: 'width:90px' },
   { name: 'requester_name',       label: '요청자',    field: 'requester_name',       align: 'left',   sortable: true, style: 'width:80px' },
-  { name: 'request_type',         label: '유형',      field: 'request_type',         align: 'left',   style: 'width:110px' },
   { name: 'priority',             label: '중요도',    field: 'priority',             align: 'center', sortable: true, style: 'width:70px' },
   { name: 'status',               label: '상태',      field: 'status',               align: 'center', sortable: true, style: 'width:130px' },
   { name: 'assignee_name',        label: '담당자',    field: 'assignee_name',        align: 'left',   style: 'width:80px' },
@@ -559,6 +557,11 @@ function priorityLabel(s: string)    { return (SR_PRIORITY_LABEL  as Record<stri
 function priorityColor(s: string)    { return (SR_PRIORITY_COLOR  as Record<string,string>)[s] ?? 'grey' }
 function requestTypeLabel(s: string) { return (REQUEST_TYPE_LABEL as Record<string,string>)[s] ?? s }
 function fmtDate(d: string | null)   { return d ? d.substring(0, 10) : '-' }
+function formatTitle(row: SRListItem) {
+  const type = requestTypeLabel(row.requestType)
+  const sys  = row.relatedSystem ? `(${row.relatedSystem})` : ''
+  return `[${type}]${sys} ${row.title}`
+}
 
 // ── 탭 전환 ──────────────────────────────────────────────────────────────
 

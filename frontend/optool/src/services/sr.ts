@@ -122,7 +122,7 @@ export type SR = {
   relatedMenu: string | null
   relatedUrl: string | null
   background: string | null
-  description: string
+  description: string | null
   purpose: string | null
   desiredDueDate: string | null
   desiredDeployDate: string | null
@@ -207,7 +207,7 @@ export type SRCreate = {
   related_menu?: string
   related_url?: string
   background?: string
-  description: string
+  description: string | null
   purpose?: string
   desired_due_date?: string | null
   desired_deploy_date?: string | null
@@ -265,6 +265,7 @@ export type SRComment = {
   content: string
   isInternal: boolean
   attachments: SRAttachment[]
+  mentionedUsers: { userId: string; displayName: string }[]
   createdAt: string
   updatedAt: string
 }
@@ -359,7 +360,13 @@ export async function uploadSRAttachment(file: File): Promise<SRAttachment> {
   return data
 }
 
-export async function addComment(id: string, content: string, isInternal = false, attachments: SRAttachment[] = []) {
+export async function addComment(
+  id: string,
+  content: string,
+  isInternal = false,
+  attachments: SRAttachment[] = [],
+  mentionedUserIds: string[] = [],
+) {
   const { data } = await api.post<SRComment>(`/schedule/service-requests/${id}/comments`, {
     content,
     is_internal: isInternal,
@@ -370,6 +377,7 @@ export async function addComment(id: string, content: string, isInternal = false
       size: a.size,
       content_type: a.contentType,
     })),
+    mentioned_user_ids: mentionedUserIds,
   })
   return data
 }

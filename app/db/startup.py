@@ -545,3 +545,7 @@ async def run_startup() -> None:
     from app.db.sr_indexes import create_sr_indexes
     await create_sr_indexes()
     logger.info("SR 인덱스 생성 완료")
+
+    from app.db.notification_indexes import create_notification_indexes
+    await create_notification_indexes()
+    logger.info("알림 인덱스 생성 완료")

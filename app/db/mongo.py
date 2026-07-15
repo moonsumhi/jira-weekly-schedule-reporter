@@ -61,6 +61,9 @@ class MongoClientManager:
     SR_DUE_DATE_HISTORIES   = "sr_due_date_histories"
     SR_COUNTER              = "sr_counters"
 
+    # ── Notifications ────────────────────────────────────────────
+    NOTIFICATIONS = "notifications"
+
     # ── Project Management (PM) ──────────────────────────────────
     PM_ORGANIZATIONS = "pm_organizations"
     PM_ORG_MEMBERS = "pm_org_members"

@@ -469,7 +469,7 @@ const editFormData = reactive({
   person_in_charge: '',
   system_room_result: '',
   resource_usage_abnormal: false,
-  notes: '' as string | null,
+  notes: '',
 })
 
 function openEdit(row: InspectionChecklist) {

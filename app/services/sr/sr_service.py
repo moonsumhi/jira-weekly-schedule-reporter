@@ -153,15 +153,14 @@ async def record_due_date_history(
 
 def compute_is_delayed(doc: dict) -> bool:
     """처리 중인 SR이 처리 예정 완료일을 초과했는지 판단."""
-    terminal = {"CLOSED", "CANCELLED", "REJECTED"}
-    if doc.get("status") in terminal:
+    # 완료·종료·임시저장 상태는 지연 대상 아님
+    non_delayed = {"DRAFT", "COMPLETED", "CONFIRMING", "CLOSED", "CANCELLED", "REJECTED"}
+    if doc.get("status") in non_delayed:
         return False
-    now = datetime.now(timezone.utc)
-    planned_due = doc.get("planned_due_date")
-    desired_due = doc.get("desired_due_date")
-    check_date = planned_due or desired_due
+    check_date = doc.get("desired_due_date")
     if not check_date:
         return False
+    now = datetime.now(timezone.utc)
     if check_date.tzinfo is None:
         check_date = check_date.replace(tzinfo=timezone.utc)
     return now > check_date

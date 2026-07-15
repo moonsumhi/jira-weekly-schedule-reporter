@@ -23,6 +23,7 @@ from app.services.sr.sr_service import (
     require_sr_manager, require_sr_admin, compute_is_delayed,
     is_sr_operator,
 )
+from app.services.notification_service import create_notification, notify_users
 
 router = APIRouter()
 
@@ -245,6 +246,25 @@ async def review_sr(
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
 
+    _STATUS_KO = {
+        "APPROVED": "승인", "REJECTED": "반려", "ON_HOLD": "보류",
+        "PENDING_INFO": "추가 확인 요청",
+    }
+    requester_id = str(doc["requester_id"])
+    sender = _user_label(current_user)
+    status_ko = _STATUS_KO.get(new_status, new_status)
+    await create_notification(
+        recipient_user_id=requester_id,
+        notification_type="STATUS_CHANGED",
+        title=f"SR 검토 완료: {status_ko}",
+        message=f"'{doc.get('title', '')}' SR이 {status_ko} 처리되었습니다.",
+        sender_user_id=str(current_user.id),
+        sender_name=sender,
+        target_type="SR",
+        target_id=sr_id,
+        target_url=f"/pm/sr/{sr_id}",
+    )
+
     return SROut(**sr_to_out(updated))
 
 
@@ -291,6 +311,35 @@ async def assign_sr(
     await record_status_history(sr_id, doc["status"], "IN_PROGRESS", None, _user_label(current_user))
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
+
+    sender = _user_label(current_user)
+    target_url = f"/pm/sr/{sr_id}"
+    requester_id = str(doc["requester_id"])
+    # 요청자에게 담당자 배정 알림
+    await create_notification(
+        recipient_user_id=requester_id,
+        notification_type="STATUS_CHANGED",
+        title="SR 담당자 배정",
+        message=f"'{doc.get('title', '')}' SR이 {body.assignee_name}님에게 배정되었습니다.",
+        sender_user_id=str(current_user.id),
+        sender_name=sender,
+        target_type="SR",
+        target_id=sr_id,
+        target_url=target_url,
+    )
+    # 담당자에게 배정 알림 (자신이 배정자인 경우 제외)
+    if body.assignee_id != str(current_user.id):
+        await create_notification(
+            recipient_user_id=body.assignee_id,
+            notification_type="ASSIGNED",
+            title="SR 담당 배정",
+            message=f"'{doc.get('title', '')}' SR의 담당자로 배정되었습니다.",
+            sender_user_id=str(current_user.id),
+            sender_name=sender,
+            target_type="SR",
+            target_id=sr_id,
+            target_url=target_url,
+        )
 
     # PM 이슈 자동 생성/담당자 업데이트
     from app.services.sr.sr_issue_bridge import auto_create_pm_issue, update_pm_issue_assignee
@@ -363,6 +412,34 @@ async def change_status(
     await record_status_history(sr_id, old_status, new_status, body.reason, _user_label(current_user))
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
+
+    _SR_STATUS_KO = {
+        "SUBMITTED": "접수", "REVIEWING": "검토 중", "PENDING_INFO": "추가 확인 요청",
+        "REJECTED": "반려", "APPROVED": "승인", "ASSIGNED": "담당자 배정",
+        "IN_PROGRESS": "처리 중", "COMPLETED": "처리 완료",
+        "CONFIRMING": "요청자 확인 중", "CLOSED": "최종 완료",
+        "ON_HOLD": "보류", "CANCELLED": "취소",
+    }
+    new_status_ko = _SR_STATUS_KO.get(new_status, new_status)
+    sender = _user_label(current_user)
+    target_url = f"/pm/sr/{sr_id}"
+    notify_ids = {str(doc["requester_id"])}
+    if doc.get("assignee_id"):
+        notify_ids.add(str(doc["assignee_id"]))
+    notify_ids.discard(str(current_user.id))
+    for uid in notify_ids:
+        await create_notification(
+            recipient_user_id=uid,
+            notification_type="STATUS_CHANGED",
+            title=f"SR 상태 변경: {new_status_ko}",
+            message=f"'{doc.get('title', '')}' SR 상태가 {new_status_ko}(으)로 변경되었습니다.",
+            sender_user_id=str(current_user.id),
+            sender_name=sender,
+            target_type="SR",
+            target_id=sr_id,
+            target_url=target_url,
+        )
+
     return SROut(**sr_to_out(updated))
 
 
