@@ -70,15 +70,7 @@
               <q-badge v-if="row.isUrgent" color="red" label="긴급" style="font-size:0.65rem" />
               <q-badge v-if="row.isDelayed" color="negative" label="지연" style="font-size:0.65rem" />
             </div>
-            <div class="sr-title text-body2 text-weight-medium text-dark q-mb-xs">{{ row.title }}</div>
-            <div class="row items-center q-gutter-xs">
-              <q-icon :name="typeIcon(row.requestType)" size="13px" color="grey-5" />
-              <span class="text-caption text-grey-6">{{ requestTypeLabel(row.requestType) }}</span>
-              <template v-if="row.relatedSystem">
-                <span class="text-caption text-grey-4">·</span>
-                <span class="text-caption text-grey-5">{{ row.relatedSystem }}</span>
-              </template>
-            </div>
+            <div class="sr-title text-body2 text-weight-medium text-dark">{{ formatTitle(row) }}</div>
           </div>
 
           <!-- 우측 메타 -->
@@ -195,17 +187,16 @@ const filteredRows = computed(() => {
   return list
 })
 
-const TYPE_ICON: Record<string, string> = {
-  IMPROVEMENT: 'tune', BUG_FIX: 'bug_report', DATA_REQUEST: 'storage',
-  PERMISSION: 'lock_open', CONFIG_CHANGE: 'settings', SERVER_INFRA: 'dns',
-  SECURITY: 'security', ETC: 'more_horiz',
-}
 const PRIORITY_HEX: Record<string, string> = {
   CRITICAL: '#ef5350', HIGH: '#ff9800', MEDIUM: '#42a5f5', LOW: '#bdbdbd',
 }
 
-function typeIcon(t: string)         { return TYPE_ICON[t] ?? 'help_outline' }
 function priorityHex(p: string)      { return PRIORITY_HEX[p] ?? '#bdbdbd' }
+function formatTitle(row: SRListItem) {
+  const type = requestTypeLabel(row.requestType)
+  const sys  = row.relatedSystem ? `(${row.relatedSystem})` : ''
+  return `[${type}]${sys} ${row.title}`
+}
 function statusLabel(s: string)      { return (SR_STATUS_LABEL   as Record<string,string>)[s] ?? s }
 function statusColor(s: string)      { return (SR_STATUS_COLOR   as Record<string,string>)[s] ?? 'grey' }
 function priorityLabel(s: string)    { return (SR_PRIORITY_LABEL as Record<string,string>)[s] ?? s }
