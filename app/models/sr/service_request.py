@@ -105,7 +105,7 @@ class SRCreate(BaseModel):
     related_menu: Optional[str] = None
     related_url: Optional[str] = None
     background: Optional[str] = None
-    description: str = Field(..., min_length=1)
+    description: Optional[str] = Field(None, min_length=1)
     purpose: Optional[str] = None
     desired_due_date: Optional[datetime] = None
     desired_deploy_date: Optional[datetime] = None
@@ -211,7 +211,7 @@ class SROut(BaseModel):
     related_menu: Optional[str] = None
     related_url: Optional[str] = None
     background: Optional[str] = None
-    description: str
+    description: Optional[str] = None
     purpose: Optional[str] = None
     desired_due_date: Optional[datetime] = None
     desired_deploy_date: Optional[datetime] = None
