@@ -1088,11 +1088,11 @@ const $q         = useQuasar()
 const route      = useRoute()
 const router     = useRouter()
 const authStore  = useAuthStore()
-const srId       = route.params.id as string
+const srId       = computed(() => route.params.id as string)
 
 // 목록에서 넘어온 순서 (이전/다음 이동용)
 const listIds    = JSON.parse(sessionStorage.getItem('sr-list-ids') || '[]') as string[]
-const listIndex  = computed(() => listIds.indexOf(srId))
+const listIndex  = computed(() => listIds.indexOf(srId.value))
 const prevId     = computed(() => listIndex.value > 0 ? listIds[listIndex.value - 1] : null)
 const nextId     = computed(() => listIndex.value < listIds.length - 1 ? listIds[listIndex.value + 1] : null)
 
@@ -1361,11 +1361,11 @@ function fmtSize(b: number) {
 
 async function downloadDetail() {
   try {
-    const res = await api.get(`/admin/schedule/service-requests/${srId}/export`, { responseType: 'blob' })
+    const res = await api.get(`/admin/schedule/service-requests/${srId.value}/export`, { responseType: 'blob' })
     const url = URL.createObjectURL(res.data as Blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `SR_${srId}.xlsx`
+    a.download = `SR_${srId.value}.xlsx`
     a.click()
     URL.revokeObjectURL(url)
   } catch {
@@ -1459,13 +1459,13 @@ async function submitComment() {
       uploaded = await Promise.all(commentFiles.value.map(item => uploadSRAttachment(item.file)))
     }
     const mentionIds = mentionedUsers.value.map(m => m.userId)
-    await addComment(srId, newComment.value, newCommentInternal.value, uploaded, mentionIds)
+    await addComment(srId.value, newComment.value, newCommentInternal.value, uploaded, mentionIds)
     newComment.value         = ''
     mentionedUsers.value     = []
     newCommentInternal.value = false
     commentFiles.value.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl) })
     commentFiles.value       = []
-    comments.value           = await listComments(srId)
+    comments.value           = await listComments(srId.value)
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     $q.notify({ type: 'negative', message: msg || '댓글 등록 실패' })
@@ -1476,7 +1476,7 @@ async function doCancel() {
   if (!cancelReason.value.trim()) return
   actionLoading.value = true; activeAction.value = 'cancel'
   try {
-    await cancelSR(srId, cancelReason.value)
+    await cancelSR(srId.value, cancelReason.value)
     $q.notify({ type: 'positive', message: 'SR이 취소되었습니다.' })
     cancelDialog.value = false; void load()
   } catch (e) {
@@ -1489,7 +1489,7 @@ async function doReview() {
   if (!reviewForm.value.result) return
   actionLoading.value = true; activeAction.value = 'review'
   try {
-    await reviewSR(srId, {
+    await reviewSR(srId.value, {
       result:               reviewForm.value.result as ReviewResult,
       comment:              reviewForm.value.comment || undefined,
       reject_reason:        reviewForm.value.rejectReason || undefined,
@@ -1510,7 +1510,7 @@ async function doAssign() {
   }
   actionLoading.value = true; activeAction.value = 'assign'
   try {
-    await assignSR(srId, {
+    await assignSR(srId.value, {
       assignee_id:              assignSelectedUser.value.id,
       assignee_name:            assignSelectedUser.value.name,
       planned_start_date:       assignForm.value.plannedStartDate,
@@ -1550,7 +1550,7 @@ async function doStatusChange() {
   if (!statusForm.value.status) return
   actionLoading.value = true; activeAction.value = 'status'
   try {
-    await changeSRStatus(srId, {
+    await changeSRStatus(srId.value, {
       status:         statusForm.value.status as SRStatus,
       reason:         statusForm.value.reason || undefined,
       process_result: statusForm.value.processResult || undefined,

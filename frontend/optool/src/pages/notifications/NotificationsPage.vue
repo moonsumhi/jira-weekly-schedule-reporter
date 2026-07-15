@@ -28,8 +28,11 @@
           narrow-indicator
         >
           <q-tab name="all" label="전체" />
-          <q-tab name="unread" label="읽지 않음">
-            <q-badge v-if="unreadCount > 0" color="red" floating :label="unreadCount" />
+          <q-tab name="unread">
+            <div class="row items-center no-wrap q-gutter-xs">
+              <span>읽지 않음</span>
+              <q-badge v-if="unreadCount > 0" color="red" :label="unreadCount" />
+            </div>
           </q-tab>
           <q-tab name="archived" label="보관됨" />
         </q-tabs>
