@@ -122,7 +122,7 @@ export type SR = {
   relatedMenu: string | null
   relatedUrl: string | null
   background: string | null
-  description: string
+  description: string | null
   purpose: string | null
   desiredDueDate: string | null
   desiredDeployDate: string | null
@@ -207,7 +207,7 @@ export type SRCreate = {
   related_menu?: string
   related_url?: string
   background?: string
-  description: string
+  description: string | null
   purpose?: string
   desired_due_date?: string | null
   desired_deploy_date?: string | null

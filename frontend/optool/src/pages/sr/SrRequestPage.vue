@@ -439,7 +439,7 @@ async function loadDraft(id: string) {
     form.value.requesterDepartment = sr.requesterDepartment
     form.value.relatedSystem       = sr.relatedSystem ?? ''
     form.value.background           = sr.background ?? ''
-    form.value.description          = sr.description
+    form.value.description          = sr.description ?? ''
     form.value.desiredDueDate     = sr.desiredDueDate ? sr.desiredDueDate.substring(0, 10) : null
     form.value.priority             = sr.priority
     form.value.isUrgent            = sr.isUrgent
@@ -484,7 +484,7 @@ async function loadSrForEdit(id: string) {
     form.value.requesterEmail       = sr.requesterEmail
     form.value.relatedSystem        = sr.relatedSystem ?? ''
     form.value.background           = sr.background ?? ''
-    form.value.description          = sr.description
+    form.value.description          = sr.description ?? ''
     form.value.desiredDueDate       = sr.desiredDueDate ? sr.desiredDueDate.substring(0, 10) : null
     form.value.priority             = sr.priority
     form.value.isUrgent             = sr.isUrgent
@@ -504,6 +504,15 @@ async function loadSrForEdit(id: string) {
 
 // ── 저장 ────────────────────────────────────────────────────────────
 async function save(submit: boolean) {
+  // Toast-UI debounce race guard: re-validate description before sending
+  if (submit) {
+    const editorField = currentTypeFields.value.find(f => f.type === 'editor')
+    if (editorField?.required && !form.value.description.trim()) {
+      $q.notify({ type: 'warning', message: `'${editorField.label}' 항목을 입력해주세요.`, position: 'top' })
+      step.value = 3
+      return
+    }
+  }
   saving.value = true
   try {
     const payload = {
@@ -514,7 +523,7 @@ async function save(submit: boolean) {
       request_type:         form.value.requestType as RequestType,
       related_system:       form.value.relatedSystem,
       background:           form.value.background,
-      description:          form.value.description,
+      description:          form.value.description.trim() || null,
       desired_due_date:     form.value.desiredDueDate || null,
       priority:             form.value.priority as SRPriority,
       is_urgent:            form.value.isUrgent,
