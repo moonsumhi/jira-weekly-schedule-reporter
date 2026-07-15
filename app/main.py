@@ -20,6 +20,7 @@ from app.routers import settings as settings_router
 from app.routers import branding as branding_router
 from app.routers import pm as pm_router
 from app.routers import sr as sr_router
+from app.routers import notifications as notifications_router
 
 from app.core.config import settings
 from app.db.mongo import MongoClientManager
@@ -57,7 +58,7 @@ class BuildIdMiddleware(BaseHTTPMiddleware):
 
 _WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 # 외부 접속이어도 허용할 경로 프리픽스 (로그인/회원가입/비밀번호변경/설정저장)
-_INTERNAL_EXEMPT = ("/auth/login", "/auth/register", "/auth/change-password", "/auth/prefs", "/auth/refresh", "/health/", "/pilot/")
+_INTERNAL_EXEMPT = ("/auth/login", "/auth/register", "/auth/change-password", "/auth/prefs", "/auth/refresh", "/health/", "/pilot/", "/notifications/")
 
 
 class ExternalReadOnlyMiddleware(BaseHTTPMiddleware):
@@ -114,8 +115,9 @@ app.include_router(links.router, prefix="/links", tags=["links"])
 app.include_router(ddays.router, prefix="/ddays", tags=["ddays"])
 app.include_router(calendar_router.router, prefix="/calendar", tags=["calendar"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
-app.include_router(pm_router.router,      prefix="/pm",       tags=["pm"])
-app.include_router(sr_router.router,                          tags=["sr"])
+app.include_router(pm_router.router,              prefix="/pm",            tags=["pm"])
+app.include_router(sr_router.router,                                         tags=["sr"])
+app.include_router(notifications_router.router,  prefix="/notifications",  tags=["notifications"])
 
 _UPLOAD_DIR = "/app/uploads"
 os.makedirs(_UPLOAD_DIR, exist_ok=True)

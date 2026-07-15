@@ -17,6 +17,9 @@
 
         <div>{{ theme.appName }} v1.0</div>
 
+        <!-- 알림 벨 -->
+        <NotificationBell v-if="auth.isLoggedIn" class="q-ml-xs" />
+
         <!-- 링크 사이드바 토글 (내부망만) -->
         <q-btn
           v-if="auth.isLoggedIn && !isExternal"
@@ -253,7 +256,9 @@ import { storeToRefs } from 'pinia'
 import { useAuthStore } from 'stores/auth'
 import { useMenuStore } from 'stores/menus'
 import { useThemeStore } from 'stores/theme'
+import { useNotificationStore } from 'stores/notification'
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue'
+import NotificationBell from 'components/NotificationBell.vue'
 import type { MenuOut } from 'src/services/menus'
 import { useQuasar } from 'quasar'
 import { fetchLinks, createLink, patchLink, deleteLink, type Link } from 'src/services/links'
@@ -261,6 +266,7 @@ import { fetchLinks, createLink, patchLink, deleteLink, type Link } from 'src/se
 const auth = useAuthStore()
 const menuStore = useMenuStore()
 const theme = useThemeStore()
+const notifStore = useNotificationStore()
 const $q = useQuasar()
 const { sidebarMenus, sidebarBoards, templateItems } = storeToRefs(menuStore)
 const router = useRouter()
@@ -584,6 +590,7 @@ watch(
       leftDrawerOpen.value = false
       auth.pendingCount = 0
       if (pendingTimer) { clearInterval(pendingTimer); pendingTimer = null }
+      notifStore.stopPolling()
     } else {
       await auth.fetchMe()
       void menuStore.refresh()
@@ -591,6 +598,7 @@ watch(
         void auth.fetchPendingCount()
         pendingTimer = setInterval(() => void auth.fetchPendingCount(true), 30000)
       }
+      notifStore.startPolling()
     }
   }
 )
@@ -603,6 +611,7 @@ onMounted(async () => {
       void auth.fetchPendingCount()
       pendingTimer = setInterval(() => void auth.fetchPendingCount(), 30000)
     }
+    notifStore.startPolling()
   }
 })
 
@@ -618,6 +627,7 @@ watch(
 
 onBeforeUnmount(() => {
   if (pendingTimer) clearInterval(pendingTimer)
+  notifStore.stopPolling()
 })
 </script>
 

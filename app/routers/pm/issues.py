@@ -16,6 +16,7 @@ from app.models.pm.issue import (
 from app.routers.auth import get_current_user
 from app.services.pm.permission import get_issue_or_404, require_pm_member
 from app.services.pm.issue_service import next_issue_number, record_history, enrich_issue
+from app.services.notification_service import create_notification
 
 router = APIRouter()
 
@@ -200,7 +201,27 @@ async def patch_issue(
             new_display = await _resolve(field, new_val)
             await record_history(iid, uid, field, old_display, new_display)
 
-    return await enrich_issue(new_doc)
+    enriched = await enrich_issue(new_doc)
+
+    # 담당자 변경 시 새 담당자에게 알림
+    old_assignee_id = old.get("assignee_id")
+    new_assignee_raw = update.get("assignee_id")
+    if new_assignee_raw and str(new_assignee_raw) != str(old_assignee_id or ""):
+        new_assignee_str = str(new_assignee_raw)
+        if new_assignee_str != str(current_user.id):
+            await create_notification(
+                recipient_user_id=new_assignee_str,
+                notification_type="ASSIGNED",
+                title="이슈 담당 배정",
+                message=f"'{old.get('title', '')}' 이슈의 담당자로 배정되었습니다.",
+                sender_user_id=str(current_user.id),
+                sender_name=current_user.full_name or current_user.email,
+                target_type="PM_ISSUE",
+                target_id=issue_id,
+                target_url=f"/pm/projects/{project_id}/board",
+            )
+
+    return enriched
 
 
 @router.delete("/{project_id}/issues/{issue_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -286,6 +307,25 @@ async def create_comment(
 
     new_display = _trunc(body.content) or (f"첨부파일 {len(body.attachments)}개" if body.attachments else None)
     await record_history(ObjectId(issue_id), ObjectId(current_user.id), "comment", None, new_display)
+
+    # 이슈 담당자에게 댓글 알림 (작성자 자신 제외)
+    issue_doc = await MongoClientManager.get_pm_issues_collection().find_one({"_id": ObjectId(issue_id)})
+    if issue_doc and issue_doc.get("assignee_id"):
+        assignee_str = str(issue_doc["assignee_id"])
+        if assignee_str != str(current_user.id):
+            sender_name = current_user.full_name or current_user.email
+            preview = body.content[:40] + "…" if len(body.content) > 40 else body.content
+            await create_notification(
+                recipient_user_id=assignee_str,
+                notification_type="COMMENT_CREATED",
+                title="이슈 댓글",
+                message=f"{sender_name}: {preview}",
+                sender_user_id=str(current_user.id),
+                sender_name=sender_name,
+                target_type="PM_ISSUE",
+                target_id=issue_id,
+                target_url=f"/pm/projects/{project_id}/board",
+            )
 
     return IssueCommentOut(
         id=str(d["_id"]),
