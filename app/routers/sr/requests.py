@@ -108,10 +108,6 @@ async def create_sr(
         str(result.inserted_id), "", status, None, _user_label(current_user)
     )
 
-    if status == "SUBMITTED":
-        from app.utils.mail_notify import send_sr_notification
-        await send_sr_notification(doc, event="created")
-
     return SROut(**sr_to_out(doc))
 
 

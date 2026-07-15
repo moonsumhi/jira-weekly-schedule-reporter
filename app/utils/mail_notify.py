@@ -26,10 +26,18 @@ def _fmt_date(value: Any) -> str:
     return str(value)[:10]
 
 
+_EVENT_URLS = {
+    "reviewed": lambda: settings.SR_MAIL_SERVICE_URL,   # 검토 완료(승인) → issueInfo 템플릿
+    "assigned": lambda: settings.SR_MAIL_ASSIGN_URL,    # 담당자 배정 → issueAssign 템플릿(신규)
+    "completed": lambda: settings.SR_MAIL_FINISH_URL,   # 처리완료 → issueFinish 템플릿
+}
+
+
 async def send_sr_notification(doc: dict, event: str) -> None:
     """SR 문서(dict)를 바탕으로 요청자에게 알림 메일을 발송한다.
 
-    event="created"   → 접수 메일 (issueInfo 템플릿)
+    event="reviewed"  → 검토 완료(승인) 메일 (issueInfo 템플릿)
+    event="assigned"  → 담당자 배정 메일 (issueAssign 템플릿, 신규 — 사내 메일 서버에 추가 필요)
     event="completed" → 처리완료 메일 (issueFinish 템플릿, Redmine처럼 완료 시에만 발송)
 
     메일 발송 실패는 SR 접수/처리 자체를 막지 않도록 예외를 삼키고 로그만 남긴다.
@@ -57,7 +65,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     # 버그가 있어(RuntimeError: Attempted to send an sync request...), 폼 바디를 직접
     # urlencode해서 content로 보낸다 (Rails 쪽은 sendUserEmail[]/dataMap[key] 중첩 표기를 기대함).
     body = urllib.parse.urlencode(form_items)
-    url = settings.SR_MAIL_FINISH_URL if event == "completed" else settings.SR_MAIL_SERVICE_URL
+    url = _EVENT_URLS.get(event, lambda: settings.SR_MAIL_SERVICE_URL)()
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
