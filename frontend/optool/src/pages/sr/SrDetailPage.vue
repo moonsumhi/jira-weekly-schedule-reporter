@@ -1191,7 +1191,7 @@ const dDayColor = computed(() => {
 
 // 권한 만료 D-Day (PERMISSION 유형)
 const permissionExpiryDDay = computed((): number | null => {
-  const expiry = sr.value?.typeDetail?.permissionExpiry as string | null | undefined
+  const expiry = sr.value?.typeDetail?.permissionExpiry
   if (!expiry) return null
   const due   = new Date(expiry)
   const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -1301,7 +1301,7 @@ function serviceImpactColor(v: string | null) {
 
 function fieldValue(field: SRTypeField): string | null {
   if (!sr.value) return null
-  return (sr.value.typeDetail?.[field.key] as string | null | undefined) ?? null
+  return (sr.value.typeDetail?.[field.key]) ?? null
 }
 
 function selectLabel(field: SRTypeField, value: string | null): string {

@@ -548,7 +548,7 @@ function roleIcon(role: ProjectRole) {
 const editForm = ref({ name: '', description: '' })
 const editLoading = ref(false)
 
-const inviteDialog = ref({ open: false, userId: '', role: 'DEVELOPER' as ProjectRole, loading: false })
+const inviteDialog = ref<{ open: boolean; userId: string; role: ProjectRole; loading: boolean }>({ open: false, userId: '', role: 'DEVELOPER', loading: false })
 const inviteUserOptions = ref<{ label: string; value: string }[]>([])
 
 const allUserOptions = computed(() => {

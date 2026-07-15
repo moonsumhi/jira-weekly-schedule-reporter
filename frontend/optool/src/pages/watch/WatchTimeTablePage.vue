@@ -245,8 +245,8 @@ async function loadRange(startISO?: string, endISO?: string) {
 // Dialog
 const dialog = ref({
   open: false,
-  mode: 'create' as 'create' | 'edit',
-  id: '' as string,
+  mode: 'create',
+  id: '',
   assignee: '',     // edit 모드 전용
   assigneeA: '',    // create 모드 A타임
   assigneeB: '',    // create 모드 B타임
@@ -254,7 +254,7 @@ const dialog = ref({
   startLocal: '',   // edit 모드 전용
   endLocal: '',     // edit 모드 전용
   note: '',
-  version: 1 as number,
+  version: 1,
   error: ''
 })
 
@@ -633,7 +633,7 @@ const calendarOptions = ref<CalendarOptions>({
 
   select: (arg) => openCreate(arg.start),
   eventClick: (arg) => openEdit(arg),
-  eventDrop: (info) => { void onMoveOrResize(info as MoveResizeArg) },
-  eventResize: (info) => { void onMoveOrResize(info as MoveResizeArg)}
+  eventDrop: (info) => { void onMoveOrResize(info) },
+  eventResize: (info) => { void onMoveOrResize(info)}
 })
 </script>

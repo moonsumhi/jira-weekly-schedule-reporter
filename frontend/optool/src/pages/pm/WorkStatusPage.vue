@@ -173,7 +173,7 @@ const filteredEvents = computed<EventInput[]>(() => {
         allDay: true,
         backgroundColor: color,
         borderColor: color,
-        extendedProps: { issue: i } as Record<string, unknown>,
+        extendedProps: { issue: i },
       }
     })
 })

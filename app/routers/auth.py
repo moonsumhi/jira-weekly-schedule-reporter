@@ -315,19 +315,21 @@ async def mention_search(
     current_user: UserPublic = Depends(get_current_user),
 ):
     """멘션용 사용자 검색. 인증된 사용자 전용."""
-    if not q.strip():
-        return {"items": []}
-
     users_col = MongoClientManager.get_users_collection()
     keyword = q.strip()
-    regex = {"$regex": keyword, "$options": "i"}
-    docs = await users_col.find(
-        {
+    if keyword:
+        regex = {"$regex": keyword, "$options": "i"}
+        base_filter: dict = {
             "$or": [{"full_name": regex}, {"email": regex}],
             "is_blocked": {"$ne": True},
-        },
+        }
+    else:
+        base_filter = {"is_blocked": {"$ne": True}}
+
+    docs = await users_col.find(
+        base_filter,
         {"full_name": 1, "email": 1, "team": 1},
-    ).limit(limit).to_list(None)
+    ).sort("full_name", 1).limit(limit).to_list(None)
 
     items = []
     for d in docs:

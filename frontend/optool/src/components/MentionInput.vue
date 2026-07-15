@@ -1,5 +1,5 @@
 <template>
-  <div ref="wrapRef" class="mention-input-wrap">
+  <div ref="wrapRef" class="mention-input-wrap" @keydown="onKeydown">
     <q-input
       ref="inputRef"
       :model-value="modelValue"
@@ -10,18 +10,12 @@
       type="textarea"
       style="resize: none"
       @update:model-value="onInput"
-      @keydown="onKeydown"
+      @blur="onBlur"
     />
 
-    <q-menu
-      v-model="showMenu"
-      no-focus
-      no-refocus
-      :target="wrapRef ?? undefined"
-      anchor="bottom left"
-      self="top left"
-      :offset="[0, 2]"
-      style="width: 300px; max-height: 230px; overflow-y: auto"
+    <div
+      v-if="showMenu"
+      class="mention-dropdown"
     >
       <div v-if="searching" class="q-pa-sm text-center text-grey-6">
         <q-spinner size="xs" color="primary" /> 검색 중...
@@ -39,7 +33,7 @@
           clickable
           :active="i === activeIdx"
           active-class="bg-primary text-white"
-          @click="selectUser(u)"
+          @mousedown.prevent="selectUser(u)"
           @mouseenter="activeIdx = i"
         >
           <q-item-section avatar>
@@ -55,7 +49,7 @@
           </q-item-section>
         </q-item>
       </q-list>
-    </q-menu>
+    </div>
   </div>
 </template>
 
@@ -93,7 +87,8 @@ function getTextarea(): HTMLTextAreaElement | null {
 
 function getMentionQuery(text: string, cursorPos: number): string | null {
   const before = text.slice(0, cursorPos)
-  // Match @ followed by non-whitespace chars (or empty) at end of string segment
+  // If the char immediately before cursor is whitespace, no active mention
+  if (before.length > 0 && /\s/.test(before.charAt(before.length - 1))) return null
   const match = before.match(/@([^\s@]*)$/)
   if (!match) return null
   return match[1] ?? ''
@@ -108,7 +103,6 @@ function onInput(val: string | number | null) {
   const text = String(val ?? '')
   emit('update:modelValue', text)
 
-  // Remove mentions whose @name no longer appears in the text
   const stillPresent = props.mentionedUsers.filter(m => text.includes(`@${m.displayName}`))
   if (stillPresent.length !== props.mentionedUsers.length) {
     emit('update:mentionedUsers', stillPresent)
@@ -125,6 +119,8 @@ function onInput(val: string | number | null) {
     mentionActive.value = false
     showMenu.value = false
     searchResults.value = []
+    if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null }
+    reqSeq++
   }
 }
 
@@ -149,6 +145,8 @@ function triggerSearch(q: string) {
 }
 
 function selectUser(u: MentionUser) {
+  if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null }
+  reqSeq++
   const el = getTextarea()
   const text = props.modelValue
   const cursorPos = el?.selectionStart ?? text.length
@@ -176,14 +174,14 @@ function selectUser(u: MentionUser) {
 }
 
 function onKeydown(e: KeyboardEvent) {
-  if (!showMenu.value || searchResults.value.length === 0) return
+  if (e.isComposing || !showMenu.value) return
   if (e.key === 'ArrowDown') {
     e.preventDefault()
     activeIdx.value = Math.min(activeIdx.value + 1, searchResults.value.length - 1)
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     activeIdx.value = Math.max(activeIdx.value - 1, 0)
-  } else if (e.key === 'Enter') {
+  } else if (e.key === 'Enter' && searchResults.value.length > 0) {
     e.preventDefault()
     const u = searchResults.value[activeIdx.value]
     if (u) selectUser(u)
@@ -191,6 +189,13 @@ function onKeydown(e: KeyboardEvent) {
     showMenu.value = false
     mentionActive.value = false
   }
+}
+
+function onBlur() {
+  setTimeout(() => {
+    showMenu.value = false
+    mentionActive.value = false
+  }, 150)
 }
 
 watch(() => props.modelValue, (val) => {
@@ -205,5 +210,20 @@ watch(() => props.modelValue, (val) => {
 <style scoped>
 .mention-input-wrap {
   position: relative;
+}
+
+.mention-dropdown {
+  position: absolute;
+  z-index: 9999;
+  bottom: 100%;
+  left: 0;
+  width: 300px;
+  max-height: 230px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-bottom: 2px;
 }
 </style>

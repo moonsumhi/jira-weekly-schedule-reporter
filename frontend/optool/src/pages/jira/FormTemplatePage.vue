@@ -736,7 +736,7 @@ type SectionValue = RowData | RowData[]
 const formValues = ref<Record<string, SectionValue>>({})
 
 const sections = computed<FormSection[]>(() =>
-  template.value ? (template.value.sections as FormSection[]) : []
+  template.value ? (template.value.sections) : []
 )
 
 function toKST(utcStr: string): string {
@@ -798,7 +798,7 @@ function setVal(sectionTitle: string, fieldLabel: string, val: string | number |
 
 function getRows(sectionTitle: string): RowData[] {
   const val = formValues.value[sectionTitle]
-  if (Array.isArray(val)) return val as RowData[]
+  if (Array.isArray(val)) return val
   return []
 }
 
@@ -937,7 +937,7 @@ function previewImage(src: string) {
 
 function detailMultipleRows(row: FormEntry, sectionTitle: string): RowData[] {
   const val = row.data[sectionTitle]
-  if (Array.isArray(val)) return val as RowData[]
+  if (Array.isArray(val)) return val
   return []
 }
 

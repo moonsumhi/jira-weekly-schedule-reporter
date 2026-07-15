@@ -8,7 +8,6 @@ export type MentionUser = {
 }
 
 export async function searchMentionUsers(q: string, limit = 15): Promise<MentionUser[]> {
-  if (!q.trim()) return []
   const { data } = await api.get<{ items: MentionUser[] }>('/auth/mention-search', {
     params: { q, limit },
   })

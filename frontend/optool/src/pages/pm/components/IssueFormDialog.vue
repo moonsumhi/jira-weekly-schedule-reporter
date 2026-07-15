@@ -303,16 +303,29 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const reporterName = computed(() => auth.me?.fullName || auth.me?.email || '')
 
-const form = ref({
+const form = ref<{
+  title: string
+  type: IssueType
+  priority: IssuePriority
+  status: IssueStatus
+  sprintId: string | null
+  assigneeId: string | null
+  epicId: string | null
+  storyPoints: number | null
+  labelIds: string[]
+  description: string
+  startDate: string
+  dueDate: string
+}>({
   title: '',
-  type: 'TASK' as IssueType,
-  priority: 'MEDIUM' as IssuePriority,
-  status: 'BACKLOG' as IssueStatus,
-  sprintId: props.sprintId ?? null as string | null,
-  assigneeId: null as string | null,
-  epicId: null as string | null,
-  storyPoints: null as number | null,
-  labelIds: [] as string[],
+  type: 'TASK',
+  priority: 'MEDIUM',
+  status: 'BACKLOG',
+  sprintId: props.sprintId ?? null,
+  assigneeId: null,
+  epicId: null,
+  storyPoints: null,
+  labelIds: [],
   description: '',
   startDate: '',
   dueDate: '',
