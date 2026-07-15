@@ -98,7 +98,7 @@
                     </div>
                     <div v-if="sr.background">
                       <div class="content-label q-mb-xs">요청 배경</div>
-                      <div class="content-text pre-wrap bg-grey-1 q-pa-sm rounded-borders">{{ sr.background }}</div>
+                      <div class="content-text pre-wrap">{{ sr.background }}</div>
                     </div>
                   </div>
                 </div>
@@ -132,7 +132,7 @@
                       </div>
                       <div v-if="sr.description">
                         <div class="content-label">재현 절차</div>
-                        <div class="content-html" v-html="sr.description" />
+                        <MarkdownContent :content="sr.description ?? ''" />
                       </div>
                       <div class="row q-col-gutter-sm">
                         <div class="col-12 col-sm-6">
@@ -157,6 +157,10 @@
                       <div class="info-row">
                         <span class="info-row__label">설정 대상</span>
                         <span class="info-row__value">{{ sr.typeDetail?.configTarget || '-' }}</span>
+                      </div>
+                      <div v-if="sr.description">
+                        <div class="content-label">변경 요청 상세 내용</div>
+                        <MarkdownContent :content="sr.description ?? ''" />
                       </div>
                       <div class="row q-col-gutter-sm">
                         <div class="col-12 col-sm-6">
@@ -211,7 +215,7 @@
                       </div>
                       <div v-if="sr.description">
                         <div class="content-label">요청 데이터 항목</div>
-                        <div class="content-html" v-html="sr.description" />
+                        <MarkdownContent :content="sr.description ?? ''" />
                       </div>
                       <div class="row q-col-gutter-sm">
                         <div class="col-12 col-sm-6">
@@ -291,7 +295,7 @@
                       </div>
                       <div v-if="sr.description">
                         <div class="content-label">요청 사유</div>
-                        <div class="content-html" v-html="sr.description" />
+                        <MarkdownContent :content="sr.description ?? ''" />
                       </div>
                       <div class="row q-col-gutter-sm">
                         <div class="col-12 col-sm-6">
@@ -346,11 +350,11 @@
                       </div>
                       <div v-if="sr.description">
                         <div class="content-label">요청 상세</div>
-                        <div class="content-html" v-html="sr.description" />
+                        <MarkdownContent :content="sr.description ?? ''" />
                       </div>
                       <div v-if="sr.typeDetail?.resourceInfo">
                         <div class="content-label">리소스 정보</div>
-                        <div class="content-text pre-wrap resource-box">{{ sr.typeDetail.resourceInfo }}</div>
+                        <div class="resource-box content-text">{{ sr.typeDetail.resourceInfo }}</div>
                       </div>
                       <div class="row q-col-gutter-sm">
                         <div class="col-12 col-sm-6">
@@ -402,7 +406,7 @@
                       </div>
                       <div v-if="sr.description">
                         <div class="content-label">취약점 또는 보안 이슈</div>
-                        <div class="content-html" v-html="sr.description" />
+                        <MarkdownContent :content="sr.description ?? ''" />
                       </div>
                       <div v-if="sr.typeDetail?.requestedAction">
                         <div class="content-label">조치 요청 내용</div>
@@ -443,7 +447,7 @@
                         <div v-if="field.type === 'editor' || fieldValue(field) != null"
                           :class="field.half ? 'col-12 col-sm-6' : 'col-12'">
                           <div class="content-label q-mb-xs">{{ field.label }}</div>
-                          <div v-if="field.type === 'editor'" class="content-html" v-html="sr.description" />
+                          <MarkdownContent v-if="field.type === 'editor'" :content="sr.description ?? ''" />
                           <div v-else-if="field.type === 'date'" class="content-date">
                             <q-icon name="event" size="14px" color="blue-5" class="q-mr-xs" />
                             {{ fmtDate(fieldValue(field)) }}
@@ -1029,6 +1033,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
