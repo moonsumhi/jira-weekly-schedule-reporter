@@ -118,7 +118,8 @@
             <div class="section-label">일정 및 중요도</div>
             <div class="row q-col-gutter-md">
               <div class="col-12 col-sm-4">
-                <q-input v-model="form.desiredDueDate" label="희망 완료일" outlined dense type="date" />
+                <q-input v-model="form.desiredDueDate" label="희망 완료일 *" outlined dense type="date"
+                  :rules="[v => !!v || '희망 완료일을 입력해주세요.']" />
               </div>
               <div class="col-12 col-sm-4">
                 <q-select v-model="form.priority" label="중요도" outlined dense
@@ -378,6 +379,10 @@ function goToStep3() {
   }
   if (!form.value.relatedSystem.trim()) {
     $q.notify({ type: 'warning', message: '대상 시스템을 입력해주세요.', position: 'top' })
+    return
+  }
+  if (!form.value.desiredDueDate) {
+    $q.notify({ type: 'warning', message: '희망 완료일을 입력해주세요.', position: 'top' })
     return
   }
   step.value = 3
