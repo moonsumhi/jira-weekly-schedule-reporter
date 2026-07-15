@@ -130,7 +130,7 @@ function onInput(val: string | number | null) {
 
 function triggerSearch(q: string) {
   if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(async () => {
+  debounceTimer = setTimeout(() => void (async () => {
     const seq = ++reqSeq
     searching.value = true
     showMenu.value = true
@@ -145,7 +145,7 @@ function triggerSearch(q: string) {
     } finally {
       if (seq === reqSeq) searching.value = false
     }
-  }, 200)
+  })(), 200)
 }
 
 function selectUser(u: MentionUser) {
