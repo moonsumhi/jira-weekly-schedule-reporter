@@ -49,17 +49,28 @@
                 @click="router.push(`/pm/sr/${localIssue.linkedSrId}`)" />
 
               <!-- 설명 -->
-              <q-input
-                v-model="editDescription"
-                borderless
-                type="textarea"
-                autogrow
-                placeholder="설명을 입력하세요..."
-                class="inline-field text-body2 q-mb-md"
-                input-class="text-body2 text-grey-8"
-                style="min-height: 80px"
-                @blur="saveField('description', editDescription)"
-              />
+              <div class="q-mb-md">
+                <!-- 뷰 모드 -->
+                <template v-if="!descriptionEditing">
+                  <div
+                    class="description-view rounded-borders q-pa-sm cursor-pointer"
+                    @click="descriptionEditing = true"
+                  >
+                    <MarkdownContent v-if="editDescription?.trim()" :content="editDescription" />
+                    <span v-else class="text-grey-5 text-body2">설명을 입력하세요...</span>
+                  </div>
+                </template>
+                <!-- 편집 모드 -->
+                <template v-else>
+                  <MarkdownEditor v-model="editDescription" :rows="5" />
+                  <div class="row q-gutter-xs q-mt-xs">
+                    <q-btn unelevated size="sm" color="primary" label="저장" :loading="saving"
+                      @click="saveField('description', editDescription).then(() => { descriptionEditing = false })" />
+                    <q-btn flat size="sm" color="grey-7" label="취소"
+                      @click="editDescription = localIssue?.description ?? ''; descriptionEditing = false" />
+                  </div>
+                </template>
+              </div>
 
               <!-- 첨부파일 -->
               <template v-if="localIssue?.attachments?.length">
@@ -423,6 +434,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, defineComponent, h, type PropType } from 'vue'
+import MarkdownEditor from 'src/components/MarkdownEditor.vue'
+import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { useRouter } from 'vue-router'
 import { QIcon, QBtn } from 'quasar'
 import draggable from 'vuedraggable'
@@ -481,6 +494,7 @@ const tab = ref('detail')
 const saving = ref(false)
 const editTitle = ref('')
 const editDescription = ref('')
+const descriptionEditing = ref(false)
 
 const comments = ref<IssueComment[]>([])
 const history = ref<IssueHistory[]>([])
@@ -653,6 +667,7 @@ async function loadIssueContent(issue: Issue) {
   localDueDate.value = issue.dueDate?.slice(0, 10) ?? ''
   editTitle.value = issue.title
   editDescription.value = issue.description ?? ''
+  descriptionEditing.value = false
   addingSubTask.value = false
   replyingTo.value = null
 
@@ -1015,4 +1030,15 @@ function confirmDelete() {
   background: #eeeeee;
 }
 .no-decoration { text-decoration: none; }
+
+/* ── 설명 뷰 모드 (클릭해서 편집) ── */
+.description-view {
+  min-height: 48px;
+  border: 1px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+.description-view:hover {
+  border-color: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.03);
+}
 </style>

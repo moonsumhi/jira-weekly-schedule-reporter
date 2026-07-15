@@ -186,12 +186,10 @@
               </q-item>
             </template>
           </q-select>
-          <q-input
+          <MarkdownEditor
             v-model="form.description"
             label="설명"
-            outlined dense
-            type="textarea"
-            rows="4"
+            :rows="5"
           />
 
           <!-- 첨부파일 -->
@@ -269,6 +267,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 import { Notify } from 'quasar'
 import {
   createIssue, listIssues, listLabels, uploadAttachment,

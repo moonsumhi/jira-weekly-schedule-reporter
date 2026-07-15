@@ -127,7 +127,8 @@
           <q-input v-model="editForm.title" label="제목" outlined dense />
           <q-input v-model="editForm.department" label="부서" outlined dense />
           <q-input v-model="editForm.admin_comment" label="관리자 코멘트" outlined dense
-            type="textarea" rows="4" hint="이슈 집계 외에 관리자가 추가할 내용을 입력하세요." />
+            type="textarea" :rows="4"
+            hint="이슈 집계 외에 관리자가 추가할 내용을 입력하세요." />
         </q-card-section>
         <q-separator />
         <q-card-actions align="right" class="q-pa-md">

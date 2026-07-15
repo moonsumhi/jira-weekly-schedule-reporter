@@ -51,7 +51,7 @@
         <div v-if="report.adminComment" class="col-12 col-sm-auto">
           <q-card flat bordered class="q-pa-sm bg-grey-1">
             <div class="text-caption text-weight-bold text-grey-7 q-mb-xs">관리자 코멘트</div>
-            <div class="text-body2" style="white-space:pre-wrap">{{ report.adminComment }}</div>
+            <div class="content-text pre-wrap">{{ report.adminComment }}</div>
           </q-card>
         </div>
       </div>
