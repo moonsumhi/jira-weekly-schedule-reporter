@@ -74,79 +74,15 @@
 
     </div>
 
-    <!-- 이슈 상세 팝업 -->
-    <q-dialog v-model="detailOpen">
-      <q-card style="min-width: 360px; max-width: 500px">
-        <q-card-section class="row items-start no-wrap">
-          <div class="col">
-            <div class="row items-center q-gutter-xs q-mb-xs">
-              <q-icon
-                :name="detailIssue ? TYPE_ICON[detailIssue.type] : ''"
-                :color="detailIssue ? TYPE_COLOR[detailIssue.type] : ''"
-                size="16px"
-              />
-              <span class="text-caption text-grey-5">
-                {{ detailIssue?.projectKey }}-{{ detailIssue?.number }}
-              </span>
-              <q-badge
-                v-if="detailIssue"
-                :color="STATUS_COLOR[detailIssue.status]"
-                :label="STATUS_LABEL[detailIssue.status]"
-              />
-            </div>
-            <div class="text-subtitle1 text-weight-bold">{{ detailIssue?.title }}</div>
-          </div>
-          <q-btn flat round dense icon="close" class="q-ml-sm" @click="detailOpen = false" />
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section v-if="detailIssue" class="q-gutter-xs">
-          <div class="row items-center q-gutter-xs">
-            <q-icon
-              :name="PRIORITY_ICON[detailIssue.priority]"
-              :color="PRIORITY_COLOR[detailIssue.priority]"
-              size="16px"
-            />
-            <span class="text-caption text-grey-7">{{ PRIORITY_LABEL[detailIssue.priority] }}</span>
-          </div>
-          <div class="row q-gutter-md q-mt-xs">
-            <div>
-              <div class="text-caption text-grey-5">프로젝트</div>
-              <div class="text-body2">{{ detailIssue.projectName ?? detailIssue.projectKey }}</div>
-            </div>
-            <div>
-              <div class="text-caption text-grey-5">담당자</div>
-              <div class="text-body2 row items-center">
-                <q-avatar
-                  v-if="detailIssue.assigneeId"
-                  :style="`background:${getAssigneeColor(detailIssue.assigneeId)};color:#fff;font-size:10px`"
-                  size="20px"
-                  class="q-mr-xs"
-                >{{ (detailIssue.assigneeName ?? '?').charAt(0).toUpperCase() }}</q-avatar>
-                {{ detailIssue.assigneeName ?? '미배정' }}
-              </div>
-            </div>
-          </div>
-          <div class="row q-gutter-md q-mt-xs">
-            <div v-if="detailIssue.startDate">
-              <div class="text-caption text-grey-5">시작일</div>
-              <div class="text-body2">{{ detailIssue.startDate.slice(0, 10) }}</div>
-            </div>
-            <div v-if="detailIssue.dueDate">
-              <div class="text-caption text-grey-5">마감일</div>
-              <div
-                class="text-body2"
-                :class="isOverdue(detailIssue) ? 'text-negative text-weight-bold' : ''"
-              >
-                {{ detailIssue.dueDate.slice(0, 10) }}
-                <q-icon v-if="isOverdue(detailIssue)" name="warning" size="14px" class="q-ml-xs" />
-              </div>
-            </div>
-          </div>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
+    <!-- 이슈 상세/편집 다이얼로그 -->
+    <IssueDetailDialog
+      v-if="detailIssue"
+      v-model="detailOpen"
+      :project-id="detailIssue.projectId"
+      :project-key="detailIssue.projectKey ?? ''"
+      :issue="detailIssue"
+      @updated="onIssueUpdated"
+    />
   </q-page>
 </template>
 
@@ -161,10 +97,9 @@ import interactionPlugin from '@fullcalendar/interaction'
 import type { CalendarOptions, EventInput, EventSourceFuncArg } from '@fullcalendar/core'
 import type FullCalendarComponent from '@fullcalendar/vue3'
 
+import IssueDetailDialog from './components/IssueDetailDialog.vue'
 import {
   getWorkStatus,
-  STATUS_LABEL, STATUS_COLOR,
-  TYPE_ICON, TYPE_COLOR, PRIORITY_ICON, PRIORITY_COLOR, PRIORITY_LABEL,
   type Issue,
 } from 'src/services/pm/issue'
 import { getErrorMessage } from 'src/utils/http/error'
@@ -304,12 +239,11 @@ watch(selectedIds, () => {
   calendarRef.value?.getApi()?.refetchEvents()
 })
 
-// ── 헬퍼 ─────────────────────────────────────────────────────────────
-function isOverdue(issue: Issue): boolean {
-  if (!issue.dueDate || issue.status === 'DONE') return false
-  const due = DateTime.fromISO(issue.dueDate, { zone: 'Asia/Seoul' })
-  const today = DateTime.now().setZone('Asia/Seoul').startOf('day')
-  return due < today
+// ── 이슈 업데이트 반영 ────────────────────────────────────────────────
+function onIssueUpdated(updated: Issue) {
+  const idx = allIssues.value.findIndex(i => i.id === updated.id)
+  if (idx !== -1) allIssues.value[idx] = updated
+  calendarRef.value?.getApi()?.refetchEvents()
 }
 
 // ── ResizeObserver ────────────────────────────────────────────────────
