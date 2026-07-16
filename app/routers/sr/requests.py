@@ -17,6 +17,8 @@ from app.services.sr.sr_service import (
     next_sr_number, get_sr_or_404, record_sr_history,
     record_status_history, sr_to_out, is_sr_requester,
 )
+from app.services.notification_service import create_notification, notify_users, get_sr_operator_ids
+from app.services.mention_service import resolve_mentions, notify_mentions
 
 router = APIRouter()
 
@@ -107,6 +109,23 @@ async def create_sr(
     await record_status_history(
         str(result.inserted_id), "", status, None, _user_label(current_user)
     )
+
+    if status == "SUBMITTED":
+        operator_ids = await get_sr_operator_ids()
+        sr_id_str = str(result.inserted_id)
+        sender = _user_label(current_user)
+        await notify_users(
+            user_ids=operator_ids,
+            notification_type="REVIEW_REQUESTED",
+            title="새 SR 접수",
+            message=f"{sender}님이 SR을 접수했습니다: {body.title}",
+            sender_user_id=str(current_user.id),
+            sender_name=sender,
+            target_type="SR",
+            target_id=sr_id_str,
+            target_url=f"/pm/sr/{sr_id_str}",
+            dedup_key_prefix=f"sr_submit:{sr_id_str}",
+        )
 
     return SROut(**sr_to_out(doc))
 
@@ -274,6 +293,14 @@ async def add_comment(
 
     now = datetime.now(timezone.utc)
     col = MongoClientManager.get_db()[MongoClientManager.SR_COMMENTS]
+
+    # 멘션 처리 — SR은 활성 사용자 전체 허용
+    mentioned = await resolve_mentions(
+        body.mentioned_user_ids,
+        actor_id=str(current_user.id),
+        allowed_user_ids=None,
+    )
+
     comment_doc = {
         "sr_id": sr_id,
         "writer_id": current_user.id,
@@ -281,13 +308,65 @@ async def add_comment(
         "content": body.content,
         "is_internal": body.is_internal,
         "attachments": [a.model_dump() for a in body.attachments],
+        "mentioned_users": [m.model_dump() for m in mentioned],
         "created_at": now,
         "updated_at": now,
         "deleted_at": None,
     }
     result = await col.insert_one(comment_doc)
+    comment_id_str = str(result.inserted_id)
     comment_doc["_id"] = result.inserted_id
-    comment_doc["id"] = str(result.inserted_id)
+    comment_doc["id"] = comment_id_str
+
+    sender = _user_label(current_user)
+    target_url = f"/pm/sr/{sr_id}"
+    preview = body.content[:40] + "…" if len(body.content) > 40 else body.content
+
+    # 운영자→요청자 알림 (내부 메모는 요청자에게 미발송)
+    requester_id = str(doc["requester_id"])
+    if is_internal_allowed and not body.is_internal and requester_id != str(current_user.id):
+        await create_notification(
+            recipient_user_id=requester_id,
+            notification_type="COMMENT_CREATED",
+            title="SR 댓글",
+            message=f"{sender}: {preview}",
+            sender_user_id=str(current_user.id),
+            sender_name=sender,
+            target_type="SR",
+            target_id=sr_id,
+            target_url=target_url,
+        )
+    # 요청자→운영자 알림
+    if not is_internal_allowed:
+        operator_ids = await get_sr_operator_ids()
+        for uid in set(operator_ids):
+            if uid != str(current_user.id):
+                await create_notification(
+                    recipient_user_id=uid,
+                    notification_type="COMMENT_CREATED",
+                    title="SR 댓글",
+                    message=f"{sender}: {preview}",
+                    sender_user_id=str(current_user.id),
+                    sender_name=sender,
+                    target_type="SR",
+                    target_id=sr_id,
+                    target_url=target_url,
+                )
+
+    # 멘션 알림
+    if mentioned:
+        sr_title = doc.get("title", "")
+        await notify_mentions(
+            mentioned_users=mentioned,
+            comment_id=comment_id_str,
+            target_type="SR",
+            target_id=sr_id,
+            target_title=sr_title,
+            actor_id=str(current_user.id),
+            actor_name=sender,
+            target_url=f"/pm/sr/{sr_id}?commentId={comment_id_str}",
+        )
+
     return SRCommentOut(**comment_doc)
 
 

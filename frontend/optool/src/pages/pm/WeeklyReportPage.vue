@@ -10,7 +10,7 @@
       <q-space />
       <HelpButton feature="weekly-report" guide-path="/pm/schedule/guide" />
       <q-btn flat icon="download" label="목록 Excel" color="positive" no-caps @click="downloadList" />
-      <q-btn color="primary" icon="add" label="새 보고서 생성" no-caps @click="openCreate" />
+      <q-btn v-if="authStore.me?.isAdmin" color="primary" icon="add" label="새 보고서 생성" no-caps @click="openCreate" />
     </div>
 
     <!-- 필터 -->
@@ -127,7 +127,8 @@
           <q-input v-model="editForm.title" label="제목" outlined dense />
           <q-input v-model="editForm.department" label="부서" outlined dense />
           <q-input v-model="editForm.admin_comment" label="관리자 코멘트" outlined dense
-            type="textarea" rows="4" hint="이슈 집계 외에 관리자가 추가할 내용을 입력하세요." />
+            type="textarea" :rows="4"
+            hint="이슈 집계 외에 관리자가 추가할 내용을 입력하세요." />
         </q-card-section>
         <q-separator />
         <q-card-actions align="right" class="q-pa-md">
@@ -151,8 +152,10 @@ import {
   type WeeklyReport, type WeeklyReportCreate,
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
+import { useAuthStore } from 'src/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // ── 보고서 상태 ────────────────────────────────────────────────────────
 const REPORT_STATUS_KO: Record<string, string> = { DRAFT: '초안', REVIEWING: '검토중', CONFIRMED: '확정' }
@@ -185,7 +188,14 @@ const columns = [
 
 // ── 주차 → 날짜 범위 계산 (ISO 8601) ─────────────────────────────────
 function weekToDateRange(year: number, week: number): { start: string; end: string } {
-  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+  // toISOString()은 UTC 변환 후 슬라이스하므로 KST(+9)에서 날짜가 하루 밀릴 수 있음.
+  // 로컬 날짜 컴포넌트를 직접 포맷하여 시간대 오프셋 영향을 차단.
+  const fmt = (d: Date) => {
+    const yyyy = d.getFullYear()
+    const mm   = String(d.getMonth() + 1).padStart(2, '0')
+    const dd   = String(d.getDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+  }
   const jan4 = new Date(year, 0, 4)
   const dayOfWeek = jan4.getDay() || 7
   const week1Mon = new Date(jan4)

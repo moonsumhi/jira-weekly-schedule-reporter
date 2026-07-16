@@ -35,8 +35,17 @@ def _proj_to_out(doc: dict) -> ProjectOut:
 
 @router.get("", response_model=List[ProjectOut])
 async def list_projects(current_user: UserPublic = Depends(get_current_user)):
-    """전체 프로젝트 목록 (백오피스 회원 공용)."""
-    docs = await MongoClientManager.get_pm_projects_collection().find({}).sort("created_at", -1).to_list(None)
+    """프로젝트 목록. 시스템 관리자는 전체, 일반 사용자는 멤버인 프로젝트만."""
+    projects_col = MongoClientManager.get_pm_projects_collection()
+    if current_user.is_admin:
+        docs = await projects_col.find({}).sort("created_at", -1).to_list(None)
+    else:
+        members_col = MongoClientManager.get_pm_project_members_collection()
+        member_docs = await members_col.find(
+            {"user_id": ObjectId(current_user.id)}, {"project_id": 1}
+        ).to_list(None)
+        project_ids = [m["project_id"] for m in member_docs]
+        docs = await projects_col.find({"_id": {"$in": project_ids}}).sort("created_at", -1).to_list(None)
     return [_proj_to_out(d) for d in docs]
 
 

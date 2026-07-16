@@ -119,6 +119,7 @@ async def aggregate_period(
             due_date=due_date,
             is_delayed=is_delayed,
             story_points=doc.get("story_points"),
+            parent_id=str(doc["parent_issue_id"]) if doc.get("parent_issue_id") else None,
         )
 
     # end_dt 를 해당일 23:59:59 로 확장 (날짜만 받아온 경우 당일 이슈 누락 방지)
@@ -129,14 +130,15 @@ async def aggregate_period(
 
     # ── 현재 기간 이슈 쿼리 ──────────────────────────────────────────
     # start_date/due_date 가 기간 내이거나, 진행 중이거나, 기간 내 완료된 것
+    # 업무현황과 동일한 기준: TASK/SUB_TASK 타입만 집계
+    # 시작일 또는 마감일이 기간 내에 있는 이슈 + 날짜 무관 진행 중 이슈
+    _in_range = {"$gte": start_dt, "$lte": end_dt}
     query = {
-        "type": {"$ne": "EPIC"},  # EPIC 제외, TASK/BUG/STORY/SUB_TASK 모두 포함
+        "type": {"$in": ["TASK", "SUB_TASK"]},
         "$or": [
-            {"start_date": {"$gte": start_dt, "$lte": end_dt}},
-            {"due_date":   {"$gte": start_dt, "$lte": end_dt}},
-            {"status": {"$in": ["IN_PROGRESS", "IN_REVIEW"]}},  # 날짜 미설정 진행 중 이슈도 포함
-            {"status": "DONE",
-             "updated_at": {"$gte": start_dt, "$lte": end_dt}},
+            {"start_date": _in_range},
+            {"due_date":   _in_range},
+            {"status": {"$in": ["IN_PROGRESS", "IN_REVIEW"]}},
         ],
     }
     docs = await issues_col.find(query).sort("number", 1).to_list(None)
@@ -166,6 +168,16 @@ async def aggregate_period(
             item = await doc_to_item(doc)
             if item:
                 upcoming_items.append(item)
+
+    # ── Subtask가 있는 Task 제거 (Gantt/섹션 중복 방지) ─────────────────
+    # SUB_TASK의 parent_id 목록을 수집하여 해당 TASK는 표시에서 제외
+    subtask_parent_ids = {
+        item.parent_id
+        for item in all_items + upcoming_items
+        if item.type == "SUB_TASK" and item.parent_id
+    }
+    all_items      = [i for i in all_items      if not (i.type == "TASK" and i.issue_id in subtask_parent_ids)]
+    upcoming_items = [i for i in upcoming_items if not (i.type == "TASK" and i.issue_id in subtask_parent_ids)]
 
     # ── 프로젝트별 / 개인별 분류 ─────────────────────────────────────
     by_project: dict[str, ProjectBreakdown] = {}
@@ -219,6 +231,18 @@ async def aggregate_period(
             if uid not in by_person:
                 uname = m.get("user_name") or m.get("user_email") or uid
                 by_person[uid] = PersonBreakdown(user_id=uid, user_name=uname)
+
+    # ── 개인별 sub-list 정렬 (시작일 ASC → 마감일 ASC) ──────────────────
+    def _item_sort_key(item: WorkItem):
+        s = item.start_date.strftime('%Y-%m-%d') if item.start_date else '9999-12-31'
+        d = item.due_date.strftime('%Y-%m-%d')   if item.due_date   else '9999-12-31'
+        return (s, d)
+
+    for pb in by_person.values():
+        pb.completed.sort(key=_item_sort_key)
+        pb.in_progress.sort(key=_item_sort_key)
+        pb.delayed.sort(key=_item_sort_key)
+        pb.upcoming.sort(key=_item_sort_key)
 
     # ── 통계 계산 ─────────────────────────────────────────────────────
     for pb in by_project.values():

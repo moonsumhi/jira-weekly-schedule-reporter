@@ -12,7 +12,8 @@ from fastapi.responses import StreamingResponse
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.sr.service_request import (
-    SROut, SRListItem, SRPatch, SRReview, SRAssign, SRStatusChange,
+    SROut, SRListItem, SRListPage, SRPatch, SRInlinePatch,
+    SRReview, SRAssign, SRStatusChange,
     SRStats, SR_STATUS_LABEL, REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL,
 )
 from app.routers.auth import get_current_user
@@ -22,6 +23,7 @@ from app.services.sr.sr_service import (
     require_sr_manager, require_sr_admin, compute_is_delayed,
     is_sr_operator,
 )
+from app.services.notification_service import create_notification, notify_users
 
 router = APIRouter()
 
@@ -32,7 +34,7 @@ def _user_label(user: UserPublic) -> str:
 
 # ── 전체 SR 목록 ──────────────────────────────────────────────────────
 
-@router.get("", response_model=List[SRListItem])
+@router.get("", response_model=SRListPage)
 async def list_all_srs(
     status: Optional[str] = Query(None),
     request_type: Optional[str] = Query(None),
@@ -111,10 +113,12 @@ async def list_all_srs(
     if is_delayed is not None:
         all_docs = await col.find(q).sort(sort_field, sort_dir).to_list(None)
         items = [SRListItem(**sr_to_out(d)) for d in all_docs if SRListItem(**sr_to_out(d)).is_delayed == is_delayed]
-        return items[skip: skip + limit]
+        page = items[skip: skip + limit]
+        return SRListPage(items=page, total=len(items))
 
+    total = await col.count_documents(q)
     docs = await col.find(q).sort(sort_field, sort_dir).skip(skip).limit(limit).to_list(None)
-    return [SRListItem(**sr_to_out(d)) for d in docs]
+    return SRListPage(items=[SRListItem(**sr_to_out(d)) for d in docs], total=total)
 
 
 # ── SR 상세 (관리자용) ────────────────────────────────────────────────
@@ -127,6 +131,32 @@ async def get_sr_admin(
     require_sr_operator(current_user)
     doc = await get_sr_or_404(sr_id)
     return SROut(**sr_to_out(doc))
+
+
+# ── 인라인 필드 수정 (manager 이상) ─────────────────────────────────────
+
+@router.patch("/{sr_id}", response_model=SROut)
+async def patch_sr_inline(
+    sr_id: str,
+    body: SRInlinePatch,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    require_sr_manager(current_user)
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    doc = await get_sr_or_404(sr_id)
+    now = datetime.now(timezone.utc)
+    updates: dict = {"updated_at": now, "updated_by": _user_label(current_user)}
+
+    patch = body.model_dump(exclude_none=True)
+    for field, value in patch.items():
+        old_val = doc.get(field)
+        updates[field] = ObjectId(value) if field == "assignee_id" else value
+        if str(old_val) != str(value):
+            await record_sr_history(sr_id, f"FIELD_CHANGE:{field}", str(old_val), str(value), _user_label(current_user))
+
+    await col.update_one({"_id": ObjectId(sr_id)}, {"$set": updates})
+    updated = await col.find_one({"_id": ObjectId(sr_id)})
+    return SROut(**sr_to_out(updated))
 
 
 # ── SR 수정 (관리자) ──────────────────────────────────────────────────
@@ -221,6 +251,25 @@ async def review_sr(
         from app.utils.mail_notify import send_sr_notification
         await send_sr_notification(updated, event="reviewed")
 
+    _STATUS_KO = {
+        "APPROVED": "승인", "REJECTED": "반려", "ON_HOLD": "보류",
+        "PENDING_INFO": "추가 확인 요청",
+    }
+    requester_id = str(doc["requester_id"])
+    sender = _user_label(current_user)
+    status_ko = _STATUS_KO.get(new_status, new_status)
+    await create_notification(
+        recipient_user_id=requester_id,
+        notification_type="STATUS_CHANGED",
+        title=f"SR 검토 완료: {status_ko}",
+        message=f"'{doc.get('title', '')}' SR이 {status_ko} 처리되었습니다.",
+        sender_user_id=str(current_user.id),
+        sender_name=sender,
+        target_type="SR",
+        target_id=sr_id,
+        target_url=f"/pm/sr/{sr_id}",
+    )
+
     return SROut(**sr_to_out(updated))
 
 
@@ -267,6 +316,35 @@ async def assign_sr(
     await record_status_history(sr_id, doc["status"], "IN_PROGRESS", None, _user_label(current_user))
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
+
+    sender = _user_label(current_user)
+    target_url = f"/pm/sr/{sr_id}"
+    requester_id = str(doc["requester_id"])
+    # 요청자에게 담당자 배정 알림
+    await create_notification(
+        recipient_user_id=requester_id,
+        notification_type="STATUS_CHANGED",
+        title="SR 담당자 배정",
+        message=f"'{doc.get('title', '')}' SR이 {body.assignee_name}님에게 배정되었습니다.",
+        sender_user_id=str(current_user.id),
+        sender_name=sender,
+        target_type="SR",
+        target_id=sr_id,
+        target_url=target_url,
+    )
+    # 담당자에게 배정 알림 (자신이 배정자인 경우 제외)
+    if body.assignee_id != str(current_user.id):
+        await create_notification(
+            recipient_user_id=body.assignee_id,
+            notification_type="ASSIGNED",
+            title="SR 담당 배정",
+            message=f"'{doc.get('title', '')}' SR의 담당자로 배정되었습니다.",
+            sender_user_id=str(current_user.id),
+            sender_name=sender,
+            target_type="SR",
+            target_id=sr_id,
+            target_url=target_url,
+        )
 
     # PM 이슈 자동 생성/담당자 업데이트
     from app.services.sr.sr_issue_bridge import auto_create_pm_issue, update_pm_issue_assignee
@@ -347,6 +425,33 @@ async def change_status(
     if new_status == "COMPLETED":
         from app.utils.mail_notify import send_sr_notification
         await send_sr_notification(updated, event="completed")
+
+    _SR_STATUS_KO = {
+        "SUBMITTED": "접수", "REVIEWING": "검토 중", "PENDING_INFO": "추가 확인 요청",
+        "REJECTED": "반려", "APPROVED": "승인", "ASSIGNED": "담당자 배정",
+        "IN_PROGRESS": "처리 중", "COMPLETED": "처리 완료",
+        "CONFIRMING": "요청자 확인 중", "CLOSED": "최종 완료",
+        "ON_HOLD": "보류", "CANCELLED": "취소",
+    }
+    new_status_ko = _SR_STATUS_KO.get(new_status, new_status)
+    sender = _user_label(current_user)
+    target_url = f"/pm/sr/{sr_id}"
+    notify_ids = {str(doc["requester_id"])}
+    if doc.get("assignee_id"):
+        notify_ids.add(str(doc["assignee_id"]))
+    notify_ids.discard(str(current_user.id))
+    for uid in notify_ids:
+        await create_notification(
+            recipient_user_id=uid,
+            notification_type="STATUS_CHANGED",
+            title=f"SR 상태 변경: {new_status_ko}",
+            message=f"'{doc.get('title', '')}' SR 상태가 {new_status_ko}(으)로 변경되었습니다.",
+            sender_user_id=str(current_user.id),
+            sender_name=sender,
+            target_type="SR",
+            target_id=sr_id,
+            target_url=target_url,
+        )
 
     return SROut(**sr_to_out(updated))
 

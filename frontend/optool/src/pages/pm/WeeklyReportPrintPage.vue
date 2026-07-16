@@ -88,11 +88,19 @@
               <span class="gantt-person-stats">완료 {{ pb.doneCount }} · 진행 {{ pb.progCount }} · 지연 {{ pb.delayCount }}</span>
             </td>
           </tr>
-          <tr v-for="item in pb.items" :key="item.issueId" class="gantt-task-row">
-            <td class="gantt-task-label" :title="item.title">{{ item.title }}</td>
-            <td v-for="d in ganttDays" :key="d.iso"
-              :class="['gantt-day-cell', ganttCellClass(item, d.iso)]"></td>
-          </tr>
+          <template v-for="proj in pb.projects" :key="proj.projectId">
+            <tr class="gantt-proj-row">
+              <td :colspan="ganttDays.length + 1">
+                ▸ {{ proj.projectName }}
+                <span class="gantt-proj-stats">완료 {{ proj.doneCount }} · 진행 {{ proj.progCount }}<template v-if="proj.delayCount"> · <span class="gantt-proj-delay">지연 {{ proj.delayCount }}</span></template></span>
+              </td>
+            </tr>
+            <tr v-for="item in proj.items" :key="item.issueId" class="gantt-task-row">
+              <td class="gantt-task-label" :title="item.title">{{ item.title }}</td>
+              <td v-for="d in ganttDays" :key="d.iso"
+                :class="['gantt-day-cell', ganttCellClass(item, d.iso)]"></td>
+            </tr>
+          </template>
         </template>
         <tr v-if="!ganttPersons.length">
           <td :colspan="ganttDays.length + 1" class="gantt-empty">집계된 업무가 없습니다.</td>
@@ -175,66 +183,137 @@
       </div>
     </template>
 
-    <!-- ━━━━ Ⅳ. 금주 완료 업무 ━━━━ -->
-    <div class="section-heading">Ⅳ. 금주 완료 업무 <span class="cnt">({{ completedItems.length }}건)</span></div>
-    <div v-if="!completedItems.length" class="empty-row">해당 없음</div>
+    <!-- ━━━━ Ⅳ. 네트워크 ━━━━ -->
+    <div class="section-heading">Ⅳ. 네트워크 <span class="cnt">({{ networkItems.length }}건)</span></div>
+    <div v-if="!networkItems.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
-        <col style="width:30px" /><col style="width:96px" /><col /><col style="width:60px" /><col style="width:68px" />
+        <col style="width:30px" /><col style="width:100px" /><col /><col style="width:60px" />
       </colgroup>
-      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>담당자</th><th>마감일</th></tr></thead>
+      <thead><tr><th>No</th><th>제목</th><th>내용</th><th>담당자</th></tr></thead>
       <tbody>
-        <tr v-for="(item, i) in completedItems" :key="item.issueId">
+        <tr v-for="(item, i) in networkItems" :key="item.id">
           <td class="c">{{ i + 1 }}</td>
-          <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
-          <td>{{ item.title }}</td>
-          <td class="c">{{ item.assigneeName ?? '-' }}</td>
-          <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
+          <td class="cell-title">{{ item.title }}</td>
+          <td class="md-cell" v-html="renderMd(item.content)" />
+          <td class="c">{{ item.owner ?? '-' }}</td>
         </tr>
       </tbody>
     </table>
 
-    <!-- ━━━━ Ⅴ. 진행 중 업무 ━━━━ -->
-    <div class="section-heading">Ⅴ. 진행 중 업무 <span class="cnt">({{ inProgressItems.length }}건)</span></div>
-    <div v-if="!inProgressItems.length" class="empty-row">해당 없음</div>
+    <!-- ━━━━ Ⅴ. 공지사항 ━━━━ -->
+    <div class="section-heading">Ⅴ. 공지사항 <span class="cnt">({{ announcementItems.length }}건)</span></div>
+    <div v-if="!announcementItems.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
-        <col style="width:30px" /><col style="width:96px" /><col /><col style="width:60px" /><col style="width:44px" /><col style="width:68px" />
+        <col style="width:30px" /><col style="width:100px" /><col /><col style="width:60px" />
       </colgroup>
-      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>담당자</th><th>지연</th><th>마감일</th></tr></thead>
+      <thead><tr><th>No</th><th>제목</th><th>내용</th><th>담당자</th></tr></thead>
       <tbody>
-        <tr v-for="(item, i) in inProgressItems" :key="item.issueId" :class="{ 'row-delay': item.isDelayed }">
+        <tr v-for="(item, i) in announcementItems" :key="item.id">
           <td class="c">{{ i + 1 }}</td>
-          <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
-          <td>{{ item.title }}</td>
-          <td class="c">{{ item.assigneeName ?? '-' }}</td>
-          <td class="c">{{ item.isDelayed ? '지연' : '' }}</td>
-          <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
+          <td class="cell-title">{{ item.title }}</td>
+          <td class="cell-sub" style="white-space:pre-wrap">{{ item.content ?? '-' }}</td>
+          <td class="c">{{ item.owner ?? '-' }}</td>
         </tr>
       </tbody>
     </table>
 
-    <!-- ━━━━ Ⅵ. 차주 계획 ━━━━ -->
-    <div class="section-heading">Ⅵ. 차주 계획 <span class="cnt">({{ report.upcomingItems.length }}건)</span></div>
-    <div v-if="!report.upcomingItems.length" class="empty-row">해당 없음</div>
+    <!-- ━━━━ Ⅵ. 복무 현황 ━━━━ -->
+    <div class="section-heading">Ⅵ. 복무 현황 <span class="cnt">({{ attendanceItems.length }}건)</span></div>
+    <div v-if="!attendanceItems.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
-        <col style="width:30px" /><col style="width:96px" /><col /><col style="width:60px" /><col style="width:68px" />
+        <col style="width:30px" /><col style="width:72px" /><col style="width:60px" /><col style="width:68px" /><col style="width:60px" /><col />
       </colgroup>
-      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>담당자</th><th>마감일</th></tr></thead>
+      <thead><tr><th>No</th><th>이름</th><th>발생일수</th><th>총사용일수</th><th>잔여일수</th><th>비고</th></tr></thead>
       <tbody>
-        <tr v-for="(item, i) in report.upcomingItems" :key="item.issueId">
+        <tr v-for="(item, i) in attendanceItems" :key="item.id">
           <td class="c">{{ i + 1 }}</td>
-          <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
-          <td>{{ item.title }}</td>
-          <td class="c">{{ item.assigneeName ?? '-' }}</td>
-          <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
+          <td class="c">{{ item.title }}</td>
+          <td class="c">{{ item.category ?? '-' }}</td>
+          <td class="c">{{ item.itemType ?? '-' }}</td>
+          <td class="c">{{ item.actionPlan ?? '-' }}</td>
+          <td>{{ item.content ?? '-' }}</td>
         </tr>
       </tbody>
     </table>
 
-    <!-- ━━━━ Ⅶ. SR 현황 ━━━━ -->
-    <div class="section-heading">Ⅶ. SR(서비스 요청) 현황</div>
+    <!-- ━━━━ Ⅵ. 금주 완료 업무 ━━━━ -->
+    <div class="section-heading">Ⅶ. 금주 완료 업무 <span class="cnt">({{ completedCount }}건)</span></div>
+    <div v-if="!completedByPerson.length" class="empty-row">해당 없음</div>
+    <table v-else class="doc-table">
+      <colgroup>
+        <col style="width:24px" /><col style="width:96px" /><col /><col style="width:68px" />
+      </colgroup>
+      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>마감일</th></tr></thead>
+      <tbody>
+        <template v-for="pb in completedByPerson" :key="pb.userId">
+          <tr class="group-header-row">
+            <td colspan="4">{{ pb.userName }}<span class="group-cnt">{{ pb.items.length }}건</span></td>
+          </tr>
+          <tr v-for="(item, i) in pb.items" :key="item.issueId">
+            <td class="c">{{ i + 1 }}</td>
+            <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
+            <td>{{ item.title }}</td>
+            <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+
+    <!-- ━━━━ Ⅶ. 진행 중 업무 ━━━━ -->
+    <div class="section-heading">Ⅷ. 진행 중 업무 <span class="cnt">({{ inProgressCount }}건)</span></div>
+    <div v-if="!inProgressByPerson.length" class="empty-row">해당 없음</div>
+    <table v-else class="doc-table">
+      <colgroup>
+        <col style="width:24px" /><col style="width:96px" /><col /><col style="width:44px" /><col style="width:68px" />
+      </colgroup>
+      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>지연</th><th>마감일</th></tr></thead>
+      <tbody>
+        <template v-for="pb in inProgressByPerson" :key="pb.userId">
+          <tr class="group-header-row">
+            <td colspan="5">
+              {{ pb.userName }}<span class="group-cnt">{{ pb.items.length }}건</span>
+              <span v-if="pb.items.some(i => i.isDelayed)" class="group-delay-cnt">지연 {{ pb.items.filter(i => i.isDelayed).length }}건</span>
+            </td>
+          </tr>
+          <tr v-for="(item, i) in pb.items" :key="item.issueId" :class="{ 'row-delay': item.isDelayed }">
+            <td class="c">{{ i + 1 }}</td>
+            <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
+            <td>{{ item.title }}</td>
+            <td class="c">{{ item.isDelayed ? '⚠ 지연' : '' }}</td>
+            <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+
+    <!-- ━━━━ Ⅷ. 차주 계획 ━━━━ -->
+    <div class="section-heading">Ⅸ. 차주 계획 <span class="cnt">({{ upcomingCount }}건)</span></div>
+    <div v-if="!upcomingByPerson.length" class="empty-row">해당 없음</div>
+    <table v-else class="doc-table">
+      <colgroup>
+        <col style="width:24px" /><col style="width:96px" /><col /><col style="width:68px" />
+      </colgroup>
+      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>마감일</th></tr></thead>
+      <tbody>
+        <template v-for="pb in upcomingByPerson" :key="pb.userId">
+          <tr class="group-header-row">
+            <td colspan="4">{{ pb.userName }}<span class="group-cnt">{{ pb.items.length }}건</span></td>
+          </tr>
+          <tr v-for="(item, i) in pb.items" :key="item.issueId">
+            <td class="c">{{ i + 1 }}</td>
+            <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
+            <td>{{ item.title }}</td>
+            <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+
+    <!-- ━━━━ Ⅸ. SR 현황 ━━━━ -->
+    <div class="section-heading">Ⅹ. SR(서비스 요청) 현황</div>
     <template v-if="report?.srSummary">
       <!-- 상태별 요약 -->
       <table class="summary-table sr-summary-table">
@@ -299,20 +378,27 @@
         </tbody>
       </table>
 
-      <!-- 처리 중 전체 -->
-      <div class="sr-sub-heading">▸ 처리 중 전체 ({{ report.srSummary.totalOpen }}건)</div>
+      <!-- 처리 중 전체 — 담당자별 요약 매트릭스 -->
+      <div class="sr-sub-heading">▸ 처리 중 전체 ({{ report.srSummary.totalOpen }}건) — 담당자 × 상태 요약</div>
       <div v-if="!report.srSummary.openItems.length" class="empty-row">해당 없음</div>
-      <table v-else class="doc-table">
-        <colgroup><col style="width:30px"/><col style="width:80px"/><col/><col style="width:72px"/><col style="width:72px"/><col style="width:60px"/></colgroup>
-        <thead><tr><th>No</th><th>SR 번호</th><th>제목</th><th>상태</th><th>요청자</th><th>담당자</th></tr></thead>
+      <table v-else class="doc-table sr-matrix-table">
+        <colgroup>
+          <col style="width:90px" />
+          <col v-for="s in srOpenMatrix.statuses" :key="s" />
+          <col style="width:48px" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>담당자</th>
+            <th v-for="s in srOpenMatrix.statuses" :key="s">{{ s }}</th>
+            <th>합계</th>
+          </tr>
+        </thead>
         <tbody>
-          <tr v-for="(sr, i) in report.srSummary.openItems" :key="sr.srNo">
-            <td class="c">{{ i + 1 }}</td>
-            <td class="c issue-key">{{ sr.srNo }}</td>
-            <td>{{ sr.title }}<span v-if="sr.isUrgent" class="badge badge-red" style="margin-left:4px">긴급</span></td>
-            <td class="c">{{ sr.statusLabel }}</td>
-            <td class="c">{{ sr.requesterName }}</td>
-            <td class="c">{{ sr.assigneeName ?? '-' }}</td>
+          <tr v-for="row in srOpenMatrix.rows" :key="row.name">
+            <td class="sr-matrix-name">{{ row.name }}</td>
+            <td v-for="s in srOpenMatrix.statuses" :key="s" class="c">{{ row.counts[s] ?? 0 }}</td>
+            <td class="c sr-matrix-total">{{ row.total }}</td>
           </tr>
         </tbody>
       </table>
@@ -355,8 +441,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { marked } from 'marked'
 import { getWeeklyReport, type WeeklyReport, type WorkItem } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
+
+function renderMd(content: string | null | undefined): string {
+  if (!content?.trim()) return '-'
+  return marked(content, { breaks: true }) as string
+}
 
 const route      = useRoute()
 const router     = useRouter()
@@ -370,11 +462,45 @@ const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '
 
 function fmt(d: string | null | undefined) { return d ? d.slice(0, 10) : '' }
 
-const agendaItems   = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'MAIN_AGENDA'       && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
-const riskItems     = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ISSUE_RISK'        && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
-const decisionItems = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'DECISION_REQUIRED' && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
-const completedItems  = computed(() => (report.value?.allItems ?? []).filter(i => i.status === 'DONE'))
-const inProgressItems = computed(() => (report.value?.allItems ?? []).filter(i => ['IN_PROGRESS', 'IN_REVIEW', 'TODO', 'BACKLOG'].includes(i.status)))
+const agendaItems        = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'MAIN_AGENDA'       && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const riskItems          = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ISSUE_RISK'        && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const decisionItems      = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'DECISION_REQUIRED' && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const networkItems       = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'NETWORK'           && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const announcementItems  = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ANNOUNCEMENT'      && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const attendanceItems    = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ATTENDANCE'        && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+// ── 담당자별 그룹 (Ⅵ~Ⅷ) ────────────────────────────────────────────
+function byPersonGroups(key: 'completed' | 'inProgress' | 'upcoming') {
+  return (report.value?.byPerson ?? [])
+    .map(p => ({ userId: p.userId, userName: p.userName, items: p[key] }))
+    .filter(p => p.items.length)
+    .sort((a, b) => a.userName === '미지정' ? 1 : b.userName === '미지정' ? -1 : 0)
+}
+const completedByPerson  = computed(() => byPersonGroups('completed'))
+const inProgressByPerson = computed(() => byPersonGroups('inProgress'))
+const upcomingByPerson   = computed(() => byPersonGroups('upcoming'))
+const completedCount     = computed(() => completedByPerson.value.reduce((s, p) => s + p.items.length, 0))
+const inProgressCount    = computed(() => inProgressByPerson.value.reduce((s, p) => s + p.items.length, 0))
+const upcomingCount      = computed(() => upcomingByPerson.value.reduce((s, p) => s + p.items.length, 0))
+
+// ── SR 처리중 매트릭스 ────────────────────────────────────────────────
+const srOpenMatrix = computed(() => {
+  const items = report.value?.srSummary?.openItems ?? []
+  if (!items.length) return { statuses: [] as string[], rows: [] as { name: string; counts: Record<string, number>; total: number }[] }
+  const statusSet = new Set<string>()
+  items.forEach(i => statusSet.add(i.statusLabel))
+  const statuses = [...statusSet]
+  const map = new Map<string, Record<string, number>>()
+  items.forEach(i => {
+    const name = i.assigneeName ?? '미지정'
+    if (!map.has(name)) map.set(name, {})
+    const row = map.get(name)!
+    row[i.statusLabel] = (row[i.statusLabel] ?? 0) + 1
+  })
+  const rows = [...map.entries()]
+    .map(([name, counts]) => ({ name, counts, total: Object.values(counts).reduce((a, b) => a + b, 0) }))
+    .sort((a, b) => a.name === '미지정' ? 1 : b.name === '미지정' ? -1 : b.total - a.total)
+  return { statuses, rows }
+})
 
 // ── 개인별 업무 일정 (Gantt) ─────────────────────────────────────────
 const ganttDays = computed(() => {
@@ -406,18 +532,43 @@ const ganttPersons = computed(() => {
   if (!report.value) return []
   return report.value.byPerson
     .filter(p => p.completed.length || p.inProgress.length || p.delayed.length || p.upcoming.length)
-    .map(p => ({
-      userId:     p.userId,
-      userName:   p.userName,
-      doneCount:  p.completed.length,
-      progCount:  p.inProgress.length,
-      delayCount: p.delayed.length,
-      items: (() => {
-        const seen = new Set<string>()
-        return [...p.delayed, ...p.inProgress, ...p.completed, ...p.upcoming]
-          .filter(item => { if (seen.has(item.issueId)) return false; seen.add(item.issueId); return true })
-      })(),
-    }))
+    .map(p => {
+      const seen = new Set<string>()
+      const fallback = report.value!.startDate.slice(0, 10)
+      const allItems = [...p.delayed, ...p.inProgress, ...p.completed, ...p.upcoming]
+        .filter(item => { if (seen.has(item.issueId)) return false; seen.add(item.issueId); return true })
+        .sort((a, b) => {
+          const aStart = (a.startDate ?? fallback).slice(0, 10)
+          const bStart = (b.startDate ?? fallback).slice(0, 10)
+          if (aStart !== bStart) return aStart < bStart ? -1 : 1
+          const aEnd = (a.dueDate ?? a.startDate ?? fallback).slice(0, 10)
+          const bEnd = (b.dueDate ?? b.startDate ?? fallback).slice(0, 10)
+          return aEnd < bEnd ? -1 : aEnd > bEnd ? 1 : 0
+        })
+
+      // 프로젝트별 그룹 (정렬 순서 유지)
+      const projMap = new Map<string, { projectId: string; projectName: string; items: WorkItem[] }>()
+      allItems.forEach(item => {
+        if (!projMap.has(item.projectId))
+          projMap.set(item.projectId, { projectId: item.projectId, projectName: item.projectName, items: [] })
+        projMap.get(item.projectId)!.items.push(item)
+      })
+      const projects = [...projMap.values()].map(proj => ({
+        ...proj,
+        doneCount:  proj.items.filter(i => i.status === 'DONE').length,
+        progCount:  proj.items.filter(i => i.status !== 'DONE').length,
+        delayCount: proj.items.filter(i => i.isDelayed).length,
+      }))
+
+      return {
+        userId:     p.userId,
+        userName:   p.userName,
+        doneCount:  p.completed.length,
+        progCount:  p.inProgress.length,
+        delayCount: p.delayed.length,
+        projects,
+      }
+    })
     .sort((a, b) => {
       if (a.userName === '미지정') return 1
       if (b.userName === '미지정') return -1
@@ -477,6 +628,17 @@ onUnmounted(() => {
   html, body { background: white !important; margin: 0; padding: 0; }
   .screen-toolbar, .loading-wrap { display: none !important; }
 }
+
+/* v-html 마크다운 셀 (scoped 미적용 영역) */
+.md-cell p  { margin: 0 0 3px; }
+.md-cell ul,
+.md-cell ol { margin: 0; padding-left: 14px; }
+.md-cell li { margin: 1px 0; }
+.md-cell strong { font-weight: 700; }
+.md-cell em     { font-style: italic; }
+.md-cell img    { max-width: 100%; height: auto; }
+.md-cell a      { color: #1d4ed8; }
+.md-cell p:last-child { margin-bottom: 0; }
 </style>
 
 <style scoped>
@@ -669,6 +831,30 @@ onUnmounted(() => {
 .doc-table .c { text-align: center; }
 .row-delay td { background: #fef2f2 !important; }
 
+.group-header-row td {
+  background: #e2e8f0 !important;
+  font-weight: 700;
+  font-size: 9pt;
+  color: #1e293b;
+  padding: 5px 8px;
+  page-break-after: avoid;
+}
+.group-cnt {
+  font-weight: 400;
+  font-size: 8pt;
+  color: #64748b;
+  margin-left: 8px;
+}
+.group-delay-cnt {
+  font-size: 8pt;
+  font-weight: 600;
+  color: #b91c1c;
+  margin-left: 8px;
+}
+.sr-matrix-table { margin-bottom: 8px; }
+.sr-matrix-name  { font-weight: 600; }
+.sr-matrix-total { font-weight: 700; color: #1e293b; background: #f1f5f9 !important; }
+
 .cell-title { font-weight: 600; }
 .cell-sub   { color: #475569; font-size: 8pt; margin-top: 2px; white-space: pre-wrap; }
 .issue-key  { font-weight: 600; color: #1d4ed8; font-size: 8pt; }
@@ -851,17 +1037,35 @@ onUnmounted(() => {
   color: #64748b;
   margin-left: 8px;
 }
+.gantt-proj-row td {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 2px 6px 2px 16px;
+  font-weight: 600;
+  font-size: 7pt;
+  color: #334155;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.gantt-proj-stats {
+  font-weight: 400;
+  font-size: 6pt;
+  color: #64748b;
+  margin-left: 6px;
+}
+.gantt-proj-delay {
+  color: #b91c1c;
+  font-weight: 600;
+}
 
-.gantt-task-row { height: 16px; }
+.gantt-task-row { min-height: 16px; }
 .gantt-task-label {
   border: 1px solid #e2e8f0;
   border-right: 2px solid #94a3b8;
   padding: 2px 4px 2px 8px;
   font-size: 6.5pt;
   color: #334155;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
   background: #f8fafc;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;

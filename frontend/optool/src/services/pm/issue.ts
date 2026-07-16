@@ -129,6 +129,11 @@ export type IssueCreate = {
 
 export type IssuePatch = Partial<IssueCreate & { order: number }>
 
+export type MentionedUser = {
+  userId: string
+  displayName: string
+}
+
 export type IssueComment = {
   id: string
   issueId: string
@@ -137,6 +142,7 @@ export type IssueComment = {
   authorName: string
   content: string
   attachments: Attachment[]
+  mentionedUsers: MentionedUser[]
   createdAt: string
   updatedAt: string
 }
@@ -213,6 +219,7 @@ export async function createComment(
   content: string,
   parentId?: string,
   attachments: Attachment[] = [],
+  mentionedUserIds: string[] = [],
 ) {
   const { data } = await api.post<IssueComment>(
     `/pm/projects/${projectId}/issues/${issueId}/comments`,
@@ -226,7 +233,22 @@ export async function createComment(
         size: a.size,
         content_type: a.contentType,
       })),
+      mentioned_user_ids: mentionedUserIds,
     },
+  )
+  return data
+}
+
+export async function patchComment(
+  projectId: string,
+  issueId: string,
+  commentId: string,
+  content: string,
+  mentionedUserIds: string[] = [],
+) {
+  const { data } = await api.patch<IssueComment>(
+    `/pm/projects/${projectId}/issues/${issueId}/comments/${commentId}`,
+    { content, mentioned_user_ids: mentionedUserIds },
   )
   return data
 }

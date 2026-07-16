@@ -16,24 +16,27 @@
       <q-separator />
 
       <!-- 폼 바디 (스크롤) -->
-      <q-scroll-area style="height: min(72vh, 620px)">
+      <q-scroll-area style="height: min(85vh, 760px)">
         <div class="q-px-lg q-py-md column q-gutter-y-md">
 
           <!-- ① 제목 -->
           <div>
-            <div class="field-label">제목 <span class="text-negative">*</span></div>
+            <div class="field-label">
+              {{ section === 'ATTENDANCE' ? '성명' : '제목' }}
+              <span class="text-negative">*</span>
+            </div>
             <q-input
               v-model="form.title"
               outlined
               autofocus
-              placeholder="안건 제목을 간결하게 입력하세요"
-              :rules="[v => !!v.trim() || '제목을 입력해주세요.']"
+              :placeholder="section === 'ATTENDANCE' ? '성명을 입력하세요' : section === 'ANNOUNCEMENT' ? '공지 제목을 입력하세요' : section === 'NETWORK' ? '네트워크 제목을 입력하세요' : '안건 제목을 간결하게 입력하세요'"
+              :rules="[v => !!v.trim() || '필수 항목입니다.']"
               hide-bottom-space
             />
           </div>
 
-          <!-- ② 담당자 -->
-          <div>
+          <!-- ② 담당자 (ATTENDANCE 에서는 숨김) -->
+          <div v-if="section !== 'ATTENDANCE'">
             <div class="field-label">담당자</div>
             <q-select
               v-model="form.owner"
@@ -70,7 +73,76 @@
             </q-select>
           </div>
 
-          <q-separator spaced="md" />
+          <q-separator v-if="section !== 'ATTENDANCE'" spaced="md" />
+
+          <!-- ⑥ NETWORK 전용 -->
+          <template v-if="section === 'NETWORK'">
+            <MarkdownEditor
+              v-model="form.content"
+              label="내용"
+              placeholder="네트워크 활동 내용을 입력하세요"
+              :rows="4"
+            />
+          </template>
+
+          <!-- ⑦ ANNOUNCEMENT 전용 -->
+          <template v-if="section === 'ANNOUNCEMENT'">
+            <MarkdownEditor
+              v-model="form.content"
+              label="공지 내용"
+              placeholder="공지 내용을 입력하세요"
+              :rows="4"
+            />
+          </template>
+
+          <!-- ⑦ ATTENDANCE 전용 -->
+          <template v-if="section === 'ATTENDANCE'">
+            <div class="row q-col-gutter-md">
+              <div class="col-4">
+                <div class="field-label">발생일수</div>
+                <q-input
+                  v-model="form.category"
+                  outlined
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  suffix="일"
+                />
+              </div>
+              <div class="col-4">
+                <div class="field-label">총사용일수</div>
+                <q-input
+                  v-model="form.item_type"
+                  outlined
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  suffix="일"
+                />
+              </div>
+              <div class="col-4">
+                <div class="field-label">잔여일수</div>
+                <q-input
+                  v-model="form.action_plan"
+                  outlined
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  suffix="일"
+                />
+              </div>
+            </div>
+            <div>
+              <div class="field-label">비고</div>
+              <q-input
+                v-model="form.content"
+                outlined autogrow
+                type="textarea"
+                placeholder="추가 내용 (선택)"
+                input-style="min-height: 52px; resize: vertical"
+              />
+            </div>
+          </template>
 
           <!-- ③ MAIN_AGENDA 전용 -->
           <template v-if="section === 'MAIN_AGENDA'">
@@ -116,16 +188,12 @@
                 </q-select>
               </div>
             </div>
-            <div>
-              <div class="field-label">주요 내용</div>
-              <q-input
-                v-model="form.content"
-                outlined autogrow
-                type="textarea"
-                placeholder="안건의 배경, 현황, 핵심 내용을 입력하세요"
-                input-style="min-height: 80px; resize: vertical"
-              />
-            </div>
+            <MarkdownEditor
+              v-model="form.content"
+              label="주요 내용"
+              placeholder="안건의 배경, 현황, 핵심 내용을 입력하세요"
+              :rows="4"
+            />
           </template>
 
           <!-- ④ ISSUE_RISK 전용 -->
@@ -167,60 +235,40 @@
                 </q-select>
               </div>
             </div>
-            <div>
-              <div class="field-label">상세 내용</div>
-              <q-input
-                v-model="form.content"
-                outlined autogrow
-                type="textarea"
-                placeholder="특이사항 또는 리스크의 상세 내용을 입력하세요"
-                input-style="min-height: 72px; resize: vertical"
-              />
-            </div>
-            <div>
-              <div class="field-label">대응 방안</div>
-              <q-input
-                v-model="form.action_plan"
-                outlined autogrow
-                type="textarea"
-                placeholder="조치 계획 또는 대응 방안을 입력하세요"
-                input-style="min-height: 60px; resize: vertical"
-              />
-            </div>
+            <MarkdownEditor
+              v-model="form.content"
+              label="상세 내용"
+              placeholder="특이사항 또는 리스크의 상세 내용을 입력하세요"
+              :rows="3"
+            />
+            <MarkdownEditor
+              v-model="form.action_plan"
+              label="대응 방안"
+              placeholder="조치 계획 또는 대응 방안을 입력하세요"
+              :rows="3"
+            />
           </template>
 
           <!-- ⑤ DECISION_REQUIRED 전용 -->
           <template v-if="section === 'DECISION_REQUIRED'">
-            <div>
-              <div class="field-label">배경</div>
-              <q-input
-                v-model="form.background"
-                outlined autogrow
-                type="textarea"
-                placeholder="결정이 필요한 배경 및 이유를 입력하세요"
-                input-style="min-height: 64px; resize: vertical"
-              />
-            </div>
-            <div>
-              <div class="field-label">선택지</div>
-              <q-input
-                v-model="form.options"
-                outlined autogrow
-                type="textarea"
-                placeholder="① 1안 설명&#10;② 2안 설명"
-                input-style="min-height: 64px; resize: vertical"
-              />
-            </div>
-            <div>
-              <div class="field-label">요청 결정 내용</div>
-              <q-input
-                v-model="form.requested_decision"
-                outlined autogrow
-                type="textarea"
-                placeholder="최종적으로 어떤 결정을 요청하는지 명확하게 작성하세요"
-                input-style="min-height: 60px; resize: vertical"
-              />
-            </div>
+            <MarkdownEditor
+              v-model="form.background"
+              label="배경"
+              placeholder="결정이 필요한 배경 및 이유를 입력하세요"
+              :rows="3"
+            />
+            <MarkdownEditor
+              v-model="form.options"
+              label="선택지"
+              placeholder="① 1안 설명&#10;② 2안 설명"
+              :rows="3"
+            />
+            <MarkdownEditor
+              v-model="form.requested_decision"
+              label="요청 결정 내용"
+              placeholder="최종적으로 어떤 결정을 요청하는지 명확하게 작성하세요"
+              :rows="3"
+            />
             <div>
               <div class="field-label">희망 결정일</div>
               <q-input v-model="form.desired_date" outlined placeholder="YYYY-MM-DD">
@@ -274,6 +322,7 @@ import { Notify } from 'quasar'
 import { addManualItem, updateManualItem, type ManualItem, type ManualItemCreate, type ManualItemSection } from 'src/services/pm/reports'
 import { listPmUsers } from 'src/services/pm/users'
 import { getErrorMessage } from 'src/utils/http/error'
+import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -291,16 +340,25 @@ const SECTION_LABEL: Record<ManualItemSection, string> = {
   MAIN_AGENDA: '주요 안건',
   ISSUE_RISK: '특이사항 및 리스크',
   DECISION_REQUIRED: '결정 필요 사항',
+  NETWORK: '네트워크',
+  ANNOUNCEMENT: '공지사항',
+  ATTENDANCE: '복무 현황',
 }
 const SECTION_ICON: Record<ManualItemSection, string> = {
   MAIN_AGENDA: 'task_alt',
   ISSUE_RISK: 'warning_amber',
   DECISION_REQUIRED: 'gavel',
+  NETWORK: 'hub',
+  ANNOUNCEMENT: 'campaign',
+  ATTENDANCE: 'event_available',
 }
 const SECTION_COLOR: Record<ManualItemSection, string> = {
   MAIN_AGENDA: 'blue',
   ISSUE_RISK: 'orange',
   DECISION_REQUIRED: 'purple',
+  NETWORK: 'cyan',
+  ANNOUNCEMENT: 'teal',
+  ATTENDANCE: 'indigo',
 }
 
 const AGENDA_CATEGORIES = ['운영', '보안', '개발', '인프라', '장애', '대외협력', '기타'].map(v => ({ label: v, value: v }))

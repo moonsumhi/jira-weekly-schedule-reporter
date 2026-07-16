@@ -2197,7 +2197,8 @@ function displayPrice(v: unknown): string {
   if (v === null || v === undefined || v === '') return '-'
   const n = Number(v)
   if (!isNaN(n)) return n.toLocaleString()
-  return String(v as string | number | boolean)
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
+  return String(v)
 }
 
 function formatCell(col: unknown, value: unknown): string {
@@ -2362,7 +2363,7 @@ const filterColOptions = computed(() => [
   { key: '__name__', label: 'HostName' },
   ...COLUMN_DISPLAY_ORDER
     .filter((k) => k !== '__ip__' && k !== '__name__')
-    .map((k) => ({ key: k as string, label: fieldLabel(k as string) })),
+    .map((k) => ({ key: k, label: fieldLabel(k as string) })),
 ])
 
 // 선택된 컬럼의 고유값 목록 (50개 이하일 때만 드롭다운 표시)
@@ -2445,7 +2446,7 @@ const COL_OPTIONS = [
   ...COLUMN_DISPLAY_ORDER.map((k) => {
     if (k === '__ip__') return { key: '__ip__', label: 'IP' }
     if (k === '__name__') return { key: '__name__', label: 'HostName' }
-    return { key: k as string, label: fieldLabel(k) }
+    return { key: k, label: fieldLabel(k) }
   }),
   { key: 'createdAt', label: '작성일' },
 ]
@@ -2587,7 +2588,8 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
           if (val === null || val === undefined || val === '') return '-'
           const n = Number(val)
           if (!isNaN(n)) return n.toLocaleString()
-          return String(val as string | number | boolean)
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
+          return String(val)
         },
       }
     }
@@ -3251,7 +3253,7 @@ const rowEditFields = computed(() => {
   const excluded = new Set(CATEGORY_EXCLUDED_FIELDS[assetType] ?? [])
   const result: { key: string; label: string }[] = []
   for (const key of COLUMN_DISPLAY_ORDER) {
-    if (excluded.has(key as string)) continue
+    if (excluded.has(key)) continue
     if (key === '__ip__') result.push({ key: '__ip__', label: 'IP' })
     else if (key === '__name__') result.push({ key: '__name__', label: 'HostName' })
     else result.push({ key, label: fieldLabel(key) })
@@ -3698,9 +3700,9 @@ const DEFAULT_TEMPLATE_COLS: TemplateCol[] = [
   ...COLUMN_DISPLAY_ORDER
     .filter(k => k !== '__ip__' && k !== '__name__')
     .map(k => {
-      if (k === '운영체제') return { key: k as string, label: '운영체제 / 배포판 / 기종 / DB종류' }
-      if (k === '서버명')   return { key: k as string, label: '서버명 / 자산명' }
-      return { key: k as string, label: fieldLabel(k as string) }
+      if (k === '운영체제') return { key: k, label: '운영체제 / 배포판 / 기종 / DB종류' }
+      if (k === '서버명')   return { key: k, label: '서버명 / 자산명' }
+      return { key: k, label: fieldLabel(k) }
     }),
 ]
 
@@ -3864,7 +3866,7 @@ async function doImportRowRetry(row: ImportFailedRow) {
     const patch: Record<string, unknown> = { fields: nextFields, asset_id: retryAssetId }
     if (row.name && row.name !== existing.name) patch['name'] = row.name
     const retryCat = row.fields['자산유형'] || importOverrideCategory.value || category.value || '서버'
-    const updated_ = await patchServer(String(existing.id), patch as Parameters<typeof patchServer>[1], retryCat)
+    const updated_ = await patchServer(String(existing.id), patch, retryCat)
     rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
   } else {
     const createF = { ...row.fields }
@@ -3965,7 +3967,7 @@ async function forceApplySkip(idx: number) {
     const patch: Record<string, unknown> = { fields: nextFields, asset_id: skipAssetId }
     if (row.name && row.name !== existing.name) patch['name'] = row.name
     const skipCat = ((existing.fields?.['자산유형'] as string) || importOverrideCategory.value || category.value || '서버')
-    const updated_ = await patchServer(String(existing.id), patch as Parameters<typeof patchServer>[1], skipCat)
+    const updated_ = await patchServer(String(existing.id), patch, skipCat)
     rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
     row.retrySuccess = true
   } catch (err: unknown) {
@@ -3986,7 +3988,7 @@ async function forceApplyFailed(idx: number) {
     const patch: Record<string, unknown> = { fields: nextFields, asset_id: failAssetId }
     if (row.name && row.name !== existing.name) patch['name'] = row.name
     const failCat = ((existing.fields?.['자산유형'] as string) || importOverrideCategory.value || category.value || '서버')
-    const updated_ = await patchServer(String(existing.id), patch as Parameters<typeof patchServer>[1], failCat)
+    const updated_ = await patchServer(String(existing.id), patch, failCat)
     rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
     row.retrySuccess = true
   } catch (err: unknown) {
@@ -4194,7 +4196,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
           if (existingByNo2Empty) {
             const nextFields2Empty = { ...(existingByNo2Empty.fields ?? {}), ...fields2Empty }
             try {
-              const updated2Empty = await patchServer(String(existingByNo2Empty.id), { fields: nextFields2Empty, asset_id: importAssetId2Empty ?? existingByNo2Empty.assetId ?? null } as Parameters<typeof patchServer>[1], ((existingByNo2Empty.fields?.['자산유형'] as string) || fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버'))
+              const updated2Empty = await patchServer(String(existingByNo2Empty.id), { fields: nextFields2Empty, asset_id: importAssetId2Empty ?? existingByNo2Empty.assetId ?? null }, ((existingByNo2Empty.fields?.['자산유형'] as string) || fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버'))
               rows.value = rows.value.map(r => r.id === existingByNo2Empty.id ? updated2Empty : r)
               existingByAssetId.set(importAssetId2Empty!, updated2Empty)
               updatedIds.add(String(existingByNo2Empty.id))
@@ -4256,7 +4258,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
                 continue
               }
             }
-            const updated2 = await patchServer(String(existing2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existing2.assetId ?? null } as Parameters<typeof patchServer>[1], rowAssetType2)
+            const updated2 = await patchServer(String(existing2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existing2.assetId ?? null }, rowAssetType2)
             rows.value = rows.value.map(r => r.id === existing2.id ? updated2 : r)
             existingByName.set(nameKey, updated2)
             updatedIds.add(String(existing2.id))
@@ -4266,7 +4268,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
             const existingByNo2 = importAssetId2 ? existingByAssetId.get(importAssetId2) : undefined
             if (existingByNo2) {
               const nextFields2 = { ...(existingByNo2.fields ?? {}), ...fields2 }
-              const updated2 = await patchServer(String(existingByNo2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existingByNo2.assetId ?? null } as Parameters<typeof patchServer>[1], (existingByNo2.fields?.['자산유형'] as string) || rowAssetType2)
+              const updated2 = await patchServer(String(existingByNo2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existingByNo2.assetId ?? null }, (existingByNo2.fields?.['자산유형'] as string) || rowAssetType2)
               rows.value = rows.value.map(r => r.id === existingByNo2.id ? updated2 : r)
               existingByName.set(nameKey, updated2)
               existingByAssetId.set(importAssetId2!, updated2)
@@ -4358,7 +4360,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
           // asset_id로 다른 카테고리의 기존 자산을 찾은 경우, import 행의 (비어있을 수 있는) 자산유형이 아니라
           // 기존 자산의 실제 자산유형을 우선해 그 카테고리로 업데이트한다.
           const patchCategory = (existing.fields?.['자산유형'] as string) || rowAssetType
-          const updated_ = await patchServer(String(existing.id), patch as Parameters<typeof patchServer>[1], patchCategory)
+          const updated_ = await patchServer(String(existing.id), patch, patchCategory)
           rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
           existingByIp.set(rowKey, updated_)
           if (importAssetId) existingByAssetId.set(importAssetId, updated_)

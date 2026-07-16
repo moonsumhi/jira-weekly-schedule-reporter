@@ -51,7 +51,7 @@
         <div v-if="report.adminComment" class="col-12 col-sm-auto">
           <q-card flat bordered class="q-pa-sm bg-grey-1">
             <div class="text-caption text-weight-bold text-grey-7 q-mb-xs">관리자 코멘트</div>
-            <div class="text-body2" style="white-space:pre-wrap">{{ report.adminComment }}</div>
+            <div class="content-text pre-wrap">{{ report.adminComment }}</div>
           </q-card>
         </div>
       </div>
@@ -199,51 +199,89 @@
           항목이 없습니다.
         </div>
 
-        <!-- 항목 목록 -->
-        <div v-for="item in sectionItems(sec.section)" :key="item.id"
-          class="manual-item-row q-px-md q-py-sm"
-          :class="{ 'excluded-item': !item.includeInReport }">
-          <div class="row items-start q-gutter-sm no-wrap">
-            <!-- 포함 여부 아이콘 -->
-            <q-icon :name="item.includeInReport ? 'check_circle' : 'radio_button_unchecked'"
-              :color="item.includeInReport ? 'positive' : 'grey-4'" size="xs" class="q-mt-xs flex-shrink-0"
-              style="cursor:pointer" @click="report.status !== 'CONFIRMED' && toggleInclude(item)" />
+        <!-- 복무 현황: 테이블 뷰 -->
+        <template v-else-if="sec.section === 'ATTENDANCE'">
+          <q-markup-table flat dense separator="cell" class="q-ma-sm">
+            <thead>
+              <tr class="bg-grey-2">
+                <th class="text-left">이름</th>
+                <th class="text-center">발생일수</th>
+                <th class="text-center">총사용일수</th>
+                <th class="text-center">잔여일수</th>
+                <th class="text-left">비고</th>
+                <th v-if="report.status !== 'CONFIRMED'" style="width:64px" />
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in sectionItems('ATTENDANCE')" :key="item.id"
+                :class="{ 'excluded-item': !item.includeInReport }">
+                <td class="text-weight-medium">{{ item.title }}</td>
+                <td class="text-center text-caption">{{ item.category ?? '-' }}</td>
+                <td class="text-center text-caption">{{ item.itemType ?? '-' }}</td>
+                <td class="text-center text-caption">{{ item.actionPlan ?? '-' }}</td>
+                <td class="text-caption text-grey-7">{{ item.content ?? '-' }}</td>
+                <td v-if="report.status !== 'CONFIRMED'" class="text-center">
+                  <q-btn flat dense icon="edit" size="xs" color="grey-6" @click="openEdit(item)" />
+                  <q-btn flat dense icon="delete" size="xs" color="negative" @click="removeItem(item)" />
+                </td>
+              </tr>
+            </tbody>
+          </q-markup-table>
+        </template>
 
-            <div class="col">
-              <!-- 태그 행 -->
-              <div class="row items-center q-gutter-xs q-mb-xs">
-                <q-badge v-if="item.category" color="blue-2" text-color="blue-9" :label="item.category" />
-                <q-badge v-if="item.agendaStatus" :color="agendaStatusColor(item.agendaStatus)" :label="item.agendaStatus" />
-                <q-badge v-if="item.itemType" color="purple-2" text-color="purple-9" :label="item.itemType" />
-                <q-badge v-if="item.impact" :color="impactColor(item.impact)" :label="item.impact" />
-                <span class="text-body2 text-weight-medium">{{ item.title }}</span>
+        <!-- 일반 섹션: 항목 목록 -->
+        <template v-else>
+          <div v-for="item in sectionItems(sec.section)" :key="item.id"
+            class="manual-item-row q-px-md q-py-sm"
+            :class="{ 'excluded-item': !item.includeInReport }">
+            <div class="row items-start q-gutter-sm no-wrap">
+              <!-- 포함 여부 아이콘 -->
+              <q-icon :name="item.includeInReport ? 'check_circle' : 'radio_button_unchecked'"
+                :color="item.includeInReport ? 'positive' : 'grey-4'" size="xs" class="q-mt-xs flex-shrink-0"
+                style="cursor:pointer" @click="report.status !== 'CONFIRMED' && toggleInclude(item)" />
+
+              <div class="col">
+                <!-- 태그 행 -->
+                <div class="row items-center q-gutter-xs q-mb-xs">
+                  <q-badge v-if="item.category" color="blue-2" text-color="blue-9" :label="item.category" />
+                  <q-badge v-if="item.agendaStatus" :color="agendaStatusColor(item.agendaStatus)" :label="item.agendaStatus" />
+                  <q-badge v-if="item.itemType" color="purple-2" text-color="purple-9" :label="item.itemType" />
+                  <q-badge v-if="item.impact" :color="impactColor(item.impact)" :label="item.impact" />
+                  <span class="text-body2 text-weight-medium">{{ item.title }}</span>
+                </div>
+
+                <!-- 상세 내용 -->
+                <template v-if="item.section === 'MAIN_AGENDA'">
+                  <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
+                </template>
+                <template v-if="item.section === 'ISSUE_RISK'">
+                  <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">내용:</span> {{ item.content }}</div>
+                  <div v-if="item.actionPlan" class="text-body2 text-grey-8"><span class="text-caption text-grey-6">대응:</span> {{ item.actionPlan }}</div>
+                </template>
+                <template v-if="item.section === 'DECISION_REQUIRED'">
+                  <div v-if="item.background" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">배경:</span> {{ item.background }}</div>
+                  <div v-if="item.options" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">선택지:</span> {{ item.options }}</div>
+                  <div v-if="item.requestedDecision" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">요청:</span> {{ item.requestedDecision }}</div>
+                  <div v-if="item.desiredDate" class="text-caption text-grey-6">희망 결정일: {{ item.desiredDate.slice(0,10) }}</div>
+                </template>
+                <template v-if="item.section === 'NETWORK'">
+                  <MarkdownContent v-if="item.content" :content="item.content" class="q-mb-xs" />
+                </template>
+                <template v-if="item.section === 'ANNOUNCEMENT'">
+                  <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
+                </template>
+
+                <div v-if="item.owner" class="text-caption text-grey-6 q-mt-xs">담당자: {{ item.owner }}</div>
               </div>
 
-              <!-- 상세 내용 -->
-              <template v-if="item.section === 'MAIN_AGENDA'">
-                <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
-              </template>
-              <template v-if="item.section === 'ISSUE_RISK'">
-                <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">내용:</span> {{ item.content }}</div>
-                <div v-if="item.actionPlan" class="text-body2 text-grey-8"><span class="text-caption text-grey-6">대응:</span> {{ item.actionPlan }}</div>
-              </template>
-              <template v-if="item.section === 'DECISION_REQUIRED'">
-                <div v-if="item.background" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">배경:</span> {{ item.background }}</div>
-                <div v-if="item.options" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">선택지:</span> {{ item.options }}</div>
-                <div v-if="item.requestedDecision" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">요청:</span> {{ item.requestedDecision }}</div>
-                <div v-if="item.desiredDate" class="text-caption text-grey-6">희망 결정일: {{ item.desiredDate.slice(0,10) }}</div>
-              </template>
-
-              <div v-if="item.owner" class="text-caption text-grey-6 q-mt-xs">담당자: {{ item.owner }}</div>
-            </div>
-
-            <!-- 수정/삭제 버튼 -->
-            <div v-if="report.status !== 'CONFIRMED'" class="row q-gutter-xs flex-shrink-0">
-              <q-btn flat dense icon="edit" size="xs" color="grey-6" @click="openEdit(item)" />
-              <q-btn flat dense icon="delete" size="xs" color="negative" @click="removeItem(item)" />
+              <!-- 수정/삭제 버튼 -->
+              <div v-if="report.status !== 'CONFIRMED'" class="row q-gutter-xs flex-shrink-0">
+                <q-btn flat dense icon="edit" size="xs" color="grey-6" @click="openEdit(item)" />
+                <q-btn flat dense icon="delete" size="xs" color="negative" @click="removeItem(item)" />
+              </div>
             </div>
           </div>
-        </div>
+        </template>
       </q-card>
 
     </div>
@@ -275,6 +313,7 @@ import {
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 import WrItemDialog from './components/WrItemDialog.vue'
+import MarkdownContent from 'src/components/MarkdownContent.vue'
 
 
 const route  = useRoute()
@@ -305,9 +344,12 @@ function headerBg(i: number)   { return `bg-${PALETTE[i % PALETTE.length]}-1` }
 function headerText(i: number) { return `text-${PALETTE[i % PALETTE.length]}-9` }
 
 const MANUAL_SECTIONS = [
-  { section: 'MAIN_AGENDA'      as ManualItemSection, label: '주요 안건',           icon: 'task_alt',      color: 'blue'   },
-  { section: 'ISSUE_RISK'       as ManualItemSection, label: '특이사항 및 리스크',   icon: 'warning_amber', color: 'orange' },
-  { section: 'DECISION_REQUIRED'as ManualItemSection, label: '결정 필요 사항',       icon: 'gavel',         color: 'purple' },
+  { section: 'MAIN_AGENDA'      as ManualItemSection, label: '주요 안건',           icon: 'task_alt',       color: 'blue'   },
+  { section: 'ISSUE_RISK'       as ManualItemSection, label: '특이사항 및 리스크',   icon: 'warning_amber',  color: 'orange' },
+  { section: 'DECISION_REQUIRED'as ManualItemSection, label: '결정 필요 사항',       icon: 'gavel',          color: 'purple' },
+  { section: 'NETWORK'          as ManualItemSection, label: '네트워크',             icon: 'hub',             color: 'cyan'   },
+  { section: 'ANNOUNCEMENT'     as ManualItemSection, label: '공지사항',             icon: 'campaign',       color: 'teal'   },
+  { section: 'ATTENDANCE'       as ManualItemSection, label: '복무 현황',            icon: 'event_available',color: 'indigo' },
 ]
 
 const workItemCols = [

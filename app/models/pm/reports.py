@@ -138,6 +138,7 @@ class WorkItem(BaseModel):
     due_date: Optional[datetime] = None
     is_delayed: bool = False
     story_points: Optional[int] = None
+    parent_id: Optional[str] = None
 
 
 class ProjectBreakdown(BaseModel):

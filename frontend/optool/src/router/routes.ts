@@ -249,6 +249,12 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'notifications',
+        name: 'notifications',
+        meta: { requiresAuth: true },
+        component: () => import('pages/notifications/NotificationsPage.vue')
+      },
+      {
         path: 'admin',
         meta: { requiresAuth: true, requiresAdmin: true },
         children: [

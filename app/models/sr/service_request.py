@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.models.mention import MentionedUser
+
 # ── 타입 정의 ─────────────────────────────────────────────────────────
 
 SRStatus = Literal[
@@ -105,9 +107,9 @@ class SRCreate(BaseModel):
     related_menu: Optional[str] = None
     related_url: Optional[str] = None
     background: Optional[str] = None
-    description: str = Field(..., min_length=1)
+    description: Optional[str] = Field(None, min_length=1)
     purpose: Optional[str] = None
-    desired_due_date: Optional[datetime] = None
+    desired_due_date: datetime
     desired_deploy_date: Optional[datetime] = None
     is_urgent: bool = False
     urgent_reason: Optional[str] = None
@@ -187,6 +189,7 @@ class SRComment(BaseModel):
     content: str = Field(default="")
     is_internal: bool = False
     attachments: List[SRAttachment] = []
+    mentioned_user_ids: List[str] = []
 
     @model_validator(mode="after")
     def content_or_attachments_required(self) -> "SRComment":
@@ -211,7 +214,7 @@ class SROut(BaseModel):
     related_menu: Optional[str] = None
     related_url: Optional[str] = None
     background: Optional[str] = None
-    description: str
+    description: Optional[str] = None
     purpose: Optional[str] = None
     desired_due_date: Optional[datetime] = None
     desired_deploy_date: Optional[datetime] = None
@@ -295,6 +298,7 @@ class SRCommentOut(BaseModel):
     content: str
     is_internal: bool
     attachments: List[SRAttachment] = []
+    mentioned_users: List[MentionedUser] = []
     created_at: datetime
     updated_at: datetime
 
@@ -307,6 +311,19 @@ class SRHistoryOut(BaseModel):
     after_value: Optional[str] = None
     changed_by: str
     changed_at: datetime
+
+
+class SRListPage(BaseModel):
+    items: List[SRListItem]
+    total: int
+
+
+class SRInlinePatch(BaseModel):
+    """목록에서 인라인 편집 가능한 필드만."""
+    priority:         Optional[SRPriority] = None
+    desired_due_date: Optional[datetime]   = None
+    assignee_id:      Optional[str]        = None
+    assignee_name:    Optional[str]        = None
 
 
 class SRStats(BaseModel):
