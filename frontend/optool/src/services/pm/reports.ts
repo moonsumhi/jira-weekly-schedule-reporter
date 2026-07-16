@@ -27,6 +27,7 @@ export interface WorkItem {
   dueDate: string | null
   isDelayed: boolean
   storyPoints: number | null
+  parentId: string | null
 }
 
 export interface ProjectBreakdown {
