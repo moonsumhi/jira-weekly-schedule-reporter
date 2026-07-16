@@ -264,6 +264,9 @@
                   <div v-if="item.requestedDecision" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">요청:</span> {{ item.requestedDecision }}</div>
                   <div v-if="item.desiredDate" class="text-caption text-grey-6">희망 결정일: {{ item.desiredDate.slice(0,10) }}</div>
                 </template>
+                <template v-if="item.section === 'NETWORK'">
+                  <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
+                </template>
                 <template v-if="item.section === 'ANNOUNCEMENT'">
                   <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
                 </template>
@@ -343,6 +346,7 @@ const MANUAL_SECTIONS = [
   { section: 'MAIN_AGENDA'      as ManualItemSection, label: '주요 안건',           icon: 'task_alt',       color: 'blue'   },
   { section: 'ISSUE_RISK'       as ManualItemSection, label: '특이사항 및 리스크',   icon: 'warning_amber',  color: 'orange' },
   { section: 'DECISION_REQUIRED'as ManualItemSection, label: '결정 필요 사항',       icon: 'gavel',          color: 'purple' },
+  { section: 'NETWORK'          as ManualItemSection, label: '네트워크',             icon: 'hub',             color: 'cyan'   },
   { section: 'ANNOUNCEMENT'     as ManualItemSection, label: '공지사항',             icon: 'campaign',       color: 'teal'   },
   { section: 'ATTENDANCE'       as ManualItemSection, label: '복무 현황',            icon: 'event_available',color: 'indigo' },
 ]

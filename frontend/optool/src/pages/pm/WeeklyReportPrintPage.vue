@@ -183,8 +183,26 @@
       </div>
     </template>
 
-    <!-- ━━━━ Ⅳ. 공지사항 ━━━━ -->
-    <div class="section-heading">Ⅳ. 공지사항 <span class="cnt">({{ announcementItems.length }}건)</span></div>
+    <!-- ━━━━ Ⅳ. 네트워크 ━━━━ -->
+    <div class="section-heading">Ⅳ. 네트워크 <span class="cnt">({{ networkItems.length }}건)</span></div>
+    <div v-if="!networkItems.length" class="empty-row">해당 없음</div>
+    <table v-else class="doc-table">
+      <colgroup>
+        <col style="width:30px" /><col style="width:100px" /><col /><col style="width:60px" />
+      </colgroup>
+      <thead><tr><th>No</th><th>제목</th><th>내용</th><th>담당자</th></tr></thead>
+      <tbody>
+        <tr v-for="(item, i) in networkItems" :key="item.id">
+          <td class="c">{{ i + 1 }}</td>
+          <td class="cell-title">{{ item.title }}</td>
+          <td style="white-space:pre-wrap">{{ item.content ?? '-' }}</td>
+          <td class="c">{{ item.owner ?? '-' }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ━━━━ Ⅴ. 공지사항 ━━━━ -->
+    <div class="section-heading">Ⅴ. 공지사항 <span class="cnt">({{ announcementItems.length }}건)</span></div>
     <div v-if="!announcementItems.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
@@ -201,8 +219,8 @@
       </tbody>
     </table>
 
-    <!-- ━━━━ Ⅴ. 복무 현황 ━━━━ -->
-    <div class="section-heading">Ⅴ. 복무 현황 <span class="cnt">({{ attendanceItems.length }}건)</span></div>
+    <!-- ━━━━ Ⅵ. 복무 현황 ━━━━ -->
+    <div class="section-heading">Ⅵ. 복무 현황 <span class="cnt">({{ attendanceItems.length }}건)</span></div>
     <div v-if="!attendanceItems.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
@@ -222,7 +240,7 @@
     </table>
 
     <!-- ━━━━ Ⅵ. 금주 완료 업무 ━━━━ -->
-    <div class="section-heading">Ⅵ. 금주 완료 업무 <span class="cnt">({{ completedCount }}건)</span></div>
+    <div class="section-heading">Ⅶ. 금주 완료 업무 <span class="cnt">({{ completedCount }}건)</span></div>
     <div v-if="!completedByPerson.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
@@ -245,7 +263,7 @@
     </table>
 
     <!-- ━━━━ Ⅶ. 진행 중 업무 ━━━━ -->
-    <div class="section-heading">Ⅶ. 진행 중 업무 <span class="cnt">({{ inProgressCount }}건)</span></div>
+    <div class="section-heading">Ⅷ. 진행 중 업무 <span class="cnt">({{ inProgressCount }}건)</span></div>
     <div v-if="!inProgressByPerson.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
@@ -272,7 +290,7 @@
     </table>
 
     <!-- ━━━━ Ⅷ. 차주 계획 ━━━━ -->
-    <div class="section-heading">Ⅷ. 차주 계획 <span class="cnt">({{ upcomingCount }}건)</span></div>
+    <div class="section-heading">Ⅸ. 차주 계획 <span class="cnt">({{ upcomingCount }}건)</span></div>
     <div v-if="!upcomingByPerson.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
@@ -295,7 +313,7 @@
     </table>
 
     <!-- ━━━━ Ⅸ. SR 현황 ━━━━ -->
-    <div class="section-heading">Ⅸ. SR(서비스 요청) 현황</div>
+    <div class="section-heading">Ⅹ. SR(서비스 요청) 현황</div>
     <template v-if="report?.srSummary">
       <!-- 상태별 요약 -->
       <table class="summary-table sr-summary-table">
@@ -441,6 +459,7 @@ function fmt(d: string | null | undefined) { return d ? d.slice(0, 10) : '' }
 const agendaItems        = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'MAIN_AGENDA'       && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
 const riskItems          = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ISSUE_RISK'        && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
 const decisionItems      = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'DECISION_REQUIRED' && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const networkItems       = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'NETWORK'           && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
 const announcementItems  = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ANNOUNCEMENT'      && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
 const attendanceItems    = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ATTENDANCE'        && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
 // ── 담당자별 그룹 (Ⅵ~Ⅷ) ────────────────────────────────────────────
