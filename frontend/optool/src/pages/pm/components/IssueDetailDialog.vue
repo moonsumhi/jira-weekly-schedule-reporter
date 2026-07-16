@@ -1,7 +1,7 @@
 <template>
   <q-dialog :model-value="modelValue" persistent maximized transition-show="slide-up" transition-hide="slide-down"
     @update:model-value="$emit('update:modelValue', $event)">
-    <q-card class="column">
+    <q-card class="column" style="width: 100%; height: 100%">
       <!-- Header -->
       <q-toolbar class="bg-primary text-white">
         <template v-if="issueStack.length > 0">
@@ -19,9 +19,9 @@
         <q-btn flat round dense icon="close" @click="$emit('update:modelValue', false)" />
       </q-toolbar>
 
-      <div class="row no-wrap col" style="overflow: hidden; min-height: 0">
+      <div class="col" style="position: relative; overflow: hidden; min-height: 0">
         <!-- 메인 콘텐츠 -->
-        <div class="col q-pa-md" style="overflow-y: auto; overflow-x: hidden; min-width: 0">
+        <div class="q-pa-md" style="position: absolute; top: 0; left: 0; right: 320px; bottom: 0; overflow-y: auto; overflow-x: hidden">
           <q-tabs v-model="tab" dense align="left" class="q-mb-md">
             <q-tab name="detail" label="상세" />
             <q-tab name="history" label="변경 이력" />
@@ -331,7 +331,7 @@
         </div>
 
         <!-- 사이드바 -->
-        <div class="col-auto q-pa-md bg-grey-1" style="width: 320px; overflow-y: auto; overflow-x: hidden; min-height: 0; border-left: 1px solid #e0e0e0">
+        <div class="q-pa-md bg-grey-1" style="position: absolute; top: 0; right: 0; width: 320px; bottom: 0; overflow-y: auto; overflow-x: hidden; border-left: 1px solid #e0e0e0">
           <div class="column q-gutter-md">
 
             <div>
