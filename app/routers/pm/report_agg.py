@@ -119,6 +119,7 @@ async def aggregate_period(
             due_date=due_date,
             is_delayed=is_delayed,
             story_points=doc.get("story_points"),
+            parent_id=str(doc["parent_issue_id"]) if doc.get("parent_issue_id") else None,
         )
 
     # end_dt 를 해당일 23:59:59 로 확장 (날짜만 받아온 경우 당일 이슈 누락 방지)
@@ -167,6 +168,16 @@ async def aggregate_period(
             item = await doc_to_item(doc)
             if item:
                 upcoming_items.append(item)
+
+    # ── Subtask가 있는 Task 제거 (Gantt/섹션 중복 방지) ─────────────────
+    # SUB_TASK의 parent_id 목록을 수집하여 해당 TASK는 표시에서 제외
+    subtask_parent_ids = {
+        item.parent_id
+        for item in all_items + upcoming_items
+        if item.type == "SUB_TASK" and item.parent_id
+    }
+    all_items      = [i for i in all_items      if not (i.type == "TASK" and i.issue_id in subtask_parent_ids)]
+    upcoming_items = [i for i in upcoming_items if not (i.type == "TASK" and i.issue_id in subtask_parent_ids)]
 
     # ── 프로젝트별 / 개인별 분류 ─────────────────────────────────────
     by_project: dict[str, ProjectBreakdown] = {}
