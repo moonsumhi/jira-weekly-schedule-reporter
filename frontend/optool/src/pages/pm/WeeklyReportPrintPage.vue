@@ -175,8 +175,46 @@
       </div>
     </template>
 
-    <!-- ━━━━ Ⅳ. 금주 완료 업무 ━━━━ -->
-    <div class="section-heading">Ⅳ. 금주 완료 업무 <span class="cnt">({{ completedItems.length }}건)</span></div>
+    <!-- ━━━━ Ⅳ. 공지사항 ━━━━ -->
+    <div class="section-heading">Ⅳ. 공지사항 <span class="cnt">({{ announcementItems.length }}건)</span></div>
+    <div v-if="!announcementItems.length" class="empty-row">해당 없음</div>
+    <table v-else class="doc-table">
+      <colgroup>
+        <col style="width:30px" /><col style="width:100px" /><col /><col style="width:60px" />
+      </colgroup>
+      <thead><tr><th>No</th><th>제목</th><th>내용</th><th>담당자</th></tr></thead>
+      <tbody>
+        <tr v-for="(item, i) in announcementItems" :key="item.id">
+          <td class="c">{{ i + 1 }}</td>
+          <td class="cell-title">{{ item.title }}</td>
+          <td class="cell-sub" style="white-space:pre-wrap">{{ item.content ?? '-' }}</td>
+          <td class="c">{{ item.owner ?? '-' }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ━━━━ Ⅴ. 복무 현황 ━━━━ -->
+    <div class="section-heading">Ⅴ. 복무 현황 <span class="cnt">({{ attendanceItems.length }}건)</span></div>
+    <div v-if="!attendanceItems.length" class="empty-row">해당 없음</div>
+    <table v-else class="doc-table">
+      <colgroup>
+        <col style="width:30px" /><col style="width:72px" /><col style="width:60px" /><col style="width:68px" /><col style="width:60px" /><col />
+      </colgroup>
+      <thead><tr><th>No</th><th>이름</th><th>발생일수</th><th>총사용일수</th><th>잔여일수</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr v-for="(item, i) in attendanceItems" :key="item.id">
+          <td class="c">{{ i + 1 }}</td>
+          <td class="c">{{ item.title }}</td>
+          <td class="c">{{ item.category ?? '-' }}</td>
+          <td class="c">{{ item.itemType ?? '-' }}</td>
+          <td class="c">{{ item.actionPlan ?? '-' }}</td>
+          <td>{{ item.content ?? '-' }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ━━━━ Ⅵ. 금주 완료 업무 ━━━━ -->
+    <div class="section-heading">Ⅵ. 금주 완료 업무 <span class="cnt">({{ completedItems.length }}건)</span></div>
     <div v-if="!completedItems.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
@@ -194,8 +232,8 @@
       </tbody>
     </table>
 
-    <!-- ━━━━ Ⅴ. 진행 중 업무 ━━━━ -->
-    <div class="section-heading">Ⅴ. 진행 중 업무 <span class="cnt">({{ inProgressItems.length }}건)</span></div>
+    <!-- ━━━━ Ⅶ. 진행 중 업무 ━━━━ -->
+    <div class="section-heading">Ⅶ. 진행 중 업무 <span class="cnt">({{ inProgressItems.length }}건)</span></div>
     <div v-if="!inProgressItems.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
@@ -214,8 +252,8 @@
       </tbody>
     </table>
 
-    <!-- ━━━━ Ⅵ. 차주 계획 ━━━━ -->
-    <div class="section-heading">Ⅵ. 차주 계획 <span class="cnt">({{ report.upcomingItems.length }}건)</span></div>
+    <!-- ━━━━ Ⅷ. 차주 계획 ━━━━ -->
+    <div class="section-heading">Ⅷ. 차주 계획 <span class="cnt">({{ report.upcomingItems.length }}건)</span></div>
     <div v-if="!report.upcomingItems.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
@@ -233,8 +271,8 @@
       </tbody>
     </table>
 
-    <!-- ━━━━ Ⅶ. SR 현황 ━━━━ -->
-    <div class="section-heading">Ⅶ. SR(서비스 요청) 현황</div>
+    <!-- ━━━━ Ⅸ. SR 현황 ━━━━ -->
+    <div class="section-heading">Ⅸ. SR(서비스 요청) 현황</div>
     <template v-if="report?.srSummary">
       <!-- 상태별 요약 -->
       <table class="summary-table sr-summary-table">
@@ -370,9 +408,11 @@ const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '
 
 function fmt(d: string | null | undefined) { return d ? d.slice(0, 10) : '' }
 
-const agendaItems   = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'MAIN_AGENDA'       && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
-const riskItems     = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ISSUE_RISK'        && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
-const decisionItems = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'DECISION_REQUIRED' && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const agendaItems        = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'MAIN_AGENDA'       && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const riskItems          = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ISSUE_RISK'        && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const decisionItems      = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'DECISION_REQUIRED' && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const announcementItems  = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ANNOUNCEMENT'      && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
+const attendanceItems    = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ATTENDANCE'        && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
 const completedItems  = computed(() => (report.value?.allItems ?? []).filter(i => i.status === 'DONE'))
 const inProgressItems = computed(() => (report.value?.allItems ?? []).filter(i => ['IN_PROGRESS', 'IN_REVIEW', 'TODO', 'BACKLOG'].includes(i.status)))
 
@@ -852,16 +892,14 @@ onUnmounted(() => {
   margin-left: 8px;
 }
 
-.gantt-task-row { height: 16px; }
+.gantt-task-row { min-height: 16px; }
 .gantt-task-label {
   border: 1px solid #e2e8f0;
   border-right: 2px solid #94a3b8;
   padding: 2px 4px 2px 8px;
   font-size: 6.5pt;
   color: #334155;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: break-word;
   background: #f8fafc;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
