@@ -136,7 +136,11 @@ async def patch_issue(
     if "label_ids" in patch:
         update["label_ids"] = [ObjectId(x) for x in patch.pop("label_ids")]
     update.update(patch)
-    update["updated_at"] = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    update["updated_at"] = now
+    # 상태가 DONE으로 변경될 때만 completed_at 기록; 다른 상태로 변경 시 초기화
+    if "status" in update:
+        update["completed_at"] = now if update["status"] == "DONE" else None
 
     new_doc = await col.find_one_and_update(
         {"_id": ObjectId(issue_id)},
