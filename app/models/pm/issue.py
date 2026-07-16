@@ -94,7 +94,6 @@ class IssueOut(BaseModel):
     order: float
     linked_sr_id: Optional[str] = None
     subtasks: List[SubtaskSummary] = []
-    completed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
