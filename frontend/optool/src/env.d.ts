@@ -9,6 +9,9 @@ declare module '@toast-ui/editor' {
     placeholder?:     string
     toolbarItems?:    Array<string | string[]>
     events?:          Record<string, (...args: unknown[]) => void>
+    hooks?: {
+      addImageBlobHook?: (blob: Blob | File, callback: (url: string, altText?: string) => void) => void
+    }
   }
   class Editor {
     constructor(options: EditorOptions)

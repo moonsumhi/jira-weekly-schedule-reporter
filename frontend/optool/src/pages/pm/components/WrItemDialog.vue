@@ -16,7 +16,7 @@
       <q-separator />
 
       <!-- 폼 바디 (스크롤) -->
-      <q-scroll-area style="height: min(72vh, 620px)">
+      <q-scroll-area style="height: min(85vh, 760px)">
         <div class="q-px-lg q-py-md column q-gutter-y-md">
 
           <!-- ① 제목 -->
@@ -77,30 +77,22 @@
 
           <!-- ⑥ NETWORK 전용 -->
           <template v-if="section === 'NETWORK'">
-            <div>
-              <div class="field-label">내용</div>
-              <q-input
-                v-model="form.content"
-                outlined autogrow
-                type="textarea"
-                placeholder="네트워크 활동 내용을 입력하세요"
-                input-style="min-height: 80px; resize: vertical"
-              />
-            </div>
+            <MarkdownEditor
+              v-model="form.content"
+              label="내용"
+              placeholder="네트워크 활동 내용을 입력하세요"
+              :rows="4"
+            />
           </template>
 
           <!-- ⑦ ANNOUNCEMENT 전용 -->
           <template v-if="section === 'ANNOUNCEMENT'">
-            <div>
-              <div class="field-label">공지 내용</div>
-              <q-input
-                v-model="form.content"
-                outlined autogrow
-                type="textarea"
-                placeholder="공지 내용을 입력하세요"
-                input-style="min-height: 80px; resize: vertical"
-              />
-            </div>
+            <MarkdownEditor
+              v-model="form.content"
+              label="공지 내용"
+              placeholder="공지 내용을 입력하세요"
+              :rows="4"
+            />
           </template>
 
           <!-- ⑦ ATTENDANCE 전용 -->
@@ -196,16 +188,12 @@
                 </q-select>
               </div>
             </div>
-            <div>
-              <div class="field-label">주요 내용</div>
-              <q-input
-                v-model="form.content"
-                outlined autogrow
-                type="textarea"
-                placeholder="안건의 배경, 현황, 핵심 내용을 입력하세요"
-                input-style="min-height: 80px; resize: vertical"
-              />
-            </div>
+            <MarkdownEditor
+              v-model="form.content"
+              label="주요 내용"
+              placeholder="안건의 배경, 현황, 핵심 내용을 입력하세요"
+              :rows="4"
+            />
           </template>
 
           <!-- ④ ISSUE_RISK 전용 -->
@@ -247,60 +235,40 @@
                 </q-select>
               </div>
             </div>
-            <div>
-              <div class="field-label">상세 내용</div>
-              <q-input
-                v-model="form.content"
-                outlined autogrow
-                type="textarea"
-                placeholder="특이사항 또는 리스크의 상세 내용을 입력하세요"
-                input-style="min-height: 72px; resize: vertical"
-              />
-            </div>
-            <div>
-              <div class="field-label">대응 방안</div>
-              <q-input
-                v-model="form.action_plan"
-                outlined autogrow
-                type="textarea"
-                placeholder="조치 계획 또는 대응 방안을 입력하세요"
-                input-style="min-height: 60px; resize: vertical"
-              />
-            </div>
+            <MarkdownEditor
+              v-model="form.content"
+              label="상세 내용"
+              placeholder="특이사항 또는 리스크의 상세 내용을 입력하세요"
+              :rows="3"
+            />
+            <MarkdownEditor
+              v-model="form.action_plan"
+              label="대응 방안"
+              placeholder="조치 계획 또는 대응 방안을 입력하세요"
+              :rows="3"
+            />
           </template>
 
           <!-- ⑤ DECISION_REQUIRED 전용 -->
           <template v-if="section === 'DECISION_REQUIRED'">
-            <div>
-              <div class="field-label">배경</div>
-              <q-input
-                v-model="form.background"
-                outlined autogrow
-                type="textarea"
-                placeholder="결정이 필요한 배경 및 이유를 입력하세요"
-                input-style="min-height: 64px; resize: vertical"
-              />
-            </div>
-            <div>
-              <div class="field-label">선택지</div>
-              <q-input
-                v-model="form.options"
-                outlined autogrow
-                type="textarea"
-                placeholder="① 1안 설명&#10;② 2안 설명"
-                input-style="min-height: 64px; resize: vertical"
-              />
-            </div>
-            <div>
-              <div class="field-label">요청 결정 내용</div>
-              <q-input
-                v-model="form.requested_decision"
-                outlined autogrow
-                type="textarea"
-                placeholder="최종적으로 어떤 결정을 요청하는지 명확하게 작성하세요"
-                input-style="min-height: 60px; resize: vertical"
-              />
-            </div>
+            <MarkdownEditor
+              v-model="form.background"
+              label="배경"
+              placeholder="결정이 필요한 배경 및 이유를 입력하세요"
+              :rows="3"
+            />
+            <MarkdownEditor
+              v-model="form.options"
+              label="선택지"
+              placeholder="① 1안 설명&#10;② 2안 설명"
+              :rows="3"
+            />
+            <MarkdownEditor
+              v-model="form.requested_decision"
+              label="요청 결정 내용"
+              placeholder="최종적으로 어떤 결정을 요청하는지 명확하게 작성하세요"
+              :rows="3"
+            />
             <div>
               <div class="field-label">희망 결정일</div>
               <q-input v-model="form.desired_date" outlined placeholder="YYYY-MM-DD">
@@ -354,6 +322,7 @@ import { Notify } from 'quasar'
 import { addManualItem, updateManualItem, type ManualItem, type ManualItemCreate, type ManualItemSection } from 'src/services/pm/reports'
 import { listPmUsers } from 'src/services/pm/users'
 import { getErrorMessage } from 'src/utils/http/error'
+import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 
 const props = defineProps<{
   modelValue: boolean

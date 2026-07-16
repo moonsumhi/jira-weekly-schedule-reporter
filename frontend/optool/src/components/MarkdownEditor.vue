@@ -12,6 +12,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import Editor from '@toast-ui/editor'
 import '@toast-ui/editor/dist/toastui-editor.css'
+import { api } from 'boot/axios'
 
 const props = defineProps<{
   modelValue:   string | null | undefined
@@ -20,6 +21,7 @@ const props = defineProps<{
   required?:    boolean | undefined
   placeholder?: string | undefined
   hint?:        string | undefined
+  uploadUrl?:   string | undefined
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [v: string] }>()
@@ -44,9 +46,23 @@ onMounted(() => {
       ['heading', 'bold', 'italic', 'strike'],
       ['hr', 'quote'],
       ['ul', 'ol', 'task'],
-      ['link'],
+      ['image', 'link'],
       ['code', 'codeblock'],
     ],
+    hooks: {
+      addImageBlobHook: (blob, callback) => {
+        void (async () => {
+          try {
+            const fd = new FormData()
+            fd.append('file', blob, blob instanceof File ? blob.name : 'image.png')
+            const { data } = await api.post<{ url: string }>(props.uploadUrl ?? '/pm/uploads', fd)
+            callback(data.url, '')
+          } catch {
+            callback('', '업로드 실패')
+          }
+        })()
+      },
+    },
     events: {
       change: () => {
         if (externalSet) return
@@ -76,7 +92,6 @@ watch(() => props.modelValue, async (newVal) => {
 <style scoped>
 .tui-label { font-size: 0.8rem; font-weight: 500; color: #555; }
 
-/* 테두리/라운딩 */
 :deep(.toastui-editor-defaultUI) {
   border-radius: 4px;
   border-color: rgba(0, 0, 0, 0.22);
@@ -89,7 +104,6 @@ watch(() => props.modelValue, async (newVal) => {
 :deep(.toastui-editor-mode-switch) {
   background: #f5f5f5;
 }
-/* 에디터 본문 폰트 크기 */
 :deep(.toastui-editor .ProseMirror) {
   font-size: 0.9rem;
   line-height: 1.7;
