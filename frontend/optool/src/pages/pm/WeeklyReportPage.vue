@@ -10,7 +10,7 @@
       <q-space />
       <HelpButton feature="weekly-report" guide-path="/pm/schedule/guide" />
       <q-btn flat icon="download" label="목록 Excel" color="positive" no-caps @click="downloadList" />
-      <q-btn color="primary" icon="add" label="새 보고서 생성" no-caps @click="openCreate" />
+      <q-btn v-if="authStore.me?.isAdmin" color="primary" icon="add" label="새 보고서 생성" no-caps @click="openCreate" />
     </div>
 
     <!-- 필터 -->
@@ -152,8 +152,10 @@ import {
   type WeeklyReport, type WeeklyReportCreate,
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
+import { useAuthStore } from 'src/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // ── 보고서 상태 ────────────────────────────────────────────────────────
 const REPORT_STATUS_KO: Record<string, string> = { DRAFT: '초안', REVIEWING: '검토중', CONFIRMED: '확정' }
