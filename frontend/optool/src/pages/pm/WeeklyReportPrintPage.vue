@@ -214,60 +214,75 @@
     </table>
 
     <!-- ━━━━ Ⅵ. 금주 완료 업무 ━━━━ -->
-    <div class="section-heading">Ⅵ. 금주 완료 업무 <span class="cnt">({{ completedItems.length }}건)</span></div>
-    <div v-if="!completedItems.length" class="empty-row">해당 없음</div>
+    <div class="section-heading">Ⅵ. 금주 완료 업무 <span class="cnt">({{ completedCount }}건)</span></div>
+    <div v-if="!completedByPerson.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
-        <col style="width:30px" /><col style="width:96px" /><col /><col style="width:60px" /><col style="width:68px" />
+        <col style="width:24px" /><col style="width:96px" /><col /><col style="width:68px" />
       </colgroup>
-      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>담당자</th><th>마감일</th></tr></thead>
+      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>마감일</th></tr></thead>
       <tbody>
-        <tr v-for="(item, i) in completedItems" :key="item.issueId">
-          <td class="c">{{ i + 1 }}</td>
-          <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
-          <td>{{ item.title }}</td>
-          <td class="c">{{ item.assigneeName ?? '-' }}</td>
-          <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
-        </tr>
+        <template v-for="pb in completedByPerson" :key="pb.userId">
+          <tr class="group-header-row">
+            <td colspan="4">{{ pb.userName }}<span class="group-cnt">{{ pb.items.length }}건</span></td>
+          </tr>
+          <tr v-for="(item, i) in pb.items" :key="item.issueId">
+            <td class="c">{{ i + 1 }}</td>
+            <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
+            <td>{{ item.title }}</td>
+            <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
+          </tr>
+        </template>
       </tbody>
     </table>
 
     <!-- ━━━━ Ⅶ. 진행 중 업무 ━━━━ -->
-    <div class="section-heading">Ⅶ. 진행 중 업무 <span class="cnt">({{ inProgressItems.length }}건)</span></div>
-    <div v-if="!inProgressItems.length" class="empty-row">해당 없음</div>
+    <div class="section-heading">Ⅶ. 진행 중 업무 <span class="cnt">({{ inProgressCount }}건)</span></div>
+    <div v-if="!inProgressByPerson.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
-        <col style="width:30px" /><col style="width:96px" /><col /><col style="width:60px" /><col style="width:44px" /><col style="width:68px" />
+        <col style="width:24px" /><col style="width:96px" /><col /><col style="width:44px" /><col style="width:68px" />
       </colgroup>
-      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>담당자</th><th>지연</th><th>마감일</th></tr></thead>
+      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>지연</th><th>마감일</th></tr></thead>
       <tbody>
-        <tr v-for="(item, i) in inProgressItems" :key="item.issueId" :class="{ 'row-delay': item.isDelayed }">
-          <td class="c">{{ i + 1 }}</td>
-          <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
-          <td>{{ item.title }}</td>
-          <td class="c">{{ item.assigneeName ?? '-' }}</td>
-          <td class="c">{{ item.isDelayed ? '지연' : '' }}</td>
-          <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
-        </tr>
+        <template v-for="pb in inProgressByPerson" :key="pb.userId">
+          <tr class="group-header-row">
+            <td colspan="5">
+              {{ pb.userName }}<span class="group-cnt">{{ pb.items.length }}건</span>
+              <span v-if="pb.items.some(i => i.isDelayed)" class="group-delay-cnt">지연 {{ pb.items.filter(i => i.isDelayed).length }}건</span>
+            </td>
+          </tr>
+          <tr v-for="(item, i) in pb.items" :key="item.issueId" :class="{ 'row-delay': item.isDelayed }">
+            <td class="c">{{ i + 1 }}</td>
+            <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
+            <td>{{ item.title }}</td>
+            <td class="c">{{ item.isDelayed ? '⚠ 지연' : '' }}</td>
+            <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
+          </tr>
+        </template>
       </tbody>
     </table>
 
     <!-- ━━━━ Ⅷ. 차주 계획 ━━━━ -->
-    <div class="section-heading">Ⅷ. 차주 계획 <span class="cnt">({{ report.upcomingItems.length }}건)</span></div>
-    <div v-if="!report.upcomingItems.length" class="empty-row">해당 없음</div>
+    <div class="section-heading">Ⅷ. 차주 계획 <span class="cnt">({{ upcomingCount }}건)</span></div>
+    <div v-if="!upcomingByPerson.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
-        <col style="width:30px" /><col style="width:96px" /><col /><col style="width:60px" /><col style="width:68px" />
+        <col style="width:24px" /><col style="width:96px" /><col /><col style="width:68px" />
       </colgroup>
-      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>담당자</th><th>마감일</th></tr></thead>
+      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>마감일</th></tr></thead>
       <tbody>
-        <tr v-for="(item, i) in report.upcomingItems" :key="item.issueId">
-          <td class="c">{{ i + 1 }}</td>
-          <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
-          <td>{{ item.title }}</td>
-          <td class="c">{{ item.assigneeName ?? '-' }}</td>
-          <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
-        </tr>
+        <template v-for="pb in upcomingByPerson" :key="pb.userId">
+          <tr class="group-header-row">
+            <td colspan="4">{{ pb.userName }}<span class="group-cnt">{{ pb.items.length }}건</span></td>
+          </tr>
+          <tr v-for="(item, i) in pb.items" :key="item.issueId">
+            <td class="c">{{ i + 1 }}</td>
+            <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
+            <td>{{ item.title }}</td>
+            <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
+          </tr>
+        </template>
       </tbody>
     </table>
 
@@ -337,20 +352,27 @@
         </tbody>
       </table>
 
-      <!-- 처리 중 전체 -->
-      <div class="sr-sub-heading">▸ 처리 중 전체 ({{ report.srSummary.totalOpen }}건)</div>
+      <!-- 처리 중 전체 — 담당자별 요약 매트릭스 -->
+      <div class="sr-sub-heading">▸ 처리 중 전체 ({{ report.srSummary.totalOpen }}건) — 담당자 × 상태 요약</div>
       <div v-if="!report.srSummary.openItems.length" class="empty-row">해당 없음</div>
-      <table v-else class="doc-table">
-        <colgroup><col style="width:30px"/><col style="width:80px"/><col/><col style="width:72px"/><col style="width:72px"/><col style="width:60px"/></colgroup>
-        <thead><tr><th>No</th><th>SR 번호</th><th>제목</th><th>상태</th><th>요청자</th><th>담당자</th></tr></thead>
+      <table v-else class="doc-table sr-matrix-table">
+        <colgroup>
+          <col style="width:90px" />
+          <col v-for="s in srOpenMatrix.statuses" :key="s" />
+          <col style="width:48px" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>담당자</th>
+            <th v-for="s in srOpenMatrix.statuses" :key="s">{{ s }}</th>
+            <th>합계</th>
+          </tr>
+        </thead>
         <tbody>
-          <tr v-for="(sr, i) in report.srSummary.openItems" :key="sr.srNo">
-            <td class="c">{{ i + 1 }}</td>
-            <td class="c issue-key">{{ sr.srNo }}</td>
-            <td>{{ sr.title }}<span v-if="sr.isUrgent" class="badge badge-red" style="margin-left:4px">긴급</span></td>
-            <td class="c">{{ sr.statusLabel }}</td>
-            <td class="c">{{ sr.requesterName }}</td>
-            <td class="c">{{ sr.assigneeName ?? '-' }}</td>
+          <tr v-for="row in srOpenMatrix.rows" :key="row.name">
+            <td class="sr-matrix-name">{{ row.name }}</td>
+            <td v-for="s in srOpenMatrix.statuses" :key="s" class="c">{{ row.counts[s] ?? 0 }}</td>
+            <td class="c sr-matrix-total">{{ row.total }}</td>
           </tr>
         </tbody>
       </table>
@@ -413,8 +435,39 @@ const riskItems          = computed(() => (report.value?.manualItems ?? []).filt
 const decisionItems      = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'DECISION_REQUIRED' && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
 const announcementItems  = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ANNOUNCEMENT'      && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
 const attendanceItems    = computed(() => (report.value?.manualItems ?? []).filter(i => i.section === 'ATTENDANCE'        && i.includeInReport).sort((a, b) => a.sortOrder - b.sortOrder))
-const completedItems  = computed(() => (report.value?.allItems ?? []).filter(i => i.status === 'DONE'))
-const inProgressItems = computed(() => (report.value?.allItems ?? []).filter(i => ['IN_PROGRESS', 'IN_REVIEW', 'TODO', 'BACKLOG'].includes(i.status)))
+// ── 담당자별 그룹 (Ⅵ~Ⅷ) ────────────────────────────────────────────
+function byPersonGroups(key: 'completed' | 'inProgress' | 'upcoming') {
+  return (report.value?.byPerson ?? [])
+    .map(p => ({ userId: p.userId, userName: p.userName, items: p[key] }))
+    .filter(p => p.items.length)
+    .sort((a, b) => a.userName === '미지정' ? 1 : b.userName === '미지정' ? -1 : 0)
+}
+const completedByPerson  = computed(() => byPersonGroups('completed'))
+const inProgressByPerson = computed(() => byPersonGroups('inProgress'))
+const upcomingByPerson   = computed(() => byPersonGroups('upcoming'))
+const completedCount     = computed(() => completedByPerson.value.reduce((s, p) => s + p.items.length, 0))
+const inProgressCount    = computed(() => inProgressByPerson.value.reduce((s, p) => s + p.items.length, 0))
+const upcomingCount      = computed(() => upcomingByPerson.value.reduce((s, p) => s + p.items.length, 0))
+
+// ── SR 처리중 매트릭스 ────────────────────────────────────────────────
+const srOpenMatrix = computed(() => {
+  const items = report.value?.srSummary?.openItems ?? []
+  if (!items.length) return { statuses: [] as string[], rows: [] as { name: string; counts: Record<string, number>; total: number }[] }
+  const statusSet = new Set<string>()
+  items.forEach(i => statusSet.add(i.statusLabel))
+  const statuses = [...statusSet]
+  const map = new Map<string, Record<string, number>>()
+  items.forEach(i => {
+    const name = i.assigneeName ?? '미지정'
+    if (!map.has(name)) map.set(name, {})
+    const row = map.get(name)!
+    row[i.statusLabel] = (row[i.statusLabel] ?? 0) + 1
+  })
+  const rows = [...map.entries()]
+    .map(([name, counts]) => ({ name, counts, total: Object.values(counts).reduce((a, b) => a + b, 0) }))
+    .sort((a, b) => a.name === '미지정' ? 1 : b.name === '미지정' ? -1 : b.total - a.total)
+  return { statuses, rows }
+})
 
 // ── 개인별 업무 일정 (Gantt) ─────────────────────────────────────────
 const ganttDays = computed(() => {
@@ -717,6 +770,30 @@ onUnmounted(() => {
 .doc-table tr:nth-child(even) td { background: #f8fafc; }
 .doc-table .c { text-align: center; }
 .row-delay td { background: #fef2f2 !important; }
+
+.group-header-row td {
+  background: #e2e8f0 !important;
+  font-weight: 700;
+  font-size: 9pt;
+  color: #1e293b;
+  padding: 5px 8px;
+  page-break-after: avoid;
+}
+.group-cnt {
+  font-weight: 400;
+  font-size: 8pt;
+  color: #64748b;
+  margin-left: 8px;
+}
+.group-delay-cnt {
+  font-size: 8pt;
+  font-weight: 600;
+  color: #b91c1c;
+  margin-left: 8px;
+}
+.sr-matrix-table { margin-bottom: 8px; }
+.sr-matrix-name  { font-weight: 600; }
+.sr-matrix-total { font-weight: 700; color: #1e293b; background: #f1f5f9 !important; }
 
 .cell-title { font-weight: 600; }
 .cell-sub   { color: #475569; font-size: 8pt; margin-top: 2px; white-space: pre-wrap; }
