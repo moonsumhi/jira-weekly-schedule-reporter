@@ -188,7 +188,14 @@ const columns = [
 
 // ── 주차 → 날짜 범위 계산 (ISO 8601) ─────────────────────────────────
 function weekToDateRange(year: number, week: number): { start: string; end: string } {
-  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+  // toISOString()은 UTC 변환 후 슬라이스하므로 KST(+9)에서 날짜가 하루 밀릴 수 있음.
+  // 로컬 날짜 컴포넌트를 직접 포맷하여 시간대 오프셋 영향을 차단.
+  const fmt = (d: Date) => {
+    const yyyy = d.getFullYear()
+    const mm   = String(d.getMonth() + 1).padStart(2, '0')
+    const dd   = String(d.getDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+  }
   const jan4 = new Date(year, 0, 4)
   const dayOfWeek = jan4.getDay() || 7
   const week1Mon = new Date(jan4)

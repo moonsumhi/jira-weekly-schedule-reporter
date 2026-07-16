@@ -21,7 +21,7 @@
 
       <div class="row no-wrap col" style="overflow: hidden; min-height: 0">
         <!-- 메인 콘텐츠 -->
-        <div class="col q-pa-md" style="overflow-y: auto">
+        <div class="col q-pa-md" style="overflow-y: auto; min-width: 0">
           <q-tabs v-model="tab" dense align="left" class="q-mb-md">
             <q-tab name="detail" label="상세" />
             <q-tab name="history" label="변경 이력" />
