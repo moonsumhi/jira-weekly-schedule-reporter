@@ -454,8 +454,17 @@ const ganttPersons = computed(() => {
       delayCount: p.delayed.length,
       items: (() => {
         const seen = new Set<string>()
+        const fallback = report.value!.startDate.slice(0, 10)
         return [...p.delayed, ...p.inProgress, ...p.completed, ...p.upcoming]
           .filter(item => { if (seen.has(item.issueId)) return false; seen.add(item.issueId); return true })
+          .sort((a, b) => {
+            const aStart = (a.startDate ?? fallback).slice(0, 10)
+            const bStart = (b.startDate ?? fallback).slice(0, 10)
+            if (aStart !== bStart) return aStart < bStart ? -1 : 1
+            const aEnd = (a.dueDate ?? a.startDate ?? fallback).slice(0, 10)
+            const bEnd = (b.dueDate ?? b.startDate ?? fallback).slice(0, 10)
+            return aEnd < bEnd ? -1 : aEnd > bEnd ? 1 : 0
+          })
       })(),
     }))
     .sort((a, b) => {

@@ -221,6 +221,18 @@ async def aggregate_period(
                 uname = m.get("user_name") or m.get("user_email") or uid
                 by_person[uid] = PersonBreakdown(user_id=uid, user_name=uname)
 
+    # ── 개인별 sub-list 정렬 (시작일 ASC → 마감일 ASC) ──────────────────
+    def _item_sort_key(item: WorkItem):
+        s = item.start_date.strftime('%Y-%m-%d') if item.start_date else '9999-12-31'
+        d = item.due_date.strftime('%Y-%m-%d')   if item.due_date   else '9999-12-31'
+        return (s, d)
+
+    for pb in by_person.values():
+        pb.completed.sort(key=_item_sort_key)
+        pb.in_progress.sort(key=_item_sort_key)
+        pb.delayed.sort(key=_item_sort_key)
+        pb.upcoming.sort(key=_item_sort_key)
+
     # ── 통계 계산 ─────────────────────────────────────────────────────
     for pb in by_project.values():
         pb.stats = _calc_stats(pb.completed, pb.in_progress, pb.delayed)
