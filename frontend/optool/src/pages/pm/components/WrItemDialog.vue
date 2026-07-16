@@ -29,7 +29,7 @@
               v-model="form.title"
               outlined
               autofocus
-              :placeholder="section === 'ATTENDANCE' ? '성명을 입력하세요' : section === 'ANNOUNCEMENT' ? '공지 제목을 입력하세요' : '안건 제목을 간결하게 입력하세요'"
+              :placeholder="section === 'ATTENDANCE' ? '성명을 입력하세요' : section === 'ANNOUNCEMENT' ? '공지 제목을 입력하세요' : section === 'NETWORK' ? '네트워크 제목을 입력하세요' : '안건 제목을 간결하게 입력하세요'"
               :rules="[v => !!v.trim() || '필수 항목입니다.']"
               hide-bottom-space
             />
@@ -75,7 +75,21 @@
 
           <q-separator v-if="section !== 'ATTENDANCE'" spaced="md" />
 
-          <!-- ⑥ ANNOUNCEMENT 전용 -->
+          <!-- ⑥ NETWORK 전용 -->
+          <template v-if="section === 'NETWORK'">
+            <div>
+              <div class="field-label">내용</div>
+              <q-input
+                v-model="form.content"
+                outlined autogrow
+                type="textarea"
+                placeholder="네트워크 활동 내용을 입력하세요"
+                input-style="min-height: 80px; resize: vertical"
+              />
+            </div>
+          </template>
+
+          <!-- ⑦ ANNOUNCEMENT 전용 -->
           <template v-if="section === 'ANNOUNCEMENT'">
             <div>
               <div class="field-label">공지 내용</div>
@@ -357,6 +371,7 @@ const SECTION_LABEL: Record<ManualItemSection, string> = {
   MAIN_AGENDA: '주요 안건',
   ISSUE_RISK: '특이사항 및 리스크',
   DECISION_REQUIRED: '결정 필요 사항',
+  NETWORK: '네트워크',
   ANNOUNCEMENT: '공지사항',
   ATTENDANCE: '복무 현황',
 }
@@ -364,6 +379,7 @@ const SECTION_ICON: Record<ManualItemSection, string> = {
   MAIN_AGENDA: 'task_alt',
   ISSUE_RISK: 'warning_amber',
   DECISION_REQUIRED: 'gavel',
+  NETWORK: 'hub',
   ANNOUNCEMENT: 'campaign',
   ATTENDANCE: 'event_available',
 }
@@ -371,6 +387,7 @@ const SECTION_COLOR: Record<ManualItemSection, string> = {
   MAIN_AGENDA: 'blue',
   ISSUE_RISK: 'orange',
   DECISION_REQUIRED: 'purple',
+  NETWORK: 'cyan',
   ANNOUNCEMENT: 'teal',
   ATTENDANCE: 'indigo',
 }

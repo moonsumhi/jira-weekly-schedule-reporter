@@ -53,7 +53,7 @@ export interface PersonBreakdown {
 
 // ── 수기 항목 ────────────────────────────────────────────────────────
 export type ReportStatus = 'DRAFT' | 'REVIEWING' | 'CONFIRMED'
-export type ManualItemSection = 'MAIN_AGENDA' | 'ISSUE_RISK' | 'DECISION_REQUIRED' | 'ANNOUNCEMENT' | 'ATTENDANCE'
+export type ManualItemSection = 'MAIN_AGENDA' | 'ISSUE_RISK' | 'DECISION_REQUIRED' | 'NETWORK' | 'ANNOUNCEMENT' | 'ATTENDANCE'
 
 export interface ManualItem {
   id: string
