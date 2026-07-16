@@ -88,11 +88,19 @@
               <span class="gantt-person-stats">완료 {{ pb.doneCount }} · 진행 {{ pb.progCount }} · 지연 {{ pb.delayCount }}</span>
             </td>
           </tr>
-          <tr v-for="item in pb.items" :key="item.issueId" class="gantt-task-row">
-            <td class="gantt-task-label" :title="item.title">{{ item.title }}</td>
-            <td v-for="d in ganttDays" :key="d.iso"
-              :class="['gantt-day-cell', ganttCellClass(item, d.iso)]"></td>
-          </tr>
+          <template v-for="proj in pb.projects" :key="proj.projectId">
+            <tr class="gantt-proj-row">
+              <td :colspan="ganttDays.length + 1">
+                ▸ {{ proj.projectName }}
+                <span class="gantt-proj-stats">완료 {{ proj.doneCount }} · 진행 {{ proj.progCount }}<template v-if="proj.delayCount"> · <span class="gantt-proj-delay">지연 {{ proj.delayCount }}</span></template></span>
+              </td>
+            </tr>
+            <tr v-for="item in proj.items" :key="item.issueId" class="gantt-task-row">
+              <td class="gantt-task-label" :title="item.title">{{ item.title }}</td>
+              <td v-for="d in ganttDays" :key="d.iso"
+                :class="['gantt-day-cell', ganttCellClass(item, d.iso)]"></td>
+            </tr>
+          </template>
         </template>
         <tr v-if="!ganttPersons.length">
           <td :colspan="ganttDays.length + 1" class="gantt-empty">집계된 업무가 없습니다.</td>
@@ -499,27 +507,43 @@ const ganttPersons = computed(() => {
   if (!report.value) return []
   return report.value.byPerson
     .filter(p => p.completed.length || p.inProgress.length || p.delayed.length || p.upcoming.length)
-    .map(p => ({
-      userId:     p.userId,
-      userName:   p.userName,
-      doneCount:  p.completed.length,
-      progCount:  p.inProgress.length,
-      delayCount: p.delayed.length,
-      items: (() => {
-        const seen = new Set<string>()
-        const fallback = report.value!.startDate.slice(0, 10)
-        return [...p.delayed, ...p.inProgress, ...p.completed, ...p.upcoming]
-          .filter(item => { if (seen.has(item.issueId)) return false; seen.add(item.issueId); return true })
-          .sort((a, b) => {
-            const aStart = (a.startDate ?? fallback).slice(0, 10)
-            const bStart = (b.startDate ?? fallback).slice(0, 10)
-            if (aStart !== bStart) return aStart < bStart ? -1 : 1
-            const aEnd = (a.dueDate ?? a.startDate ?? fallback).slice(0, 10)
-            const bEnd = (b.dueDate ?? b.startDate ?? fallback).slice(0, 10)
-            return aEnd < bEnd ? -1 : aEnd > bEnd ? 1 : 0
-          })
-      })(),
-    }))
+    .map(p => {
+      const seen = new Set<string>()
+      const fallback = report.value!.startDate.slice(0, 10)
+      const allItems = [...p.delayed, ...p.inProgress, ...p.completed, ...p.upcoming]
+        .filter(item => { if (seen.has(item.issueId)) return false; seen.add(item.issueId); return true })
+        .sort((a, b) => {
+          const aStart = (a.startDate ?? fallback).slice(0, 10)
+          const bStart = (b.startDate ?? fallback).slice(0, 10)
+          if (aStart !== bStart) return aStart < bStart ? -1 : 1
+          const aEnd = (a.dueDate ?? a.startDate ?? fallback).slice(0, 10)
+          const bEnd = (b.dueDate ?? b.startDate ?? fallback).slice(0, 10)
+          return aEnd < bEnd ? -1 : aEnd > bEnd ? 1 : 0
+        })
+
+      // 프로젝트별 그룹 (정렬 순서 유지)
+      const projMap = new Map<string, { projectId: string; projectName: string; items: WorkItem[] }>()
+      allItems.forEach(item => {
+        if (!projMap.has(item.projectId))
+          projMap.set(item.projectId, { projectId: item.projectId, projectName: item.projectName, items: [] })
+        projMap.get(item.projectId)!.items.push(item)
+      })
+      const projects = [...projMap.values()].map(proj => ({
+        ...proj,
+        doneCount:  proj.items.filter(i => i.status === 'DONE').length,
+        progCount:  proj.items.filter(i => i.status !== 'DONE').length,
+        delayCount: proj.items.filter(i => i.isDelayed).length,
+      }))
+
+      return {
+        userId:     p.userId,
+        userName:   p.userName,
+        doneCount:  p.completed.length,
+        progCount:  p.inProgress.length,
+        delayCount: p.delayed.length,
+        projects,
+      }
+    })
     .sort((a, b) => {
       if (a.userName === '미지정') return 1
       if (b.userName === '미지정') return -1
@@ -976,6 +1000,26 @@ onUnmounted(() => {
   font-size: 6.5pt;
   color: #64748b;
   margin-left: 8px;
+}
+.gantt-proj-row td {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 2px 6px 2px 16px;
+  font-weight: 600;
+  font-size: 7pt;
+  color: #334155;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.gantt-proj-stats {
+  font-weight: 400;
+  font-size: 6pt;
+  color: #64748b;
+  margin-left: 6px;
+}
+.gantt-proj-delay {
+  color: #b91c1c;
+  font-weight: 600;
 }
 
 .gantt-task-row { min-height: 16px; }
