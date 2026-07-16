@@ -129,8 +129,9 @@ async def aggregate_period(
 
     # ── 현재 기간 이슈 쿼리 ──────────────────────────────────────────
     # start_date/due_date 가 기간 내이거나, 진행 중이거나, 기간 내 완료된 것
+    # 업무현황과 동일한 기준: TASK/SUB_TASK 타입만 집계
     query = {
-        "type": {"$ne": "EPIC"},  # EPIC 제외, TASK/BUG/STORY/SUB_TASK 모두 포함
+        "type": {"$in": ["TASK", "SUB_TASK"]},
         "$or": [
             {"start_date": {"$gte": start_dt, "$lte": end_dt}},
             {"due_date":   {"$gte": start_dt, "$lte": end_dt}},

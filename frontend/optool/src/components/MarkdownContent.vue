@@ -4,11 +4,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { marked } from 'marked'
+import { marked, Renderer } from 'marked'
 
 const props = defineProps<{ content: string }>()
 
-const renderer = new marked.Renderer()
+const renderer = new Renderer()
 
 const rendered = computed(() => {
   if (!props.content?.trim()) return ''

@@ -21,19 +21,22 @@
 
           <!-- ① 제목 -->
           <div>
-            <div class="field-label">제목 <span class="text-negative">*</span></div>
+            <div class="field-label">
+              {{ section === 'ATTENDANCE' ? '성명' : '제목' }}
+              <span class="text-negative">*</span>
+            </div>
             <q-input
               v-model="form.title"
               outlined
               autofocus
-              placeholder="안건 제목을 간결하게 입력하세요"
-              :rules="[v => !!v.trim() || '제목을 입력해주세요.']"
+              :placeholder="section === 'ATTENDANCE' ? '성명을 입력하세요' : section === 'ANNOUNCEMENT' ? '공지 제목을 입력하세요' : '안건 제목을 간결하게 입력하세요'"
+              :rules="[v => !!v.trim() || '필수 항목입니다.']"
               hide-bottom-space
             />
           </div>
 
-          <!-- ② 담당자 -->
-          <div>
+          <!-- ② 담당자 (ATTENDANCE 에서는 숨김) -->
+          <div v-if="section !== 'ATTENDANCE'">
             <div class="field-label">담당자</div>
             <q-select
               v-model="form.owner"
@@ -70,7 +73,70 @@
             </q-select>
           </div>
 
-          <q-separator spaced="md" />
+          <q-separator v-if="section !== 'ATTENDANCE'" spaced="md" />
+
+          <!-- ⑥ ANNOUNCEMENT 전용 -->
+          <template v-if="section === 'ANNOUNCEMENT'">
+            <div>
+              <div class="field-label">공지 내용</div>
+              <q-input
+                v-model="form.content"
+                outlined autogrow
+                type="textarea"
+                placeholder="공지 내용을 입력하세요"
+                input-style="min-height: 80px; resize: vertical"
+              />
+            </div>
+          </template>
+
+          <!-- ⑦ ATTENDANCE 전용 -->
+          <template v-if="section === 'ATTENDANCE'">
+            <div class="row q-col-gutter-md">
+              <div class="col-4">
+                <div class="field-label">발생일수</div>
+                <q-input
+                  v-model="form.category"
+                  outlined
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  suffix="일"
+                />
+              </div>
+              <div class="col-4">
+                <div class="field-label">총사용일수</div>
+                <q-input
+                  v-model="form.item_type"
+                  outlined
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  suffix="일"
+                />
+              </div>
+              <div class="col-4">
+                <div class="field-label">잔여일수</div>
+                <q-input
+                  v-model="form.action_plan"
+                  outlined
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  suffix="일"
+                />
+              </div>
+            </div>
+            <div>
+              <div class="field-label">비고</div>
+              <q-input
+                v-model="form.content"
+                outlined autogrow
+                type="textarea"
+                placeholder="추가 내용 (선택)"
+                input-style="min-height: 52px; resize: vertical"
+              />
+            </div>
+          </template>
 
           <!-- ③ MAIN_AGENDA 전용 -->
           <template v-if="section === 'MAIN_AGENDA'">
@@ -291,16 +357,22 @@ const SECTION_LABEL: Record<ManualItemSection, string> = {
   MAIN_AGENDA: '주요 안건',
   ISSUE_RISK: '특이사항 및 리스크',
   DECISION_REQUIRED: '결정 필요 사항',
+  ANNOUNCEMENT: '공지사항',
+  ATTENDANCE: '복무 현황',
 }
 const SECTION_ICON: Record<ManualItemSection, string> = {
   MAIN_AGENDA: 'task_alt',
   ISSUE_RISK: 'warning_amber',
   DECISION_REQUIRED: 'gavel',
+  ANNOUNCEMENT: 'campaign',
+  ATTENDANCE: 'event_available',
 }
 const SECTION_COLOR: Record<ManualItemSection, string> = {
   MAIN_AGENDA: 'blue',
   ISSUE_RISK: 'orange',
   DECISION_REQUIRED: 'purple',
+  ANNOUNCEMENT: 'teal',
+  ATTENDANCE: 'indigo',
 }
 
 const AGENDA_CATEGORIES = ['운영', '보안', '개발', '인프라', '장애', '대외협력', '기타'].map(v => ({ label: v, value: v }))
