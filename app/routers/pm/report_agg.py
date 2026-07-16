@@ -131,17 +131,23 @@ async def aggregate_period(
     # ── 현재 기간 이슈 쿼리 ──────────────────────────────────────────
     # start_date/due_date 가 기간 내이거나, 진행 중이거나, 기간 내 완료된 것
     # 업무현황과 동일한 기준: TASK/SUB_TASK 타입만 집계
-    # DONE 이슈는 updated_at(완료 시점) 기준으로만 포함한다.
-    # start_date/due_date 조건에서 DONE을 제외하지 않으면, 이번 주 due_date를 가졌지만
-    # 지난 주에 완료된 이슈가 Gantt/완료목록에 섞여 들어오는 문제가 발생한다.
+    # DONE 이슈는 completed_at(완료 시점) 기준으로만 포함한다.
+    # updated_at은 완료 후 수정 시에도 갱신되므로 완료 시점 지표로 부적합.
+    # completed_at이 없는 레거시 이슈는 due_date를 폴백으로 사용한다.
     _not_done = {"$nin": ["DONE"]}
+    _in_range = {"$gte": start_dt, "$lte": end_dt}
     query = {
         "type": {"$in": ["TASK", "SUB_TASK"]},
         "$or": [
-            {"status": _not_done, "start_date": {"$gte": start_dt, "$lte": end_dt}},
-            {"status": _not_done, "due_date":   {"$gte": start_dt, "$lte": end_dt}},
-            {"status": {"$in": ["IN_PROGRESS", "IN_REVIEW"]}},  # 날짜 미설정 진행 중 이슈도 포함
-            {"status": "DONE", "updated_at": {"$gte": start_dt, "$lte": end_dt}},
+            # 진행 중 이슈: start_date/due_date가 기간 내 (DONE 제외)
+            {"status": _not_done, "start_date": _in_range},
+            {"status": _not_done, "due_date":   _in_range},
+            # 날짜 미설정 진행 중 이슈도 포함
+            {"status": {"$in": ["IN_PROGRESS", "IN_REVIEW"]}},
+            # 기간 내 완료된 이슈: completed_at 기준
+            {"status": "DONE", "completed_at": _in_range},
+            # 레거시 (completed_at 없음): due_date 기준 폴백
+            {"status": "DONE", "completed_at": {"$exists": False}, "due_date": _in_range},
         ],
     }
     docs = await issues_col.find(query).sort("number", 1).to_list(None)
