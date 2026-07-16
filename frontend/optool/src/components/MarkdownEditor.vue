@@ -32,6 +32,32 @@ let externalSet  = false
 
 const editorMinHeight = `${Math.max((props.rows ?? 4) * 36, 160)}px`
 
+async function uploadImageBlob(blob: Blob | File): Promise<string | null> {
+  try {
+    const fd = new FormData()
+    fd.append('file', blob, blob instanceof File ? blob.name : 'image.png')
+    const { data } = await api.post<{ url: string }>(props.uploadUrl ?? '/pm/uploads', fd)
+    return data.url
+  } catch {
+    return null
+  }
+}
+
+function handlePaste(e: Event) {
+  const ce = e as ClipboardEvent
+  const items = ce.clipboardData?.items
+  if (!items) return
+  const imageItem = Array.from(items).find(item => item.type.startsWith('image/'))
+  if (!imageItem) return
+  ce.preventDefault()
+  ce.stopPropagation()
+  const blob = imageItem.getAsFile()
+  if (!blob || !editor) return
+  void uploadImageBlob(blob).then(url => {
+    if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
+  })
+}
+
 onMounted(() => {
   if (!editorEl.value) return
   editor = new Editor({
@@ -51,16 +77,9 @@ onMounted(() => {
     ],
     hooks: {
       addImageBlobHook: (blob, callback) => {
-        void (async () => {
-          try {
-            const fd = new FormData()
-            fd.append('file', blob, blob instanceof File ? blob.name : 'image.png')
-            const { data } = await api.post<{ url: string }>(props.uploadUrl ?? '/pm/uploads', fd)
-            callback(data.url, '')
-          } catch {
-            callback('', '업로드 실패')
-          }
-        })()
+        void uploadImageBlob(blob).then(url => {
+          callback(url ?? '', url ? '' : '업로드 실패')
+        })
       },
     },
     events: {
@@ -70,9 +89,12 @@ onMounted(() => {
       },
     },
   })
+  // capture phase so we intercept before ProseMirror embeds image as base64
+  editorEl.value.addEventListener('paste', handlePaste, true)
 })
 
 onBeforeUnmount(() => {
+  editorEl.value?.removeEventListener('paste', handlePaste, true)
   editor?.destroy()
   editor = null
 })

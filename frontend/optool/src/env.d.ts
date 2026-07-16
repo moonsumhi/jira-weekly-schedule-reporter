@@ -18,6 +18,7 @@ declare module '@toast-ui/editor' {
     destroy(): void
     getMarkdown(): string
     setMarkdown(markdown: string): void
+    exec(command: string, payload?: Record<string, string>): void
   }
   export default Editor
 }
