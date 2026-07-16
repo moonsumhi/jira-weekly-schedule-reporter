@@ -195,7 +195,7 @@
         <tr v-for="(item, i) in networkItems" :key="item.id">
           <td class="c">{{ i + 1 }}</td>
           <td class="cell-title">{{ item.title }}</td>
-          <td style="white-space:pre-wrap">{{ item.content ?? '-' }}</td>
+          <td class="md-cell" v-html="renderMd(item.content)" />
           <td class="c">{{ item.owner ?? '-' }}</td>
         </tr>
       </tbody>
@@ -441,8 +441,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { marked } from 'marked'
 import { getWeeklyReport, type WeeklyReport, type WorkItem } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
+
+function renderMd(content: string | null | undefined): string {
+  if (!content?.trim()) return '-'
+  return marked(content, { breaks: true }) as string
+}
 
 const route      = useRoute()
 const router     = useRouter()
@@ -622,6 +628,17 @@ onUnmounted(() => {
   html, body { background: white !important; margin: 0; padding: 0; }
   .screen-toolbar, .loading-wrap { display: none !important; }
 }
+
+/* v-html 마크다운 셀 (scoped 미적용 영역) */
+.md-cell p  { margin: 0 0 3px; }
+.md-cell ul,
+.md-cell ol { margin: 0; padding-left: 14px; }
+.md-cell li { margin: 1px 0; }
+.md-cell strong { font-weight: 700; }
+.md-cell em     { font-style: italic; }
+.md-cell img    { max-width: 100%; height: auto; }
+.md-cell a      { color: #1d4ed8; }
+.md-cell p:last-child { margin-bottom: 0; }
 </style>
 
 <style scoped>

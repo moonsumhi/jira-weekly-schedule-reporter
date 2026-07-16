@@ -265,7 +265,7 @@
                   <div v-if="item.desiredDate" class="text-caption text-grey-6">희망 결정일: {{ item.desiredDate.slice(0,10) }}</div>
                 </template>
                 <template v-if="item.section === 'NETWORK'">
-                  <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
+                  <MarkdownContent v-if="item.content" :content="item.content" class="q-mb-xs" />
                 </template>
                 <template v-if="item.section === 'ANNOUNCEMENT'">
                   <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
@@ -313,6 +313,7 @@ import {
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 import WrItemDialog from './components/WrItemDialog.vue'
+import MarkdownContent from 'src/components/MarkdownContent.vue'
 
 
 const route  = useRoute()
