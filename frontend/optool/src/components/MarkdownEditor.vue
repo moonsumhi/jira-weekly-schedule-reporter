@@ -43,19 +43,72 @@ async function uploadImageBlob(blob: Blob | File): Promise<string | null> {
   }
 }
 
+function dataUrlToBlob(dataUrl: string): Blob {
+  const sepIdx = dataUrl.indexOf(',')
+  const header = dataUrl.slice(0, sepIdx)
+  const b64    = dataUrl.slice(sepIdx + 1)
+  const mime   = header.match(/data:([^;]+)/)?.[1] ?? 'image/png'
+  const bytes  = new Uint8Array([...atob(b64)].map(c => c.charCodeAt(0)))
+  return new Blob([bytes], { type: mime })
+}
+
 function handlePaste(e: Event) {
   const ce = e as ClipboardEvent
-  const items = ce.clipboardData?.items
-  if (!items) return
-  const imageItem = Array.from(items).find(item => item.type.startsWith('image/'))
-  if (!imageItem) return
-  ce.preventDefault()
-  ce.stopPropagation()
-  const blob = imageItem.getAsFile()
-  if (!blob || !editor) return
-  void uploadImageBlob(blob).then(url => {
-    if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
-  })
+  if (!ce.clipboardData) return
+
+  const items = Array.from(ce.clipboardData.items)
+
+  // 1. binary image item (screenshot, browser copy)
+  const imageItem = items.find(item => item.type.startsWith('image/'))
+  if (imageItem) {
+    ce.preventDefault()
+    ce.stopImmediatePropagation()
+    const blob = imageItem.getAsFile()
+    if (blob && editor) {
+      void uploadImageBlob(blob).then(url => {
+        if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
+      })
+    }
+    return
+  }
+
+  // 2. image files copied from file manager
+  const clipFiles = ce.clipboardData.files
+  for (let i = 0; i < clipFiles.length; i++) {
+    const file = clipFiles[i]
+    if (file?.type.startsWith('image/')) {
+      ce.preventDefault()
+      ce.stopImmediatePropagation()
+      void uploadImageBlob(file).then(url => {
+        if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
+      })
+      return
+    }
+  }
+
+  // 3. HTML clipboard with <img> (HWP, Word, etc.) — block alt-text insertion
+  const html = ce.clipboardData.getData('text/html')
+  if (html && /<img/i.test(html)) {
+    ce.preventDefault()
+    ce.stopImmediatePropagation()
+
+    const plainText = ce.clipboardData.getData('text/plain').trim()
+    if (plainText) {
+      // Mixed text+image: insert text only (HWP alt-text garbage 방지)
+      document.execCommand('insertText', false, plainText)
+      return
+    }
+
+    // Pure image via HTML: try base64 data URL
+    const match = html.match(/src="(data:image\/[^;]+;base64,[^"]+)"/)
+    const dataSrc = match?.[1]
+    if (dataSrc && editor) {
+      void uploadImageBlob(dataUrlToBlob(dataSrc)).then(url => {
+        if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
+      })
+    }
+    // local-path src with no text: blocked silently
+  }
 }
 
 onMounted(() => {
