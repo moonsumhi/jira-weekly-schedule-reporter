@@ -262,6 +262,7 @@ import NotificationBell from 'components/NotificationBell.vue'
 import type { MenuOut } from 'src/services/menus'
 import { useQuasar } from 'quasar'
 import { fetchLinks, createLink, patchLink, deleteLink, type Link } from 'src/services/links'
+import { SLUG_PERM, effectiveVisibleTeams } from 'src/constants/menuPermissions'
 
 const auth = useAuthStore()
 const menuStore = useMenuStore()
@@ -290,12 +291,9 @@ function detectInternal(hostname: string): boolean {
 const isExternal = !detectInternal(window.location.hostname)
 const isPort9001 = window.location.port === '9001'
 
-// 슬러그별 필요 권한 (account·admin은 별도 처리, 동적 메뉴는 제한 없음)
-const SLUG_PERM: Record<string, string> = {
-  jira: 'jira', job: 'job', asset: 'asset', watch: 'watch',
-  inspection: 'inspection', server_check: 'server_check',
-  pm: 'pm', sr: 'sr', calendar: 'calendar',
-  documents: 'documents', 'isms-p': 'isms_p',
+function hasTeamAccess(menu: MenuOut): boolean {
+  if (auth.me?.isAdmin) return true
+  return effectiveVisibleTeams(menu.visibleTeams).includes(auth.me?.team ?? '')
 }
 
 const sortedVisibleMenus = computed(() =>
@@ -306,6 +304,7 @@ const sortedVisibleMenus = computed(() =>
       const perm = SLUG_PERM[m.slug ?? '']
       return perm ? hasPerm(perm) : true  // 권한 필요한 슬러그는 hasPerm 체크
     })
+    .filter(hasTeamAccess)
     .filter((m) => {
       if (isPort9001) return m.slug === 'jira' || m.slug === 'calendar' || m.title === '팀캘린더'
       return m.slug !== 'jira' && m.slug !== 'calendar' && m.title !== '팀캘린더'

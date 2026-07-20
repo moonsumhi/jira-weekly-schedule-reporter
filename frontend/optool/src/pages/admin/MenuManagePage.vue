@@ -36,6 +36,9 @@
                     {{ menu.isVisible ? '표시' : '숨김' }}
                   </span>
                   · 하위 {{ subsOf(menu.id).length + systemSubsOf(menu).length }}개
+                  <span class="text-orange">
+                    · {{ effectiveVisibleTeams(menu.visibleTeams).join(', ') }}만 표시
+                  </span>
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
@@ -209,6 +212,18 @@
           </div>
           <q-toggle v-if="!editMenuTarget?.isSystem" v-model="menuForm.is_visible" label="사이드바에 표시" />
           <q-input v-model="menuForm.link" label="링크 (직접 이동할 URL, 비우면 하위 메뉴 방식)" outlined dense clearable />
+          <div>
+            <q-select
+              v-model="menuForm.visible_teams"
+              :options="TEAM_OPTIONS"
+              :label="`노출 팀 (비우면 ${DEFAULT_VISIBLE_TEAM}에게만 표시)`"
+              outlined dense multiple use-chips clearable
+            />
+            <div class="text-caption text-grey q-mt-xs">
+              선택한 팀 외에는 사이드바에서 숨겨지고 URL 직접 접근도 차단됩니다.
+              비워두면 {{ DEFAULT_VISIBLE_TEAM }}에게만 표시됩니다.
+            </div>
+          </div>
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
@@ -262,10 +277,14 @@ import { menuService, type MenuOut } from 'src/services/menus'
 import { boardService, type BoardOut } from 'src/services/boards'
 import { formTemplateService, type FormTemplate } from 'src/services/formTemplates'
 import { useMenuStore } from 'stores/menus'
+import { DEFAULT_VISIBLE_TEAM, effectiveVisibleTeams } from 'src/constants/menuPermissions'
 
 const menuStore = useMenuStore()
 
 const $q = useQuasar()
+
+// 백엔드 app/models/user.py의 TEAM_OPTIONS와 동일하게 유지해야 함
+const TEAM_OPTIONS = ['데이터운영팀', '데이터구축팀', '데이터활용팀', '데이터결합팀']
 
 const menus = ref<MenuOut[]>([])
 const subsMap = ref<Record<string, BoardOut[]>>({})
@@ -279,7 +298,7 @@ const expandedId = ref<string | null>(null)
 // 메뉴 다이얼로그
 const menuDialog = ref(false)
 const editMenuTarget = ref<MenuOut | null>(null)
-const menuForm = ref({ title: '', icon: 'fa-solid fa-folder', is_visible: true, link: '' })
+const menuForm = ref({ title: '', icon: 'fa-solid fa-folder', is_visible: true, link: '', visible_teams: [] as string[] })
 
 // 시스템 하위메뉴 아이콘 편집
 const sysIconDialog = ref(false)
@@ -519,13 +538,13 @@ async function onSysSubDragEnd(menu: MenuOut) {
 // ── 메뉴 ──
 function openCreateMenu() {
   editMenuTarget.value = null
-  menuForm.value = { title: '', icon: 'fa-solid fa-folder', is_visible: true, link: '' }
+  menuForm.value = { title: '', icon: 'fa-solid fa-folder', is_visible: true, link: '', visible_teams: [] }
   menuDialog.value = true
 }
 
 function openEditMenu(menu: MenuOut) {
   editMenuTarget.value = menu
-  menuForm.value = { title: menu.title, icon: menu.icon, is_visible: menu.isVisible, link: menu.link ?? '' }
+  menuForm.value = { title: menu.title, icon: menu.icon, is_visible: menu.isVisible, link: menu.link ?? '', visible_teams: menu.visibleTeams ?? [] }
   menuDialog.value = true
 }
 
@@ -538,6 +557,7 @@ async function submitMenu() {
       icon: menuForm.value.icon,
       is_visible: menuForm.value.is_visible,
       link: menuForm.value.link || null,
+      visible_teams: menuForm.value.visible_teams,
     }
     if (editMenuTarget.value) {
       await menuService.patch(editMenuTarget.value.id, payload)

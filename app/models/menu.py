@@ -14,6 +14,7 @@ class MenuCreate(BaseModel):
     sort_order: int | None = None
     is_visible: bool = True
     link: str | None = None
+    visible_teams: list[str] = []
 
 
 class MenuPatch(BaseModel):
@@ -26,6 +27,7 @@ class MenuPatch(BaseModel):
     sub_icons: dict[str, str] | None = None
     sub_order: list[str] | None = None
     link: str | None = None
+    visible_teams: list[str] | None = None
 
 
 class MenuOut(BaseModel):
@@ -42,4 +44,5 @@ class MenuOut(BaseModel):
     sub_order: list[str] | None = None
     link: str | None = None
     submenus: list[SubMenuItem] = []
+    visible_teams: list[str] = []
     created_at: str | None = None
