@@ -92,6 +92,7 @@ async def create_issue(
         "start_date": body.start_date,
         "due_date": body.due_date,
         "story_points": body.story_points,
+        "effort_md": body.effort_md,
         "attachments": [a.model_dump() for a in body.attachments],
         "order": float(number),
         "created_at": now,

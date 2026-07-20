@@ -242,7 +242,6 @@ export type SRAssign = {
   assignee_name: string
   planned_start_date?: string | null | undefined
   planned_due_date?: string | null | undefined
-  estimated_effort?: string | undefined
   deployment_required?: boolean | undefined
   security_review_required?: boolean | undefined
 }

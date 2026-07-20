@@ -553,10 +553,6 @@
                             <div class="content-text text-weight-medium">{{ sr.assigneeName }}</div>
                           </div>
                           <div class="col-12 col-sm-6">
-                            <div class="content-label">예상 공수</div>
-                            <div class="content-text">{{ sr.estimatedEffort || '-' }}</div>
-                          </div>
-                          <div class="col-12 col-sm-6">
                             <div class="content-label">처리 기간 (시작일 ~ 완료목표일)</div>
                             <div class="content-text">
                               {{ fmtDate(sr.plannedStartDate) }}
@@ -965,10 +961,6 @@
             </div>
           </div>
 
-          <div class="field-label">예상 공수 <span style="font-size:11px;color:#aaa;font-weight:400">(작업자와 협의한 값 직접 입력)</span></div>
-          <q-input v-model="assignForm.estimatedEffort" outlined
-            placeholder="예: 2 MD, 0.5일" hide-bottom-space class="q-mb-md" />
-
           <div class="row q-gutter-xl q-mt-xs">
             <q-toggle v-model="assignForm.deploymentRequired" color="orange-7" size="sm">
               <template #default><span class="text-body2 q-ml-xs">배포 필요</span></template>
@@ -1116,26 +1108,8 @@ const reviewForm = ref({
 })
 const assignForm = ref({
   plannedStartDate: null as string | null, plannedDueDate: null as string | null,
-  estimatedEffort: '', deploymentRequired: false, securityReviewRequired: false,
+  deploymentRequired: false, securityReviewRequired: false,
 })
-
-watch(
-  () => [assignForm.value.plannedStartDate, assignForm.value.plannedDueDate],
-  ([start, end]) => {
-    if (start && end) {
-      let count = 0
-      const cur = new Date(start)
-      const last = new Date(end)
-      while (cur <= last) {
-        const day = cur.getDay()
-        if (day !== 0 && day !== 6) count++
-        cur.setDate(cur.getDate() + 1)
-      }
-      // 사용자가 직접 입력하지 않은 경우에만 제안값 채움
-      if (count > 0 && !assignForm.value.estimatedEffort) assignForm.value.estimatedEffort = `${count}일`
-    }
-  }
-)
 
 // 사용자 선택 (담당자 배정 / 검토 다이얼로그 공유)
 const allUsers       = ref<PmUser[]>([])
@@ -1508,7 +1482,6 @@ async function doAssign() {
       assignee_name:            assignSelectedUser.value.name,
       planned_start_date:       assignForm.value.plannedStartDate,
       planned_due_date:         assignForm.value.plannedDueDate,
-      estimated_effort:         assignForm.value.estimatedEffort || undefined,
       deployment_required:      assignForm.value.deploymentRequired,
       security_review_required: assignForm.value.securityReviewRequired,
     })
@@ -1528,13 +1501,12 @@ function openAssignDialog(prefill: boolean) {
     assignForm.value = {
       plannedStartDate:       sr.value.plannedStartDate ? sr.value.plannedStartDate.slice(0, 10) : null,
       plannedDueDate:         sr.value.plannedDueDate   ? sr.value.plannedDueDate.slice(0, 10)   : null,
-      estimatedEffort:        sr.value.estimatedEffort  ?? '',
       deploymentRequired:     sr.value.deploymentRequired     ?? false,
       securityReviewRequired: sr.value.securityReviewRequired ?? false,
     }
   } else {
     assignSelectedUser.value = null
-    assignForm.value = { plannedStartDate: null, plannedDueDate: null, estimatedEffort: '', deploymentRequired: false, securityReviewRequired: false }
+    assignForm.value = { plannedStartDate: null, plannedDueDate: null, deploymentRequired: false, securityReviewRequired: false }
   }
   assignDialog.value = true
 }
