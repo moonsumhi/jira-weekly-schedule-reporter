@@ -164,8 +164,6 @@ export type SR = {
   convertedIssueId: string | null
   convertedTaskId: string | null
   convertedProjectId: string | null
-  convertedIssueNumber: number | null
-  convertedIssueStatus: string | null
   estimatedEffort: string | null
   deploymentRequired: boolean
   securityReviewRequired: boolean
@@ -195,10 +193,6 @@ export type SRListItem = {
   assigneeId: string | null
   assigneeName: string | null
   isDelayed: boolean
-  convertedIssueId: string | null
-  convertedProjectId: string | null
-  convertedIssueNumber: number | null
-  convertedIssueStatus: string | null
   createdAt: string
   updatedAt: string
 }

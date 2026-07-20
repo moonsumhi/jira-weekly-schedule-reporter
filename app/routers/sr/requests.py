@@ -164,10 +164,7 @@ async def list_my_srs(
         q["desired_due_date"] = dfilter
 
     docs = await col.find(q).sort("created_at", -1).to_list(None)
-    from app.services.sr.sr_issue_bridge import attach_converted_issue_info
-    outs = [sr_to_out(d) for d in docs]
-    await attach_converted_issue_info(outs)
-    return [SRListItem(**o) for o in outs]
+    return [SRListItem(**sr_to_out(d)) for d in docs]
 
 
 # ── SR 상세 ───────────────────────────────────────────────────────────
@@ -186,10 +183,7 @@ async def get_sr(
         and str(doc["requester_id"]) != current_user.id
     ):
         raise HTTPException(status_code=403, detail="본인의 SR만 조회할 수 있습니다.")
-    from app.services.sr.sr_issue_bridge import attach_converted_issue_info
-    out = sr_to_out(doc)
-    await attach_converted_issue_info([out])
-    return SROut(**out)
+    return SROut(**sr_to_out(doc))
 
 
 # ── SR 수정 (접수 전 또는 추가 확인 요청 상태) ─────────────────────────
