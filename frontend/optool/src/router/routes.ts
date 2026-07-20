@@ -229,6 +229,10 @@ const routes: RouteRecordRaw[] = [
             component: () => import('pages/sr/SrManagePage.vue')
           },
           {
+            path: 'sr/guide',
+            component: () => import('pages/guide/SrGuidePage.vue')
+          },
+          {
             path: 'sr/:id/edit',
             meta: { requiresPermission: 'sr' },
             component: () => import('pages/sr/SrRequestPage.vue')
@@ -237,10 +241,6 @@ const routes: RouteRecordRaw[] = [
             path: 'sr/:id',
             meta: { requiresPermission: 'sr' },
             component: () => import('pages/sr/SrDetailPage.vue')
-          },
-          {
-            path: 'sr/guide',
-            component: () => import('pages/guide/SrGuidePage.vue')
           },
           {
             path: 'schedule/guide',
