@@ -393,6 +393,14 @@
                 @blur="patchField('story_points', localStoryPoints)" />
             </div>
 
+            <div>
+              <div class="sidebar-label">MD (공수)</div>
+              <q-input v-model.number="localEffortMd" dense outlined type="number" :min="0"
+                @blur="patchField('effort_md', localEffortMd)">
+                <template #append><span class="text-caption text-grey-5">MD</span></template>
+              </q-input>
+            </div>
+
             <q-separator />
 
             <div>
@@ -611,6 +619,7 @@ const localLabelIds = ref<string[]>([])
 const localAssigneeId = ref<string | null>(null)
 const localEpicId = ref<string | null>(null)
 const localStoryPoints = ref<number | null>(null)
+const localEffortMd = ref<number | null>(null)
 const localStartDate = ref('')
 const localDueDate = ref('')
 
@@ -637,6 +646,7 @@ const FIELD_LABEL: Record<string, string> = {
   start_date: '시작일',
   due_date: '마감일',
   story_points: '스토리 포인트',
+  effort_md: 'MD (공수)',
   comment: '댓글',
 }
 
@@ -677,6 +687,7 @@ async function loadIssueContent(issue: Issue) {
   localAssigneeId.value = issue.assigneeId
   localEpicId.value = issue.epicId
   localStoryPoints.value = issue.storyPoints
+  localEffortMd.value = issue.effortMd
   localStartDate.value = issue.startDate?.slice(0, 10) ?? ''
   localDueDate.value = issue.dueDate?.slice(0, 10) ?? ''
   editTitle.value = issue.title
