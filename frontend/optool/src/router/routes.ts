@@ -230,6 +230,7 @@ const routes: RouteRecordRaw[] = [
           },
           {
             path: 'sr/guide',
+            meta: { requiresPermission: 'sr' },
             component: () => import('pages/guide/SrGuidePage.vue')
           },
           {
