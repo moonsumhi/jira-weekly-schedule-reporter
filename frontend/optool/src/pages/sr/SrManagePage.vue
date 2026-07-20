@@ -301,26 +301,12 @@
                 </q-card>
               </q-popup-proxy>
             </q-td>
-            <!-- 완료목표일 (지연 판정 기준) — 인라인 편집 -->
-            <q-td class="text-center editable-cell" @click.stop="openPlannedDatePopup(row)">
-              <div class="row items-center justify-center no-wrap">
-                <span :class="row.isDelayed ? 'text-negative text-weight-medium' : 'text-grey-7'">
-                  {{ fmtDate(row.plannedDueDate) || '미지정' }}
-                </span>
-                <q-icon name="edit" size="11px" color="grey-4" class="edit-hint q-ml-xs" />
-              </div>
-              <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-                <q-card flat class="q-pa-sm" style="min-width:220px">
-                  <div class="text-caption text-grey-6 q-mb-sm">완료목표일 변경 <span class="text-grey-4">(지연 판정 기준)</span></div>
-                  <q-input v-model="plannedDateInput" type="date" dense outlined class="q-mb-sm" />
-                  <q-input v-model="plannedDateReason" label="변경 사유 (선택)" dense outlined type="textarea" rows="2" />
-                  <div class="row justify-end q-mt-sm q-gutter-xs">
-                    <q-btn flat dense size="sm" label="취소" v-close-popup />
-                    <q-btn unelevated dense size="sm" color="primary" label="저장"
-                      v-close-popup @click="savePlannedDueDate(row)" />
-                  </div>
-                </q-card>
-              </q-popup-proxy>
+            <!-- 완료목표일 (지연 판정 기준) -->
+            <q-td class="text-center">
+              <span v-if="row.plannedDueDate" :class="row.isDelayed ? 'text-negative text-weight-medium' : 'text-grey-7'">
+                {{ fmtDate(row.plannedDueDate) }}
+              </span>
+              <span v-else class="text-grey-4">-</span>
             </q-td>
             <!-- 연동 태스크 -->
             <q-td class="text-center" @click.stop>
@@ -416,7 +402,7 @@ import { useQuasar } from 'quasar'
 import type { QTableProps } from 'quasar'
 import { api } from 'src/boot/axios'
 import {
-  listAllSRs, getSRStats, changeSRStatus, patchSRInline, changePlannedDueDate,
+  listAllSRs, getSRStats, changeSRStatus, patchSRInline,
   SR_STATUS_LABEL, SR_STATUS_COLOR,
   REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL, SR_PRIORITY_COLOR,
   REQUEST_TYPE_OPTIONS, SR_PRIORITY_OPTIONS,
@@ -522,12 +508,10 @@ const statusDialog = ref({
 })
 
 // 인라인 편집 - PM 유저 / 날짜 / 담당자 선택 상태
-const pmUsers           = ref<PmUser[]>([])
-const filteredPmUsers   = ref<PmUser[]>([])
-const dateInput         = ref('')
-const assigneeInput     = ref<string | null>(null)
-const plannedDateInput  = ref('')
-const plannedDateReason = ref('')
+const pmUsers         = ref<PmUser[]>([])
+const filteredPmUsers = ref<PmUser[]>([])
+const dateInput       = ref('')
+const assigneeInput   = ref<string | null>(null)
 
 // 프리셋
 const presets = ref<FilterPreset[]>(JSON.parse(localStorage.getItem(PRESET_KEY) || '[]'))
@@ -723,24 +707,6 @@ function openDatePopup(row: SRListItem) {
 function saveDueDate(row: SRListItem) {
   const iso = dateInput.value ? `${dateInput.value}T00:00:00Z` : null
   void inlinePatch(row, { desired_due_date: iso })
-}
-
-function openPlannedDatePopup(row: SRListItem) {
-  plannedDateInput.value  = row.plannedDueDate ? row.plannedDueDate.substring(0, 10) : ''
-  plannedDateReason.value = ''
-}
-
-async function savePlannedDueDate(row: SRListItem) {
-  if (!plannedDateInput.value) return
-  const iso = `${plannedDateInput.value}T00:00:00Z`
-  try {
-    await changePlannedDueDate(row.id, iso, plannedDateReason.value.trim() || undefined)
-    row.plannedDueDate = iso
-    $q.notify({ type: 'positive', message: '완료목표일이 변경되었습니다.', timeout: 1500 })
-  } catch (e) {
-    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-    $q.notify({ type: 'negative', message: msg || '변경에 실패했습니다.' })
-  }
 }
 
 function openAssigneePopup(row: SRListItem) {
