@@ -584,20 +584,6 @@
                             </div>
                           </div>
                           <div class="col-12 col-sm-6">
-                            <div class="content-label">실제 공수 (작업자 입력)</div>
-                            <div class="content-text">
-                              <template v-if="sr.actualEffortMd != null">
-                                {{ sr.actualEffortMd }} MD
-                                <span class="text-caption text-grey-6">({{ (sr.actualEffortMd * 8).toFixed(1) }}시간)</span>
-                              </template>
-                              <span v-else class="text-grey-5">미입력</span>
-                              <q-btn v-if="canEditEffort" flat dense round size="xs" icon="edit" color="grey-6"
-                                class="q-ml-xs" @click="openEffortDialog">
-                                <q-tooltip>실제 공수 입력</q-tooltip>
-                              </q-btn>
-                            </div>
-                          </div>
-                          <div class="col-12 col-sm-6">
                             <div class="content-label">실제 완료일</div>
                             <div class="content-text" :class="sr.actualCompletedAt ? 'text-positive' : ''">
                               {{ fmtDate(sr.actualCompletedAt) }}
@@ -1052,25 +1038,6 @@
             </template>
           </template>
 
-          <!-- 작업 시작·완료 시 실제 공수 입력 -->
-          <template v-if="statusForm.status === 'IN_PROGRESS' || statusForm.status === 'COMPLETED'">
-            <div class="field-label">
-              실제 공수 (MD)
-              <span v-if="statusForm.status === 'IN_PROGRESS'" style="font-size:11px;color:#aaa;font-weight:400">(선택 — 완료 시 수정 가능)</span>
-            </div>
-            <q-input v-model.number="statusForm.actualEffortMd" outlined type="number" min="0" step="0.125"
-              placeholder="예: 0.5 (반일), 1 (하루)" hide-bottom-space class="q-mb-xs">
-              <template #append><span class="text-caption text-grey-6">MD</span></template>
-            </q-input>
-            <div class="row q-gutter-xs q-mb-md">
-              <q-btn v-for="p in EFFORT_PRESETS" :key="p.md" dense outline size="sm" color="grey-7"
-                :label="p.label" @click="statusForm.actualEffortMd = p.md" />
-              <span v-if="statusForm.actualEffortMd" class="text-caption text-grey-6 self-center q-ml-sm">
-                = {{ (Number(statusForm.actualEffortMd) * 8).toFixed(1) }}시간(MH)
-              </span>
-            </div>
-          </template>
-
         </q-card-section>
         <div class="dialog-footer">
           <q-btn flat label="취소" v-close-popup color="grey-7" />
@@ -1100,34 +1067,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- 실제 공수 입력 (담당자/manager) -->
-    <q-dialog v-model="effortDialog">
-      <q-card class="dialog-card">
-        <div class="dialog-header dialog-header--blue">
-          <div class="dialog-header__title">실제 공수 입력</div>
-          <div class="dialog-header__sub">{{ sr?.srNo }} — 실제 작업에 소요된 시간을 MD로 입력하세요</div>
-        </div>
-        <q-card-section class="dialog-body">
-          <div class="field-label">실제 공수 (MD) <span class="required">*</span></div>
-          <q-input v-model.number="effortForm.actualEffortMd" outlined type="number" min="0" step="0.125"
-            placeholder="예: 0.5 (반일), 1 (하루)" hide-bottom-space class="q-mb-xs" autofocus>
-            <template #append><span class="text-caption text-grey-6">MD</span></template>
-          </q-input>
-          <div class="row q-gutter-xs">
-            <q-btn v-for="p in EFFORT_PRESETS" :key="p.md" dense outline size="sm" color="grey-7"
-              :label="p.label" @click="effortForm.actualEffortMd = p.md" />
-            <span v-if="effortForm.actualEffortMd" class="text-caption text-grey-6 self-center q-ml-sm">
-              = {{ (Number(effortForm.actualEffortMd) * 8).toFixed(1) }}시간(MH)
-            </span>
-          </div>
-        </q-card-section>
-        <div class="dialog-footer">
-          <q-btn flat label="취소" v-close-popup color="grey-7" />
-          <q-btn color="blue-7" unelevated label="저장" @click="doUpdateEffort" :loading="actionLoading" />
-        </div>
-      </q-card>
-    </q-dialog>
-
   </q-page>
 </template>
 
@@ -1140,7 +1079,7 @@ import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import {
   getSR, getAdminSR, listComments, listHistory, addComment, uploadSRAttachment,
-  cancelSR, reviewSR, assignSR, changeSRStatus, changePlannedDueDate, updateActualEffort,
+  cancelSR, reviewSR, assignSR, changeSRStatus, changePlannedDueDate,
   SR_STATUS_LABEL, SR_STATUS_COLOR, SR_PRIORITY_LABEL,
   REQUEST_TYPE_LABEL,
   type SR, type SRComment, type SRHistory, type SRStatus, type ReviewResult, type SRAttachment,
@@ -1171,14 +1110,6 @@ const TYPE_CHIP_COLOR: Record<string, string> = {
   PERMISSION: 'teal-7', CONFIG_CHANGE: 'orange-8', SERVER_INFRA: 'indigo-7',
   SECURITY: 'deep-orange-8', ETC: 'grey-7',
 }
-// 실제 공수 퀵버튼 (1시간 = 0.125 MD)
-const EFFORT_PRESETS = [
-  { label: '1시간', md: 0.125 },
-  { label: '2시간', md: 0.25 },
-  { label: '반일', md: 0.5 },
-  { label: '1일', md: 1 },
-  { label: '2일', md: 2 },
-]
 // 연동 태스크 상태 라벨/색상 (스케줄 관리 이슈 상태)
 const TASK_STATUS_LABEL: Record<string, string> = {
   BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중', DONE: '완료',
@@ -1262,12 +1193,9 @@ const reviewSelectedUser = ref<PmUser | null>(null)
 const statusForm = ref({
   status: null as string | null, reason: '', processResult: '',
   deployed: false, deployedAt: null as string | null,
-  actualEffortMd: null as number | null,
 })
 const dueDateDialog = ref(false)
 const dueDateForm   = ref({ plannedDueDate: null as string | null, changeReason: '' })
-const effortDialog  = ref(false)
-const effortForm    = ref({ actualEffortMd: null as number | null })
 
 // ── 권한 computed ────────────────────────────────────────────────────
 
@@ -1285,10 +1213,6 @@ const hasPmPerm      = computed(() => {
   const p = authStore.me?.permissions || []
   return authStore.me?.isAdmin || p.includes('pm')
 })
-// 실제 공수: 담당자 본인 또는 manager 이상만 입력 가능
-const canEditEffort  = computed(() =>
-  isManagerUser.value || (sr.value?.assigneeId != null && String(authStore.me?.id) === sr.value.assigneeId)
-)
 
 // ── D-Day computed ────────────────────────────────────────────────────
 
@@ -1353,7 +1277,6 @@ const actionButtons = computed(() => {
 
   if (isOperatorUser.value && !['CLOSED', 'REJECTED', 'DRAFT'].includes(s)) {
     btns.push({ key: 'status', label: '상태 변경', color: 'blue-7', icon: 'swap_horiz', action: () => {
-      statusForm.value.actualEffortMd = sr.value?.actualEffortMd ?? null
       statusDialog.value = true
     } })
   }
@@ -1468,7 +1391,6 @@ const FIELD_LABELS: Record<string, string> = {
   completion_criteria: '완료 기준',
   note:                '비고',
   planned_due_date:    '완료목표일',
-  actual_effort_md:    '실제 공수(MD)',
 }
 function fieldChangeLabel(actionType: string): string {
   const key = actionType.replace('FIELD_CHANGE:', '')
@@ -1682,7 +1604,6 @@ async function doStatusChange() {
       process_result: statusForm.value.processResult || undefined,
       deployed:       statusForm.value.deployed || undefined,
       deployed_at:    statusForm.value.deployedAt || undefined,
-      actual_effort_md: statusForm.value.actualEffortMd ?? undefined,
     })
     $q.notify({ type: 'positive', message: '상태가 변경되었습니다.' })
     statusDialog.value = false; void load()
@@ -1709,26 +1630,6 @@ async function doChangeDueDate() {
     await changePlannedDueDate(srId.value, dueDateForm.value.plannedDueDate, dueDateForm.value.changeReason)
     $q.notify({ type: 'positive', message: '완료목표일이 변경되었습니다.' })
     dueDateDialog.value = false; void load()
-  } catch (e) {
-    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-    $q.notify({ type: 'negative', message: msg || '처리 실패' })
-  } finally { actionLoading.value = false }
-}
-
-function openEffortDialog() {
-  effortForm.value = { actualEffortMd: sr.value?.actualEffortMd ?? null }
-  effortDialog.value = true
-}
-
-async function doUpdateEffort() {
-  if (effortForm.value.actualEffortMd == null || effortForm.value.actualEffortMd < 0) {
-    $q.notify({ type: 'warning', message: '실제 공수를 입력해주세요.' }); return
-  }
-  actionLoading.value = true
-  try {
-    await updateActualEffort(srId.value, effortForm.value.actualEffortMd)
-    $q.notify({ type: 'positive', message: '실제 공수가 저장되었습니다.' })
-    effortDialog.value = false; void load()
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     $q.notify({ type: 'negative', message: msg || '처리 실패' })

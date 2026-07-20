@@ -183,18 +183,12 @@ class SRStatusChange(BaseModel):
     deployed_at: Optional[datetime] = None
     actual_completed_at: Optional[datetime] = None
     requester_confirmed: Optional[bool] = None
-    actual_effort_md: Optional[float] = Field(None, ge=0)  # 작업자 실제 공수(MD)
 
 
 class SRDueDateChange(BaseModel):
     """운영팀 완료목표일 변경 (manager 이상)."""
     planned_due_date: datetime
     change_reason: Optional[str] = None
-
-
-class SREffortUpdate(BaseModel):
-    """작업자 실제 공수(MD) 입력/수정."""
-    actual_effort_md: float = Field(..., ge=0)
 
 
 class SRComment(BaseModel):
@@ -269,7 +263,6 @@ class SROut(BaseModel):
     converted_issue_number: Optional[int] = None
     converted_issue_status: Optional[str] = None
     estimated_effort: Optional[str] = None
-    actual_effort_md: Optional[float] = None
     deployment_required: bool = False
     security_review_required: bool = False
     # 유형별 추가 항목
