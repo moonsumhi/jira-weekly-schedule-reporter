@@ -2,27 +2,56 @@
   <q-page class="q-pa-md">
     <div class="row items-center q-mb-md">
       <div class="text-h5">프로젝트</div>
+      <q-badge v-if="projects.length" color="grey-5" :label="`${filteredProjects.length} / ${projects.length}`" class="q-ml-sm" />
       <q-space />
       <q-btn color="primary" icon="add" label="새 프로젝트" @click="openCreateDialog" />
     </div>
 
+    <!-- 검색 + 정렬 -->
+    <div class="row items-center q-gutter-sm q-mb-md">
+      <q-input
+        v-model="search"
+        dense outlined clearable
+        placeholder="프로젝트명 · 키 · 설명 검색"
+        style="flex: 1; min-width: 0"
+      >
+        <template #prepend><q-icon name="search" color="grey-5" /></template>
+      </q-input>
+      <q-select
+        v-model="sortKey"
+        :options="sortOptions"
+        dense outlined emit-value map-options
+        style="width: 160px; flex-shrink: 0"
+      >
+        <template #prepend><q-icon name="sort" color="grey-5" size="18px" /></template>
+      </q-select>
+    </div>
+
     <q-inner-loading :showing="loading" />
 
+    <!-- 빈 상태 -->
     <div v-if="!loading && projects.length === 0" class="column items-center q-mt-xl text-grey-6">
       <q-icon name="fa-solid fa-diagram-project" size="4rem" class="q-mb-md" />
       <div class="text-h6">프로젝트가 없습니다</div>
       <div class="text-caption">새 프로젝트를 만들어보세요.</div>
     </div>
+    <div v-else-if="!loading && filteredProjects.length === 0" class="column items-center q-mt-xl text-grey-6">
+      <q-icon name="search_off" size="4rem" class="q-mb-md" />
+      <div class="text-h6">검색 결과가 없습니다</div>
+      <div class="text-caption">다른 검색어를 입력하거나 검색을 초기화하세요.</div>
+      <q-btn flat dense color="primary" label="검색 초기화" class="q-mt-sm" @click="search = ''" />
+    </div>
 
     <div class="row q-col-gutter-md">
-      <div v-for="project in projects" :key="project.id" class="col-12 col-sm-6 col-md-4">
+      <div v-for="project in filteredProjects" :key="project.id" class="col-12 col-sm-6 col-md-4">
         <q-card flat bordered class="cursor-pointer project-card" @click="goToProject(project)">
           <q-card-section>
             <div class="row items-center q-gutter-sm q-mb-xs">
               <q-badge color="primary" :label="project.key" />
+              <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" />
             </div>
-            <div class="text-h6">{{ project.name }}</div>
-            <div class="text-caption text-grey-6">{{ project.description || '설명 없음' }}</div>
+            <div class="text-h6 ellipsis">{{ project.name }}</div>
+            <div class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
           </q-card-section>
           <q-card-actions align="right">
             <q-btn flat dense icon="fa-solid fa-table-columns" label="보드" @click.stop="goToBoard(project)" />
@@ -82,6 +111,36 @@ const pmStore = usePmStore()
 const projects = ref<Project[]>([])
 const orgs = ref<Organization[]>([])
 const loading = ref(false)
+const search = ref('')
+const sortKey = ref<string>('createdAt_desc')
+
+const sortOptions = [
+  { label: '최신순',     value: 'createdAt_desc' },
+  { label: '오래된순',   value: 'createdAt_asc'  },
+  { label: '이름 오름차순', value: 'name_asc'    },
+  { label: '이름 내림차순', value: 'name_desc'   },
+  { label: '키 오름차순',   value: 'key_asc'     },
+]
+
+const filteredProjects = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  let list = q
+    ? projects.value.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.key.toLowerCase().includes(q) ||
+        (p.description ?? '').toLowerCase().includes(q)
+      )
+    : [...projects.value]
+
+  const [field, dir] = sortKey.value.split('_') as [string, string]
+  list.sort((a, b) => {
+    const av = (a as unknown as Record<string, string>)[field] ?? ''
+    const bv = (b as unknown as Record<string, string>)[field] ?? ''
+    const cmp = av < bv ? -1 : av > bv ? 1 : 0
+    return dir === 'asc' ? cmp : -cmp
+  })
+  return list
+})
 
 const orgOptions = computed(() => orgs.value.map(o => ({ id: o.id, name: `${o.name} (${o.slug})` })))
 
@@ -154,5 +213,11 @@ function goToBacklog(project: Project) {
 <style scoped>
 .project-card:hover {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+.ellipsis-2-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>
