@@ -39,115 +39,159 @@
       <q-tab name="delayed"     label="⏰ 지연" />
     </q-tabs>
 
-    <!-- 필터 -->
+    <!-- 필터 / 검색 -->
     <q-card flat bordered class="q-mb-md">
-      <q-card-section class="q-pa-md">
+      <q-card-section class="q-pa-sm">
 
-        <!-- 검색 + 액션 -->
-        <div class="row q-col-gutter-sm items-center q-mb-md">
-          <div class="col">
-            <q-input v-model="search" placeholder="제목 · SR번호 · 요청자 검색" outlined dense clearable bg-color="white">
-              <template #prepend><q-icon name="search" color="grey-5" size="18px" /></template>
-            </q-input>
-          </div>
-          <div class="col-auto row items-center q-gutter-xs">
-            <q-btn-dropdown flat dense size="sm" icon="bookmark_border" color="grey-6" no-icon-animation>
-              <template #label><span class="text-caption">프리셋</span></template>
-              <q-list dense style="min-width:180px">
-                <q-item v-if="!presets.length" dense>
-                  <q-item-section class="text-grey-5 text-caption q-py-xs">저장된 프리셋 없음</q-item-section>
-                </q-item>
-                <q-item v-for="(p, i) in presets" :key="i" clickable v-close-popup @click="loadPreset(p)">
-                  <q-item-section>{{ p.name }}</q-item-section>
-                  <q-item-section side>
-                    <q-btn flat round dense size="xs" icon="close" color="grey-5" @click.stop="removePreset(i)" />
-                  </q-item-section>
-                </q-item>
-                <q-separator v-if="presets.length" />
-                <q-item clickable v-close-popup @click="savePreset">
-                  <q-item-section avatar><q-icon name="add" size="14px" /></q-item-section>
-                  <q-item-section>현재 필터 저장</q-item-section>
-                </q-item>
-              </q-list>
-            </q-btn-dropdown>
-            <q-btn flat round dense icon="refresh" color="grey-5" size="sm" @click="resetFilter">
-              <q-tooltip>필터 초기화</q-tooltip>
-            </q-btn>
-            <q-btn unelevated color="primary" icon="search" label="조회" size="sm"
-              class="q-px-sm" @click="applyFilter" :loading="loading" />
-          </div>
+        <!-- 행 1: 검색 + 빠른 토글 + 상세 필터 버튼 + 액션 -->
+        <div class="row items-center q-gutter-xs">
+          <q-input
+            v-model="search"
+            placeholder="제목 · SR번호 · 요청자 검색"
+            outlined dense clearable
+            class="col"
+            bg-color="white"
+            @keyup.enter="applyFilter"
+          >
+            <template #prepend><q-icon name="search" color="grey-5" size="18px" /></template>
+          </q-input>
+
+          <q-chip
+            clickable dense
+            :color="filter.myAssigned ? 'primary' : 'grey-3'"
+            :text-color="filter.myAssigned ? 'white' : 'grey-7'"
+            icon="person_pin"
+            class="q-mx-none"
+            @click="filter.myAssigned = !filter.myAssigned; applyFilter()"
+          >내 배정</q-chip>
+
+          <q-chip
+            clickable dense
+            :color="filter.isUrgent ? 'negative' : 'grey-3'"
+            :text-color="filter.isUrgent ? 'white' : 'grey-7'"
+            icon="priority_high"
+            class="q-mx-none"
+            @click="filter.isUrgent = !filter.isUrgent; applyFilter()"
+          >긴급</q-chip>
+
+          <q-btn
+            flat dense size="sm" icon="tune" label="상세 필터" no-caps
+            :class="filterExpanded ? 'text-indigo-7 bg-indigo-1' : 'text-grey-7'"
+            class="q-px-sm"
+            @click="filterExpanded = !filterExpanded"
+          >
+            <q-badge v-if="advancedFilterCount" floating color="indigo-7" :label="advancedFilterCount" />
+          </q-btn>
+
+          <div style="width:1px; height:24px; background:rgba(0,0,0,0.1); margin:0 2px; flex-shrink:0" />
+
+          <q-btn-dropdown flat dense size="sm" icon="bookmark_border" color="grey-6" no-icon-animation>
+            <template #label><span class="text-caption">프리셋</span></template>
+            <q-list dense style="min-width:180px">
+              <q-item v-if="!presets.length" dense>
+                <q-item-section class="text-grey-5 text-caption q-py-xs">저장된 프리셋 없음</q-item-section>
+              </q-item>
+              <q-item v-for="(p, i) in presets" :key="i" clickable v-close-popup @click="loadPreset(p)">
+                <q-item-section>{{ p.name }}</q-item-section>
+                <q-item-section side>
+                  <q-btn flat round dense size="xs" icon="close" color="grey-5" @click.stop="removePreset(i)" />
+                </q-item-section>
+              </q-item>
+              <q-separator v-if="presets.length" />
+              <q-item clickable v-close-popup @click="savePreset">
+                <q-item-section avatar><q-icon name="add" size="14px" /></q-item-section>
+                <q-item-section>현재 필터 저장</q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
+
+          <q-btn flat round dense icon="refresh" color="grey-5" size="sm" @click="resetFilter">
+            <q-tooltip>필터 초기화</q-tooltip>
+          </q-btn>
+
+          <q-btn unelevated color="primary" icon="search" label="조회" size="sm"
+            class="q-px-sm" @click="applyFilter" :loading="loading" />
         </div>
 
-        <!-- 기본 필터 -->
-        <div class="row q-col-gutter-sm q-mb-md">
-          <div class="col-12 col-sm-6 col-md">
-            <q-input v-model="filter.requesterDepartment" label="요청 부서" outlined dense clearable bg-color="white">
-              <template #prepend><q-icon name="business" size="16px" color="grey-5" /></template>
-            </q-input>
+        <!-- 활성 상세 필터 칩 표시 (개별 제거 가능) -->
+        <q-slide-transition>
+          <div v-if="activeFilterChips.length" class="row q-gutter-xs q-mt-xs items-center">
+            <q-chip
+              v-for="chip in activeFilterChips" :key="chip.key"
+              dense removable
+              color="indigo-1"
+              text-color="indigo-9"
+              size="sm"
+              @remove="clearFilter(chip.key)"
+            >
+              <span class="text-weight-medium text-caption">{{ chip.label }}</span>
+              <span class="text-caption q-ml-xs" style="opacity:0.65">{{ chip.value }}</span>
+            </q-chip>
+            <q-btn flat dense size="xs" color="grey-5" label="전체 초기화" class="text-caption" @click="resetFilter" />
           </div>
-          <div class="col-12 col-sm-6 col-md">
-            <q-input v-model="filter.requesterName" label="요청자" outlined dense clearable bg-color="white">
-              <template #prepend><q-icon name="person" size="16px" color="grey-5" /></template>
-            </q-input>
-          </div>
-          <div class="col-12 col-sm-6 col-md">
-            <q-select v-model="filter.requestType" label="요청 유형" outlined dense clearable bg-color="white"
-              :options="requestTypeOptions" emit-value map-options>
-              <template #prepend><q-icon name="category" size="16px" color="grey-5" /></template>
-            </q-select>
-          </div>
-          <div class="col-12 col-sm-6 col-md">
-            <q-input v-model="filter.relatedSystem" label="관련 시스템" outlined dense clearable bg-color="white">
-              <template #prepend><q-icon name="computer" size="16px" color="grey-5" /></template>
-            </q-input>
-          </div>
-          <div class="col-12 col-sm-6 col-md">
-            <q-select v-model="filter.priority" label="중요도" outlined dense clearable bg-color="white"
-              :options="priorityOptions" emit-value map-options>
-              <template #prepend><q-icon name="flag" size="16px" color="grey-5" /></template>
-            </q-select>
-          </div>
-        </div>
+        </q-slide-transition>
 
-        <!-- 날짜 범위 + 토글 -->
-        <div class="row items-end q-gutter-md">
-          <div>
-            <div class="text-caption text-grey-6 q-mb-xs">접수일</div>
-            <div class="row items-center no-wrap q-gutter-xs">
-              <q-input v-model="filter.createdFrom" type="date" outlined dense clearable
-                bg-color="white" style="width:148px" />
-              <span class="text-grey-5 text-body2">~</span>
-              <q-input v-model="filter.createdTo" type="date" outlined dense clearable
-                bg-color="white" style="width:148px" />
+        <!-- 상세 필터 패널 (접힘/펼침) -->
+        <q-slide-transition>
+          <div v-show="filterExpanded">
+            <q-separator class="q-mt-sm q-mb-sm" />
+
+            <!-- 텍스트/선택 필터 -->
+            <div class="row q-col-gutter-sm q-mb-sm">
+              <div class="col-12 col-sm-6 col-md">
+                <q-input v-model="filter.requesterDepartment" label="요청 부서" outlined dense clearable bg-color="white">
+                  <template #prepend><q-icon name="business" size="16px" color="grey-5" /></template>
+                </q-input>
+              </div>
+              <div class="col-12 col-sm-6 col-md">
+                <q-input v-model="filter.requesterName" label="요청자" outlined dense clearable bg-color="white">
+                  <template #prepend><q-icon name="person" size="16px" color="grey-5" /></template>
+                </q-input>
+              </div>
+              <div class="col-12 col-sm-6 col-md">
+                <q-select v-model="filter.requestType" label="요청 유형" outlined dense clearable bg-color="white"
+                  :options="requestTypeOptions" emit-value map-options>
+                  <template #prepend><q-icon name="category" size="16px" color="grey-5" /></template>
+                </q-select>
+              </div>
+              <div class="col-12 col-sm-6 col-md">
+                <q-input v-model="filter.relatedSystem" label="관련 시스템" outlined dense clearable bg-color="white">
+                  <template #prepend><q-icon name="computer" size="16px" color="grey-5" /></template>
+                </q-input>
+              </div>
+              <div class="col-12 col-sm-6 col-md">
+                <q-select v-model="filter.priority" label="중요도" outlined dense clearable bg-color="white"
+                  :options="priorityOptions" emit-value map-options>
+                  <template #prepend><q-icon name="flag" size="16px" color="grey-5" /></template>
+                </q-select>
+              </div>
+            </div>
+
+            <!-- 날짜 범위 -->
+            <div class="row q-col-gutter-md items-end">
+              <div class="col-auto">
+                <div class="text-caption text-grey-6 q-mb-xs">접수일</div>
+                <div class="row items-center no-wrap q-gutter-xs">
+                  <q-input v-model="filter.createdFrom" type="date" outlined dense clearable
+                    bg-color="white" style="width:148px" />
+                  <span class="text-grey-5 text-body2">~</span>
+                  <q-input v-model="filter.createdTo" type="date" outlined dense clearable
+                    bg-color="white" style="width:148px" />
+                </div>
+              </div>
+              <div class="col-auto">
+                <div class="text-caption text-grey-6 q-mb-xs">희망완료일</div>
+                <div class="row items-center no-wrap q-gutter-xs">
+                  <q-input v-model="filter.dueDateFrom" type="date" outlined dense clearable
+                    bg-color="white" style="width:148px" />
+                  <span class="text-grey-5 text-body2">~</span>
+                  <q-input v-model="filter.dueDateTo" type="date" outlined dense clearable
+                    bg-color="white" style="width:148px" />
+                </div>
+              </div>
             </div>
           </div>
-          <div>
-            <div class="text-caption text-grey-6 q-mb-xs">희망완료일</div>
-            <div class="row items-center no-wrap q-gutter-xs">
-              <q-input v-model="filter.dueDateFrom" type="date" outlined dense clearable
-                bg-color="white" style="width:148px" />
-              <span class="text-grey-5 text-body2">~</span>
-              <q-input v-model="filter.dueDateTo" type="date" outlined dense clearable
-                bg-color="white" style="width:148px" />
-            </div>
-          </div>
-          <div class="row items-center q-gutter-sm q-pb-xs">
-            <q-chip
-              clickable dense
-              :color="filter.isUrgent ? 'negative' : 'grey-3'"
-              :text-color="filter.isUrgent ? 'white' : 'grey-7'"
-              icon="priority_high"
-              @click="filter.isUrgent = !filter.isUrgent"
-            >긴급</q-chip>
-            <q-chip
-              clickable dense
-              :color="filter.myAssigned ? 'primary' : 'grey-3'"
-              :text-color="filter.myAssigned ? 'white' : 'grey-7'"
-              icon="person_pin"
-              @click="filter.myAssigned = !filter.myAssigned"
-            >내 배정</q-chip>
-          </div>
-        </div>
+        </q-slide-transition>
 
       </q-card-section>
     </q-card>
@@ -520,6 +564,39 @@ const plannedDateReason = ref('')
 
 // 프리셋
 const presets = ref<FilterPreset[]>(JSON.parse(localStorage.getItem(PRESET_KEY) || '[]'))
+
+// 상세 필터 패널 열림 상태
+const filterExpanded = ref(false)
+
+// 활성 상세 필터 칩 (적용된 필터를 태그로 표시)
+const activeFilterChips = computed(() => {
+  const chips: { key: string; label: string; value: string }[] = []
+  const f = filter.value
+  if (f.requesterDepartment) chips.push({ key: 'requesterDepartment', label: '부서', value: f.requesterDepartment })
+  if (f.requesterName)       chips.push({ key: 'requesterName', label: '요청자', value: f.requesterName })
+  if (f.requestType)         chips.push({ key: 'requestType', label: '유형', value: requestTypeLabel(f.requestType) })
+  if (f.relatedSystem)       chips.push({ key: 'relatedSystem', label: '시스템', value: f.relatedSystem })
+  if (f.priority)            chips.push({ key: 'priority', label: '중요도', value: priorityLabel(f.priority) })
+  if (f.createdFrom || f.createdTo)
+    chips.push({ key: 'createdDate', label: '접수일', value: `${f.createdFrom || '-'} ~ ${f.createdTo || '-'}` })
+  if (f.dueDateFrom || f.dueDateTo)
+    chips.push({ key: 'dueDate', label: '희망완료일', value: `${f.dueDateFrom || '-'} ~ ${f.dueDateTo || '-'}` })
+  return chips
+})
+
+const advancedFilterCount = computed(() => activeFilterChips.value.length)
+
+function clearFilter(key: string) {
+  const f = filter.value
+  if (key === 'requesterDepartment') f.requesterDepartment = ''
+  else if (key === 'requesterName')  f.requesterName = ''
+  else if (key === 'requestType')    f.requestType = null
+  else if (key === 'relatedSystem')  f.relatedSystem = ''
+  else if (key === 'priority')       f.priority = null
+  else if (key === 'createdDate')    { f.createdFrom = ''; f.createdTo = '' }
+  else if (key === 'dueDate')        { f.dueDateFrom = ''; f.dueDateTo = '' }
+  applyFilter()
+}
 
 const requestTypeOptions = REQUEST_TYPE_OPTIONS
 const priorityOptions    = SR_PRIORITY_OPTIONS
@@ -944,6 +1021,12 @@ function initFromUrl() {
   if (q.q)        search.value                         = String(q.q)
   if (q.page)     pagination.value.page                = Number(q.page)
   if (q.rows)     pagination.value.rowsPerPage         = Number(q.rows)
+  // 고급 필터가 복원되면 패널 자동 열기
+  const f = filter.value
+  if (f.requesterDepartment || f.requesterName || f.requestType || f.relatedSystem ||
+      f.priority || f.createdFrom || f.createdTo || f.dueDateFrom || f.dueDateTo) {
+    filterExpanded.value = true
+  }
 }
 
 // ── 생명주기 / 감시 ───────────────────────────────────────────────────────
