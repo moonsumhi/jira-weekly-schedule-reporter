@@ -331,7 +331,7 @@
         </div>
 
         <!-- 사이드바 -->
-        <div class="q-pa-md bg-grey-1" style="position: absolute; top: 0; right: 0; width: 320px; bottom: 0; overflow-y: auto; overflow-x: hidden; border-left: 1px solid #e0e0e0">
+        <div class="q-pa-md bg-grey-1 sidebar-panel" style="position: absolute; top: 0; right: 0; width: 320px; bottom: 0; overflow-y: auto; overflow-x: hidden; border-left: 1px solid #e0e0e0">
           <div class="column q-gutter-md">
 
             <div>
@@ -957,6 +957,23 @@ function confirmDelete() {
 .inline-field :deep(.q-field__control:hover),
 .inline-field :deep(.q-field__control:focus-within) {
   background: rgba(0, 0, 0, 0.04);
+}
+/* 긴 셀렉트 라벨(에픽 제목 등)이 사이드바 폭을 밀어내지 못하도록 고정 */
+.sidebar-panel .column > div,
+.sidebar-panel .column > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.sidebar-panel :deep(.q-field) {
+  max-width: 100%;
+}
+.sidebar-panel :deep(.q-field__native) {
+  overflow: hidden;
+}
+.sidebar-panel :deep(.q-field__native > span) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .sidebar-label {
   font-size: 11px;
