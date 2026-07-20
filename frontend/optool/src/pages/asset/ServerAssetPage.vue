@@ -744,6 +744,39 @@
           </div>
         </q-card-section>
 
+        <!-- 유지보수 섹션 -->
+        <q-card-section
+          v-if="activeCreateCategory === '서버' || activeCreateCategory === 'VMware' || !activeCreateCategory"
+          class="q-py-sm"
+        >
+          <div class="section-title-row">
+            <span class="section-title">유지보수</span>
+          </div>
+          <div class="section-divider" />
+          <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+            <div class="col-6 form-field">
+              <div class="field-label">유지보수 계약구분</div>
+              <q-input v-model="createFields['유지보수계약구분']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">현 유지보수 종료일자</div>
+              <q-input v-model="createFields['유지보수종료일자']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">유지보수 업체</div>
+              <q-input v-model="createFields['유지보수업체']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">유지보수 연락처</div>
+              <q-input v-model="createFields['유지보수연락처']" borderless dense class="field-input" />
+            </div>
+            <div class="col-12 form-field">
+              <div class="field-label">유지보수 특이사항</div>
+              <q-input v-model="createFields['유지보수특이사항']" borderless dense class="field-input" />
+            </div>
+          </div>
+        </q-card-section>
+
         <q-separator />
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat label="취소" v-close-popup class="q-mr-sm" />
@@ -1390,6 +1423,39 @@
           </div>
         </q-card-section>
 
+        <!-- 유지보수 섹션 -->
+        <q-card-section
+          v-if="!rowEditTarget?.fields?.['자산유형'] || rowEditTarget?.fields?.['자산유형'] === '서버' || rowEditTarget?.fields?.['자산유형'] === 'VMware'"
+          class="q-py-sm"
+        >
+          <div class="section-title-row">
+            <span class="section-title">유지보수</span>
+          </div>
+          <div class="section-divider" />
+          <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+            <div class="col-6 form-field">
+              <div class="field-label">유지보수 계약구분</div>
+              <q-input v-model="rowEditValues['유지보수계약구분']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">현 유지보수 종료일자</div>
+              <q-input v-model="rowEditValues['유지보수종료일자']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">유지보수 업체</div>
+              <q-input v-model="rowEditValues['유지보수업체']" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">유지보수 연락처</div>
+              <q-input v-model="rowEditValues['유지보수연락처']" borderless dense class="field-input" />
+            </div>
+            <div class="col-12 form-field">
+              <div class="field-label">유지보수 특이사항</div>
+              <q-input v-model="rowEditValues['유지보수특이사항']" borderless dense class="field-input" />
+            </div>
+          </div>
+        </q-card-section>
+
         <!-- 추가 필드 섹션 (커스텀/임포트 필드) -->
         <q-card-section v-if="rowEditExtraFields.length" class="q-py-sm">
           <div class="section-title-row">
@@ -1671,6 +1737,43 @@
               <div class="col-12 form-field">
                 <div class="field-label">비고</div>
                 <div class="detail-value">{{ displayValue(detailTarget.fields?.['비고']) }}</div>
+              </div>
+            </div>
+          </q-card-section>
+
+          <!-- 유지보수 -->
+          <q-card-section
+            v-if="!detailTarget.fields?.['자산유형'] || detailTarget.fields?.['자산유형'] === '서버' || detailTarget.fields?.['자산유형'] === 'VMware'"
+            class="q-py-sm"
+          >
+            <div class="section-title-row">
+              <span class="section-title">유지보수</span>
+            </div>
+            <div class="section-divider" />
+            <div class="row q-col-gutter-x-md q-mt-xs">
+              <div class="col-6 form-field">
+                <div class="field-label">유지보수 계약구분</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수계약구분']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">현 유지보수 종료일자</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수종료일자']) }}</div>
+              </div>
+            </div>
+            <div class="row q-col-gutter-x-md q-mt-sm">
+              <div class="col-6 form-field">
+                <div class="field-label">유지보수 업체</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수업체']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">유지보수 연락처</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수연락처']) }}</div>
+              </div>
+            </div>
+            <div class="row q-col-gutter-x-md q-mt-sm">
+              <div class="col-12 form-field">
+                <div class="field-label">유지보수 특이사항</div>
+                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수특이사항']) }}</div>
               </div>
             </div>
           </q-card-section>
@@ -2314,6 +2417,11 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   '수령일': '수령일',
   '변경일': '변경일',
   '변경사항': '변경사항(신규/변경/폐기)',
+  '유지보수계약구분': '유지보수 계약구분',
+  '유지보수종료일자': '현 유지보수 종료일자',
+  '유지보수업체': '유지보수 업체',
+  '유지보수연락처': '유지보수 연락처',
+  '유지보수특이사항': '유지보수 특이사항',
   [TAGS_KEY]: '태그',
   '비고': '비고',
 }
@@ -2446,7 +2554,7 @@ function colKey(col: unknown): string {
 // 컬럼 표시 순서 — '__ip__'/'__name__'은 IP/HostName 고정 컬럼 위치 마커
 const COLUMN_DISPLAY_ORDER = [
   'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
-  EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', TAGS_KEY, '비고',
+  EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항', TAGS_KEY, '비고',
 ] as const
 
 // 컬럼 선택 다이얼로그
@@ -3546,6 +3654,11 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
     { key: '변경일',        label: '변경일',                                                          sample: '' },
     { key: '변경사항',      label: '변경사항',                                                        sample: '' },
+    { key: '유지보수계약구분', label: '유지보수 계약구분',                                             sample: '' },
+    { key: '유지보수종료일자', label: '현 유지보수 종료일자',                                          sample: '' },
+    { key: '유지보수업체',  label: '유지보수 업체',                                                   sample: '' },
+    { key: '유지보수연락처', label: '유지보수 연락처',                                                sample: '' },
+    { key: '유지보수특이사항', label: '유지보수 특이사항',                                             sample: '' },
     { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
     { key: '비고',          label: '비고',                                                            sample: '' },
   ],
@@ -3697,6 +3810,11 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
     { key: '변경일',        label: '변경일',                                                          sample: '' },
     { key: '변경사항',      label: '변경사항',                                                        sample: '' },
+    { key: '유지보수계약구분', label: '유지보수 계약구분',                                             sample: '' },
+    { key: '유지보수종료일자', label: '현 유지보수 종료일자',                                          sample: '' },
+    { key: '유지보수업체',  label: '유지보수 업체',                                                   sample: '' },
+    { key: '유지보수연락처', label: '유지보수 연락처',                                                sample: '' },
+    { key: '유지보수특이사항', label: '유지보수 특이사항',                                             sample: '' },
     { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
     { key: '비고',          label: '비고',                                                            sample: '' },
   ],
