@@ -164,7 +164,10 @@ export type SR = {
   convertedIssueId: string | null
   convertedTaskId: string | null
   convertedProjectId: string | null
+  convertedIssueNumber: number | null
+  convertedIssueStatus: string | null
   estimatedEffort: string | null
+  actualEffortMd: number | null
   deploymentRequired: boolean
   securityReviewRequired: boolean
   // 메타
@@ -193,6 +196,10 @@ export type SRListItem = {
   assigneeId: string | null
   assigneeName: string | null
   isDelayed: boolean
+  convertedIssueId: string | null
+  convertedProjectId: string | null
+  convertedIssueNumber: number | null
+  convertedIssueStatus: string | null
   createdAt: string
   updatedAt: string
 }
@@ -255,6 +262,7 @@ export type SRStatusChange = {
   deployed_at?: string | null | undefined
   actual_completed_at?: string | null | undefined
   requester_confirmed?: boolean | undefined
+  actual_effort_md?: number | undefined
 }
 
 export type SRComment = {
@@ -433,6 +441,21 @@ export async function assignSR(id: string, payload: SRAssign) {
 
 export async function changeSRStatus(id: string, payload: SRStatusChange) {
   const { data } = await api.post<SR>(`/admin/schedule/service-requests/${id}/status`, payload)
+  return data
+}
+
+export async function changePlannedDueDate(id: string, plannedDueDate: string, changeReason?: string) {
+  const { data } = await api.post<SR>(`/admin/schedule/service-requests/${id}/planned-due-date`, {
+    planned_due_date: plannedDueDate,
+    change_reason: changeReason || undefined,
+  })
+  return data
+}
+
+export async function updateActualEffort(id: string, actualEffortMd: number) {
+  const { data } = await api.post<SR>(`/admin/schedule/service-requests/${id}/effort`, {
+    actual_effort_md: actualEffortMd,
+  })
   return data
 }
 

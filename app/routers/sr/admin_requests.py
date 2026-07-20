@@ -13,7 +13,7 @@ from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.sr.service_request import (
     SROut, SRListItem, SRListPage, SRPatch, SRInlinePatch,
-    SRReview, SRAssign, SRStatusChange,
+    SRReview, SRAssign, SRStatusChange, SRDueDateChange, SREffortUpdate,
     SRStats, SR_STATUS_LABEL, REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL,
 )
 from app.routers.auth import get_current_user
@@ -24,6 +24,7 @@ from app.services.sr.sr_service import (
     is_sr_operator,
 )
 from app.services.notification_service import create_notification, notify_users
+from app.services.sr.sr_issue_bridge import attach_converted_issue_info
 
 router = APIRouter()
 
@@ -112,13 +113,17 @@ async def list_all_srs(
     # is_delayed 필터는 Python 연산이므로 페이지네이션 전에 전체 조회 후 필터링
     if is_delayed is not None:
         all_docs = await col.find(q).sort(sort_field, sort_dir).to_list(None)
-        items = [SRListItem(**sr_to_out(d)) for d in all_docs if SRListItem(**sr_to_out(d)).is_delayed == is_delayed]
-        page = items[skip: skip + limit]
-        return SRListPage(items=page, total=len(items))
+        outs = [sr_to_out(d) for d in all_docs]
+        outs = [o for o in outs if o["is_delayed"] == is_delayed]
+        page = outs[skip: skip + limit]
+        await attach_converted_issue_info(page)
+        return SRListPage(items=[SRListItem(**o) for o in page], total=len(outs))
 
     total = await col.count_documents(q)
     docs = await col.find(q).sort(sort_field, sort_dir).skip(skip).limit(limit).to_list(None)
-    return SRListPage(items=[SRListItem(**sr_to_out(d)) for d in docs], total=total)
+    outs = [sr_to_out(d) for d in docs]
+    await attach_converted_issue_info(outs)
+    return SRListPage(items=[SRListItem(**o) for o in outs], total=total)
 
 
 # ── SR 상세 (관리자용) ────────────────────────────────────────────────
@@ -130,7 +135,9 @@ async def get_sr_admin(
 ):
     require_sr_operator(current_user)
     doc = await get_sr_or_404(sr_id)
-    return SROut(**sr_to_out(doc))
+    out = sr_to_out(doc)
+    await attach_converted_issue_info([out])
+    return SROut(**out)
 
 
 # ── 인라인 필드 수정 (manager 이상) ─────────────────────────────────────
@@ -406,6 +413,15 @@ async def change_status(
         updates["actual_completed_at"] = now
     if body.requester_confirmed is not None:
         updates["requester_confirmed"] = body.requester_confirmed
+    if body.actual_effort_md is not None:
+        updates["actual_effort_md"] = body.actual_effort_md
+        old_effort = doc.get("actual_effort_md")
+        if old_effort != body.actual_effort_md:
+            await record_sr_history(
+                sr_id, "FIELD_CHANGE:actual_effort_md",
+                str(old_effort) if old_effort is not None else None,
+                str(body.actual_effort_md), _user_label(current_user),
+            )
 
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
     await col.update_one({"_id": ObjectId(sr_id)}, {"$set": updates})
@@ -440,6 +456,95 @@ async def change_status(
             target_url=target_url,
         )
 
+    return SROut(**sr_to_out(updated))
+
+
+# ── 완료목표일 변경 (manager 이상) ─────────────────────────────────────
+
+@router.post("/{sr_id}/planned-due-date", response_model=SROut)
+async def change_planned_due_date(
+    sr_id: str,
+    body: SRDueDateChange,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    require_sr_manager(current_user)
+    doc = await get_sr_or_404(sr_id)
+
+    if doc["status"] in ("DRAFT", "CLOSED", "CANCELLED", "REJECTED"):
+        raise HTTPException(status_code=400, detail="완료목표일을 변경할 수 있는 상태가 아닙니다.")
+
+    now = datetime.now(timezone.utc)
+    old_due = doc.get("planned_due_date")
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    await col.update_one(
+        {"_id": ObjectId(sr_id)},
+        {"$set": {
+            "planned_due_date": body.planned_due_date,
+            "updated_at": now,
+            "updated_by": _user_label(current_user),
+        }},
+    )
+    await record_due_date_history(
+        sr_id, old_due, body.planned_due_date, body.change_reason, _user_label(current_user)
+    )
+    await record_sr_history(
+        sr_id, "FIELD_CHANGE:planned_due_date",
+        str(old_due)[:10] if old_due else None,
+        str(body.planned_due_date)[:10], _user_label(current_user),
+    )
+
+    # 요청자에게 완료목표일 변경 알림
+    await create_notification(
+        recipient_user_id=str(doc["requester_id"]),
+        notification_type="STATUS_CHANGED",
+        title="SR 완료목표일 변경",
+        message=f"'{doc.get('title', '')}' SR의 완료목표일이 {str(body.planned_due_date)[:10]}(으)로 변경되었습니다.",
+        sender_user_id=str(current_user.id),
+        sender_name=_user_label(current_user),
+        target_type="SR",
+        target_id=sr_id,
+        target_url=f"/pm/sr/{sr_id}",
+    )
+
+    updated = await col.find_one({"_id": ObjectId(sr_id)})
+    return SROut(**sr_to_out(updated))
+
+
+# ── 실제 공수(MD) 입력/수정 (담당자 또는 manager 이상) ──────────────────
+
+@router.post("/{sr_id}/effort", response_model=SROut)
+async def update_actual_effort(
+    sr_id: str,
+    body: SREffortUpdate,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    require_sr_operator(current_user)
+    doc = await get_sr_or_404(sr_id)
+
+    from app.services.sr.sr_service import is_sr_manager
+    is_assignee = doc.get("assignee_id") and str(doc["assignee_id"]) == current_user.id
+    if not is_assignee and not is_sr_manager(current_user):
+        raise HTTPException(status_code=403, detail="담당자 본인 또는 관리자만 공수를 입력할 수 있습니다.")
+
+    now = datetime.now(timezone.utc)
+    old_effort = doc.get("actual_effort_md")
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    await col.update_one(
+        {"_id": ObjectId(sr_id)},
+        {"$set": {
+            "actual_effort_md": body.actual_effort_md,
+            "updated_at": now,
+            "updated_by": _user_label(current_user),
+        }},
+    )
+    if old_effort != body.actual_effort_md:
+        await record_sr_history(
+            sr_id, "FIELD_CHANGE:actual_effort_md",
+            str(old_effort) if old_effort is not None else None,
+            str(body.actual_effort_md), _user_label(current_user),
+        )
+
+    updated = await col.find_one({"_id": ObjectId(sr_id)})
     return SROut(**sr_to_out(updated))
 
 
@@ -608,8 +713,8 @@ async def export_excel(
 
     headers = [
         "SR번호", "요청제목", "요청부서", "요청자", "요청유형", "관련시스템",
-        "중요도", "긴급여부", "희망완료일", "처리예정완료일", "실제완료일",
-        "담당자", "상태", "지연여부", "접수일", "최종수정일",
+        "중요도", "긴급여부", "희망완료일", "완료목표일", "실제완료일",
+        "담당자", "실제공수(MD)", "상태", "지연여부", "접수일", "최종수정일",
     ]
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
     header_font = Font(color="FFFFFF", bold=True)
@@ -642,6 +747,7 @@ async def export_excel(
             _fmt_dt(d.get("planned_due_date")),
             _fmt_dt(d.get("actual_completed_at")),
             d.get("assignee_name", ""),
+            d.get("actual_effort_md", ""),
             SR_STATUS_LABEL.get(d.get("status", ""), d.get("status", "")),
             is_delayed,
             _fmt_dt(d.get("created_at")),
@@ -736,6 +842,7 @@ async def export_sr_detail(
         "is_urgent": "긴급여부", "urgent_reason": "긴급사유",
         "related_system": "대상시스템", "related_menu": "관련메뉴",
         "related_url": "관련URL", "completion_criteria": "완료기준", "note": "비고",
+        "planned_due_date": "완료목표일", "actual_effort_md": "실제공수(MD)",
     }
     ws_fh = wb.create_sheet("필드변경이력")
     ws_fh.append(["변경항목", "이전값", "변경값", "변경자", "변경일시"])

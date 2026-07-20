@@ -501,10 +501,14 @@
                 <!-- 연결된 스케줄 관리 이슈 배너 -->
                 <q-banner v-if="sr.convertedIssueId && sr.convertedProjectId" class="bg-indigo-1 rounded-borders q-mb-sm" dense>
                   <template #avatar><q-icon name="link" color="indigo-7" /></template>
-                  <span class="text-indigo-9 text-weight-medium">연결된 스케줄 관리 이슈</span>
-                  <q-btn flat dense size="sm" color="indigo-7" icon="open_in_new"
-                    label="이슈 바로가기" class="q-ml-sm"
-                    @click="$router.push(`/pm/projects/${sr.convertedProjectId}/backlog`)" />
+                  <span class="text-indigo-9 text-weight-medium">연결된 스케줄 관리 태스크</span>
+                  <q-chip v-if="sr.convertedIssueNumber" dense size="sm" color="indigo-7" text-color="white"
+                    class="q-ml-sm" :label="`#${sr.convertedIssueNumber}`" />
+                  <q-badge v-if="sr.convertedIssueStatus" :color="taskStatusColor(sr.convertedIssueStatus)"
+                    :label="taskStatusLabel(sr.convertedIssueStatus)" class="q-ml-xs" />
+                  <q-btn v-if="hasPmPerm" flat dense size="sm" color="indigo-7" icon="open_in_new"
+                    label="태스크 바로가기" class="q-ml-sm"
+                    @click="$router.push(`/pm/projects/${sr.convertedProjectId}/backlog?issue=${sr.convertedIssueId}`)" />
                 </q-banner>
 
                 <div v-if="!sr.assigneeId && !sr.reviewResult" class="text-center text-grey-5 q-py-xl">
@@ -566,13 +570,31 @@
                             <div class="content-text">{{ sr.estimatedEffort || '-' }}</div>
                           </div>
                           <div class="col-12 col-sm-6">
-                            <div class="content-label">처리 예정 기간</div>
+                            <div class="content-label">처리 기간 (시작일 ~ 완료목표일)</div>
                             <div class="content-text">
                               {{ fmtDate(sr.plannedStartDate) }}
                               <template v-if="sr.plannedStartDate && sr.plannedDueDate"> ~ </template>
                               <span :class="sr.isDelayed ? 'text-negative text-weight-medium' : ''">
                                 {{ fmtDate(sr.plannedDueDate) }}
                               </span>
+                              <q-btn v-if="isManagerUser" flat dense round size="xs" icon="edit" color="grey-6"
+                                class="q-ml-xs" @click="openDueDateDialog">
+                                <q-tooltip>완료목표일 변경</q-tooltip>
+                              </q-btn>
+                            </div>
+                          </div>
+                          <div class="col-12 col-sm-6">
+                            <div class="content-label">실제 공수 (작업자 입력)</div>
+                            <div class="content-text">
+                              <template v-if="sr.actualEffortMd != null">
+                                {{ sr.actualEffortMd }} MD
+                                <span class="text-caption text-grey-6">({{ (sr.actualEffortMd * 8).toFixed(1) }}시간)</span>
+                              </template>
+                              <span v-else class="text-grey-5">미입력</span>
+                              <q-btn v-if="canEditEffort" flat dense round size="xs" icon="edit" color="grey-6"
+                                class="q-ml-xs" @click="openEffortDialog">
+                                <q-tooltip>실제 공수 입력</q-tooltip>
+                              </q-btn>
                             </div>
                           </div>
                           <div class="col-12 col-sm-6">
@@ -812,7 +834,7 @@
               <q-item>
                 <q-item-section side class="side-label">희망 완료일</q-item-section>
                 <q-item-section>
-                  <span :class="sr.isDelayed ? 'text-negative text-weight-medium' : ''">
+                  <span :class="sr.isDelayed && !sr.plannedDueDate ? 'text-negative text-weight-medium' : ''">
                     {{ fmtDate(sr.desiredDueDate) }}
                   </span>
                   <span v-if="dDay !== null" class="q-ml-xs text-caption"
@@ -831,7 +853,7 @@
                 <q-item-section>{{ sr.assigneeName || '-' }}</q-item-section>
               </q-item>
               <q-item v-if="sr.plannedDueDate">
-                <q-item-section side class="side-label">처리 예정</q-item-section>
+                <q-item-section side class="side-label">완료목표일</q-item-section>
                 <q-item-section :class="sr.isDelayed ? 'text-negative text-weight-medium' : ''">
                   {{ fmtDate(sr.plannedDueDate) }}
                 </q-item-section>
@@ -969,14 +991,14 @@
               <q-input v-model="assignForm.plannedStartDate" outlined type="date" hide-bottom-space />
             </div>
             <div class="col-6">
-              <div class="field-label">처리 예정 완료일</div>
+              <div class="field-label">완료목표일 <span style="font-size:11px;color:#aaa;font-weight:400">(지연 판정 기준)</span></div>
               <q-input v-model="assignForm.plannedDueDate" outlined type="date" hide-bottom-space />
             </div>
           </div>
 
-          <div class="field-label">예상 공수 <span style="font-size:11px;color:#aaa;font-weight:400">(시작일·완료일 기준 자동 계산, 주말 제외)</span></div>
-          <q-input v-model="assignForm.estimatedEffort" outlined readonly
-            placeholder="시작일과 완료일을 입력하면 자동 계산됩니다" hide-bottom-space class="q-mb-md" bg-color="grey-1" />
+          <div class="field-label">예상 공수 <span style="font-size:11px;color:#aaa;font-weight:400">(작업자와 협의한 값 직접 입력)</span></div>
+          <q-input v-model="assignForm.estimatedEffort" outlined
+            placeholder="예: 2 MD, 0.5일" hide-bottom-space class="q-mb-md" />
 
           <div class="row q-gutter-xl q-mt-xs">
             <q-toggle v-model="assignForm.deploymentRequired" color="orange-7" size="sm">
@@ -1026,14 +1048,82 @@
 
             <template v-if="statusForm.deployed">
               <div class="field-label">배포 일시</div>
-              <q-input v-model="statusForm.deployedAt" outlined type="datetime-local" hide-bottom-space />
+              <q-input v-model="statusForm.deployedAt" outlined type="datetime-local" hide-bottom-space class="q-mb-md" />
             </template>
+          </template>
+
+          <!-- 작업 시작·완료 시 실제 공수 입력 -->
+          <template v-if="statusForm.status === 'IN_PROGRESS' || statusForm.status === 'COMPLETED'">
+            <div class="field-label">
+              실제 공수 (MD)
+              <span v-if="statusForm.status === 'IN_PROGRESS'" style="font-size:11px;color:#aaa;font-weight:400">(선택 — 완료 시 수정 가능)</span>
+            </div>
+            <q-input v-model.number="statusForm.actualEffortMd" outlined type="number" min="0" step="0.125"
+              placeholder="예: 0.5 (반일), 1 (하루)" hide-bottom-space class="q-mb-xs">
+              <template #append><span class="text-caption text-grey-6">MD</span></template>
+            </q-input>
+            <div class="row q-gutter-xs q-mb-md">
+              <q-btn v-for="p in EFFORT_PRESETS" :key="p.md" dense outline size="sm" color="grey-7"
+                :label="p.label" @click="statusForm.actualEffortMd = p.md" />
+              <span v-if="statusForm.actualEffortMd" class="text-caption text-grey-6 self-center q-ml-sm">
+                = {{ (Number(statusForm.actualEffortMd) * 8).toFixed(1) }}시간(MH)
+              </span>
+            </div>
           </template>
 
         </q-card-section>
         <div class="dialog-footer">
           <q-btn flat label="취소" v-close-popup color="grey-7" />
           <q-btn color="blue-7" unelevated label="변경 확인" @click="doStatusChange" :loading="actionLoading" />
+        </div>
+      </q-card>
+    </q-dialog>
+
+    <!-- 완료목표일 변경 (manager) -->
+    <q-dialog v-model="dueDateDialog">
+      <q-card class="dialog-card">
+        <div class="dialog-header dialog-header--blue">
+          <div class="dialog-header__title">완료목표일 변경</div>
+          <div class="dialog-header__sub">{{ sr?.srNo }} — 지연 여부는 완료목표일 기준으로 판정됩니다</div>
+        </div>
+        <q-card-section class="dialog-body">
+          <div class="field-label">완료목표일 <span class="required">*</span></div>
+          <q-input v-model="dueDateForm.plannedDueDate" outlined type="date" hide-bottom-space class="q-mb-md" />
+          <div class="field-label">변경 사유</div>
+          <q-input v-model="dueDateForm.changeReason" outlined type="textarea" rows="2"
+            placeholder="예: 작업자 협의 결과 일정 조정" hide-bottom-space />
+        </q-card-section>
+        <div class="dialog-footer">
+          <q-btn flat label="취소" v-close-popup color="grey-7" />
+          <q-btn color="blue-7" unelevated label="변경 확인" @click="doChangeDueDate" :loading="actionLoading" />
+        </div>
+      </q-card>
+    </q-dialog>
+
+    <!-- 실제 공수 입력 (담당자/manager) -->
+    <q-dialog v-model="effortDialog">
+      <q-card class="dialog-card">
+        <div class="dialog-header dialog-header--blue">
+          <div class="dialog-header__title">실제 공수 입력</div>
+          <div class="dialog-header__sub">{{ sr?.srNo }} — 실제 작업에 소요된 시간을 MD로 입력하세요</div>
+        </div>
+        <q-card-section class="dialog-body">
+          <div class="field-label">실제 공수 (MD) <span class="required">*</span></div>
+          <q-input v-model.number="effortForm.actualEffortMd" outlined type="number" min="0" step="0.125"
+            placeholder="예: 0.5 (반일), 1 (하루)" hide-bottom-space class="q-mb-xs" autofocus>
+            <template #append><span class="text-caption text-grey-6">MD</span></template>
+          </q-input>
+          <div class="row q-gutter-xs">
+            <q-btn v-for="p in EFFORT_PRESETS" :key="p.md" dense outline size="sm" color="grey-7"
+              :label="p.label" @click="effortForm.actualEffortMd = p.md" />
+            <span v-if="effortForm.actualEffortMd" class="text-caption text-grey-6 self-center q-ml-sm">
+              = {{ (Number(effortForm.actualEffortMd) * 8).toFixed(1) }}시간(MH)
+            </span>
+          </div>
+        </q-card-section>
+        <div class="dialog-footer">
+          <q-btn flat label="취소" v-close-popup color="grey-7" />
+          <q-btn color="blue-7" unelevated label="저장" @click="doUpdateEffort" :loading="actionLoading" />
         </div>
       </q-card>
     </q-dialog>
@@ -1050,7 +1140,7 @@ import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import {
   getSR, getAdminSR, listComments, listHistory, addComment, uploadSRAttachment,
-  cancelSR, reviewSR, assignSR, changeSRStatus,
+  cancelSR, reviewSR, assignSR, changeSRStatus, changePlannedDueDate, updateActualEffort,
   SR_STATUS_LABEL, SR_STATUS_COLOR, SR_PRIORITY_LABEL,
   REQUEST_TYPE_LABEL,
   type SR, type SRComment, type SRHistory, type SRStatus, type ReviewResult, type SRAttachment,
@@ -1081,6 +1171,23 @@ const TYPE_CHIP_COLOR: Record<string, string> = {
   PERMISSION: 'teal-7', CONFIG_CHANGE: 'orange-8', SERVER_INFRA: 'indigo-7',
   SECURITY: 'deep-orange-8', ETC: 'grey-7',
 }
+// 실제 공수 퀵버튼 (1시간 = 0.125 MD)
+const EFFORT_PRESETS = [
+  { label: '1시간', md: 0.125 },
+  { label: '2시간', md: 0.25 },
+  { label: '반일', md: 0.5 },
+  { label: '1일', md: 1 },
+  { label: '2일', md: 2 },
+]
+// 연동 태스크 상태 라벨/색상 (스케줄 관리 이슈 상태)
+const TASK_STATUS_LABEL: Record<string, string> = {
+  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중', DONE: '완료',
+}
+const TASK_STATUS_COLOR: Record<string, string> = {
+  BACKLOG: 'grey-6', TODO: 'blue-grey-6', IN_PROGRESS: 'blue-7', IN_REVIEW: 'orange-7', DONE: 'green-7',
+}
+function taskStatusLabel(s: string) { return TASK_STATUS_LABEL[s] ?? s }
+function taskStatusColor(s: string) { return TASK_STATUS_COLOR[s] ?? 'grey-6' }
 
 // ── refs / store ────────────────────────────────────────────────────
 
@@ -1141,7 +1248,8 @@ watch(
         if (day !== 0 && day !== 6) count++
         cur.setDate(cur.getDate() + 1)
       }
-      if (count > 0) assignForm.value.estimatedEffort = `${count}일`
+      // 사용자가 직접 입력하지 않은 경우에만 제안값 채움
+      if (count > 0 && !assignForm.value.estimatedEffort) assignForm.value.estimatedEffort = `${count}일`
     }
   }
 )
@@ -1154,7 +1262,12 @@ const reviewSelectedUser = ref<PmUser | null>(null)
 const statusForm = ref({
   status: null as string | null, reason: '', processResult: '',
   deployed: false, deployedAt: null as string | null,
+  actualEffortMd: null as number | null,
 })
+const dueDateDialog = ref(false)
+const dueDateForm   = ref({ plannedDueDate: null as string | null, changeReason: '' })
+const effortDialog  = ref(false)
+const effortForm    = ref({ actualEffortMd: null as number | null })
 
 // ── 권한 computed ────────────────────────────────────────────────────
 
@@ -1168,6 +1281,14 @@ const isManagerUser  = computed(() => {
   return authStore.me?.isAdmin || p.includes('sr_manager')
 })
 const isMyRequest    = computed(() => sr.value && String(authStore.me?.id) === sr.value.requesterId)
+const hasPmPerm      = computed(() => {
+  const p = authStore.me?.permissions || []
+  return authStore.me?.isAdmin || p.includes('pm')
+})
+// 실제 공수: 담당자 본인 또는 manager 이상만 입력 가능
+const canEditEffort  = computed(() =>
+  isManagerUser.value || (sr.value?.assigneeId != null && String(authStore.me?.id) === sr.value.assigneeId)
+)
 
 // ── D-Day computed ────────────────────────────────────────────────────
 
@@ -1231,7 +1352,10 @@ const actionButtons = computed(() => {
   }
 
   if (isOperatorUser.value && !['CLOSED', 'REJECTED', 'DRAFT'].includes(s)) {
-    btns.push({ key: 'status', label: '상태 변경', color: 'blue-7', icon: 'swap_horiz', action: () => { statusDialog.value = true } })
+    btns.push({ key: 'status', label: '상태 변경', color: 'blue-7', icon: 'swap_horiz', action: () => {
+      statusForm.value.actualEffortMd = sr.value?.actualEffortMd ?? null
+      statusDialog.value = true
+    } })
   }
 
   return btns
@@ -1343,6 +1467,8 @@ const FIELD_LABELS: Record<string, string> = {
   related_url:         '관련 URL',
   completion_criteria: '완료 기준',
   note:                '비고',
+  planned_due_date:    '완료목표일',
+  actual_effort_md:    '실제 공수(MD)',
 }
 function fieldChangeLabel(actionType: string): string {
   const key = actionType.replace('FIELD_CHANGE:', '')
@@ -1556,6 +1682,7 @@ async function doStatusChange() {
       process_result: statusForm.value.processResult || undefined,
       deployed:       statusForm.value.deployed || undefined,
       deployed_at:    statusForm.value.deployedAt || undefined,
+      actual_effort_md: statusForm.value.actualEffortMd ?? undefined,
     })
     $q.notify({ type: 'positive', message: '상태가 변경되었습니다.' })
     statusDialog.value = false; void load()
@@ -1563,6 +1690,49 @@ async function doStatusChange() {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     $q.notify({ type: 'negative', message: msg || '처리 실패' })
   } finally { actionLoading.value = false; activeAction.value = null }
+}
+
+function openDueDateDialog() {
+  dueDateForm.value = {
+    plannedDueDate: sr.value?.plannedDueDate ? sr.value.plannedDueDate.slice(0, 10) : null,
+    changeReason: '',
+  }
+  dueDateDialog.value = true
+}
+
+async function doChangeDueDate() {
+  if (!dueDateForm.value.plannedDueDate) {
+    $q.notify({ type: 'warning', message: '완료목표일을 입력해주세요.' }); return
+  }
+  actionLoading.value = true
+  try {
+    await changePlannedDueDate(srId.value, dueDateForm.value.plannedDueDate, dueDateForm.value.changeReason)
+    $q.notify({ type: 'positive', message: '완료목표일이 변경되었습니다.' })
+    dueDateDialog.value = false; void load()
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    $q.notify({ type: 'negative', message: msg || '처리 실패' })
+  } finally { actionLoading.value = false }
+}
+
+function openEffortDialog() {
+  effortForm.value = { actualEffortMd: sr.value?.actualEffortMd ?? null }
+  effortDialog.value = true
+}
+
+async function doUpdateEffort() {
+  if (effortForm.value.actualEffortMd == null || effortForm.value.actualEffortMd < 0) {
+    $q.notify({ type: 'warning', message: '실제 공수를 입력해주세요.' }); return
+  }
+  actionLoading.value = true
+  try {
+    await updateActualEffort(srId.value, effortForm.value.actualEffortMd)
+    $q.notify({ type: 'positive', message: '실제 공수가 저장되었습니다.' })
+    effortDialog.value = false; void load()
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    $q.notify({ type: 'negative', message: msg || '처리 실패' })
+  } finally { actionLoading.value = false }
 }
 
 onMounted(async () => {
