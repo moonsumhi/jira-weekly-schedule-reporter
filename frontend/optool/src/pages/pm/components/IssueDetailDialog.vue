@@ -394,11 +394,15 @@
             </div>
 
             <div>
-              <div class="sidebar-label">MD (공수)</div>
-              <q-input v-model.number="localEffortMd" dense outlined type="number" :min="0"
-                @blur="patchField('effort_md', localEffortMd)">
-                <template #append><span class="text-caption text-grey-5">MD</span></template>
-              </q-input>
+              <div class="sidebar-label">공수</div>
+              <div style="display: flex; gap: 4px">
+                <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0"
+                  style="flex: 1"
+                  @blur="saveEffort" />
+                <q-select v-model="localEffortUnit" :options="['MD', '시간', '분']"
+                  dense outlined style="width: 64px"
+                  @update:model-value="saveEffort" />
+              </div>
             </div>
 
             <q-separator />
@@ -619,7 +623,8 @@ const localLabelIds = ref<string[]>([])
 const localAssigneeId = ref<string | null>(null)
 const localEpicId = ref<string | null>(null)
 const localStoryPoints = ref<number | null>(null)
-const localEffortMd = ref<number | null>(null)
+const localEffortValue = ref<number | null>(null)
+const localEffortUnit = ref<string>('MD')
 const localStartDate = ref('')
 const localDueDate = ref('')
 
@@ -687,7 +692,14 @@ async function loadIssueContent(issue: Issue) {
   localAssigneeId.value = issue.assigneeId
   localEpicId.value = issue.epicId
   localStoryPoints.value = issue.storyPoints
-  localEffortMd.value = issue.effortMd
+  if (issue.effortMd) {
+    const m = issue.effortMd.match(/^([\d.]+)\s*(.+)$/)
+    localEffortValue.value = m ? parseFloat(m[1]!) : null
+    localEffortUnit.value  = m ? m[2]!.trim() : 'MD'
+  } else {
+    localEffortValue.value = null
+    localEffortUnit.value  = 'MD'
+  }
   localStartDate.value = issue.startDate?.slice(0, 10) ?? ''
   localDueDate.value = issue.dueDate?.slice(0, 10) ?? ''
   editTitle.value = issue.title
@@ -851,6 +863,13 @@ function historyAction(h: IssueHistory): string {
     return '댓글 수정'
   }
   return `${FIELD_LABEL[h.field] ?? h.field} 변경`
+}
+
+function saveEffort() {
+  const val = localEffortValue.value != null
+    ? `${localEffortValue.value} ${localEffortUnit.value}`
+    : null
+  void patchField('effort_md', val)
 }
 
 async function patchField(field: string, value: unknown) {
