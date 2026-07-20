@@ -866,12 +866,6 @@ onMounted(async () => {
     project.value  = proj
     allIssues.value = issues
     members.value  = mems
-    // ?issue=<id> 딥링크: 해당 이슈 상세 다이얼로그 바로 열기
-    const deepLinkIssueId = route.query.issue as string | undefined
-    if (deepLinkIssueId) {
-      const target = issues.find(i => i.id === deepLinkIssueId)
-      if (target) openDetail(target)
-    }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
   } finally {

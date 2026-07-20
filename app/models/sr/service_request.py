@@ -260,8 +260,6 @@ class SROut(BaseModel):
     converted_issue_id: Optional[str] = None
     converted_task_id: Optional[str] = None
     converted_project_id: Optional[str] = None
-    converted_issue_number: Optional[int] = None
-    converted_issue_status: Optional[str] = None
     estimated_effort: Optional[str] = None
     deployment_required: bool = False
     security_review_required: bool = False
@@ -294,11 +292,6 @@ class SRListItem(BaseModel):
     assignee_id: Optional[str] = None
     assignee_name: Optional[str] = None
     is_delayed: bool = False
-    # 연동 태스크 정보
-    converted_issue_id: Optional[str] = None
-    converted_project_id: Optional[str] = None
-    converted_issue_number: Optional[int] = None
-    converted_issue_status: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

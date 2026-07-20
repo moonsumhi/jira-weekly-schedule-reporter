@@ -24,7 +24,6 @@ from app.services.sr.sr_service import (
     is_sr_operator,
 )
 from app.services.notification_service import create_notification, notify_users
-from app.services.sr.sr_issue_bridge import attach_converted_issue_info
 
 router = APIRouter()
 
@@ -116,13 +115,11 @@ async def list_all_srs(
         outs = [sr_to_out(d) for d in all_docs]
         outs = [o for o in outs if o["is_delayed"] == is_delayed]
         page = outs[skip: skip + limit]
-        await attach_converted_issue_info(page)
         return SRListPage(items=[SRListItem(**o) for o in page], total=len(outs))
 
     total = await col.count_documents(q)
     docs = await col.find(q).sort(sort_field, sort_dir).skip(skip).limit(limit).to_list(None)
     outs = [sr_to_out(d) for d in docs]
-    await attach_converted_issue_info(outs)
     return SRListPage(items=[SRListItem(**o) for o in outs], total=total)
 
 
@@ -135,9 +132,7 @@ async def get_sr_admin(
 ):
     require_sr_operator(current_user)
     doc = await get_sr_or_404(sr_id)
-    out = sr_to_out(doc)
-    await attach_converted_issue_info([out])
-    return SROut(**out)
+    return SROut(**sr_to_out(doc))
 
 
 # ── 인라인 필드 수정 (manager 이상) ─────────────────────────────────────
