@@ -94,6 +94,7 @@ export type Issue = {
   startDate: string | null
   dueDate: string | null
   storyPoints: number | null
+  effortMd: number | null
   attachments: { fileId: string; originalName: string; url: string; size: number; contentType: string }[]
   order: number
   linkedSrId: string | null
