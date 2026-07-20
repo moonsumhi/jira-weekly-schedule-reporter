@@ -1041,7 +1041,7 @@ import {
 import { SR_TYPE_FIELDS } from 'src/services/sr-type-fields'
 import type { SRTypeField } from 'src/services/sr-type-fields'
 import { listPmUsers, type PmUser } from 'src/services/pm/users'
-import { formatKst } from 'src/utils/time/kst'
+import { formatKst, fmtDateKst } from 'src/utils/time/kst'
 import MentionInput from 'src/components/MentionInput.vue'
 import MentionContent from 'src/components/MentionContent.vue'
 import type { MentionUser } from 'src/services/mention'
@@ -1291,7 +1291,7 @@ function fileIcon(ct: string) {
   return 'insert_drive_file'
 }
 
-function fmtDate(d: string | null | undefined)     { return d ? d.substring(0, 10) : '-' }
+function fmtDate(d: string | null | undefined)     { return fmtDateKst(d) }
 function fmtDateTime(d: string | null | undefined) { return d ? formatKst(d) : '-' }
 
 const FIELD_LABELS: Record<string, string> = {

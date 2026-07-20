@@ -74,6 +74,7 @@ import {
 } from 'src/services/pm/sprint'
 import { getProject, type Project } from 'src/services/pm/project'
 import { getErrorMessage } from 'src/utils/http/error'
+import { fmtDateKst } from 'src/utils/time/kst'
 
 const route = useRoute()
 const projectId = route.params.projectId as string
@@ -106,10 +107,7 @@ function statusLabel(s: SprintStatus) {
 function statusColor(s: SprintStatus) {
   return { PLANNED: 'grey', ACTIVE: 'positive', COMPLETED: 'blue' }[s]
 }
-function fmtDate(d: string | null) {
-  if (!d) return '-'
-  return d.slice(0, 10)
-}
+function fmtDate(d: string | null) { return fmtDateKst(d) }
 
 function openCreateDialog() {
   dialog.value = { open: true, isEdit: false, loading: false, id: '', name: '', goal: '', startDate: '', endDate: '' }

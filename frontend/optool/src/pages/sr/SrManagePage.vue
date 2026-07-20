@@ -413,6 +413,7 @@ import {
 import { listPmUsers, type PmUser } from 'src/services/pm/users'
 import { listProjects, setSrDefaultProject, type Project } from 'src/services/pm/project'
 import { useAuthStore } from 'src/stores/auth'
+import { fmtDateKst } from 'src/utils/time/kst'
 
 // ── 상수 ────────────────────────────────────────────────────────────────
 
@@ -580,7 +581,7 @@ function statusColor(s: string)      { return (SR_STATUS_COLOR    as Record<stri
 function priorityLabel(s: string)    { return (SR_PRIORITY_LABEL  as Record<string,string>)[s] ?? s }
 function priorityColor(s: string)    { return (SR_PRIORITY_COLOR  as Record<string,string>)[s] ?? 'grey' }
 function requestTypeLabel(s: string) { return (REQUEST_TYPE_LABEL as Record<string,string>)[s] ?? s }
-function fmtDate(d: string | null)   { return d ? d.substring(0, 10) : '-' }
+function fmtDate(d: string | null)   { return fmtDateKst(d) }
 function formatTitle(row: SRListItem) {
   const type = requestTypeLabel(row.requestType)
   const sys  = row.relatedSystem ? `(${row.relatedSystem})` : ''

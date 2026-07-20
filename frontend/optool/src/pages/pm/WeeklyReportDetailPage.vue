@@ -14,7 +14,7 @@
           스케줄 관리 › 주간 보고 › 상세
           <span v-if="report">
             · {{ report.reportYear }}년 {{ report.reportWeek }}주차
-            · {{ report.startDate?.slice(0,10) }} ~ {{ report.endDate?.slice(0,10) }}
+            · {{ fmtDateKst(report.startDate) }} ~ {{ fmtDateKst(report.endDate) }}
             <template v-if="report.department"> · {{ report.department }}</template>
           </span>
         </div>
@@ -97,7 +97,7 @@
                           <span v-if="item.assigneeName" class="text-caption text-grey-7">{{ item.assigneeName }}</span>
                           <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
                           <q-badge :color="item.isDelayed ? 'negative' : 'grey-5'" :label="ISSUE_STATUS_KO[item.status] ?? item.status" />
-                          <span v-if="item.dueDate" class="text-caption text-grey-6">{{ item.dueDate.slice(0,10) }}</span>
+                          <span v-if="item.dueDate" class="text-caption text-grey-6">{{ fmtDateKst(item.dueDate) }}</span>
                         </div>
                       </div>
                     </template>
@@ -127,7 +127,7 @@
                             <span class="text-body2 col ellipsis">{{ item.title }}</span>
                             <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
                             <q-badge :color="item.isDelayed ? 'negative' : 'grey-5'" :label="ISSUE_STATUS_KO[item.status] ?? item.status" />
-                            <span v-if="item.dueDate" class="text-caption text-grey-6">{{ item.dueDate.slice(0,10) }}</span>
+                            <span v-if="item.dueDate" class="text-caption text-grey-6">{{ fmtDateKst(item.dueDate) }}</span>
                           </div>
                         </div>
                         <div v-else class="text-caption text-grey-5 q-pl-sm">없음</div>
@@ -262,7 +262,7 @@
                   <div v-if="item.background" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">배경:</span> {{ item.background }}</div>
                   <div v-if="item.options" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">선택지:</span> {{ item.options }}</div>
                   <div v-if="item.requestedDecision" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">요청:</span> {{ item.requestedDecision }}</div>
-                  <div v-if="item.desiredDate" class="text-caption text-grey-6">희망 결정일: {{ item.desiredDate.slice(0,10) }}</div>
+                  <div v-if="item.desiredDate" class="text-caption text-grey-6">희망 결정일: {{ fmtDateKst(item.desiredDate) }}</div>
                 </template>
                 <template v-if="item.section === 'NETWORK'">
                   <MarkdownContent v-if="item.content" :content="item.content" class="q-mb-xs" />
@@ -312,6 +312,7 @@ import {
   type ProjectBreakdown, type PersonBreakdown,
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
+import { fmtDateKst } from 'src/utils/time/kst'
 import WrItemDialog from './components/WrItemDialog.vue'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
 
@@ -358,7 +359,7 @@ const workItemCols = [
   { name: 'assignee', label: '담당자',  field: 'assigneeName',align: 'left'   as const },
   { name: 'priority', label: '우선순위',field: 'priority',    align: 'center' as const },
   { name: 'status',   label: '상태',    field: 'status',      align: 'center' as const },
-  { name: 'due',      label: '마감일',  field: (r: { dueDate: string | null }) => r.dueDate?.slice(0,10) ?? '', align: 'center' as const },
+  { name: 'due',      label: '마감일',  field: (r: { dueDate: string | null }) => fmtDateKst(r.dueDate), align: 'center' as const },
 ]
 
 // ── computed ───────────────────────────────────────────────────────────

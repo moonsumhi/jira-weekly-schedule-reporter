@@ -1,5 +1,30 @@
 import {DateTime} from 'luxon'
 
+/** ISO datetime → KST "YYYY-MM-DD" (날짜만 표시할 때) */
+export function fmtDateKst(iso: string | null | undefined): string {
+  if (!iso) return '-'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso  // 이미 날짜 문자열
+  const normalized = /Z|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + 'Z'
+  const d = new Date(normalized)
+  if (isNaN(d.getTime())) return iso.slice(0, 10)
+  return new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
+/** ISO datetime → KST "YYYY-MM-DD HH:MM" (날짜+시간 표시할 때) */
+export function fmtDatetimeKst(iso: string | null | undefined): string {
+  if (!iso) return '-'
+  const normalized = /Z|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + 'Z'
+  const d = new Date(normalized)
+  if (isNaN(d.getTime())) return iso
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000)
+  const yyyy = kst.getUTCFullYear()
+  const mm   = String(kst.getUTCMonth() + 1).padStart(2, '0')
+  const dd   = String(kst.getUTCDate()).padStart(2, '0')
+  const hh   = String(kst.getUTCHours()).padStart(2, '0')
+  const min  = String(kst.getUTCMinutes()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`
+}
+
 export function toKSTPlusOneDay(utcString: string): string {
   return DateTime.fromISO(utcString, {zone: 'utc'})
     .setZone('Asia/Seoul')

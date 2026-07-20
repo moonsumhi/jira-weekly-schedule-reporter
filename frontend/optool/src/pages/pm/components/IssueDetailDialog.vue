@@ -499,6 +499,7 @@ import type { MentionUser } from 'src/services/mention'
 import { listSprints, type Sprint } from 'src/services/pm/sprint'
 import { listProjectMembers, type ProjectMember } from 'src/services/pm/project'
 import { getErrorMessage } from 'src/utils/http/error'
+import { fmtDatetimeKst } from 'src/utils/time/kst'
 
 const props = defineProps<{
   modelValue: boolean
@@ -800,16 +801,7 @@ watch(() => props.modelValue, (open) => {
   }
 }, { immediate: true })
 
-function fmtDate(d: string) {
-  if (!d) return '-'
-  const dt = new Date(d)
-  const yyyy = dt.getFullYear()
-  const mm = String(dt.getMonth() + 1).padStart(2, '0')
-  const dd = String(dt.getDate()).padStart(2, '0')
-  const hh = String(dt.getHours()).padStart(2, '0')
-  const min = String(dt.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${min}`
-}
+function fmtDate(d: string) { return fmtDatetimeKst(d) }
 
 function fmtSize(bytes: number) {
   if (bytes < 1024) return `${bytes}B`
