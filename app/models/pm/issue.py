@@ -37,7 +37,7 @@ class IssueCreate(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
     story_points: Optional[int] = Field(None, ge=0, le=999)
-    effort_md: Optional[float] = Field(None, ge=0)
+    effort_md: Optional[str] = None
     attachments: List[Attachment] = []
 
 
@@ -55,6 +55,7 @@ class IssuePatch(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
     story_points: Optional[int] = Field(None, ge=0, le=999)
+    effort_md: Optional[str] = None
     attachments: Optional[List[Attachment]] = None
     order: Optional[float] = None
 
@@ -91,7 +92,7 @@ class IssueOut(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime]
     story_points: Optional[int] = None
-    effort_md: Optional[float] = None
+    effort_md: Optional[str] = None
     attachments: List[Attachment] = []
     order: float
     linked_sr_id: Optional[str] = None

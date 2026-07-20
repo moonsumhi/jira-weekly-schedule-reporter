@@ -94,7 +94,7 @@ export type Issue = {
   startDate: string | null
   dueDate: string | null
   storyPoints: number | null
-  effortMd: number | null
+  effortMd: string | null
   attachments: { fileId: string; originalName: string; url: string; size: number; contentType: string }[]
   order: number
   linkedSrId: string | null
@@ -125,7 +125,7 @@ export type IssueCreate = {
   start_date?: string | null
   due_date?: string | null
   story_points?: number | null
-  effort_md?: number | null
+  effort_md?: string | null
   attachments?: { file_id: string; original_name: string; url: string; size: number; content_type: string }[]
 }
 
