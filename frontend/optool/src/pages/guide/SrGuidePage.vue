@@ -82,7 +82,8 @@
           <div class="col">
             <div class="text-subtitle2 text-weight-bold q-mb-xs">기본 정보를 입력합니다 (Step 2)</div>
             <div class="text-body2 text-grey-7 q-mb-sm">
-              <strong>별표(*) 항목은 필수</strong>입니다. 중요도·긴급 여부는 담당자 배정 우선순위에 영향을 줍니다.
+              <strong>별표(*) 항목은 필수</strong>입니다. 희망 완료일도 필수 항목이며, 지연 여부 판정 기준이 됩니다.
+              중요도·긴급 여부는 담당자 배정 우선순위에 영향을 줍니다. 요청자 정보는 로그인 사용자로 자동 설정됩니다.
             </div>
             <div class="mock-screen" style="max-width:520px;pointer-events:none">
               <div class="text-caption text-grey-5 q-mb-sm">화면 예시 — 기본 정보 입력 폼</div>
@@ -94,7 +95,7 @@
               <q-input model-value="" outlined dense label="요청 배경 (선택)" type="textarea" :rows="2"
                 placeholder="이 요청이 발생하게 된 배경이나 상황을 설명해주세요." class="q-mb-sm" />
               <div class="row q-gutter-sm items-center">
-                <q-input model-value="" outlined dense label="희망 완료일" type="date" stack-label class="col" />
+                <q-input model-value="" outlined dense label="희망 완료일 *" type="date" stack-label class="col" />
                 <q-input model-value="보통" outlined dense label="중요도" class="col" />
                 <div class="row items-center q-gutter-xs" style="flex-shrink:0">
                   <q-toggle :model-value="false" color="negative" dense />
@@ -126,7 +127,8 @@
           <div class="col">
             <div class="text-subtitle2 text-weight-bold q-mb-xs">유형별 추가 정보를 입력합니다 (Step 3)</div>
             <div class="text-body2 text-grey-7 q-mb-md">
-              선택한 유형에 따라 다른 항목이 표시됩니다. 에디터 필드에서는 <strong>Ctrl+V로 이미지를 바로 붙여넣을</strong> 수 있습니다.
+              선택한 유형에 따라 다른 항목이 표시됩니다. 에디터 필드는 <strong>마크다운 에디터</strong>로,
+              서식 있는 텍스트 작성과 <strong>Ctrl+V 이미지 붙여넣기</strong>를 지원합니다.
             </div>
 
             <div class="q-mb-md">
@@ -261,7 +263,8 @@
           <div class="col">
             <div class="text-subtitle2 text-weight-bold q-mb-xs">SR 카드에서 현황을 한눈에 확인합니다</div>
             <div class="text-body2 text-grey-7 q-mb-sm">
-              각 SR 행에는 SR 번호, 제목, 유형, 대상 시스템, 현재 상태, 담당자, 희망 완료일이 표시됩니다.
+              각 SR 행에는 SR 번호, 제목, 현재 상태, 담당자, 희망 완료일이 표시됩니다.
+              제목 앞에는 <strong>[유형](시스템)</strong> 접두어가 자동으로 붙어 유형과 대상 시스템을 바로 알 수 있습니다.
             </div>
             <div class="mock-screen" style="pointer-events:none">
               <div class="text-caption text-grey-5 q-mb-sm">화면 예시 — SR 목록 행</div>
@@ -273,7 +276,7 @@
                     <q-badge color="red"      label="긴급" style="font-size:0.65rem" />
                     <q-badge color="negative" label="지연" style="font-size:0.65rem" />
                   </div>
-                  <div class="text-body2 text-weight-medium q-mb-xs">월별 정산 오류 수정 요청</div>
+                  <div class="text-body2 text-weight-medium q-mb-xs">[오류 수정](정산 시스템) 월별 정산 오류 수정 요청</div>
                   <div class="row items-center q-gutter-xs">
                     <q-icon name="bug_report" size="13px" color="grey-5" />
                     <span class="text-caption text-grey-6">오류 수정 · 정산 시스템</span>
@@ -405,6 +408,7 @@
             </div>
             <div class="text-caption text-grey-7 q-mt-sm">
               댓글 입력란에 <strong>Ctrl+V로 이미지를 바로 붙여넣기</strong>할 수 있습니다. 파일 첨부 버튼으로 문서·이미지를 첨부할 수도 있습니다.
+              <strong>@를 입력하면 팀원 멘션</strong>이 가능하며, 멘션된 사용자에게는 인앱 알림(상단 종 아이콘)이 발송됩니다.
             </div>
           </div>
         </div>
@@ -506,6 +510,7 @@
             <div class="text-subtitle2 text-weight-bold q-mb-xs">상태 탭으로 SR을 분류해서 봅니다</div>
             <div class="text-body2 text-grey-7 q-mb-sm">
               10개 탭으로 상태별 SR을 관리합니다. <strong>⏰ 지연</strong> 탭은 희망 완료일이 지났지만 아직 처리되지 않은 SR을 모아 보여줍니다.
+              표의 컬럼 헤더를 클릭하면 해당 컬럼 기준으로 <strong>정렬</strong>할 수 있습니다. 제목에는 [유형](시스템) 접두어가 표시됩니다.
             </div>
             <div class="mock-screen" style="pointer-events:none;overflow-x:auto">
               <div class="text-caption text-grey-5 q-mb-sm">화면 예시 — 상태 탭</div>
@@ -556,6 +561,33 @@
                   <span class="text-caption text-grey-7">내 배정</span>
                 </div>
                 <q-btn color="primary" icon="search" label="조회" unelevated size="sm" no-caps />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 인라인 편집 ── -->
+      <div class="step-row q-mb-xl">
+        <div class="row items-start q-gutter-md no-wrap">
+          <q-avatar size="32px" color="deep-purple-4" text-color="white" class="step-num">
+            <q-icon name="edit" size="16px" />
+          </q-avatar>
+          <div class="col">
+            <div class="text-subtitle2 text-weight-bold q-mb-xs">목록에서 바로 수정합니다 (인라인 편집)</div>
+            <div class="text-body2 text-grey-7 q-mb-sm">
+              SR 상세를 열지 않고도 목록에서 <strong>상태·중요도·담당자·희망 완료일</strong>을 직접 변경할 수 있습니다.
+              해당 셀을 클릭하면 드롭다운 또는 날짜 선택기가 바로 열립니다.
+            </div>
+            <div class="mock-screen" style="pointer-events:none">
+              <div class="text-caption text-grey-5 q-mb-sm">화면 예시 — 상태 셀 클릭 시 드롭다운</div>
+              <div class="row items-center q-gutter-sm">
+                <q-chip color="blue-7" text-color="white" dense size="sm" icon-right="arrow_drop_down">처리 중</q-chip>
+                <q-icon name="arrow_forward" color="grey-4" size="14px" />
+                <div class="column q-gutter-xs" style="border:1px solid #e0e0e0;border-radius:6px;padding:6px;background:white">
+                  <q-badge color="purple"   label="처리 완료" />
+                  <q-badge color="brown"    label="보류" />
+                </div>
               </div>
             </div>
           </div>
@@ -752,6 +784,7 @@ const typeCards = [
   { value: 'CONFIG_CHANGE', label: '설정 변경',     icon: 'settings',   desc: '시스템·서버 설정 변경' },
   { value: 'SERVER_INFRA',  label: '서버/인프라',   icon: 'dns',        desc: '서버 작업·인프라 요청' },
   { value: 'SECURITY',      label: '보안 조치',     icon: 'security',   desc: '취약점 조치·보안 점검' },
+  { value: 'FIREWALL',      label: '방화벽 신청',   icon: 'lan',        desc: '방화벽 정책 오픈·변경·삭제' },
   { value: 'ETC',           label: '기타',          icon: 'more_horiz', desc: '위 항목에 해당하지 않는 요청' },
 ]
 
@@ -763,6 +796,7 @@ const typeExamples = [
   { type: 'CONFIG_CHANGE', icon: 'settings',   color: 'orange-8', label: '설정 변경',    fields: '설정 대상, 현재 설정값, 변경 요청값, 변경 사유, 영향 범위, 적용 희망 일시, 서비스 중단 여부, 롤백 방안' },
   { type: 'SERVER_INFRA',  icon: 'dns',        color: 'indigo-7', label: '서버/인프라', fields: '대상 서버/시스템, 요청 작업 유형(생성/재기동/디스크증설/방화벽 등), 요청 상세, 작업 희망 일시, 서비스 영향 여부, 사전 백업 필요 여부' },
   { type: 'SECURITY',      icon: 'security',   color: 'deep-orange-8', label: '보안 조치', fields: '보안 요청 유형, 취약점/보안 이슈 (에디터), 위험도(상/중/하), 조치 요청 내용, 조치 기한, 증적 필요 여부' },
+  { type: 'FIREWALL',      icon: 'lan',        color: 'cyan-8',   label: '방화벽 신청',  fields: '신청 구분(신규 오픈/정책 변경/정책 삭제/임시 오픈), 적용 환경(운영/개발), 출발지 IP/대역, 목적지 IP/대역, 포트/프로토콜, 방향(인바운드/아웃바운드/양방향), 업무 목적' },
 ]
 
 const myTabs = [
