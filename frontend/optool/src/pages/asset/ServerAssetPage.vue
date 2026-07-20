@@ -11,6 +11,12 @@
         dense
       />
 
+      <q-toggle
+        v-model="includeDisposed"
+        label="폐기 포함"
+        dense
+      />
+
       <q-btn
         v-if="includeDeleted"
         outline
@@ -2321,6 +2327,8 @@ const CHANGE_TYPE_OPTIONS = [
 const loading = ref(false)
 const rows = ref<ServerAsset[]>([])
 const includeDeleted = ref(false)
+// 폐기(disposal_status === 'O') 자산은 기본적으로 숨기고, 토글로 켰을 때만 같이 보여준다.
+const includeDisposed = ref(false)
 
 watch(includeDeleted, () => { void load() })
 
@@ -2647,6 +2655,9 @@ const filteredRows = computed(() => {
   return rows.value.filter((r) => {
     // 삭제된 항목 필터
     if (!includeDeleted.value && r.isDeleted) return false
+
+    // 폐기된 항목 필터 (기본 숨김, "폐기 포함" 토글로만 표시)
+    if (!includeDisposed.value && r.fields?.[DISPOSAL_KEY] === 'O') return false
 
     // 카테고리 필터 (서버 사이드에서 이미 필터링됨 — 클라이언트 측은 생략)
 
