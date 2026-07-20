@@ -105,6 +105,30 @@ async def auto_create_pm_issue(
     return str(result.inserted_id), str(project_id)
 
 
+async def attach_converted_issue_info(out_items: list[dict]) -> None:
+    """sr_to_out 결과 dict 목록에 연동 PM 이슈의 번호·상태를 채워 넣는다."""
+    ids = []
+    for item in out_items:
+        iid = item.get("converted_issue_id")
+        if iid:
+            try:
+                ids.append(ObjectId(iid))
+            except Exception:
+                continue
+    if not ids:
+        return
+    issues_col = MongoClientManager.get_pm_issues_collection()
+    docs = await issues_col.find(
+        {"_id": {"$in": ids}}, {"number": 1, "status": 1}
+    ).to_list(None)
+    info = {str(d["_id"]): d for d in docs}
+    for item in out_items:
+        d = info.get(item.get("converted_issue_id") or "")
+        if d:
+            item["converted_issue_number"] = d.get("number")
+            item["converted_issue_status"] = d.get("status")
+
+
 async def update_pm_issue_assignee(issue_id: str, assignee_id: str) -> None:
     """재배정 시 기존 PM 이슈 담당자만 업데이트."""
     issues_col = MongoClientManager.get_pm_issues_collection()

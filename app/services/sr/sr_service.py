@@ -152,12 +152,16 @@ async def record_due_date_history(
 # ── 지연 여부 계산 ────────────────────────────────────────────────────
 
 def compute_is_delayed(doc: dict) -> bool:
-    """처리 중인 SR이 처리 예정 완료일을 초과했는지 판단."""
+    """처리 중인 SR이 완료목표일을 초과했는지 판단.
+
+    운영팀 완료목표일(planned_due_date)이 있으면 그것을 기준으로,
+    배정 전이라 목표일이 없으면 요청자 희망 완료일(desired_due_date)로 판단.
+    """
     # 완료·종료·임시저장 상태는 지연 대상 아님
     non_delayed = {"DRAFT", "COMPLETED", "CONFIRMING", "CLOSED", "CANCELLED", "REJECTED"}
     if doc.get("status") in non_delayed:
         return False
-    check_date = doc.get("desired_due_date")
+    check_date = doc.get("planned_due_date") or doc.get("desired_due_date")
     if not check_date:
         return False
     now = datetime.now(timezone.utc)

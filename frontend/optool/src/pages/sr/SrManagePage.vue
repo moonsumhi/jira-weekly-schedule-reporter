@@ -301,6 +301,25 @@
                 </q-card>
               </q-popup-proxy>
             </q-td>
+            <!-- 완료목표일 (지연 판정 기준) -->
+            <q-td class="text-center">
+              <span v-if="row.plannedDueDate" :class="row.isDelayed ? 'text-negative text-weight-medium' : 'text-grey-7'">
+                {{ fmtDate(row.plannedDueDate) }}
+              </span>
+              <span v-else class="text-grey-4">-</span>
+            </q-td>
+            <!-- 연동 태스크 -->
+            <q-td class="text-center" @click.stop>
+              <template v-if="row.convertedIssueNumber">
+                <q-chip dense size="sm" color="indigo-1" text-color="indigo-8" icon="link"
+                  clickable @click="goToTask(row)" :label="`#${row.convertedIssueNumber}`">
+                  <q-tooltip>{{ taskStatusLabel(row.convertedIssueStatus) }} — 클릭 시 태스크 상세</q-tooltip>
+                </q-chip>
+                <q-badge :color="taskStatusColor(row.convertedIssueStatus)"
+                  :label="taskStatusLabel(row.convertedIssueStatus)" class="q-ml-xs" />
+              </template>
+              <span v-else class="text-grey-4">-</span>
+            </q-td>
             <q-td class="text-center text-grey-6">{{ fmtDate(row.createdAt) }}</q-td>
             <q-td class="text-center" @click.stop>
               <q-btn flat dense round icon="open_in_new" size="sm" color="grey-7"
@@ -512,6 +531,8 @@ const columns: NonNullable<QTableProps['columns']> = [
   { name: 'status',               label: '상태',      field: 'status',               align: 'center', sortable: true, style: 'width:130px' },
   { name: 'assignee_name',        label: '담당자',    field: 'assignee_name',        align: 'left',   style: 'width:80px' },
   { name: 'desired_due_date',     label: '희망완료일', field: 'desired_due_date',    align: 'center', sortable: true, style: 'width:95px' },
+  { name: 'planned_due_date',     label: '완료목표일', field: 'planned_due_date',    align: 'center', style: 'width:95px' },
+  { name: 'converted_task',       label: '연동 태스크', field: 'converted_issue_number', align: 'center', style: 'width:110px' },
   { name: 'created_at',           label: '접수일',    field: 'created_at',           align: 'center', sortable: true, style: 'width:90px' },
   { name: 'actions',              label: '',          field: 'id',                   align: 'center', style: 'width:50px' },
 ]
@@ -561,6 +582,22 @@ function formatTitle(row: SRListItem) {
   const type = requestTypeLabel(row.requestType)
   const sys  = row.relatedSystem ? `(${row.relatedSystem})` : ''
   return `[${type}]${sys} ${row.title}`
+}
+
+// ── 연동 태스크 ──────────────────────────────────────────────────────────
+
+const TASK_STATUS_LABEL: Record<string, string> = {
+  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중', DONE: '완료',
+}
+const TASK_STATUS_COLOR: Record<string, string> = {
+  BACKLOG: 'grey-6', TODO: 'blue-grey-6', IN_PROGRESS: 'blue-7', IN_REVIEW: 'orange-7', DONE: 'green-7',
+}
+function taskStatusLabel(s: string | null) { return s ? (TASK_STATUS_LABEL[s] ?? s) : '-' }
+function taskStatusColor(s: string | null) { return s ? (TASK_STATUS_COLOR[s] ?? 'grey-6') : 'grey-6' }
+
+function goToTask(row: SRListItem) {
+  if (!row.convertedProjectId || !row.convertedIssueId) return
+  void router.push(`/pm/projects/${row.convertedProjectId}/backlog?issue=${row.convertedIssueId}`)
 }
 
 // ── 탭 전환 ──────────────────────────────────────────────────────────────

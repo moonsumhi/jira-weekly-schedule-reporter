@@ -69,6 +69,8 @@
               <span class="text-caption text-grey-5">{{ row.srNo }}</span>
               <q-badge v-if="row.isUrgent" color="red" label="긴급" style="font-size:0.65rem" />
               <q-badge v-if="row.isDelayed" color="negative" label="지연" style="font-size:0.65rem" />
+              <q-badge v-if="row.convertedIssueNumber" color="indigo-1" text-color="indigo-8" style="font-size:0.65rem"
+                :label="`태스크 #${row.convertedIssueNumber} · ${taskStatusLabel(row.convertedIssueStatus)}`" />
             </div>
             <div class="sr-title text-body2 text-weight-medium text-dark">{{ formatTitle(row) }}</div>
           </div>
@@ -83,9 +85,14 @@
             <div class="text-caption text-grey-5 q-mb-xs">
               {{ row.assigneeName ? `담당: ${row.assigneeName}` : `접수 ${fmtDate(row.createdAt)}` }}
             </div>
-            <div v-if="row.desiredDueDate"
+            <div v-if="row.plannedDueDate"
               class="text-caption"
               :class="row.isDelayed ? 'text-negative text-weight-medium' : 'text-grey-5'">
+              완료 목표 {{ fmtDate(row.plannedDueDate) }}
+            </div>
+            <div v-if="row.desiredDueDate"
+              class="text-caption"
+              :class="row.isDelayed && !row.plannedDueDate ? 'text-negative text-weight-medium' : 'text-grey-5'">
               완료 희망 {{ fmtDate(row.desiredDueDate) }}
             </div>
           </div>
@@ -203,6 +210,10 @@ function priorityLabel(s: string)    { return (SR_PRIORITY_LABEL as Record<strin
 function priorityColor(s: string)    { return (SR_PRIORITY_COLOR as Record<string,string>)[s] ?? 'grey' }
 function requestTypeLabel(s: string) { return (REQUEST_TYPE_LABEL as Record<string,string>)[s] ?? s }
 function fmtDate(d: string | null)   { return d ? d.substring(0, 10) : '-' }
+const TASK_STATUS_LABEL: Record<string, string> = {
+  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중', DONE: '완료',
+}
+function taskStatusLabel(s: string | null) { return s ? (TASK_STATUS_LABEL[s] ?? s) : '' }
 function canCancel(row: SRListItem)  { return !['CLOSED','CANCELLED','REJECTED'].includes(row.status) }
 
 async function fetchList() {
