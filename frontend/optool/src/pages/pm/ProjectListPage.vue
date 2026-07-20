@@ -124,7 +124,7 @@ const sortOptions = [
 
 const filteredProjects = computed(() => {
   const q = search.value.trim().toLowerCase()
-  let list = q
+  const list = q
     ? projects.value.filter(p =>
         p.name.toLowerCase().includes(q) ||
         p.key.toLowerCase().includes(q) ||
@@ -133,13 +133,12 @@ const filteredProjects = computed(() => {
     : [...projects.value]
 
   const [field, dir] = sortKey.value.split('_') as [string, string]
-  list.sort((a, b) => {
+  return [...list].sort((a, b) => {
     const av = (a as unknown as Record<string, string>)[field] ?? ''
     const bv = (b as unknown as Record<string, string>)[field] ?? ''
     const cmp = av < bv ? -1 : av > bv ? 1 : 0
     return dir === 'asc' ? cmp : -cmp
   })
-  return list
 })
 
 const orgOptions = computed(() => orgs.value.map(o => ({ id: o.id, name: `${o.name} (${o.slug})` })))
