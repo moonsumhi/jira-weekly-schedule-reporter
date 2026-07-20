@@ -37,6 +37,7 @@ class IssueCreate(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
     story_points: Optional[int] = Field(None, ge=0, le=999)
+    effort_md: Optional[float] = Field(None, ge=0)
     attachments: List[Attachment] = []
 
 
@@ -90,6 +91,7 @@ class IssueOut(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime]
     story_points: Optional[int] = None
+    effort_md: Optional[float] = None
     attachments: List[Attachment] = []
     order: float
     linked_sr_id: Optional[str] = None

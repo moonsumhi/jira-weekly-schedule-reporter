@@ -124,6 +124,7 @@ export type IssueCreate = {
   start_date?: string | null
   due_date?: string | null
   story_points?: number | null
+  effort_md?: number | null
   attachments?: { file_id: string; original_name: string; url: string; size: number; content_type: string }[]
 }
 

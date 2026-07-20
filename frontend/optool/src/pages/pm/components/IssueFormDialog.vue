@@ -154,6 +154,17 @@
             stack-label
             style="flex: 1"
           />
+          <q-input
+            v-model.number="form.effortMd"
+            label="MD (공수)"
+            outlined dense
+            type="number"
+            :min="0"
+            stack-label
+            style="flex: 0 0 120px"
+          >
+            <template #append><span class="text-caption text-grey-5">MD</span></template>
+          </q-input>
         </div>
 
         <q-separator class="q-my-md" />
@@ -312,6 +323,7 @@ const form = ref<{
   assigneeId: string | null
   epicId: string | null
   storyPoints: number | null
+  effortMd: number | null
   labelIds: string[]
   description: string
   startDate: string
@@ -325,6 +337,7 @@ const form = ref<{
   assigneeId: null,
   epicId: null,
   storyPoints: null,
+  effortMd: null,
   labelIds: [],
   description: '',
   startDate: '',
@@ -400,6 +413,7 @@ watch(() => props.modelValue, async (open) => {
       assigneeId: null,
       epicId: null,
       storyPoints: null,
+      effortMd: null,
       labelIds: [],
       description: '',
       startDate: '',
@@ -479,6 +493,7 @@ async function submit() {
       ...(form.value.assigneeId ? { assignee_id: form.value.assigneeId } : {}),
       ...(form.value.epicId ? { epic_id: form.value.epicId } : {}),
       ...(form.value.storyPoints != null ? { story_points: form.value.storyPoints } : {}),
+      ...(form.value.effortMd != null ? { effort_md: form.value.effortMd } : {}),
       ...(form.value.labelIds.length ? { label_ids: form.value.labelIds } : {}),
       ...(form.value.description ? { description: form.value.description } : {}),
       ...(form.value.startDate ? { start_date: new Date(form.value.startDate).toISOString() } : {}),
