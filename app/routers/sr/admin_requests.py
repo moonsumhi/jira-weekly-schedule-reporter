@@ -13,7 +13,7 @@ from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.sr.service_request import (
     SROut, SRListItem, SRListPage, SRPatch, SRInlinePatch,
-    SRReview, SRAssign, SRStatusChange, SRDueDateChange, SREffortUpdate,
+    SRReview, SRAssign, SRStatusChange, SRDueDateChange,
     SRStats, SR_STATUS_LABEL, REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL,
 )
 from app.routers.auth import get_current_user
@@ -413,15 +413,6 @@ async def change_status(
         updates["actual_completed_at"] = now
     if body.requester_confirmed is not None:
         updates["requester_confirmed"] = body.requester_confirmed
-    if body.actual_effort_md is not None:
-        updates["actual_effort_md"] = body.actual_effort_md
-        old_effort = doc.get("actual_effort_md")
-        if old_effort != body.actual_effort_md:
-            await record_sr_history(
-                sr_id, "FIELD_CHANGE:actual_effort_md",
-                str(old_effort) if old_effort is not None else None,
-                str(body.actual_effort_md), _user_label(current_user),
-            )
 
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
     await col.update_one({"_id": ObjectId(sr_id)}, {"$set": updates})
@@ -505,44 +496,6 @@ async def change_planned_due_date(
         target_id=sr_id,
         target_url=f"/pm/sr/{sr_id}",
     )
-
-    updated = await col.find_one({"_id": ObjectId(sr_id)})
-    return SROut(**sr_to_out(updated))
-
-
-# ── 실제 공수(MD) 입력/수정 (담당자 또는 manager 이상) ──────────────────
-
-@router.post("/{sr_id}/effort", response_model=SROut)
-async def update_actual_effort(
-    sr_id: str,
-    body: SREffortUpdate,
-    current_user: UserPublic = Depends(get_current_user),
-):
-    require_sr_operator(current_user)
-    doc = await get_sr_or_404(sr_id)
-
-    from app.services.sr.sr_service import is_sr_manager
-    is_assignee = doc.get("assignee_id") and str(doc["assignee_id"]) == current_user.id
-    if not is_assignee and not is_sr_manager(current_user):
-        raise HTTPException(status_code=403, detail="담당자 본인 또는 관리자만 공수를 입력할 수 있습니다.")
-
-    now = datetime.now(timezone.utc)
-    old_effort = doc.get("actual_effort_md")
-    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
-    await col.update_one(
-        {"_id": ObjectId(sr_id)},
-        {"$set": {
-            "actual_effort_md": body.actual_effort_md,
-            "updated_at": now,
-            "updated_by": _user_label(current_user),
-        }},
-    )
-    if old_effort != body.actual_effort_md:
-        await record_sr_history(
-            sr_id, "FIELD_CHANGE:actual_effort_md",
-            str(old_effort) if old_effort is not None else None,
-            str(body.actual_effort_md), _user_label(current_user),
-        )
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
     return SROut(**sr_to_out(updated))
@@ -714,7 +667,7 @@ async def export_excel(
     headers = [
         "SR번호", "요청제목", "요청부서", "요청자", "요청유형", "관련시스템",
         "중요도", "긴급여부", "희망완료일", "완료목표일", "실제완료일",
-        "담당자", "실제공수(MD)", "상태", "지연여부", "접수일", "최종수정일",
+        "담당자", "상태", "지연여부", "접수일", "최종수정일",
     ]
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
     header_font = Font(color="FFFFFF", bold=True)
@@ -747,7 +700,6 @@ async def export_excel(
             _fmt_dt(d.get("planned_due_date")),
             _fmt_dt(d.get("actual_completed_at")),
             d.get("assignee_name", ""),
-            d.get("actual_effort_md", ""),
             SR_STATUS_LABEL.get(d.get("status", ""), d.get("status", "")),
             is_delayed,
             _fmt_dt(d.get("created_at")),
@@ -842,7 +794,7 @@ async def export_sr_detail(
         "is_urgent": "긴급여부", "urgent_reason": "긴급사유",
         "related_system": "대상시스템", "related_menu": "관련메뉴",
         "related_url": "관련URL", "completion_criteria": "완료기준", "note": "비고",
-        "planned_due_date": "완료목표일", "actual_effort_md": "실제공수(MD)",
+        "planned_due_date": "완료목표일",
     }
     ws_fh = wb.create_sheet("필드변경이력")
     ws_fh.append(["변경항목", "이전값", "변경값", "변경자", "변경일시"])
