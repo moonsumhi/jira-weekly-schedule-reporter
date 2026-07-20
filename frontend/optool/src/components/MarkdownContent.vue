@@ -12,7 +12,7 @@ const renderer = new Renderer()
 
 const rendered = computed(() => {
   if (!props.content?.trim()) return ''
-  return marked(props.content, { renderer, breaks: true }) as string
+  return marked(props.content, { renderer, breaks: true })
 })
 </script>
 

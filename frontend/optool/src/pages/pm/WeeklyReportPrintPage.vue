@@ -447,7 +447,7 @@ import { getErrorMessage } from 'src/utils/http/error'
 
 function renderMd(content: string | null | undefined): string {
   if (!content?.trim()) return '-'
-  return marked(content, { breaks: true }) as string
+  return marked(content, { breaks: true })
 }
 
 const route      = useRoute()
