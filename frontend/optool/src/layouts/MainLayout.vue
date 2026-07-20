@@ -295,12 +295,12 @@ const SLUG_PERM: Record<string, string> = {
   jira: 'jira', job: 'job', asset: 'asset', watch: 'watch',
   inspection: 'inspection', server_check: 'server_check',
   pm: 'pm', sr: 'sr', calendar: 'calendar',
+  documents: 'documents', 'isms-p': 'isms_p',
 }
 
 const sortedVisibleMenus = computed(() =>
   sidebarMenus.value
     .filter((m) => m.isVisible)
-    .filter((m) => m.slug !== 'document')
     .filter((m) => m.slug !== 'admin' || !!auth.me?.isAdmin)
     .filter((m) => {
       const perm = SLUG_PERM[m.slug ?? '']
