@@ -131,6 +131,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { fmtDateKst } from 'src/utils/time/kst'
 import {
   listMySRs, cancelSR,
   SR_STATUS_LABEL, SR_STATUS_COLOR,
@@ -207,7 +208,7 @@ function statusColor(s: string)      { return (SR_STATUS_COLOR   as Record<strin
 function priorityLabel(s: string)    { return (SR_PRIORITY_LABEL as Record<string,string>)[s] ?? s }
 function priorityColor(s: string)    { return (SR_PRIORITY_COLOR as Record<string,string>)[s] ?? 'grey' }
 function requestTypeLabel(s: string) { return (REQUEST_TYPE_LABEL as Record<string,string>)[s] ?? s }
-function fmtDate(d: string | null)   { return d ? d.substring(0, 10) : '-' }
+function fmtDate(d: string | null)   { return fmtDateKst(d) }
 function canCancel(row: SRListItem)  { return !['CLOSED','CANCELLED','REJECTED'].includes(row.status) }
 
 async function fetchList() {

@@ -190,7 +190,7 @@
                           <span v-if="item.assigneeName" class="text-caption text-grey-7">{{ item.assigneeName }}</span>
                           <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
                           <q-badge :color="item.isDelayed ? 'negative' : 'grey-5'" :label="STATUS_KO[item.status] ?? item.status" />
-                          <span v-if="item.dueDate" class="text-caption text-grey-6">{{ item.dueDate.slice(0,10) }}</span>
+                          <span v-if="item.dueDate" class="text-caption text-grey-6">{{ fmtDateKst(item.dueDate) }}</span>
                         </div>
                       </div>
                     </template>
@@ -222,7 +222,7 @@
                             <span class="text-body2 col ellipsis">{{ item.title }}</span>
                             <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
                             <q-badge :color="item.isDelayed ? 'negative' : 'grey-5'" :label="STATUS_KO[item.status] ?? item.status" />
-                            <span v-if="item.dueDate" class="text-caption text-grey-6">{{ item.dueDate.slice(0,10) }}</span>
+                            <span v-if="item.dueDate" class="text-caption text-grey-6">{{ fmtDateKst(item.dueDate) }}</span>
                           </div>
                         </div>
                         <div v-else class="text-caption text-grey-5 q-pl-sm">없음</div>
@@ -314,6 +314,7 @@ import {
   type ReportStats, type WorkItem, type ProjectBreakdown, type PersonBreakdown,
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
+import { fmtDateKst } from 'src/utils/time/kst'
 
 // ── 색상 팔레트 ───────────────────────────────────────────────────────
 const PALETTE = ['blue', 'teal', 'purple', 'orange', 'green', 'deep-orange', 'indigo', 'cyan', 'pink', 'amber']
@@ -364,7 +365,7 @@ const workItemCols = [
   { name: 'assignee', label: '담당자',  field: 'assigneeName', align: 'left'   as const },
   { name: 'priority', label: '우선순위',field: 'priority',     align: 'center' as const },
   { name: 'status',   label: '상태',    field: 'status',       align: 'center' as const },
-  { name: 'due',      label: '마감일',  field: (r: WorkItem) => r.dueDate?.slice(0,10) ?? '', align: 'center' as const },
+  { name: 'due',      label: '마감일',  field: (r: WorkItem) => fmtDateKst(r.dueDate), align: 'center' as const },
   { name: 'sp',       label: 'SP',      field: 'storyPoints',  align: 'center' as const },
 ]
 
