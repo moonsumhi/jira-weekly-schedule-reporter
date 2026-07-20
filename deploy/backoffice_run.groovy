@@ -3,6 +3,8 @@ pipeline {
     parameters {
         string(name: 'TAG', defaultValue: 'main-latest', description: '배포할 이미지 태그 — 빌드 파이프라인 형식: {브랜치}-{태그} (예: main-latest, dev-latest, feature-mail-latest) ※ 브랜치명의 /는 -로 치환')
         string(name: 'IP', defaultValue: '', description: '배포 서버 IP (비우면 Jenkins Global Env의 BO_APP_SERVER 사용)')
+        string(name: 'BRANCH', defaultValue: 'main', description: 'compose 파일을 가져올 브랜치 (예: main, feature/mail)')
+        string(name: 'COMPOSE_FILE', defaultValue: 'docker-compose.yml', description: '사용할 compose 파일명 (예: docker-compose.yml, docker-compose.mail.yml) — 운영과 별도 포트/이름으로 병행 배포 시 다른 파일 지정')
     }
     stages {
 
@@ -29,17 +31,17 @@ pipeline {
                             pwd
                             hostname
 
-                            echo "===== docker-compose.yml 최신화 ====="
-                            git fetch http://${GIT_USER}:${GIT_TOKEN}@${env.GIT_SERVER}/${env.BO_GIT_REPO} main
-                            git checkout FETCH_HEAD -- docker-compose.yml
+                            echo "===== ${params.COMPOSE_FILE} 최신화 (${params.BRANCH}) ====="
+                            git fetch http://${GIT_USER}:${GIT_TOKEN}@${env.GIT_SERVER}/${env.BO_GIT_REPO} ${params.BRANCH}
+                            git checkout FETCH_HEAD -- ${params.COMPOSE_FILE}
 
                             echo "===== Harbor 로그인 ====="
                             echo "${HB_PW}" | docker login ${env.HARBOR_URL} \
                                 --username "${HB_USER}" \
                                 --password-stdin
 
-                            echo "===== docker compose down ====="
-                            docker compose down || true
+                            echo "===== docker compose down (-f ${params.COMPOSE_FILE}) ====="
+                            docker compose -f ${params.COMPOSE_FILE} down || true
 
                             echo "===== docker pull ====="
                             docker pull ${env.HARBOR_URL}/dev/jira-reporter-frontend:${params.TAG}
@@ -47,8 +49,8 @@ pipeline {
                             docker pull ${env.HARBOR_URL}/dev/mongo:latest
                             docker pull ${env.HARBOR_URL}/dev/mongo-express:latest
 
-                            echo "===== docker compose up ====="
-                            TAG=${params.TAG} docker compose up -d --no-build
+                            echo "===== docker compose up (-f ${params.COMPOSE_FILE}) ====="
+                            TAG=${params.TAG} docker compose -f ${params.COMPOSE_FILE} up -d --no-build
 
                             sleep 10
                             docker ps
