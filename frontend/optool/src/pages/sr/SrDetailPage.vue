@@ -478,7 +478,7 @@
                   <div class="tab-section-title q-mb-sm">첨부파일</div>
                   <q-list dense bordered class="rounded-borders">
                     <q-item v-for="att in extraAttachments" :key="att.fileId"
-                      clickable tag="a" :href="att.url" target="_blank">
+                      clickable @click="downloadFile(att.url, att.originalName)">
                       <q-item-section avatar>
                         <q-icon :name="fileIcon(att.contentType)" color="blue-6" size="20px" />
                       </q-item-section>
@@ -487,7 +487,7 @@
                         <q-item-label caption>{{ fmtSize(att.size) }}</q-item-label>
                       </q-item-section>
                       <q-item-section side>
-                        <q-icon name="open_in_new" color="grey-4" size="16px" />
+                        <q-icon name="download" color="grey-4" size="16px" />
                       </q-item-section>
                     </q-item>
                   </q-list>
