@@ -41,9 +41,9 @@ async def _get_assignee_email(assignee_id: Any) -> str | None:
 
 
 _EVENT_URLS = {
-    "reviewed": lambda: settings.SR_MAIL_SERVICE_URL,   # 검토 완료(승인) → issueInfo 템플릿
+    "reviewed": lambda: settings.SR_MAIL_SERVICE_URL,   # 검토 완료(승인) → Backoffice_IssueInfo 템플릿
     "assigned": lambda: settings.SR_MAIL_ASSIGN_URL,    # 담당자 배정 → issueAssign 템플릿(신규)
-    "completed": lambda: settings.SR_MAIL_FINISH_URL,   # 처리완료 → issueFinish 템플릿
+    "completed": lambda: settings.SR_MAIL_FINISH_URL,   # 처리완료 → Backoffice_IssueFinish 템플릿
 }
 
 
@@ -70,7 +70,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
         logger.warning("SR 메일 발송 스킵 (수신자 없음): sr_no=%s, event=%s", doc.get("sr_no"), event)
         return
 
-    # 실제 메일 템플릿(issueInfo.html, th:text)이 읽는 키만 채운다:
+    # 실제 메일 템플릿(Backoffice_IssueInfo.html, th:text)이 읽는 키만 채운다:
     # subject(제목) / description(내용) / start_date(생성일자) /
     # adminInfo(담당자) / custom_field_values(요청자) / due_date(마감일자)
     data_map = {
