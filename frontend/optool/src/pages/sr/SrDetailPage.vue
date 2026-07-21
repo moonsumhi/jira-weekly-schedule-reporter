@@ -512,7 +512,7 @@
                     <template #action>
                       <q-btn flat dense size="sm" color="indigo-7" icon="open_in_new"
                         label="태스크 바로가기"
-                        @click="$router.push(`/pm/projects/${sr.convertedProjectId}/backlog?issue=${sr.convertedIssueId}`)" />
+                        @click="openLinkedIssue" />
                     </template>
                   </q-banner>
 
@@ -1033,6 +1033,13 @@
       </q-card>
     </q-dialog>
 
+    <IssueDetailDialog
+      v-model="issueDialog.open"
+      :project-id="sr?.convertedProjectId ?? ''"
+      :project-key="issueDialog.issue?.projectKey ?? ''"
+      :issue="issueDialog.issue"
+    />
+
   </q-page>
 </template>
 
@@ -1057,6 +1064,8 @@ import { formatKst, fmtDateKst } from 'src/utils/time/kst'
 import MentionInput from 'src/components/MentionInput.vue'
 import MentionContent from 'src/components/MentionContent.vue'
 import type { MentionUser } from 'src/services/mention'
+import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
+import { getIssue, type Issue } from 'src/services/pm/issue'
 
 // ── 상수 ────────────────────────────────────────────────────────────
 
@@ -1409,6 +1418,18 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
+const issueDialog = ref<{ open: boolean; issue: Issue | null }>({ open: false, issue: null })
+
+async function openLinkedIssue() {
+  if (!sr.value?.convertedIssueId || !sr.value?.convertedProjectId) return
+  try {
+    const issue = await getIssue(sr.value.convertedProjectId, sr.value.convertedIssueId)
+    issueDialog.value = { open: true, issue }
+  } catch {
+    $q.notify({ type: 'negative', message: '태스크 정보를 불러오지 못했습니다.' })
+  }
 }
 
 async function downloadFile(url: string, filename: string) {
