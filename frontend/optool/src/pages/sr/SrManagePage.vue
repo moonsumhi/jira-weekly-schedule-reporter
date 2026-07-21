@@ -433,7 +433,7 @@ const pmUsers   = ref<PmUser[]>([])
 
 // 클라이언트사이드 키워드 필터 (현재 페이지 내에서)
 const filteredRows = computed(() => {
-  const q = srSearch.search.value.trim().toLowerCase()
+  const q = (srSearch.search.value ?? '').trim().toLowerCase()
   if (!q) return rows.value
   return rows.value.filter(r =>
     r.title.toLowerCase().includes(q) ||

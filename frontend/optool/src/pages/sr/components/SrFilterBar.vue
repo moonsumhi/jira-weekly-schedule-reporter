@@ -311,13 +311,14 @@ const emit = defineEmits<{
 // ── 로컬 편집 상태 (적용 전 드래프트) ────────────────────────────────────
 
 const localFilter = ref<SrFilterState>({ ...props.filter })
-const localSearch = ref(props.search)
+// q-input clearable은 지울 때 null을 emit하므로 string | null로 선언
+const localSearch = ref<string | null>(props.search ?? '')
 const localTab    = ref(props.tab)
 const expanded    = ref(false)
 
 // 부모에서 filter/search/tab이 변경되면 로컬 상태도 동기화
 watch(() => props.filter, (v) => { localFilter.value = { ...v } }, { deep: true })
-watch(() => props.search, (v) => { localSearch.value = v })
+watch(() => props.search, (v) => { localSearch.value = v ?? '' })
 watch(() => props.tab,    (v) => { localTab.value    = v })
 
 // 고급 필터가 적용된 상태로 로드되면 패널 자동 열기
@@ -444,7 +445,7 @@ const advancedFilterCount = computed(() => {
 
 function onApply() {
   if (hasDateError('created') || hasDateError('dueDate') || hasDateError('plannedDate')) return
-  emit('apply', { ...localFilter.value }, localSearch.value, localTab.value)
+  emit('apply', { ...localFilter.value }, localSearch.value ?? '', localTab.value)
 }
 
 function onReset() {
@@ -458,13 +459,13 @@ function onReset() {
 function onTabChange(tab: string) {
   localTab.value = tab
   // 탭 변경은 즉시 조회
-  emit('apply', { ...localFilter.value }, localSearch.value, tab)
+  emit('apply', { ...localFilter.value }, localSearch.value ?? '', tab)
 }
 
 function onToggle(key: 'isUrgent' | 'isDelayed' | 'myAssigned') {
   localFilter.value[key] = !localFilter.value[key]
   // 빠른 토글은 즉시 조회
-  emit('apply', { ...localFilter.value }, localSearch.value, localTab.value)
+  emit('apply', { ...localFilter.value }, localSearch.value ?? '', localTab.value)
 }
 </script>
 
