@@ -399,7 +399,7 @@
                 <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0"
                   style="flex: 1"
                   @blur="saveEffort" />
-                <q-select v-model="localEffortUnit" :options="['MD', '시간', '분']"
+                <q-select v-model="localEffortUnit" :options="['일', '시간', '분']"
                   dense outlined style="width: 64px"
                   @update:model-value="saveEffort" />
               </div>
@@ -626,7 +626,7 @@ const localAssigneeId = ref<string | null>(null)
 const localEpicId = ref<string | null>(null)
 const localStoryPoints = ref<number | null>(null)
 const localEffortValue = ref<number | null>(null)
-const localEffortUnit = ref<string>('MD')
+const localEffortUnit = ref<string>('일')
 const localStartDate = ref('')
 const localDueDate = ref('')
 
@@ -653,7 +653,7 @@ const FIELD_LABEL: Record<string, string> = {
   start_date: '시작일',
   due_date: '마감일',
   story_points: '스토리 포인트',
-  effort_md: 'MD (공수)',
+  effort_md: '공수',
   comment: '댓글',
 }
 
@@ -697,10 +697,11 @@ async function loadIssueContent(issue: Issue) {
   if (issue.effortMd) {
     const m = issue.effortMd.match(/^([\d.]+)\s*(.+)$/)
     localEffortValue.value = m ? parseFloat(m[1]!) : null
-    localEffortUnit.value  = m ? m[2]!.trim() : 'MD'
+    const unit = m ? m[2]!.trim() : '일'
+    localEffortUnit.value  = unit === 'MD' ? '일' : unit
   } else {
     localEffortValue.value = null
-    localEffortUnit.value  = 'MD'
+    localEffortUnit.value  = '일'
   }
   localStartDate.value = issue.startDate?.slice(0, 10) ?? ''
   localDueDate.value = issue.dueDate?.slice(0, 10) ?? ''
