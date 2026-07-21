@@ -36,7 +36,7 @@
           :loading="loading"
           :pm-users="pmUsers"
           :presets="srSearch.presets.value"
-          :active-chips="srSearch.activeChips.value"
+          :active-chips="resolvedChips"
           @apply="onFilterApply"
           @reset="onFilterReset"
           @chip-remove="onChipRemove"
@@ -385,6 +385,17 @@ const totalActiveConditions = computed(() => {
   if (srSearch.activeTab.value !== 'all') n++
   return n
 })
+
+// assigneeId 칩을 사람 이름으로 치환한 칩 목록
+const resolvedChips = computed(() =>
+  srSearch.activeChips.value.map(chip => {
+    if (chip.key === 'assigneeId') {
+      const user = pmUsers.value.find(u => u.id === chip.value)
+      return { ...chip, value: user?.name ?? chip.value }
+    }
+    return chip
+  }),
+)
 
 // ── 페이지네이션 / 정렬 ───────────────────────────────────────────────────
 

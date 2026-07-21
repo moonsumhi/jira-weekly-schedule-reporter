@@ -104,12 +104,12 @@
       <q-btn
         flat dense size="sm"
         icon="tune"
-        :label="advancedFilterCount ? `상세 필터 (${advancedFilterCount})` : '상세 필터'"
+        label="상세 필터"
         :class="expanded ? 'text-indigo-7' : 'text-grey-6'"
         no-caps class="q-px-xs"
         @click="expanded = !expanded"
       >
-        <q-badge v-if="advancedFilterCount" floating color="indigo-7" :label="advancedFilterCount" />
+        <q-badge v-if="advancedFilterCount" color="indigo-7" :label="advancedFilterCount" class="q-ml-xs" />
       </q-btn>
 
       <q-btn-dropdown flat dense size="sm" icon="bookmark_border" color="grey-6" no-icon-animation>
