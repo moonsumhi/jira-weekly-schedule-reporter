@@ -260,7 +260,6 @@ const routes: RouteRecordRaw[] = [
           },
           {
             path: 'sr/:id',
-            meta: { requiresPermission: 'sr' },
             component: () => import('pages/sr/SrDetailPage.vue')
           },
           {
