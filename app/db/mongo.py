@@ -77,6 +77,10 @@ class MongoClientManager:
     PM_WEEKLY_REPORTS = "pm_weekly_reports"
     PM_MONTHLY_REPORTS = "pm_monthly_reports"
 
+    # ── ISMS-P 취약점 관리 ────────────────────────────────────────
+    ISMS_VULNERABILITIES = "isms_vulnerabilities"
+    ISMS_IMPORT_LOGS = "isms_import_logs"
+
 
     @classmethod
     def init_client(cls) -> None:
@@ -253,6 +257,15 @@ class MongoClientManager:
     @classmethod
     def get_pm_monthly_reports_collection(cls):
         return cls.get_db()[cls.PM_MONTHLY_REPORTS]
+
+    # ── ISMS-P 컬렉션 접근자 ─────────────────────────────────────
+    @classmethod
+    def get_isms_vulnerabilities_collection(cls):
+        return cls.get_db()[cls.ISMS_VULNERABILITIES]
+
+    @classmethod
+    def get_isms_import_logs_collection(cls):
+        return cls.get_db()[cls.ISMS_IMPORT_LOGS]
 
     @classmethod
     async def close_client(cls) -> None:

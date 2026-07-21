@@ -39,6 +39,7 @@ packaging==25.0
 pandas==2.3.1
 passlib==1.7.4
 pathspec==0.12.1
+Pillow==11.0.0
 platformdirs==4.3.8
 pyasn1==0.6.1
 pycparser==2.23
