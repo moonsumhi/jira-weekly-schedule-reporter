@@ -180,9 +180,7 @@ export type IssueFilter = {
 export async function uploadAttachment(file: File): Promise<Attachment> {
   const form = new FormData()
   form.append('file', file)
-  const { data } = await api.post<Attachment>('/pm/uploads', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await api.post<Attachment>('/pm/uploads', form)
   return data
 }
 

@@ -549,9 +549,10 @@ function isImage(file: File | Attachment): boolean {
 
 async function addPendingFile(file: File) {
   const id = crypto.randomUUID()
-  const preview = isImage(file) ? await new Promise<string>(resolve => {
+  const preview = isImage(file) ? await new Promise<string | null>(resolve => {
     const reader = new FileReader()
     reader.onload = e => resolve(e.target?.result as string)
+    reader.onerror = () => resolve(null)
     reader.readAsDataURL(file)
   }) : null
   pendingFiles.value.push({ id, file, preview, attachment: null, uploading: true, error: false })
@@ -563,13 +564,13 @@ async function addPendingFile(file: File) {
       pf.attachment = attachment
       pf.uploading = false
     }
-  } catch {
+  } catch (e) {
     const pf = pendingFiles.value.find(p => p.id === id)
     if (pf) {
       pf.uploading = false
       pf.error = true
     }
-    Notify.create({ type: 'negative', message: `"${file.name}" 업로드 실패` })
+    Notify.create({ type: 'negative', message: `"${file.name}" ${getErrorMessage(e, '업로드 실패')}` })
   }
 }
 
