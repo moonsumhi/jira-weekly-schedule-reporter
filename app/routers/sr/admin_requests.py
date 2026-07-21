@@ -60,7 +60,9 @@ async def list_all_srs(
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
 
     _SORT_FIELDS = {
-        "created_at", "desired_due_date", "sr_no",
+        "created_at", "updated_at",
+        "desired_due_date", "planned_due_date",
+        "sr_no", "title", "assignee_name",
         "requester_name", "requester_department", "priority", "status",
     }
     sort_field = sort_by if sort_by in _SORT_FIELDS else "created_at"

@@ -486,14 +486,14 @@ const statusDialog = ref({
 const columns: NonNullable<QTableProps['columns']> = [
   { name: 'select',               label: '',           field: 'id',                   align: 'center', style: 'width:40px'  },
   { name: 'sr_no',                label: 'SR 번호',    field: 'sr_no',                align: 'left',   sortable: true, style: 'width:120px' },
-  { name: 'title',                label: '요청 제목',  field: 'title',                align: 'left'    },
+  { name: 'title',                label: '요청 제목',  field: 'title',                align: 'left',   sortable: true  },
   { name: 'requester_department', label: '부서',       field: 'requester_department', align: 'left',   sortable: true, style: 'width:90px'  },
   { name: 'requester_name',       label: '요청자',     field: 'requester_name',       align: 'left',   sortable: true, style: 'width:80px'  },
   { name: 'priority',             label: '중요도',     field: 'priority',             align: 'center', sortable: true, style: 'width:70px'  },
   { name: 'status',               label: '상태',       field: 'status',               align: 'center', sortable: true, style: 'width:130px' },
-  { name: 'assignee_name',        label: '담당자',     field: 'assignee_name',        align: 'left',   style: 'width:80px'  },
+  { name: 'assignee_name',        label: '담당자',     field: 'assignee_name',        align: 'left',   sortable: true, style: 'width:80px'  },
   { name: 'desired_due_date',     label: '희망완료일', field: 'desired_due_date',     align: 'center', sortable: true, style: 'width:95px'  },
-  { name: 'planned_due_date',     label: '완료목표일', field: 'planned_due_date',     align: 'center', style: 'width:95px'  },
+  { name: 'planned_due_date',     label: '완료목표일', field: 'planned_due_date',     align: 'center', sortable: true, style: 'width:95px'  },
   { name: 'created_at',           label: '접수일',     field: 'created_at',           align: 'center', sortable: true, style: 'width:90px'  },
   { name: 'actions',              label: '',           field: 'id',                   align: 'center', style: 'width:50px'  },
 ]
