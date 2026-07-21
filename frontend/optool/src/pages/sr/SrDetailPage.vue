@@ -599,6 +599,18 @@
                         </div>
                       </q-card-section>
                     </q-card>
+
+                    <!-- 연결된 스케줄 관리 이슈 -->
+                    <q-banner v-if="sr.convertedIssueId && sr.convertedProjectId"
+                      class="bg-indigo-1 rounded-borders q-mt-md" dense>
+                      <template #avatar><q-icon name="link" color="indigo-7" /></template>
+                      <span class="text-indigo-9 text-weight-medium">연결된 스케줄 관리 태스크</span>
+                      <template #action>
+                        <q-btn flat dense size="sm" color="indigo-7" icon="open_in_new"
+                          label="태스크 바로가기"
+                          @click="$router.push(`/pm/projects/${sr.convertedProjectId}/backlog?issue=${sr.convertedIssueId}`)" />
+                      </template>
+                    </q-banner>
                   </div>
                 </template>
 
