@@ -232,6 +232,7 @@
             <div class="section-label">추가 첨부파일 <span class="optional">(선택)</span></div>
             <q-uploader
               url="/api/pm/uploads"
+              field-name="file"
               label="파일을 드래그하거나 클릭하여 업로드"
               multiple
               accept=".pdf,.hwp,.docx,.xlsx,.pptx,.zip,.jpg,.jpeg,.png,.gif"
