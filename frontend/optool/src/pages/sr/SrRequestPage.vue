@@ -235,6 +235,7 @@
               field-name="file"
               label="파일을 드래그하거나 클릭하여 업로드"
               multiple
+              auto-upload
               accept=".pdf,.hwp,.docx,.xlsx,.pptx,.zip,.jpg,.jpeg,.png,.gif"
               max-file-size="20971520"
               flat bordered class="full-width"
