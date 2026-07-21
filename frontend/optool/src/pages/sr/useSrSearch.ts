@@ -23,7 +23,7 @@ export type SrFilterState = {
 
 export type SrFilterPreset = {
   name:   string
-  tab:    string
+  tab:    string[]
   filter: SrFilterState
 }
 
@@ -38,16 +38,19 @@ export type SrActiveChip = {
 const PRESET_KEY = 'sr-manage-presets'
 
 export const SR_STATUS_TAB_OPTIONS = [
-  { value: 'all',          label: '전체',       color: 'grey-7'   },
-  { value: 'SUBMITTED',    label: '접수',        color: 'blue-5'   },
-  { value: 'REVIEWING',    label: '검토 중',     color: 'orange-5' },
-  { value: 'PENDING_INFO', label: '추가 확인',   color: 'amber-7'  },
-  { value: 'IN_PROGRESS',  label: '처리 중',     color: 'blue-8'   },
-  { value: 'COMPLETED',    label: '처리 완료',   color: 'green-6'  },
-  { value: 'CONFIRMING',   label: '확인 중',     color: 'purple-5' },
-  { value: 'CLOSED',       label: '최종 완료',   color: 'green-9'  },
-  { value: 'ON_HOLD',      label: '보류',        color: 'brown-5'  },
-  { value: 'REJECTED',     label: '반려',        color: 'red-6'    },
+  { value: 'all',          label: '전체',         color: 'grey-7'   },
+  { value: 'SUBMITTED',    label: '접수',          color: 'blue-5'   },
+  { value: 'REVIEWING',    label: '검토 중',       color: 'orange-5' },
+  { value: 'PENDING_INFO', label: '추가 확인',     color: 'amber-7'  },
+  { value: 'APPROVED',     label: '승인',          color: 'teal-5'   },
+  { value: 'ASSIGNED',     label: '담당자 배정',   color: 'cyan-7'   },
+  { value: 'IN_PROGRESS',  label: '처리 중',       color: 'blue-8'   },
+  { value: 'COMPLETED',    label: '처리 완료',     color: 'green-6'  },
+  { value: 'CONFIRMING',   label: '요청자 확인',   color: 'purple-5' },
+  { value: 'CLOSED',       label: '최종 완료',     color: 'green-9'  },
+  { value: 'ON_HOLD',      label: '보류',          color: 'brown-5'  },
+  { value: 'REJECTED',     label: '반려',          color: 'red-6'    },
+  { value: 'CANCELLED',    label: '취소',          color: 'grey-6'   },
 ]
 
 export const SR_SORT_OPTIONS = [
@@ -71,13 +74,27 @@ export function defaultSrFilter(): SrFilterState {
   }
 }
 
+/**
+ * activeTab 배열 규칙:
+ *   [] → 전체 (필터 없음)
+ *   ['SUBMITTED','REVIEWING'] → 해당 상태들만 포함
+ *   ['!COMPLETED'] → 해당 상태 제외
+ *   includes와 excludes 동시 존재 시 includes 우선
+ */
 export function buildSrApiParams(
   filter: SrFilterState,
-  tab: string,
+  tab: string[],
   extra: Record<string, string | number | boolean> = {},
 ): Record<string, string | number | boolean> {
   const p: Record<string, string | number | boolean> = { ...extra }
-  if (tab !== 'all')                  p.status               = tab
+
+  if (tab.length) {
+    const includes = tab.filter(s => !s.startsWith('!'))
+    const excludes = tab.filter(s => s.startsWith('!')).map(s => s.slice(1))
+    if (includes.length)      p.status = includes.join(',')
+    else if (excludes.length) p.status = excludes.map(s => `!${s}`).join(',')
+  }
+
   if (filter.requestType)             p.request_type         = filter.requestType
   if (filter.requesterDepartment)     p.requester_department = filter.requesterDepartment
   if (filter.requesterName)           p.requester_name       = filter.requesterName
@@ -101,7 +118,7 @@ export function buildSrApiParams(
 export function useSrSearch() {
   const filter    = ref<SrFilterState>(defaultSrFilter())
   const search    = ref('')
-  const activeTab = ref('all')
+  const activeTab = ref<string[]>([])   // [] = 전체
   const presets   = ref<SrFilterPreset[]>(
     JSON.parse(localStorage.getItem(PRESET_KEY) ?? '[]') as SrFilterPreset[],
   )
@@ -151,7 +168,7 @@ export function useSrSearch() {
   function reset() {
     filter.value    = defaultSrFilter()
     search.value    = ''
-    activeTab.value = 'all'
+    activeTab.value = []
   }
 
   function readUrl(query: Record<string, string | (string | null)[]>) {
@@ -164,9 +181,9 @@ export function useSrSearch() {
       // backwards compat: tab=delayed → isDelayed toggle
       if (st === 'delayed') {
         filter.value.isDelayed = true
-        activeTab.value = 'all'
+        activeTab.value = []
       } else {
-        activeTab.value = st
+        activeTab.value = st.split(',').filter(Boolean)
       }
     }
     const f = filter.value
@@ -196,38 +213,38 @@ export function useSrSearch() {
   ): Record<string, string> {
     const q: Record<string, string> = {}
     const f = filter.value
-    if (activeTab.value !== 'all')  q.tab      = activeTab.value
-    if (f.requesterDepartment)      q.dept     = f.requesterDepartment
-    if (f.requesterName)            q.name     = f.requesterName
-    if (f.requestType)              q.type     = f.requestType
-    if (f.relatedSystem)            q.sys      = f.relatedSystem
-    if (f.assigneeId)               q.assignee = f.assigneeId
-    if (f.priority)                 q.priority = f.priority
-    if (f.isUrgent)                 q.urgent   = '1'
-    if (f.isDelayed)                q.delayed  = '1'
-    if (f.myAssigned)               q.mine     = '1'
-    if (f.createdFrom)              q.cfrom    = f.createdFrom
-    if (f.createdTo)                q.cto      = f.createdTo
-    if (f.dueDateFrom)              q.dfrom    = f.dueDateFrom
-    if (f.dueDateTo)                q.dto      = f.dueDateTo
-    if (f.plannedDueDateFrom)       q.pfrom    = f.plannedDueDateFrom
-    if (f.plannedDueDateTo)         q.pto      = f.plannedDueDateTo
-    if (search.value)               q.q        = search.value
-    if (page > 1)                   q.page     = String(page)
-    if (rowsPerPage !== 20)         q.rows     = String(rowsPerPage)
-    if (sortBy !== 'created_at')    q.sort     = sortBy
-    if (!descending)                q.asc      = '1'
+    if (activeTab.value.length)      q.tab      = activeTab.value.join(',')
+    if (f.requesterDepartment)       q.dept     = f.requesterDepartment
+    if (f.requesterName)             q.name     = f.requesterName
+    if (f.requestType)               q.type     = f.requestType
+    if (f.relatedSystem)             q.sys      = f.relatedSystem
+    if (f.assigneeId)                q.assignee = f.assigneeId
+    if (f.priority)                  q.priority = f.priority
+    if (f.isUrgent)                  q.urgent   = '1'
+    if (f.isDelayed)                 q.delayed  = '1'
+    if (f.myAssigned)                q.mine     = '1'
+    if (f.createdFrom)               q.cfrom    = f.createdFrom
+    if (f.createdTo)                 q.cto      = f.createdTo
+    if (f.dueDateFrom)               q.dfrom    = f.dueDateFrom
+    if (f.dueDateTo)                 q.dto      = f.dueDateTo
+    if (f.plannedDueDateFrom)        q.pfrom    = f.plannedDueDateFrom
+    if (f.plannedDueDateTo)          q.pto      = f.plannedDueDateTo
+    if (search.value)                q.q        = search.value
+    if (page > 1)                    q.page     = String(page)
+    if (rowsPerPage !== 20)          q.rows     = String(rowsPerPage)
+    if (sortBy !== 'created_at')     q.sort     = sortBy
+    if (!descending)                 q.asc      = '1'
     return q
   }
 
   function savePreset(name: string) {
-    const list = [...presets.value, { name, tab: activeTab.value, filter: { ...filter.value } }]
+    const list = [...presets.value, { name, tab: [...activeTab.value], filter: { ...filter.value } }]
     presets.value = list
     localStorage.setItem(PRESET_KEY, JSON.stringify(list))
   }
 
   function loadPreset(p: SrFilterPreset) {
-    activeTab.value = p.tab
+    activeTab.value = [...(p.tab ?? [])]
     filter.value    = { ...p.filter }
   }
 

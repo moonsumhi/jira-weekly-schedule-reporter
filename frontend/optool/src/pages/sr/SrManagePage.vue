@@ -51,7 +51,7 @@
     <div class="row items-center justify-between q-mb-xs">
       <div class="text-caption text-grey-6">
         총 <strong class="text-dark">{{ pagination.rowsNumber.toLocaleString() }}</strong>건
-        <span v-if="srSearch.activeFilterCount.value || srSearch.activeTab.value !== 'all'" class="q-ml-xs">
+        <span v-if="srSearch.activeFilterCount.value || srSearch.activeTab.value.length" class="q-ml-xs">
           · 필터 <strong class="text-indigo-7">{{ totalActiveConditions }}</strong>개 적용
         </span>
         <span v-if="filteredRows.length !== rows.length" class="q-ml-xs text-primary">
@@ -382,7 +382,7 @@ const srSearch = useSrSearch()
 // 전체 활성 조건 수 (탭 포함)
 const totalActiveConditions = computed(() => {
   let n = srSearch.activeFilterCount.value
-  if (srSearch.activeTab.value !== 'all') n++
+  if (srSearch.activeTab.value.length) n++
   return n
 })
 
@@ -538,14 +538,12 @@ function formatTitle(row: SRListItem) {
 // ── 탭 전환 (통계 카드 클릭) ──────────────────────────────────────────────
 
 function switchStatTab(tab: string) {
-  const newFilter = { ...srSearch.filter.value }
   // 통계 카드의 '지연' 탭 클릭 → isDelayed 토글로 처리
   if (tab === 'delayed') {
-    newFilter.isDelayed = true
-    srSearch.filter.value = newFilter
-    srSearch.activeTab.value = 'all'
+    srSearch.filter.value = { ...srSearch.filter.value, isDelayed: true }
+    srSearch.activeTab.value = []
   } else {
-    srSearch.activeTab.value = tab
+    srSearch.activeTab.value = [tab]
   }
   pagination.value.page = 1
   void fetchList()
@@ -585,7 +583,7 @@ async function fetchList() {
 
 // ── 필터 바 이벤트 핸들러 ────────────────────────────────────────────────
 
-function onFilterApply(newFilter: SrFilterState, newSearch: string, newTab: string) {
+function onFilterApply(newFilter: SrFilterState, newSearch: string, newTab: string[]) {
   srSearch.filter.value    = newFilter
   srSearch.search.value    = newSearch
   srSearch.activeTab.value = newTab

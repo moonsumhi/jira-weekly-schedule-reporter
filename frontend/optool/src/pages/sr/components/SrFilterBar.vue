@@ -40,11 +40,18 @@
           v-for="s in statusOptions"
           :key="s.value"
           clickable dense
-          :color="localTab === s.value ? s.color : 'grey-2'"
-          :text-color="localTab === s.value ? 'white' : 'grey-8'"
+          :color="tabChipColor(s)"
+          :text-color="tabChipTextColor(s)"
+          :outline="tabChipState(s) === 'exclude'"
           style="margin: 2px 4px 2px 0"
           @click="onTabChange(s.value)"
-        >{{ s.label }}</q-chip>
+        >
+          <q-icon v-if="tabChipState(s) === 'exclude'" name="block" size="11px" class="q-mr-xs" />
+          {{ s.label }}
+          <q-tooltip v-if="s.value !== 'all'" anchor="bottom middle" self="top middle">
+            {{ tabChipTooltip(s) }}
+          </q-tooltip>
+        </q-chip>
       </div>
 
       <!-- 빠른 토글: 긴급 / 지연 / 내 담당 -->
@@ -290,7 +297,7 @@ import {
 interface Props {
   filter:      SrFilterState
   search:      string
-  tab:         string
+  tab:         string[]
   loading:     boolean
   pmUsers:     PmUser[]
   presets:     SrFilterPreset[]
@@ -300,7 +307,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  apply:           [filter: SrFilterState, search: string, tab: string]
+  apply:           [filter: SrFilterState, search: string, tab: string[]]
   reset:           []
   'chip-remove':   [key: string]
   'save-preset':   []
@@ -310,16 +317,16 @@ const emit = defineEmits<{
 
 // ── 로컬 편집 상태 (적용 전 드래프트) ────────────────────────────────────
 
-const localFilter = ref<SrFilterState>({ ...props.filter })
+const localFilter    = ref<SrFilterState>({ ...props.filter })
 // q-input clearable은 지울 때 null을 emit하므로 string | null로 선언
-const localSearch = ref<string | null>(props.search ?? '')
-const localTab    = ref(props.tab)
-const expanded    = ref(false)
+const localSearch    = ref<string | null>(props.search ?? '')
+const localStatuses  = ref<string[]>([...props.tab])
+const expanded       = ref(false)
 
 // 부모에서 filter/search/tab이 변경되면 로컬 상태도 동기화
 watch(() => props.filter, (v) => { localFilter.value = { ...v } }, { deep: true })
 watch(() => props.search, (v) => { localSearch.value = v ?? '' })
-watch(() => props.tab,    (v) => { localTab.value    = v })
+watch(() => props.tab,    (v) => { localStatuses.value = [...v] }, { deep: true })
 
 // 고급 필터가 적용된 상태로 로드되면 패널 자동 열기
 watch(
@@ -445,27 +452,71 @@ const advancedFilterCount = computed(() => {
 
 function onApply() {
   if (hasDateError('created') || hasDateError('dueDate') || hasDateError('plannedDate')) return
-  emit('apply', { ...localFilter.value }, localSearch.value ?? '', localTab.value)
+  emit('apply', { ...localFilter.value }, localSearch.value ?? '', localStatuses.value)
 }
 
 function onReset() {
-  const empty = defaultSrFilter()
-  localFilter.value = empty
-  localSearch.value = ''
-  localTab.value    = 'all'
+  localFilter.value   = defaultSrFilter()
+  localSearch.value   = ''
+  localStatuses.value = []
   emit('reset')
 }
 
+// ── 상태 칩 헬퍼 ─────────────────────────────────────────────────────────────
+
+type TabState = 'include' | 'exclude' | 'none'
+
+function tabChipState(s: { value: string }): TabState {
+  if (s.value === 'all') return localStatuses.value.length === 0 ? 'include' : 'none'
+  if (localStatuses.value.includes(s.value))        return 'include'
+  if (localStatuses.value.includes(`!${s.value}`))  return 'exclude'
+  return 'none'
+}
+
+function tabChipColor(s: { value: string; color: string }) {
+  const st = tabChipState(s)
+  if (st === 'include') return s.color
+  if (st === 'exclude') return s.color   // outline 모드에서 테두리 색으로 사용
+  return 'grey-2'
+}
+
+function tabChipTextColor(s: { value: string; color: string }) {
+  const st = tabChipState(s)
+  if (st === 'include') return 'white'
+  if (st === 'exclude') return s.color
+  return 'grey-8'
+}
+
+function tabChipTooltip(s: { value: string; label: string }) {
+  const st = tabChipState(s)
+  if (st === 'include') return `다시 클릭 → ${s.label} 제외`
+  if (st === 'exclude') return `다시 클릭 → 해제`
+  return `클릭 → ${s.label}만 보기 / 복수 선택 가능`
+}
+
 function onTabChange(tab: string) {
-  localTab.value = tab
-  // 탭 변경은 즉시 조회
-  emit('apply', { ...localFilter.value }, localSearch.value ?? '', tab)
+  if (tab === 'all') {
+    localStatuses.value = []
+  } else {
+    const st = tabChipState({ value: tab })
+    if (st === 'none') {
+      // 중립 → include 추가
+      localStatuses.value = [...localStatuses.value, tab]
+    } else if (st === 'include') {
+      // include → exclude 전환
+      localStatuses.value = localStatuses.value.filter(s => s !== tab).concat(`!${tab}`)
+    } else {
+      // exclude → 해제
+      localStatuses.value = localStatuses.value.filter(s => s !== `!${tab}`)
+    }
+  }
+  emit('apply', { ...localFilter.value }, localSearch.value ?? '', localStatuses.value)
 }
 
 function onToggle(key: 'isUrgent' | 'isDelayed' | 'myAssigned') {
   localFilter.value[key] = !localFilter.value[key]
   // 빠른 토글은 즉시 조회
-  emit('apply', { ...localFilter.value }, localSearch.value ?? '', localTab.value)
+  emit('apply', { ...localFilter.value }, localSearch.value ?? '', localStatuses.value)
 }
 </script>
 
