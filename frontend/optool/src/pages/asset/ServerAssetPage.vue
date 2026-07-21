@@ -2369,6 +2369,11 @@ const PREFERRED_FIELD_KEYS = [
   '수령일',
   '변경일',
   '변경사항',
+  '유지보수계약구분',
+  '유지보수종료일자',
+  '유지보수업체',
+  '유지보수연락처',
+  '유지보수특이사항',
   '비고',
 ]
 
@@ -3390,6 +3395,7 @@ const EDIT_DIALOG_COVERED_KEYS = new Set([
   '자산유형', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
   '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고',
   '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자',
+  '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항',
   '비고', TAGS_KEY,
 ])
 
