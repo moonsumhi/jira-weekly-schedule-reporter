@@ -82,10 +82,7 @@ function handlePaste(e: Event) {
     if (dataSrc && editor) {
       const blob = dataUrlToBlob(dataSrc)
       void uploadImageBlob(blob).then(url => {
-        if (url && editor) {
-          editor.focus()
-          editor.exec('addImage', { imageUrl: url, altText: '' })
-        }
+        if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
       })
     }
     // local-path src with no text: blocked silently
