@@ -152,8 +152,28 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'isms-p',
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: true, requiresPermission: 'isms-p' },
         children: [
+          {
+            path: 'vulnerabilities',
+            component: () => import('pages/isms/IsmsVulnListPage.vue')
+          },
+          {
+            path: 'vulnerabilities/dashboard',
+            component: () => import('pages/isms/IsmsDashboardPage.vue')
+          },
+          {
+            path: 'vulnerabilities/new',
+            component: () => import('pages/isms/IsmsVulnNewPage.vue')
+          },
+          {
+            path: 'vulnerabilities/import-history',
+            component: () => import('pages/isms/IsmsImportHistoryPage.vue')
+          },
+          {
+            path: 'vulnerabilities/:id',
+            component: () => import('pages/isms/IsmsVulnDetailPage.vue')
+          },
           {
             path: ':folderName',
             component: () => import('pages/document/IsmsDocPage.vue')
@@ -240,7 +260,6 @@ const routes: RouteRecordRaw[] = [
           },
           {
             path: 'sr/:id',
-            meta: { requiresPermission: 'sr' },
             component: () => import('pages/sr/SrDetailPage.vue')
           },
           {

@@ -412,6 +412,9 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
     "isms-p": {
         "submenus": [
             {"title": "단계별 산출물", "icon": "fa-solid fa-folder-open", "link": "/isms-p/01. ISMS-P_단계별산출물"},
+            {"title": "취약점 대시보드", "icon": "fa-solid fa-chart-pie", "link": "/isms-p/vulnerabilities/dashboard"},
+            {"title": "취약점 목록", "icon": "fa-solid fa-bug", "link": "/isms-p/vulnerabilities"},
+            {"title": "가져오기 이력", "icon": "fa-solid fa-clock-rotate-left", "link": "/isms-p/vulnerabilities/import-history"},
         ],
     },
     "admin": {

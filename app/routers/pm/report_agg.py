@@ -138,7 +138,7 @@ async def aggregate_period(
         "$or": [
             {"start_date": _in_range},
             {"due_date":   _in_range},
-            {"status": {"$in": ["IN_PROGRESS", "IN_REVIEW"]}},
+            {"status": "IN_PROGRESS"},
         ],
     }
     docs = await issues_col.find(query).sort("number", 1).to_list(None)

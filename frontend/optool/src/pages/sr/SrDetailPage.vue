@@ -478,7 +478,7 @@
                   <div class="tab-section-title q-mb-sm">첨부파일</div>
                   <q-list dense bordered class="rounded-borders">
                     <q-item v-for="att in extraAttachments" :key="att.fileId"
-                      clickable tag="a" :href="att.url" target="_blank">
+                      clickable @click="downloadFile(att.url, att.originalName)">
                       <q-item-section avatar>
                         <q-icon :name="fileIcon(att.contentType)" color="blue-6" size="20px" />
                       </q-item-section>
@@ -487,7 +487,7 @@
                         <q-item-label caption>{{ fmtSize(att.size) }}</q-item-label>
                       </q-item-section>
                       <q-item-section side>
-                        <q-icon name="open_in_new" color="grey-4" size="16px" />
+                        <q-icon name="download" color="grey-4" size="16px" />
                       </q-item-section>
                     </q-item>
                   </q-list>
@@ -504,6 +504,15 @@
                 </div>
 
                 <template v-else>
+                  <!-- 연결된 스케줄 관리 이슈 -->
+                  <q-banner v-if="sr.convertedIssueId && sr.convertedProjectId"
+                    class="bg-indigo-1 rounded-borders cursor-pointer" dense
+                    @click="openLinkedIssue">
+                    <template #avatar><q-icon name="link" color="indigo-7" /></template>
+                    <span class="text-indigo-9 text-weight-medium">연결된 스케줄 관리 태스크</span>
+                    <q-icon name="chevron_right" color="indigo-5" size="18px" class="q-ml-xs" />
+                  </q-banner>
+
                   <!-- 검토 정보 -->
                   <div v-if="sr.reviewResult">
                     <div class="tab-section-title q-mb-sm">검토 정보</div>
@@ -1021,6 +1030,13 @@
       </q-card>
     </q-dialog>
 
+    <IssueDetailDialog
+      v-model="issueDialog.open"
+      :project-id="sr?.convertedProjectId ?? ''"
+      :project-key="issueDialog.issue?.projectKey ?? ''"
+      :issue="issueDialog.issue"
+    />
+
   </q-page>
 </template>
 
@@ -1045,6 +1061,8 @@ import { formatKst, fmtDateKst } from 'src/utils/time/kst'
 import MentionInput from 'src/components/MentionInput.vue'
 import MentionContent from 'src/components/MentionContent.vue'
 import type { MentionUser } from 'src/services/mention'
+import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
+import { getLinkedIssue, type Issue } from 'src/services/pm/issue'
 
 // ── 상수 ────────────────────────────────────────────────────────────
 
@@ -1397,6 +1415,18 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
+const issueDialog = ref<{ open: boolean; issue: Issue | null }>({ open: false, issue: null })
+
+async function openLinkedIssue() {
+  if (!sr.value?.convertedIssueId || !sr.value?.convertedProjectId) return
+  try {
+    const issue = await getLinkedIssue(sr.value.convertedIssueId)
+    issueDialog.value = { open: true, issue }
+  } catch {
+    $q.notify({ type: 'negative', message: '태스크 정보를 불러오지 못했습니다.' })
+  }
 }
 
 async function downloadFile(url: string, filename: string) {

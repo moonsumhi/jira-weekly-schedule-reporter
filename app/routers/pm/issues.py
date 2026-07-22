@@ -103,6 +103,22 @@ async def create_issue(
     return await enrich_issue(created)
 
 
+@router.get("/linked/{issue_id}", response_model=IssueOut)
+async def get_linked_issue(
+    issue_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """SR 연동 태스크 조회 — 프로젝트 멤버 체크 없이 인증만 요구."""
+    col = MongoClientManager.get_pm_issues_collection()
+    try:
+        doc = await col.find_one({"_id": ObjectId(issue_id)})
+    except Exception:
+        doc = None
+    if not doc:
+        raise HTTPException(status_code=404, detail="이슈를 찾을 수 없습니다.")
+    return await enrich_issue(doc)
+
+
 @router.get("/{project_id}/issues/{issue_id}", response_model=IssueOut)
 async def get_issue(
     project_id: str,
@@ -154,7 +170,7 @@ async def patch_issue(
     sprints_col = MongoClientManager.get_pm_sprints_collection()
     labels_col = MongoClientManager.get_pm_labels_collection()
 
-    _STATUS_KO = {"BACKLOG": "백로그", "TODO": "할 일", "IN_PROGRESS": "진행 중", "IN_REVIEW": "검토 중", "DONE": "완료"}
+    _STATUS_KO = {"BACKLOG": "백로그", "TODO": "할 일", "IN_PROGRESS": "진행 중", "DONE": "완료"}
     _PRIORITY_KO = {"LOWEST": "최저", "LOW": "낮음", "MEDIUM": "보통", "HIGH": "높음", "HIGHEST": "최고"}
     _TYPE_KO = {"EPIC": "Epic", "STORY": "Story", "TASK": "Task", "BUG": "Bug", "SUB_TASK": "Sub-task"}
 

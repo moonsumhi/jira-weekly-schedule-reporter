@@ -22,6 +22,7 @@ export interface MenuOut {
   subOrder?: string[] | null
   link?: string | null
   submenus?: SubMenuItem[]
+  visibleTeams?: string[]
   createdAt: string | null
 }
 
@@ -31,6 +32,7 @@ export interface MenuCreate {
   sort_order?: number | null
   is_visible?: boolean
   link?: string | null
+  visible_teams?: string[]
 }
 
 export interface MenuPatch {
@@ -43,6 +45,7 @@ export interface MenuPatch {
   sub_icons?: Record<string, string> | null
   sub_order?: string[] | null
   link?: string | null
+  visible_teams?: string[]
 }
 
 export const menuService = {

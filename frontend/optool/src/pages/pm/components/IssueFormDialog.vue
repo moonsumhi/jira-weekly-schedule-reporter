@@ -166,7 +166,7 @@
             />
             <q-select
               v-model="form.effortUnit"
-              :options="['MD', '시간', '분']"
+              :options="['일', '시간', '분']"
               outlined dense
               style="width: 60px"
             />
@@ -345,7 +345,7 @@ const form = ref<{
   epicId: null,
   storyPoints: null,
   effortValue: null,
-  effortUnit: 'MD',
+  effortUnit: '일',
   labelIds: [],
   description: '',
   startDate: '',
@@ -422,7 +422,7 @@ watch(() => props.modelValue, async (open) => {
       epicId: null,
       storyPoints: null,
       effortValue: null,
-      effortUnit: 'MD',
+      effortUnit: '일',
       labelIds: [],
       description: '',
       startDate: '',

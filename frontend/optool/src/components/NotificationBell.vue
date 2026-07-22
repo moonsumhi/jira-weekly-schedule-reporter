@@ -103,8 +103,9 @@ const notifStore = useNotificationStore()
 const router = useRouter()
 
 function formatRelative(dateStr: string): string {
-  const dt = DateTime.fromISO(dateStr)
-  const diff = DateTime.now().diff(dt, ['minutes', 'hours', 'days'])
+  const normalized = /Z|[+-]\d{2}:?\d{2}$/.test(dateStr) ? dateStr : dateStr + 'Z'
+  const dt = DateTime.fromISO(normalized).setZone('Asia/Seoul')
+  const diff = DateTime.now().diff(dt, ['days', 'hours', 'minutes'])
   if (diff.days >= 1) return dt.toFormat('MM/dd HH:mm')
   if (diff.hours >= 1) return `${Math.floor(diff.hours)}시간 전`
   if (diff.minutes >= 1) return `${Math.floor(diff.minutes)}분 전`

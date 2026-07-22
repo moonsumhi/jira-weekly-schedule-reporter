@@ -353,9 +353,7 @@ export async function cancelSR(id: string, reason: string) {
 export async function uploadSRAttachment(file: File): Promise<SRAttachment> {
   const form = new FormData()
   form.append('file', file)
-  const { data } = await api.post<SRAttachment>('/schedule/service-requests/uploads', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await api.post<SRAttachment>('/schedule/service-requests/uploads', form)
   return data
 }
 

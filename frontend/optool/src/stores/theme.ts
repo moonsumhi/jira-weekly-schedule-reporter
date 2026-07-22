@@ -18,6 +18,7 @@ const DEFAULT_COLOR_KEY: ThemeColorKey = 'blue'
 
 export const useThemeStore = defineStore('theme', () => {
   const appName = ref(DEFAULT_APP_NAME)
+  const tabTitle = ref(DEFAULT_APP_NAME)
   const colorKey = ref<ThemeColorKey>(DEFAULT_COLOR_KEY)
 
   function applyColor(key: string) {
@@ -31,26 +32,44 @@ export const useThemeStore = defineStore('theme', () => {
     return (THEME_COLORS[colorKey.value] ?? THEME_COLORS[DEFAULT_COLOR_KEY]).textColor
   }
 
+  function applyAppName(name: string) {
+    appName.value = name || DEFAULT_APP_NAME
+  }
+
+  // 브라우저 탭 제목은 앱 이름(헤더 표시용)과 별개로 관리 — 서로 다른 값으로 설정 가능
+  function applyTabTitle(title: string) {
+    tabTitle.value = title || DEFAULT_APP_NAME
+    document.title = tabTitle.value
+  }
+
   /** 로그인 여부와 무관하게 호출 가능한 공개 브랜딩 조회 (인증 불필요) */
   async function load() {
     try {
-      const { data } = await api.get<{ appName?: string; app_name?: string; themeColor?: string; theme_color?: string }>('/branding')
-      appName.value = data.appName ?? data.app_name ?? DEFAULT_APP_NAME
+      const { data } = await api.get<{
+        appName?: string; app_name?: string
+        themeColor?: string; theme_color?: string
+        tabTitle?: string; tab_title?: string
+      }>('/branding')
+      const name = data.appName ?? data.app_name ?? DEFAULT_APP_NAME
+      applyAppName(name)
+      applyTabTitle(data.tabTitle ?? data.tab_title ?? name)
       const key = (data.themeColor ?? data.theme_color ?? DEFAULT_COLOR_KEY) as ThemeColorKey
       colorKey.value = THEME_COLORS[key] ? key : DEFAULT_COLOR_KEY
     } catch {
-      appName.value = DEFAULT_APP_NAME
+      applyAppName(DEFAULT_APP_NAME)
+      applyTabTitle(DEFAULT_APP_NAME)
       colorKey.value = DEFAULT_COLOR_KEY
     }
     applyColor(colorKey.value)
   }
 
   /** 관리자가 설정 저장 직후, 재조회 없이 즉시 반영할 때 사용 */
-  function setLocal(name: string, key: ThemeColorKey) {
-    appName.value = name || DEFAULT_APP_NAME
+  function setLocal(name: string, title: string, key: ThemeColorKey) {
+    applyAppName(name)
+    applyTabTitle(title)
     colorKey.value = key
     applyColor(key)
   }
 
-  return { appName, colorKey, load, applyColor, currentTextColor, setLocal }
+  return { appName, tabTitle, colorKey, load, applyColor, currentTextColor, setLocal }
 })

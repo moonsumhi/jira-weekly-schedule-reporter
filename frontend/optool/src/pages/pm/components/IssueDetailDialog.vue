@@ -12,7 +12,7 @@
           <q-icon name="chevron_right" size="xs" class="opacity-60 q-mr-xs" />
         </template>
         <q-icon :name="TYPE_ICON[localIssue?.type ?? 'TASK']" class="q-mr-sm" />
-        <span class="text-caption opacity-70 q-mr-sm" style="white-space: nowrap; flex-shrink: 0">{{ projectKey }}-{{ localIssue?.number }}</span>
+        <span class="text-caption opacity-70 q-mr-sm" style="white-space: nowrap; flex-shrink: 0">{{ displayProjectKey }}-{{ localIssue?.number }}</span>
         <q-toolbar-title class="text-body1" style="min-width: 0">
           {{ localIssue?.title }}
         </q-toolbar-title>
@@ -46,7 +46,7 @@
                 flat dense no-caps
                 icon="link" label="연결된 SR 바로가기"
                 color="teal-7" class="q-mb-md text-caption"
-                @click="router.push(`/pm/sr/${localIssue.linkedSrId}`)" />
+                @click="emit('update:modelValue', false); void router.push(`/pm/sr/${localIssue.linkedSrId}`).catch(() => {})" />
 
               <!-- 설명 -->
               <div class="q-mb-md">
@@ -399,7 +399,7 @@
                 <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0"
                   style="flex: 1"
                   @blur="saveEffort" />
-                <q-select v-model="localEffortUnit" :options="['MD', '시간', '분']"
+                <q-select v-model="localEffortUnit" :options="['일', '시간', '분']"
                   dense outlined style="width: 64px"
                   @update:model-value="saveEffort" />
               </div>
@@ -516,6 +516,8 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const tab = ref('detail')
+
+const displayProjectKey = computed(() => props.projectKey ?? props.issue?.projectKey ?? '')
 const saving = ref(false)
 const editTitle = ref('')
 const editDescription = ref('')
@@ -549,9 +551,10 @@ function isImage(file: File | Attachment): boolean {
 
 async function addPendingFile(file: File) {
   const id = crypto.randomUUID()
-  const preview = isImage(file) ? await new Promise<string>(resolve => {
+  const preview = isImage(file) ? await new Promise<string | null>(resolve => {
     const reader = new FileReader()
     reader.onload = e => resolve(e.target?.result as string)
+    reader.onerror = () => resolve(null)
     reader.readAsDataURL(file)
   }) : null
   pendingFiles.value.push({ id, file, preview, attachment: null, uploading: true, error: false })
@@ -563,13 +566,13 @@ async function addPendingFile(file: File) {
       pf.attachment = attachment
       pf.uploading = false
     }
-  } catch {
+  } catch (e) {
     const pf = pendingFiles.value.find(p => p.id === id)
     if (pf) {
       pf.uploading = false
       pf.error = true
     }
-    Notify.create({ type: 'negative', message: `"${file.name}" 업로드 실패` })
+    Notify.create({ type: 'negative', message: `"${file.name}" ${getErrorMessage(e, '업로드 실패')}` })
   }
 }
 
@@ -625,7 +628,7 @@ const localAssigneeId = ref<string | null>(null)
 const localEpicId = ref<string | null>(null)
 const localStoryPoints = ref<number | null>(null)
 const localEffortValue = ref<number | null>(null)
-const localEffortUnit = ref<string>('MD')
+const localEffortUnit = ref<string>('일')
 const localStartDate = ref('')
 const localDueDate = ref('')
 
@@ -652,7 +655,7 @@ const FIELD_LABEL: Record<string, string> = {
   start_date: '시작일',
   due_date: '마감일',
   story_points: '스토리 포인트',
-  effort_md: 'MD (공수)',
+  effort_md: '공수',
   comment: '댓글',
 }
 
@@ -672,9 +675,16 @@ const priorityOptions = [
   { label: '최저', value: 'LOWEST' },
 ]
 const sprintOptions = computed(() => sprints.value.map(s => ({ label: s.name, value: s.id })))
-const memberOptions = computed(() =>
-  members.value.map(m => ({ label: m.userName || m.userEmail, value: m.userId }))
-)
+const memberOptions = computed(() => {
+  const opts = members.value.map(m => ({ label: m.userName || m.userEmail, value: m.userId }))
+  // 멤버 목록 로드 실패 시에도 현재 담당자는 이름으로 표시
+  if (localAssigneeId.value && localIssue.value?.assigneeName) {
+    if (!opts.some(o => o.value === localAssigneeId.value)) {
+      opts.unshift({ label: localIssue.value.assigneeName, value: localAssigneeId.value })
+    }
+  }
+  return opts
+})
 const epicOptions = computed(() =>
   epics.value
     .filter(e => e.id !== localIssue.value?.id)
@@ -696,10 +706,11 @@ async function loadIssueContent(issue: Issue) {
   if (issue.effortMd) {
     const m = issue.effortMd.match(/^([\d.]+)\s*(.+)$/)
     localEffortValue.value = m ? parseFloat(m[1]!) : null
-    localEffortUnit.value  = m ? m[2]!.trim() : 'MD'
+    const unit = m ? m[2]!.trim() : '일'
+    localEffortUnit.value  = unit === 'MD' ? '일' : unit
   } else {
     localEffortValue.value = null
-    localEffortUnit.value  = 'MD'
+    localEffortUnit.value  = '일'
   }
   localStartDate.value = issue.startDate?.slice(0, 10) ?? ''
   localDueDate.value = issue.dueDate?.slice(0, 10) ?? ''
@@ -709,19 +720,19 @@ async function loadIssueContent(issue: Issue) {
   addingSubTask.value = false
   replyingTo.value = null
 
-  try {
-    const [cmts, hist, subs, sp, lbls, mems, eps] = await Promise.all([
-      listComments(props.projectId, issue.id),
-      getIssueHistory(props.projectId, issue.id),
-      listIssues(props.projectId, { parent_issue_id: issue.id, type: 'SUB_TASK' }),
-      listSprints(props.projectId),
-      listLabels(props.projectId),
-      listProjectMembers(props.projectId),
-      listIssues(props.projectId, { type: 'EPIC' }),
-    ])
-    comments.value = cmts
-    history.value = hist
-    subIssues.value = subs
+  const [cmtsR, histR, subsR, spR, lblsR, memsR, epsR] = await Promise.allSettled([
+    listComments(props.projectId, issue.id),
+    getIssueHistory(props.projectId, issue.id),
+    listIssues(props.projectId, { parent_issue_id: issue.id, type: 'SUB_TASK' }),
+    listSprints(props.projectId),
+    listLabels(props.projectId),
+    listProjectMembers(props.projectId),
+    listIssues(props.projectId, { type: 'EPIC' }),
+  ])
+  if (cmtsR.status === 'fulfilled') comments.value = cmtsR.value
+  if (histR.status === 'fulfilled') history.value = histR.value
+  if (subsR.status === 'fulfilled') {
+    subIssues.value = subsR.value
       .filter(s => s.type === 'SUB_TASK' && s.id !== issue.id)
       .sort((a, b) => {
         if (a.order !== b.order) return a.order - b.order
@@ -730,13 +741,11 @@ async function loadIssueContent(issue: Issue) {
         if (!b.startDate) return -1
         return a.startDate.localeCompare(b.startDate)
       })
-    sprints.value = sp
-    labelsData.value = lbls
-    members.value = mems
-    epics.value = eps
-  } catch {
-    // ignore
   }
+  if (spR.status === 'fulfilled') sprints.value = spR.value
+  if (lblsR.status === 'fulfilled') labelsData.value = lblsR.value
+  if (memsR.status === 'fulfilled') members.value = memsR.value
+  if (epsR.status === 'fulfilled') epics.value = epsR.value
 }
 
 function drillDown(sub: Issue) {

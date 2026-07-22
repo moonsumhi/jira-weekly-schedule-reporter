@@ -91,7 +91,8 @@
                       <div v-if="sec.items.length" class="q-mb-sm">
                         <div class="text-caption text-weight-bold q-mb-xs" :class="`text-${sec.color}`">{{ sec.label }}</div>
                         <div v-for="item in sec.items" :key="item.issueId"
-                          class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders">
+                          class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders cursor-pointer issue-row"
+                          @click="openIssueDetail(item.issueId)">
                           <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
                           <span class="text-body2 col ellipsis">{{ item.title }}</span>
                           <span v-if="item.assigneeName" class="text-caption text-grey-7">{{ item.assigneeName }}</span>
@@ -122,7 +123,8 @@
                         <div class="text-caption text-weight-bold q-mb-xs" :class="`text-${sec.color}`">{{ sec.label }}</div>
                         <div v-if="sec.items.length">
                           <div v-for="item in sec.items" :key="item.issueId"
-                            class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders">
+                            class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders cursor-pointer issue-row"
+                            @click="openIssueDetail(item.issueId)">
                             <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
                             <span class="text-body2 col ellipsis">{{ item.title }}</span>
                             <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
@@ -142,7 +144,8 @@
             <q-tab-panel name="all" class="q-pa-none">
               <div v-if="!report.allItems.length" class="text-grey-5 text-center q-pa-lg">업무 없음</div>
               <q-table v-else :rows="report.allItems" :columns="workItemCols"
-                flat dense row-key="issueId" :pagination="{ rowsPerPage: 20 }" no-data-label="업무 없음">
+                flat dense row-key="issueId" :pagination="{ rowsPerPage: 20 }" no-data-label="업무 없음"
+                @row-click="(_, row) => openIssueDetail(row.issueId)">
                 <template #body-cell-num="props">
                   <q-td :props="props" class="text-caption text-grey-6">{{ props.row.projectName }}-{{ props.row.issueNumber }}</q-td>
                 </template>
@@ -161,7 +164,8 @@
             <q-tab-panel name="upcoming" class="q-pa-none">
               <div v-if="!report.upcomingItems.length" class="text-grey-5 text-center q-pa-lg">업무 없음</div>
               <q-table v-else :rows="report.upcomingItems" :columns="workItemCols"
-                flat dense row-key="issueId" :pagination="{ rowsPerPage: 20 }" no-data-label="업무 없음">
+                flat dense row-key="issueId" :pagination="{ rowsPerPage: 20 }" no-data-label="업무 없음"
+                @row-click="(_, row) => openIssueDetail(row.issueId)">
                 <template #body-cell-num="props">
                   <q-td :props="props" class="text-caption text-grey-6">{{ props.row.projectName }}-{{ props.row.issueNumber }}</q-td>
                 </template>
@@ -296,6 +300,13 @@
       @saved="onItemSaved"
     />
 
+    <!-- 이슈 상세 다이얼로그 -->
+    <IssueDetailDialog
+      v-if="issueDialog.open && issueDialog.issue"
+      v-model="issueDialog.open"
+      :project-id="issueDialog.issue.projectId"
+      :issue="issueDialog.issue"
+    />
 
   </q-page>
 </template>
@@ -314,7 +325,9 @@ import {
 import { getErrorMessage } from 'src/utils/http/error'
 import { fmtDateKst } from 'src/utils/time/kst'
 import WrItemDialog from './components/WrItemDialog.vue'
+import IssueDetailDialog from './components/IssueDetailDialog.vue'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
+import { getLinkedIssue, type Issue } from 'src/services/pm/issue'
 
 
 const route  = useRoute()
@@ -330,12 +343,23 @@ const itemDialog = ref<{ open: boolean; section: ManualItemSection; item: Manual
   open: false, section: 'MAIN_AGENDA', item: null,
 })
 
+const issueDialog = ref<{ open: boolean; issue: Issue | null }>({ open: false, issue: null })
+
+async function openIssueDetail(issueId: string) {
+  try {
+    const issue = await getLinkedIssue(issueId)
+    issueDialog.value = { open: true, issue }
+  } catch {
+    Notify.create({ type: 'negative', message: '이슈 정보를 불러오지 못했습니다.' })
+  }
+}
+
 // ── 상수 ──────────────────────────────────────────────────────────────
 const STATUS_KO: Record<string, string>    = { DRAFT: '초안', REVIEWING: '검토중', CONFIRMED: '확정' }
 const STATUS_COLOR: Record<string, string> = { DRAFT: 'grey-6', REVIEWING: 'orange', CONFIRMED: 'positive' }
 
 const ISSUE_STATUS_KO: Record<string, string> = {
-  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중', DONE: '완료',
+  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', DONE: '완료',
 }
 const PRIORITY_KO: Record<string, string>    = { LOWEST: '최하', LOW: '낮음', MEDIUM: '중간', HIGH: '높음', HIGHEST: '최고' }
 const PRIORITY_COLOR: Record<string, string> = { LOWEST: 'grey', LOW: 'blue-grey', MEDIUM: 'orange', HIGH: 'deep-orange', HIGHEST: 'red' }
@@ -503,5 +527,8 @@ onMounted(load)
 }
 .excluded-item {
   opacity: 0.45;
+}
+.issue-row:hover {
+  background: #e8eaf6 !important;
 }
 </style>

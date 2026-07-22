@@ -8,6 +8,8 @@ import {
 import { Notify } from 'quasar'
 import routes from './routes'
 import { useAuthStore } from 'stores/auth'
+import { useMenuStore } from 'stores/menus'
+import { PERM_SLUG, effectiveVisibleTeams } from 'src/constants/menuPermissions'
 
 export default defineRouter(function () {
   const createHistory = process.env.SERVER
@@ -64,6 +66,20 @@ export default defineRouter(function () {
       if (auth.me && !auth.me.isAdmin && !(auth.me.permissions ?? []).includes(perm)) {
         Notify.create({ type: 'negative', message: '해당 메뉴에 대한 접근 권한이 없습니다. 관리자에게 문의하세요.' })
         return { name: 'app-home' }
+      }
+
+      // 5) 팀별 메뉴 접근 제한 체크 (사이드바에서 숨긴 메뉴는 URL 직접 접근도 차단)
+      if (auth.me && !auth.me.isAdmin) {
+        const menuStore = useMenuStore()
+        if (menuStore.sidebarMenus.length === 0) {
+          await menuStore.loadMenus()
+        }
+        const slug = PERM_SLUG[perm] ?? perm
+        const menu = menuStore.sidebarMenus.find((m) => m.slug === slug)
+        if (menu && !effectiveVisibleTeams(menu.visibleTeams).includes(auth.me.team ?? '')) {
+          Notify.create({ type: 'negative', message: '소속 팀에서 접근할 수 없는 메뉴입니다. 관리자에게 문의하세요.' })
+          return { name: 'app-home' }
+        }
       }
     }
 

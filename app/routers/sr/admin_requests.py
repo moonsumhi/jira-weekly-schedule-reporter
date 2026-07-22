@@ -60,7 +60,9 @@ async def list_all_srs(
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
 
     _SORT_FIELDS = {
-        "created_at", "desired_due_date", "sr_no",
+        "created_at", "updated_at",
+        "desired_due_date", "planned_due_date",
+        "sr_no", "title", "assignee_name",
         "requester_name", "requester_department", "priority", "status",
     }
     sort_field = sort_by if sort_by in _SORT_FIELDS else "created_at"
@@ -71,7 +73,16 @@ async def list_all_srs(
     if my_assigned:
         q["assignee_id"] = ObjectId(current_user.id)
     if status:
-        q["status"] = status
+        # 쉼표 구분 복수 상태 지원: "SUBMITTED,REVIEWING" 또는 "!COMPLETED,!CLOSED"
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        includes = [s for s in statuses if not s.startswith("!")]
+        excludes = [s[1:] for s in statuses if s.startswith("!")]
+        if includes:
+            q["status"] = {"$in": includes}
+        elif excludes:
+            q["status"] = {"$nin": ["DRAFT"] + excludes}
+        else:
+            q["status"] = {"$ne": "DRAFT"}
     else:
         # 특정 status 필터 없이 전체 조회 시 임시저장(DRAFT) 제외
         q["status"] = {"$ne": "DRAFT"}

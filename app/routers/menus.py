@@ -29,6 +29,7 @@ def _to_out(doc: dict) -> MenuOut:
         sub_order=doc.get("sub_order"),
         link=doc.get("link"),
         submenus=submenus,
+        visible_teams=doc.get("visible_teams") or [],
         created_at=fmt_dt(doc.get("created_at")),
     )
 
@@ -51,6 +52,7 @@ async def create_menu(payload: MenuCreate, _=Depends(require_admin)):
         "sort_order": payload.sort_order,
         "is_visible": payload.is_visible,
         "link": payload.link,
+        "visible_teams": payload.visible_teams,
         "created_at": datetime.now(timezone.utc),
     }
     result = await col.insert_one(doc)

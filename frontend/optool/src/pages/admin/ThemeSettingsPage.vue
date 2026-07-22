@@ -29,6 +29,16 @@
           maxlength="20"
           counter
         />
+
+        <q-input
+          v-model="tabTitle"
+          label="브라우저 탭 제목"
+          hint="비워두면 앱 이름과 동일하게 표시됩니다"
+          outlined
+          dense
+          maxlength="30"
+          counter
+        />
       </q-card-section>
 
       <q-card-section class="text-caption text-grey">
@@ -53,15 +63,18 @@ const $q = useQuasar()
 const themeStore = useThemeStore()
 
 const appName = ref('OPTOOL')
+const tabTitle = ref('')
 const selectedColor = ref<ThemeColorKey>('blue')
 const saving = ref(false)
 
 async function load() {
-  const [nameRes, colorRes] = await Promise.all([
+  const [nameRes, tabTitleRes, colorRes] = await Promise.all([
     settingsService.get('app_name'),
+    settingsService.get('tab_title'),
     settingsService.get('app_theme_color'),
   ])
   appName.value = nameRes.value || 'OPTOOL'
+  tabTitle.value = tabTitleRes.value || ''
   const key = (colorRes.value || 'blue') as ThemeColorKey
   selectedColor.value = THEME_COLORS[key] ? key : 'blue'
 }
@@ -73,11 +86,14 @@ async function save() {
   }
   saving.value = true
   try {
+    const trimmedName = appName.value.trim()
+    const trimmedTitle = tabTitle.value.trim()
     await Promise.all([
-      settingsService.put('app_name', appName.value.trim()),
+      settingsService.put('app_name', trimmedName),
+      settingsService.put('tab_title', trimmedTitle),
       settingsService.put('app_theme_color', selectedColor.value),
     ])
-    themeStore.setLocal(appName.value.trim(), selectedColor.value)
+    themeStore.setLocal(trimmedName, trimmedTitle || trimmedName, selectedColor.value)
     $q.notify({ type: 'positive', message: '저장되었습니다' })
   } catch {
     $q.notify({ type: 'negative', message: '저장에 실패했습니다' })
