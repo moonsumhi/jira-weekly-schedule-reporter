@@ -1065,7 +1065,7 @@ import MentionInput from 'src/components/MentionInput.vue'
 import MentionContent from 'src/components/MentionContent.vue'
 import type { MentionUser } from 'src/services/mention'
 import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
-import { getIssue, type Issue } from 'src/services/pm/issue'
+import { getLinkedIssue, type Issue } from 'src/services/pm/issue'
 
 // ── 상수 ────────────────────────────────────────────────────────────
 
@@ -1425,7 +1425,7 @@ const issueDialog = ref<{ open: boolean; issue: Issue | null }>({ open: false, i
 async function openLinkedIssue() {
   if (!sr.value?.convertedIssueId || !sr.value?.convertedProjectId) return
   try {
-    const issue = await getIssue(sr.value.convertedProjectId, sr.value.convertedIssueId)
+    const issue = await getLinkedIssue(sr.value.convertedIssueId)
     issueDialog.value = { open: true, issue }
   } catch {
     $q.notify({ type: 'negative', message: '태스크 정보를 불러오지 못했습니다.' })

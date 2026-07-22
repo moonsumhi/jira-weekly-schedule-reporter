@@ -177,6 +177,11 @@ export type IssueFilter = {
   parent_issue_id?: string
 }
 
+export async function getLinkedIssue(issueId: string): Promise<Issue> {
+  const { data } = await api.get<Issue>(`/pm/projects/linked/${issueId}`)
+  return data
+}
+
 export async function uploadAttachment(file: File): Promise<Attachment> {
   const form = new FormData()
   form.append('file', file)
