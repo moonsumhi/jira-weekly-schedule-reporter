@@ -675,9 +675,16 @@ const priorityOptions = [
   { label: '최저', value: 'LOWEST' },
 ]
 const sprintOptions = computed(() => sprints.value.map(s => ({ label: s.name, value: s.id })))
-const memberOptions = computed(() =>
-  members.value.map(m => ({ label: m.userName || m.userEmail, value: m.userId }))
-)
+const memberOptions = computed(() => {
+  const opts = members.value.map(m => ({ label: m.userName || m.userEmail, value: m.userId }))
+  // 멤버 목록 로드 실패 시에도 현재 담당자는 이름으로 표시
+  if (localAssigneeId.value && localIssue.value?.assigneeName) {
+    if (!opts.some(o => o.value === localAssigneeId.value)) {
+      opts.unshift({ label: localIssue.value.assigneeName, value: localAssigneeId.value })
+    }
+  }
+  return opts
+})
 const epicOptions = computed(() =>
   epics.value
     .filter(e => e.id !== localIssue.value?.id)
@@ -713,19 +720,19 @@ async function loadIssueContent(issue: Issue) {
   addingSubTask.value = false
   replyingTo.value = null
 
-  try {
-    const [cmts, hist, subs, sp, lbls, mems, eps] = await Promise.all([
-      listComments(props.projectId, issue.id),
-      getIssueHistory(props.projectId, issue.id),
-      listIssues(props.projectId, { parent_issue_id: issue.id, type: 'SUB_TASK' }),
-      listSprints(props.projectId),
-      listLabels(props.projectId),
-      listProjectMembers(props.projectId),
-      listIssues(props.projectId, { type: 'EPIC' }),
-    ])
-    comments.value = cmts
-    history.value = hist
-    subIssues.value = subs
+  const [cmtsR, histR, subsR, spR, lblsR, memsR, epsR] = await Promise.allSettled([
+    listComments(props.projectId, issue.id),
+    getIssueHistory(props.projectId, issue.id),
+    listIssues(props.projectId, { parent_issue_id: issue.id, type: 'SUB_TASK' }),
+    listSprints(props.projectId),
+    listLabels(props.projectId),
+    listProjectMembers(props.projectId),
+    listIssues(props.projectId, { type: 'EPIC' }),
+  ])
+  if (cmtsR.status === 'fulfilled') comments.value = cmtsR.value
+  if (histR.status === 'fulfilled') history.value = histR.value
+  if (subsR.status === 'fulfilled') {
+    subIssues.value = subsR.value
       .filter(s => s.type === 'SUB_TASK' && s.id !== issue.id)
       .sort((a, b) => {
         if (a.order !== b.order) return a.order - b.order
@@ -734,13 +741,11 @@ async function loadIssueContent(issue: Issue) {
         if (!b.startDate) return -1
         return a.startDate.localeCompare(b.startDate)
       })
-    sprints.value = sp
-    labelsData.value = lbls
-    members.value = mems
-    epics.value = eps
-  } catch {
-    // ignore
   }
+  if (spR.status === 'fulfilled') sprints.value = spR.value
+  if (lblsR.status === 'fulfilled') labelsData.value = lblsR.value
+  if (memsR.status === 'fulfilled') members.value = memsR.value
+  if (epsR.status === 'fulfilled') epics.value = epsR.value
 }
 
 function drillDown(sub: Issue) {
