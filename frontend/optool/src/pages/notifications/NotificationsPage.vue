@@ -178,7 +178,8 @@ async function loadMore() {
 }
 
 function formatDate(dateStr: string): string {
-  return DateTime.fromISO(dateStr).toFormat('yyyy.MM.dd HH:mm')
+  const normalized = /Z|[+-]\d{2}:?\d{2}$/.test(dateStr) ? dateStr : dateStr + 'Z'
+  return DateTime.fromISO(normalized).setZone('Asia/Seoul').toFormat('yyyy.MM.dd HH:mm')
 }
 
 async function handleItemClick(n: Notification) {
