@@ -180,7 +180,7 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
                 await _log(email, "LOGIN_FAILED", f"가입 거절됨: {reason or ''}")
                 raise HTTPException(status_code=403, detail=msg)
         await _log(email, "LOGIN_FAILED", "이메일/비밀번호 불일치")
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        raise HTTPException(status_code=400, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
 
     users = MongoClientManager.get_users_collection()
     await users.update_one(
