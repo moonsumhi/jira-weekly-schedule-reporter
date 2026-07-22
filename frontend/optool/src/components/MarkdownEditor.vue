@@ -29,6 +29,7 @@ const emit = defineEmits<{ 'update:modelValue': [v: string] }>()
 const editorEl   = ref<HTMLElement>()
 let editor: Editor | null = null
 let externalSet  = false
+let isComposing  = false
 
 const editorMinHeight = `${Math.max((props.rows ?? 4) * 36, 160)}px`
 
@@ -117,17 +118,24 @@ onMounted(() => {
     },
     events: {
       change: () => {
-        if (externalSet) return
+        if (externalSet || isComposing) return
         emit('update:modelValue', editor?.getMarkdown() ?? '')
       },
     },
   })
   // capture phase so we intercept before ProseMirror embeds image as base64
   editorEl.value.addEventListener('paste', handlePaste, true)
+  editorEl.value.addEventListener('compositionstart', () => { isComposing = true }, true)
+  editorEl.value.addEventListener('compositionend', () => {
+    isComposing = false
+    if (!externalSet) emit('update:modelValue', editor?.getMarkdown() ?? '')
+  }, true)
 })
 
 onBeforeUnmount(() => {
   editorEl.value?.removeEventListener('paste', handlePaste, true)
+  editorEl.value?.removeEventListener('compositionstart', () => { isComposing = true }, true)
+  editorEl.value?.removeEventListener('compositionend', () => { isComposing = false }, true)
   editor?.destroy()
   editor = null
 })
