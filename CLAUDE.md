@@ -68,3 +68,13 @@ Backend loads settings from `app/secret/.env` via Pydantic BaseSettings (`app/co
 ## MongoDB Collections
 
 `users`, `pending_users`, `assets_servers`, `assets_server_history`, `watch_assignments`
+
+## 커밋 규칙 (절대 준수)
+
+**Claude는 `git commit`을 Bash tool로 직접 실행하지 않는다. 반드시 `/commit` 스킬을 사용한다.**
+
+- 커밋이 필요한 시점이 오면 `/commit` 스킬을 호출한다
+- 티켓 번호가 없으면 커밋 전에 반드시 사용자에게 먼저 물어본다
+- 이전 대화의 티켓 번호를 그대로 재사용하지 않는다 — 작업마다 티켓이 다를 수 있음
+- 티켓 형식: `SR-N`, `SR-YYYY-NNNN`, `BACKOFFICE-N` 등 프로젝트마다 다름
+- 스킬 위치: `.claude/commands/commit.md`

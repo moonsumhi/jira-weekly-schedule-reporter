@@ -12,7 +12,7 @@
           <q-icon name="chevron_right" size="xs" class="opacity-60 q-mr-xs" />
         </template>
         <q-icon :name="TYPE_ICON[localIssue?.type ?? 'TASK']" class="q-mr-sm" />
-        <span class="text-caption opacity-70 q-mr-sm" style="white-space: nowrap; flex-shrink: 0">{{ projectKey }}-{{ localIssue?.number }}</span>
+        <span class="text-caption opacity-70 q-mr-sm" style="white-space: nowrap; flex-shrink: 0">{{ displayProjectKey }}-{{ localIssue?.number }}</span>
         <q-toolbar-title class="text-body1" style="min-width: 0">
           {{ localIssue?.title }}
         </q-toolbar-title>
@@ -516,6 +516,8 @@ const emit = defineEmits<{
 
 const router = useRouter()
 const tab = ref('detail')
+
+const displayProjectKey = computed(() => props.projectKey ?? props.issue?.projectKey ?? '')
 const saving = ref(false)
 const editTitle = ref('')
 const editDescription = ref('')
