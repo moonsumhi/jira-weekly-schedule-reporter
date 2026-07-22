@@ -46,7 +46,7 @@
                 flat dense no-caps
                 icon="link" label="연결된 SR 바로가기"
                 color="teal-7" class="q-mb-md text-caption"
-                @click="router.push(`/pm/sr/${localIssue.linkedSrId}`)" />
+                @click="emit('update:modelValue', false); void router.push(`/pm/sr/${localIssue.linkedSrId}`).catch(() => {})" />
 
               <!-- 설명 -->
               <div class="q-mb-md">
