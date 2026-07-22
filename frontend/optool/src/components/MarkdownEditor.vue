@@ -58,35 +58,11 @@ function handlePaste(e: Event) {
 
   const items = Array.from(ce.clipboardData.items)
 
-  // 1. binary image item (screenshot, browser copy)
-  const imageItem = items.find(item => item.type.startsWith('image/'))
-  if (imageItem) {
-    ce.preventDefault()
-    ce.stopImmediatePropagation()
-    const blob = imageItem.getAsFile()
-    if (blob && editor) {
-      void uploadImageBlob(blob).then(url => {
-        if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
-      })
-    }
-    return
-  }
+  // 바이너리 이미지(스크린샷, 브라우저 복사)는 addImageBlobHook에 위임
+  const hasBinaryImage = items.some(item => item.type.startsWith('image/'))
+  if (hasBinaryImage) return
 
-  // 2. image files copied from file manager
-  const clipFiles = ce.clipboardData.files
-  for (let i = 0; i < clipFiles.length; i++) {
-    const file = clipFiles[i]
-    if (file?.type.startsWith('image/')) {
-      ce.preventDefault()
-      ce.stopImmediatePropagation()
-      void uploadImageBlob(file).then(url => {
-        if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
-      })
-      return
-    }
-  }
-
-  // 3. HTML clipboard with <img> (HWP, Word, etc.) — block alt-text insertion
+  // HTML clipboard with <img> (HWP, Word, etc.) — block alt-text insertion
   const html = ce.clipboardData.getData('text/html')
   if (html && /<img/i.test(html)) {
     ce.preventDefault()
@@ -103,8 +79,12 @@ function handlePaste(e: Event) {
     const match = html.match(/src="(data:image\/[^;]+;base64,[^"]+)"/)
     const dataSrc = match?.[1]
     if (dataSrc && editor) {
-      void uploadImageBlob(dataUrlToBlob(dataSrc)).then(url => {
-        if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
+      const blob = dataUrlToBlob(dataSrc)
+      void uploadImageBlob(blob).then(url => {
+        if (url && editor) {
+          editor.focus()
+          editor.exec('addImage', { imageUrl: url, altText: '' })
+        }
       })
     }
     // local-path src with no text: blocked silently
