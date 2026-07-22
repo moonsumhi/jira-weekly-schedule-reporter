@@ -323,7 +323,7 @@ function headerText(index: number) { return `text-${PALETTE[index % PALETTE.leng
 
 // ── 레이블 맵 ─────────────────────────────────────────────────────────
 const STATUS_KO: Record<string, string> = {
-  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중', DONE: '완료',
+  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', DONE: '완료',
 }
 const PRIORITY_KO: Record<string, string> = {
   LOWEST: '최하', LOW: '낮음', MEDIUM: '중간', HIGH: '높음', HIGHEST: '최고',

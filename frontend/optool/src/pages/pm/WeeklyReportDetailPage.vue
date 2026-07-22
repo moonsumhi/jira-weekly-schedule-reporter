@@ -359,7 +359,7 @@ const STATUS_KO: Record<string, string>    = { DRAFT: '초안', REVIEWING: '검�
 const STATUS_COLOR: Record<string, string> = { DRAFT: 'grey-6', REVIEWING: 'orange', CONFIRMED: 'positive' }
 
 const ISSUE_STATUS_KO: Record<string, string> = {
-  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', IN_REVIEW: '검토 중', DONE: '완료',
+  BACKLOG: '백로그', TODO: '할 일', IN_PROGRESS: '진행 중', DONE: '완료',
 }
 const PRIORITY_KO: Record<string, string>    = { LOWEST: '최하', LOW: '낮음', MEDIUM: '중간', HIGH: '높음', HIGHEST: '최고' }
 const PRIORITY_COLOR: Record<string, string> = { LOWEST: 'grey', LOW: 'blue-grey', MEDIUM: 'orange', HIGH: 'deep-orange', HIGHEST: 'red' }

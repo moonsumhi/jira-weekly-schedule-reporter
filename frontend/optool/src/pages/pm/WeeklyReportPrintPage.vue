@@ -583,7 +583,7 @@ function ganttCellClass(item: WorkItem, dayIso: string): string {
   if (dayIso < s || dayIso > e) return ''
   if (item.isDelayed)                                           return 'gc-delay'
   if (item.status === 'DONE')                                   return 'gc-done'
-  if (item.status === 'IN_PROGRESS' || item.status === 'IN_REVIEW') return 'gc-prog'
+  if (item.status === 'IN_PROGRESS') return 'gc-prog'
   return 'gc-todo'
 }
 

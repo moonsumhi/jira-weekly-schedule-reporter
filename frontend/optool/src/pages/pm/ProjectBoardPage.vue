@@ -205,7 +205,7 @@ const project = ref<Project | null>(null)
 const sprints = ref<Sprint[]>([])
 const selectedSprintId = ref<string | null>(null)
 const board = ref<Record<IssueStatus, Issue[]>>({
-  BACKLOG: [], TODO: [], IN_PROGRESS: [], IN_REVIEW: [], DONE: [],
+  BACKLOG: [], TODO: [], IN_PROGRESS: [], DONE: [],
 })
 const loading = ref(false)
 
@@ -249,7 +249,7 @@ onMounted(async () => {
 async function loadBoard() {
   try {
     const data = await getBoard(projectId, selectedSprintId.value ?? undefined)
-    const empty: Record<IssueStatus, Issue[]> = { BACKLOG: [], TODO: [], IN_PROGRESS: [], IN_REVIEW: [], DONE: [] }
+    const empty: Record<IssueStatus, Issue[]> = { BACKLOG: [], TODO: [], IN_PROGRESS: [], DONE: [] }
     board.value = { ...empty, ...data }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '보드 로드 실패') })

@@ -1,16 +1,15 @@
 import { api } from 'src/boot/axios'
 
 export type IssueType = 'EPIC' | 'STORY' | 'TASK' | 'BUG' | 'SUB_TASK'
-export type IssueStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE'
+export type IssueStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'DONE'
 export type IssuePriority = 'LOWEST' | 'LOW' | 'MEDIUM' | 'HIGH' | 'HIGHEST'
 
-export const ISSUE_STATUSES: IssueStatus[] = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE']
+export const ISSUE_STATUSES: IssueStatus[] = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'DONE']
 
 export const STATUS_LABEL: Record<IssueStatus, string> = {
   BACKLOG: '백로그',
   TODO: '할 일',
   IN_PROGRESS: '진행 중',
-  IN_REVIEW: '검토 중',
   DONE: '완료',
 }
 
@@ -18,7 +17,6 @@ export const STATUS_COLOR: Record<IssueStatus, string> = {
   BACKLOG: 'grey-5',
   TODO: 'blue-4',
   IN_PROGRESS: 'orange-6',
-  IN_REVIEW: 'purple-5',
   DONE: 'green-6',
 }
 

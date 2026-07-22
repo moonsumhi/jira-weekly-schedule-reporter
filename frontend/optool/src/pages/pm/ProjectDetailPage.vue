@@ -500,7 +500,7 @@ const members = ref<ProjectMember[]>([])
 const allUsers = ref<PmUser[]>([])
 const sprints = ref<Sprint[]>([])
 const labels = ref<Label[]>([])
-const issueCounts = ref<Record<IssueStatus, number>>({ BACKLOG: 0, TODO: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0 })
+const issueCounts = ref<Record<IssueStatus, number>>({ BACKLOG: 0, TODO: 0, IN_PROGRESS: 0, DONE: 0 })
 const loading = ref(false)
 const tab = ref('overview')
 
@@ -576,7 +576,7 @@ onMounted(async () => {
     labels.value = lbls
     editForm.value = { name: proj.name, description: proj.description ?? '' }
 
-    const counts: Record<IssueStatus, number> = { BACKLOG: 0, TODO: 0, IN_PROGRESS: 0, IN_REVIEW: 0, DONE: 0 }
+    const counts: Record<IssueStatus, number> = { BACKLOG: 0, TODO: 0, IN_PROGRESS: 0, DONE: 0 }
     for (const issue of issues) counts[issue.status]++
     issueCounts.value = counts
   } catch (e) {

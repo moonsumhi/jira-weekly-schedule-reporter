@@ -170,7 +170,7 @@ async def patch_issue(
     sprints_col = MongoClientManager.get_pm_sprints_collection()
     labels_col = MongoClientManager.get_pm_labels_collection()
 
-    _STATUS_KO = {"BACKLOG": "백로그", "TODO": "할 일", "IN_PROGRESS": "진행 중", "IN_REVIEW": "검토 중", "DONE": "완료"}
+    _STATUS_KO = {"BACKLOG": "백로그", "TODO": "할 일", "IN_PROGRESS": "진행 중", "DONE": "완료"}
     _PRIORITY_KO = {"LOWEST": "최저", "LOW": "낮음", "MEDIUM": "보통", "HIGH": "높음", "HIGHEST": "최고"}
     _TYPE_KO = {"EPIC": "Epic", "STORY": "Story", "TASK": "Task", "BUG": "Bug", "SUB_TASK": "Sub-task"}
 

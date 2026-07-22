@@ -509,7 +509,7 @@
                   <strong>로그인 기능 구현</strong>의 상태를<br>
                   <q-badge color="primary" label="진행 중" />
                   <q-icon name="arrow_forward" size="14px" color="grey-5" class="q-mx-xs" />
-                  <q-badge color="orange" label="검토 중" />
+                  <q-badge color="green-6" label="완료" />
                   (으)로 변경하시겠습니까?
                 </div>
                 <div class="row q-gutter-sm justify-end">
@@ -535,7 +535,6 @@
                 <q-chip dense clickable color="grey-4" text-color="white" size="sm">백로그</q-chip>
                 <q-chip dense clickable color="blue-grey" text-color="white" size="sm">할 일</q-chip>
                 <q-chip dense clickable color="primary" text-color="white" size="sm">진행 중</q-chip>
-                <q-chip dense clickable outline color="orange" size="sm" style="opacity:0.5">검토 중 (숨김)</q-chip>
                 <q-chip dense clickable color="positive" text-color="white" size="sm">완료</q-chip>
               </div>
               <div class="text-caption text-grey-5">칩 클릭으로 해당 열 표시/숨김 전환 · 흐린 칩 = 현재 숨김 상태</div>
@@ -1034,8 +1033,8 @@ const scenarios: Scenario[] = [
         desc: '프로젝트 상세 화면의 바로가기 버튼 또는 [보드] 탭을 클릭합니다. 활성(ACTIVE) 스프린트의 이슈가 칸반 형식으로 표시됩니다.',
       },
       {
-        label: '5열 칸반 구성 확인',
-        desc: '이슈는 상태에 따라 5개 열로 분류됩니다: 백로그(BACKLOG), 할 일(TODO), 진행 중(IN_PROGRESS), 검토 중(IN_REVIEW), 완료(DONE). 카드에는 타입 아이콘, 우선순위 아이콘, 이슈 키 번호, 담당자 아바타, 하위 작업 목록이 표시됩니다.',
+        label: '4열 칸반 구성 확인',
+        desc: '이슈는 상태에 따라 4개 열로 분류됩니다: 백로그(BACKLOG), 할 일(TODO), 진행 중(IN_PROGRESS), 완료(DONE). 카드에는 타입 아이콘, 우선순위 아이콘, 이슈 키 번호, 담당자 아바타, 하위 작업 목록이 표시됩니다.',
       },
       {
         label: '카드 드래그 또는 클릭 → 상태 변경',
@@ -1111,8 +1110,7 @@ const issueTypes = [
 const kanbanCols = [
   { label: '백로그',  color: 'grey-4',    cards: ['레거시 코드 정리'] },
   { label: '할 일',   color: 'blue-grey', cards: ['로그인 개선'] },
-  { label: '진행 중', color: 'primary',   cards: ['API 연동', '쿼리 최적화'] },
-  { label: '검토 중', color: 'orange',    cards: ['배포 스크립트'] },
+  { label: '진행 중', color: 'primary',   cards: ['API 연동', '쿼리 최적화', '배포 스크립트'] },
   { label: '완료',    color: 'positive',  cards: ['기획 문서 작성'] },
 ]
 
