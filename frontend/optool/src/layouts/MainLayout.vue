@@ -45,7 +45,7 @@
         <!-- MENU AREA -->
         <q-scroll-area class="col">
           <q-list>
-            <q-item-label header class="cursor-pointer" @click="$router.push('/app')">데이터운영팀</q-item-label>
+            <q-item-label header class="cursor-pointer" @click="$router.push('/app')">{{ auth.me?.team || theme.appName }}</q-item-label>
 
             <!-- 모든 메뉴를 sortOrder 순서대로 렌더링 -->
             <template v-for="menu in sortedVisibleMenus" :key="menu.id">
