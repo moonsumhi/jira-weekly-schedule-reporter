@@ -90,8 +90,8 @@ export function dateToKstDateTimeLocal(d: Date): string {
 export function kstDateTimeLocalToUtcIso(local: string): string {
   // local: "YYYY-MM-DDTHH:mm" — always treated as KST regardless of browser locale
   const dt = DateTime.fromFormat(local, "yyyy-LL-dd'T'HH:mm", { zone: 'Asia/Seoul' })
-  if (!dt.isValid) throw new Error('Invalid date/time')
+  if (!dt.isValid) throw new Error('날짜/시간이 올바르지 않습니다.')
   const iso = dt.toUTC().toISO({ suppressMilliseconds: true })
-  if (!iso) throw new Error('Failed to serialize datetime')
+  if (!iso) throw new Error('날짜/시간 변환에 실패했습니다.')
   return iso
 }

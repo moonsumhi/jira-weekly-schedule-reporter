@@ -50,13 +50,13 @@ async def get_current_user(
     if email is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="인증 정보를 확인할 수 없습니다.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     user = await get_user_by_email(email)
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
 
     internal = await is_internal_ip(request)
     is_background_poll = request.headers.get("X-Background-Poll") == "1"
@@ -101,7 +101,7 @@ async def register(user: UserCreate):
     # 1) 이미 정식 가입된 이메일이면 거부
     existing = await users.find_one({"email": user.email})
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다.")
 
     # 2) 이미 pending 신청이 있으면 상태에 따라 안내
     existing_pending = await pending.find_one({"email": user.email})
@@ -109,12 +109,12 @@ async def register(user: UserCreate):
         st = existing_pending.get("status", "PENDING")
         if st == "PENDING":
             raise HTTPException(
-                status_code=400, detail="Registration is already pending admin approval"
+                status_code=400, detail="이미 관리자 승인 대기 중인 가입 신청입니다."
             )
         if st == "APPROVED":
             raise HTTPException(
                 status_code=409,
-                detail="Request is approved but account not created; contact admin",
+                detail="승인은 완료되었지만 계정이 생성되지 않았습니다. 관리자에게 문의하세요.",
             )
 
     # reject 당한거면 해당 이메일로 다시 신청할 수 있도록 함
@@ -135,7 +135,7 @@ async def register(user: UserCreate):
     return RegisterPendingResponse(
         status="PENDING",
         request_id=str(result.inserted_id),
-        message="Registration request submitted. Waiting for admin approval.",
+        message="가입 신청이 접수되었습니다. 관리자 승인을 기다려주세요.",
     )
 
 
@@ -171,12 +171,12 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
             st = p.get("status", "PENDING")
             if st == "PENDING":
                 await _log(email, "LOGIN_FAILED", "승인 대기 중")
-                raise HTTPException(status_code=403, detail="Waiting for admin approval")
+                raise HTTPException(status_code=403, detail="관리자 승인 대기 중입니다.")
             if st == "REJECTED":
                 reason = p.get("reject_reason")
-                msg = "Registration request was rejected by admin"
+                msg = "관리자에 의해 가입 신청이 거절되었습니다."
                 if reason:
-                    msg = f"{msg}: {reason}"
+                    msg = f"{msg} (사유: {reason})"
                 await _log(email, "LOGIN_FAILED", f"가입 거절됨: {reason or ''}")
                 raise HTTPException(status_code=403, detail=msg)
         await _log(email, "LOGIN_FAILED", "이메일/비밀번호 불일치")
@@ -215,12 +215,12 @@ async def refresh_token(request: Request, token: str = Depends(oauth2_scheme)):
     if email is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="인증 정보를 확인할 수 없습니다.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     user = await get_user_by_email(email)
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
 
     new_token = create_access_token(
         subject=email,

@@ -63,7 +63,7 @@ async def create_form_template(payload: FormTemplateCreate, _=Depends(require_ad
         return_document=True,
     )
     if result is None:
-        raise HTTPException(status_code=500, detail="Failed to upsert form template")
+        raise HTTPException(status_code=500, detail="양식 템플릿 저장에 실패했습니다.")
     return _to_out(result)
 
 
@@ -75,14 +75,14 @@ async def patch_form_template(template_id: str, payload: FormTemplatePatch, _=De
     if payload.sort_order is not None:
         update["sort_order"] = payload.sort_order
     if not update:
-        raise HTTPException(status_code=400, detail="No fields to update")
+        raise HTTPException(status_code=400, detail="수정할 필드가 없습니다.")
     doc = await col.find_one_and_update(
         query,
         {"$set": update},
         return_document=True,
     )
     if doc is None:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=404, detail="템플릿을 찾을 수 없습니다.")
     return _to_out(doc)
 
 
@@ -95,33 +95,33 @@ async def get_form_template(template_id: str):
     else:
         doc = await col.find_one({"jira_issue_key": template_id})
     if not doc:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=404, detail="템플릿을 찾을 수 없습니다.")
     return _to_out(doc)
 
 
 @router.delete("/{template_id}", response_model=FormTemplateOut)
 async def delete_form_template(template_id: str, _=Depends(require_admin)):
     col = MongoClientManager.get_form_templates_collection()
-    _oid = parse_oid(template_id, "Invalid template id")
+    _oid = parse_oid(template_id, "잘못된 템플릿 ID입니다.")
     doc = await col.find_one_and_update(
         {"_id": _oid, "is_deleted": {"$ne": True}},
         {"$set": {"is_deleted": True, "updated_at": datetime.now(timezone.utc)}},
         return_document=True,
     )
     if doc is None:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=404, detail="템플릿을 찾을 수 없습니다.")
     return _to_out(doc)
 
 
 @router.post("/{template_id}/restore", response_model=FormTemplateOut)
 async def restore_form_template(template_id: str, _=Depends(require_admin)):
     col = MongoClientManager.get_form_templates_collection()
-    _oid = parse_oid(template_id, "Invalid template id")
+    _oid = parse_oid(template_id, "잘못된 템플릿 ID입니다.")
     doc = await col.find_one_and_update(
         {"_id": _oid, "is_deleted": True},
         {"$set": {"is_deleted": False, "updated_at": datetime.now(timezone.utc)}},
         return_document=True,
     )
     if doc is None:
-        raise HTTPException(status_code=404, detail="Template not found or not deleted")
+        raise HTTPException(status_code=404, detail="템플릿을 찾을 수 없거나 삭제된 상태가 아닙니다.")
     return _to_out(doc)

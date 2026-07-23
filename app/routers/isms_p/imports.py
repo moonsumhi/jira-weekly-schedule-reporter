@@ -66,6 +66,6 @@ async def rollback_import_log(log_id: str, current_user: UserPublic = Depends(re
     try:
         result = await rollback_import(log_id)
     except ValueError as e:
-        status = 404 if str(e) == "import log not found" else 400
+        status = 404 if str(e) == "가져오기 이력을 찾을 수 없습니다." else 400
         raise HTTPException(status_code=status, detail=str(e))
     return RollbackResultOut(**result)

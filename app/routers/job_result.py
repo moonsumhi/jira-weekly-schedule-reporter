@@ -36,7 +36,7 @@ async def get_result(
 ):
     doc = await svc.get(_id=oid(result_id))
     if not doc:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail="찾을 수 없습니다.")
     return ServiceWorkResultOut(**doc)
 
 

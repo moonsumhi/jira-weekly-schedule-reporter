@@ -440,7 +440,7 @@ async def upload_report(
 @router.get("/{report_id}", response_model=HealthReportOut)
 async def get_report(report_id: str, current_user: UserPublic = Depends(get_current_user)):
     col = MongoClientManager.get_db()[MongoClientManager.HEALTH_REPORTS]
-    _id = parse_oid(report_id, "Invalid report id")
+    _id = parse_oid(report_id, "잘못된 리포트 ID입니다.")
     doc = await col.find_one({"_id": _id})
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
@@ -450,7 +450,7 @@ async def get_report(report_id: str, current_user: UserPublic = Depends(get_curr
 @router.delete("/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_report(report_id: str, current_user: UserPublic = Depends(get_current_user)):
     col = MongoClientManager.get_db()[MongoClientManager.HEALTH_REPORTS]
-    _id = parse_oid(report_id, "Invalid report id")
+    _id = parse_oid(report_id, "잘못된 리포트 ID입니다.")
     result = await col.delete_one({"_id": _id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")

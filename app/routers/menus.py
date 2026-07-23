@@ -63,14 +63,14 @@ async def create_menu(payload: MenuCreate, _=Depends(require_admin)):
 @router.patch("/{menu_id}", response_model=MenuOut)
 async def patch_menu(menu_id: str, payload: MenuPatch, _=Depends(require_admin)):
     col = MongoClientManager.get_menus_collection()
-    _oid = parse_oid(menu_id, "Invalid menu id")
+    _oid = parse_oid(menu_id, "잘못된 메뉴 ID입니다.")
     update = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
     if not update:
-        raise HTTPException(status_code=400, detail="No fields to update")
+        raise HTTPException(status_code=400, detail="수정할 필드가 없습니다.")
 
     doc = await col.find_one_and_update({"_id": _oid}, {"$set": update}, return_document=True)
     if not doc:
-        raise HTTPException(status_code=404, detail="Menu not found")
+        raise HTTPException(status_code=404, detail="메뉴를 찾을 수 없습니다.")
     return _to_out(doc)
 
 
@@ -79,15 +79,15 @@ async def delete_menu(menu_id: str, _=Depends(require_admin)):
     col = MongoClientManager.get_menus_collection()
     boards_col = MongoClientManager.get_boards_collection()
     posts_col = MongoClientManager.get_board_posts_collection()
-    _oid = parse_oid(menu_id, "Invalid menu id")
+    _oid = parse_oid(menu_id, "잘못된 메뉴 ID입니다.")
     doc = await col.find_one({"_id": _oid})
     if not doc:
-        raise HTTPException(status_code=404, detail="Menu not found")
+        raise HTTPException(status_code=404, detail="메뉴를 찾을 수 없습니다.")
     if doc.get("is_system"):
-        raise HTTPException(status_code=400, detail="System menus cannot be deleted")
+        raise HTTPException(status_code=400, detail="시스템 메뉴는 삭제할 수 없습니다.")
     result = await col.delete_one({"_id": _oid})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Menu not found")
+        raise HTTPException(status_code=404, detail="메뉴를 찾을 수 없습니다.")
     # 해당 메뉴의 게시판 및 게시글도 함께 삭제
     boards = [doc async for doc in boards_col.find({"menu_id": menu_id})]
     board_ids = [str(b["_id"]) for b in boards]

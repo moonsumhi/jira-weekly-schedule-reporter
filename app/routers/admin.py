@@ -18,7 +18,7 @@ async def require_admin(
     current_user: UserPublic = Depends(get_current_user),
 ) -> UserPublic:
     if not getattr(current_user, "is_admin", False):
-        raise HTTPException(status_code=403, detail="Admin only")
+        raise HTTPException(status_code=403, detail="관리자만 접근할 수 있습니다.")
     return current_user
 
 
@@ -98,11 +98,11 @@ async def update_user(
     admin: UserPublic = Depends(require_admin),
 ):
     users = MongoClientManager.get_users_collection()
-    _id = parse_oid(user_id, "Invalid user id")
+    _id = parse_oid(user_id, "잘못된 사용자 ID입니다.")
 
     doc = await users.find_one({"_id": _id})
     if not doc:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
     update: dict = {}
     if body.full_name is not None:
@@ -169,21 +169,21 @@ async def approve_pending_user(
 ):
     users = MongoClientManager.get_users_collection()
     pending = MongoClientManager.get_pending_users_collection()
-    _id = parse_oid(request_id, "Invalid request id")
+    _id = parse_oid(request_id, "잘못된 요청 ID입니다.")
 
     p = await pending.find_one({"_id": _id})
     if not p:
-        raise HTTPException(status_code=404, detail="Pending request not found")
+        raise HTTPException(status_code=404, detail="가입 신청을 찾을 수 없습니다.")
 
     if p.get("status") != "PENDING":
         raise HTTPException(
-            status_code=409, detail=f"Request is not pending (status={p.get('status')})"
+            status_code=409, detail=f"대기 중인 신청이 아닙니다 (상태={p.get('status')})"
         )
 
     # 중복 방지
     existing = await users.find_one({"email": p["email"]})
     if existing:
-        raise HTTPException(status_code=409, detail="Email already registered")
+        raise HTTPException(status_code=409, detail="이미 등록된 이메일입니다.")
 
     now = datetime.now(timezone.utc)
 
@@ -224,10 +224,10 @@ async def approve_pending_user(
 @router.post("/users/{user_id}/block", response_model=UserListItem)
 async def block_user(user_id: str, admin: UserPublic = Depends(require_admin)):
     users = MongoClientManager.get_users_collection()
-    _id = parse_oid(user_id, "Invalid user id")
+    _id = parse_oid(user_id, "잘못된 사용자 ID입니다.")
     doc = await users.find_one({"_id": _id})
     if not doc:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
     if bool(doc.get("is_admin", False)):
         raise HTTPException(status_code=400, detail="관리자 계정은 차단할 수 없습니다.")
     await users.update_one({"_id": _id}, {"$set": {"is_blocked": True}})
@@ -244,10 +244,10 @@ async def block_user(user_id: str, admin: UserPublic = Depends(require_admin)):
 @router.post("/users/{user_id}/unblock", response_model=UserListItem)
 async def unblock_user(user_id: str, admin: UserPublic = Depends(require_admin)):
     users = MongoClientManager.get_users_collection()
-    _id = parse_oid(user_id, "Invalid user id")
+    _id = parse_oid(user_id, "잘못된 사용자 ID입니다.")
     doc = await users.find_one({"_id": _id})
     if not doc:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
     await users.update_one({"_id": _id}, {"$set": {"is_blocked": False}})
     doc = await users.find_one({"_id": _id})
     return UserListItem(
@@ -417,10 +417,10 @@ async def admin_change_password(
     if len(body.new_password) < 6:
         raise HTTPException(status_code=400, detail="비밀번호는 6자 이상이어야 합니다.")
     users = MongoClientManager.get_users_collection()
-    _id = parse_oid(user_id, "Invalid user id")
+    _id = parse_oid(user_id, "잘못된 사용자 ID입니다.")
     doc = await users.find_one({"_id": _id})
     if not doc:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
     await users.update_one({"_id": _id}, {"$set": {"hashed_password": hash_password(body.new_password)}})
 
 
@@ -431,15 +431,15 @@ async def reject_pending_user(
     admin: UserPublic = Depends(require_admin),
 ):
     pending = MongoClientManager.get_pending_users_collection()
-    _id = parse_oid(request_id, "Invalid request id")
+    _id = parse_oid(request_id, "잘못된 요청 ID입니다.")
 
     p = await pending.find_one({"_id": _id})
     if not p:
-        raise HTTPException(status_code=404, detail="Pending request not found")
+        raise HTTPException(status_code=404, detail="가입 신청을 찾을 수 없습니다.")
 
     if p.get("status") != "PENDING":
         raise HTTPException(
-            status_code=409, detail=f"Request is not pending (status={p.get('status')})"
+            status_code=409, detail=f"대기 중인 신청이 아닙니다 (상태={p.get('status')})"
         )
 
     await pending.update_one(

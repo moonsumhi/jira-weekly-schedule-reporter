@@ -9,7 +9,7 @@ from bson.errors import InvalidId
 from fastapi import HTTPException
 
 
-def oid(s: str, detail: str = "Invalid id") -> ObjectId:
+def oid(s: str, detail: str = "잘못된 ID입니다.") -> ObjectId:
     """ObjectId 변환. 실패 시 HTTP 400."""
     try:
         return ObjectId(s)

@@ -181,7 +181,7 @@ class AssetsService:
 
         existing = await col.find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise KeyError("Not found")
+            raise KeyError("찾을 수 없습니다.")
 
         if asset_id != existing.get("asset_id"):
             await _check_asset_id(col, asset_id, exclude_id=_id)
@@ -240,13 +240,13 @@ class AssetsService:
 
         existing = await col.find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise KeyError("Not found")
+            raise KeyError("찾을 수 없습니다.")
 
         if (
             expected_version is not None
             and int(existing.get("version", 1)) != expected_version
         ):
-            raise ValueError("Version conflict. Reload and retry.")
+            raise ValueError("다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해주세요.")
 
         update: Dict[str, Any] = {}
 
@@ -254,7 +254,7 @@ class AssetsService:
         if ip is not None and ip != existing["ip"]:
             asset_type = existing.get("fields", {}).get("자산유형", "서버")
             if await col.find_one({**_ip_asset_type_query(ip, asset_type), "_id": {"$ne": _id}}):
-                raise ValueError(f"IP already exists for asset type '{asset_type}'")
+                raise ValueError(f"자산유형 '{asset_type}'에 동일한 IP가 이미 존재합니다.")
             update["ip"] = ip
 
         if patch.get("name") is not None:
@@ -276,7 +276,7 @@ class AssetsService:
 
         if patch.get("fields") is not None:
             if not isinstance(patch["fields"], dict):
-                raise ValueError("fields must be an object")
+                raise ValueError("fields는 객체(object) 형식이어야 합니다.")
             update["fields"] = patch["fields"]
 
         if not update and not unset:
@@ -314,7 +314,7 @@ class AssetsService:
 
         existing = await col.find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise KeyError("Not found")
+            raise KeyError("찾을 수 없습니다.")
 
         now = TimeUtil.now_utc()
         update = {
@@ -346,7 +346,7 @@ class AssetsService:
 
         existing = await col.find_one({"_id": _id, "is_deleted": True})
         if not existing:
-            raise KeyError("Not found or not deleted")
+            raise KeyError("찾을 수 없거나 삭제된 상태가 아닙니다.")
 
         now = TimeUtil.now_utc()
         update = {
@@ -382,7 +382,7 @@ class AssetsService:
 
         existing = await col.find_one({"_id": _id, "is_deleted": True})
         if not existing:
-            raise KeyError("Not found or not deleted")
+            raise KeyError("찾을 수 없거나 삭제된 상태가 아닙니다.")
 
         await _write_history(
             asset_id=str(_id),

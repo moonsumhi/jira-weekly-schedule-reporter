@@ -52,7 +52,7 @@ async def get_ns_plan(
 ):
     doc = await ns_svc.get(_id=oid(plan_id))
     if not doc:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail="찾을 수 없습니다.")
     return NonServiceWorkPlanOut(**doc)
 
 
@@ -115,7 +115,7 @@ async def get_plan(
 ):
     doc = await svc.get(_id=oid(plan_id))
     if not doc:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail="찾을 수 없습니다.")
     return ServiceWorkPlanOut(**doc)
 
 

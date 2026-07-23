@@ -295,9 +295,9 @@ async def rollback_import(log_id: str) -> dict:
     except InvalidId:
         log_doc = None
     if not log_doc:
-        raise ValueError('import log not found')
+        raise ValueError('가져오기 이력을 찾을 수 없습니다.')
     if log_doc.get('rolled_back'):
-        raise ValueError('already rolled back')
+        raise ValueError('이미 롤백되었습니다.')
 
     restored = 0
     for snapshot in log_doc.get('snapshots', []):
