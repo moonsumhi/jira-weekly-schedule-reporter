@@ -77,12 +77,31 @@
 
           <!-- ⑥ NETWORK 전용 -->
           <template v-if="section === 'NETWORK'">
+            <div>
+              <div class="field-label">이상 여부</div>
+              <q-btn-toggle
+                v-model="form.item_type"
+                :options="NETWORK_STATUS_OPTIONS"
+                outline rounded no-caps
+                toggle-color="primary"
+              />
+            </div>
             <MarkdownEditor
               v-model="form.content"
               label="내용"
               placeholder="네트워크 활동 내용을 입력하세요"
               :rows="4"
             />
+            <div>
+              <div class="field-label">의견</div>
+              <q-input
+                v-model="form.action_plan"
+                outlined autogrow
+                type="textarea"
+                placeholder="의견을 입력하세요"
+                input-style="min-height: 64px; resize: vertical"
+              />
+            </div>
           </template>
 
           <!-- ⑦ ANNOUNCEMENT 전용 -->
@@ -360,6 +379,11 @@ const SECTION_COLOR: Record<ManualItemSection, string> = {
   ANNOUNCEMENT: 'teal',
   ATTENDANCE: 'indigo',
 }
+
+const NETWORK_STATUS_OPTIONS = [
+  { label: '정상', value: '정상' },
+  { label: '이상', value: '이상' },
+]
 
 const AGENDA_CATEGORIES = ['운영', '보안', '개발', '인프라', '장애', '대외협력', '기타'].map(v => ({ label: v, value: v }))
 const AGENDA_STATUSES   = ['예정', '진행중', '완료', '지연', '보류'].map(v => ({ label: v, value: v }))

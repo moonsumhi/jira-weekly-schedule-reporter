@@ -269,7 +269,17 @@
                   <div v-if="item.desiredDate" class="text-caption text-grey-6">희망 결정일: {{ fmtDateKst(item.desiredDate) }}</div>
                 </template>
                 <template v-if="item.section === 'NETWORK'">
+                  <div v-if="item.itemType" class="q-mb-xs">
+                    <q-badge
+                      :color="item.itemType === '이상' ? 'negative' : 'positive'"
+                      :label="item.itemType"
+                      :icon="item.itemType === '이상' ? 'warning' : 'check_circle'"
+                      class="q-px-sm q-py-xs"
+                      style="font-size:12px"
+                    />
+                  </div>
                   <MarkdownContent v-if="item.content" :content="item.content" class="q-mb-xs" />
+                  <div v-if="item.actionPlan" class="text-body2 text-grey-8"><span class="text-caption text-grey-6">의견:</span> {{ item.actionPlan }}</div>
                 </template>
                 <template v-if="item.section === 'ANNOUNCEMENT'">
                   <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
