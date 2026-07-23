@@ -33,6 +33,7 @@ services:
         NODE_BASE_IMAGE: ${BO_FE_NODE_BASE_IMAGE:-node:22-alpine}
         NGINX_BASE_IMAGE: ${BO_FE_NGINX_BASE_IMAGE:-nginx:alpine}
         SKIP_NPM_INSTALL: ${BO_FE_SKIP_NPM_INSTALL:-false}
+        NPM_REGISTRY: ${BO_FE_NPM_REGISTRY:-}
     container_name: jira-frontend
     ports:
       - "9000:80"

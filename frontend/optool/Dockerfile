@@ -5,6 +5,7 @@ ARG NGINX_BASE_IMAGE=nginx:alpine
 FROM ${NODE_BASE_IMAGE} AS builder
 
 ARG SKIP_NPM_INSTALL=false
+ARG NPM_REGISTRY=""
 
 WORKDIR /app
 COPY frontend/optool/ .
@@ -12,6 +13,9 @@ COPY frontend/optool/ .
 RUN if [ "$SKIP_NPM_INSTALL" = "false" ]; then \
     npm install -g @quasar/cli && \
     npm install --legacy-peer-deps; \
+elif [ -n "$NPM_REGISTRY" ]; then \
+    npm install -g @quasar/cli --registry=$NPM_REGISTRY && \
+    npm install --legacy-peer-deps --registry=$NPM_REGISTRY; \
 fi
 
 RUN npx quasar build
