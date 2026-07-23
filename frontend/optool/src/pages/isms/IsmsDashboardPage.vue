@@ -104,6 +104,7 @@ import {
   Chart, ArcElement, BarElement, LineElement, PointElement,
   CategoryScale, LinearScale, Tooltip, Legend,
   DoughnutController, BarController, LineController,
+  type TooltipItem,
 } from 'chart.js'
 import {
   getStats, getAssigneeStats, getActionProgress,
@@ -212,7 +213,7 @@ async function loadAndRender() {
       options: {
         responsive: true,
         plugins: {
-          tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}건` } },
+          tooltip: { callbacks: { label: (ctx: TooltipItem<'line'>) => `${ctx.dataset.label}: ${ctx.parsed.y}건` } },
         },
       },
     }))

@@ -165,16 +165,26 @@ const vuln = ref<Vulnerability | null>(null)
 const loading = ref(false)
 const saving = ref(false)
 
-const form = ref({
-  assignee: '' as string | null,
-  control_status: null as string | null,
-  action_plan: '' as string | null,
-  planned_date: '' as string | null,
-  action_status: null as string | null,
-  action_details: '' as string | null,
-  before_text: '' as string | null,
-  after_text: '' as string | null,
-  notes: '' as string | null,
+const form = ref<{
+  assignee: string | null
+  control_status: string | null
+  action_plan: string | null
+  planned_date: string | null
+  action_status: string | null
+  action_details: string | null
+  before_text: string | null
+  after_text: string | null
+  notes: string | null
+}>({
+  assignee: '',
+  control_status: null,
+  action_plan: '',
+  planned_date: '',
+  action_status: null,
+  action_details: '',
+  before_text: '',
+  after_text: '',
+  notes: '',
 })
 
 const beforeInputRef = ref<HTMLInputElement | null>(null)

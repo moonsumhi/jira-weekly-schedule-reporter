@@ -69,6 +69,18 @@ Backend loads settings from `app/secret/.env` via Pydantic BaseSettings (`app/co
 
 `users`, `pending_users`, `assets_servers`, `assets_server_history`, `watch_assignments`
 
+## 프론트엔드 빌드 규칙 (절대 준수)
+
+**커밋 전에 반드시 프론트엔드 빌드를 실행하고, 에러가 없는 상태에서만 커밋한다.**
+
+```bash
+cd frontend/optool && npm run lint && npm run build
+```
+
+- TypeScript 타입 에러, ESLint 에러가 발생하면 반드시 수정 후 커밋한다
+- 빌드 성공 확인 없이 커밋하지 않는다
+- 프론트엔드 파일을 하나라도 수정했다면 예외 없이 빌드 확인을 거친다
+
 ## 커밋 규칙 (절대 준수)
 
 **Claude는 `git commit`을 Bash tool로 직접 실행하지 않는다. 반드시 `/commit` 스킬을 사용한다.**
