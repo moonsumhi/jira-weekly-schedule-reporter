@@ -1,5 +1,5 @@
 <template>
-  <q-dialog :model-value="modelValue" persistent @update:model-value="$emit('update:modelValue', $event)">
+  <q-dialog :model-value="modelValue" no-backdrop-dismiss @update:model-value="$emit('update:modelValue', $event)">
     <q-card class="wr-dialog">
       <!-- 헤더 -->
       <div class="wr-header row items-center no-wrap q-px-lg q-py-md">
