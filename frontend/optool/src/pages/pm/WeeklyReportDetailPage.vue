@@ -249,7 +249,7 @@
                 <div class="row items-center q-gutter-xs q-mb-xs">
                   <q-badge v-if="item.category" color="blue-2" text-color="blue-9" :label="item.category" />
                   <q-badge v-if="item.agendaStatus" :color="agendaStatusColor(item.agendaStatus)" :label="item.agendaStatus" />
-                  <q-badge v-if="item.itemType" color="purple-2" text-color="purple-9" :label="item.itemType" />
+                  <q-badge v-if="item.itemType && item.section !== 'NETWORK'" color="purple-2" text-color="purple-9" :label="item.itemType" />
                   <q-badge v-if="item.impact" :color="impactColor(item.impact)" :label="item.impact" />
                   <span class="text-body2 text-weight-medium">{{ item.title }}</span>
                 </div>
