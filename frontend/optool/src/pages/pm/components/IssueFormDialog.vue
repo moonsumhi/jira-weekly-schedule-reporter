@@ -373,7 +373,9 @@ const memberOptions = computed(() =>
   members.value.map(m => ({ label: m.userName || m.userEmail, value: m.userId }))
 )
 const epicOptions = computed(() =>
-  epics.value.map(e => ({ label: `#${e.number} ${e.title}`, value: e.id }))
+  [...epics.value]
+    .sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+    .map(e => ({ label: `#${e.number} ${e.title}`, value: e.id }))
 )
 const labelOptions = computed(() =>
   labelsData.value.map(l => ({ label: l.name, value: l.id, color: l.color }))

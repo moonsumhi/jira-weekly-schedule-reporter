@@ -686,8 +686,9 @@ const memberOptions = computed(() => {
   return opts
 })
 const epicOptions = computed(() =>
-  epics.value
+  [...epics.value]
     .filter(e => e.id !== localIssue.value?.id)
+    .sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
     .map(e => ({ label: `#${e.number} ${e.title}`, value: e.id }))
 )
 const labelOptions = computed(() => labelsData.value.map(l => ({ label: l.name, value: l.id, color: l.color })))
