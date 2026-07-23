@@ -7,3 +7,5 @@ frontend/node_modules/*
 !.env.example
 data/
 .agent/docs/*.md
+*.bundle
+*.bundle.zip
