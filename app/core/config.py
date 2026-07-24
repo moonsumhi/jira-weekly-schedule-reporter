@@ -27,7 +27,11 @@ class Settings(BaseSettings):
 
     SR_MAIL_SERVICE_URL: str = Field(
         default="http://10.32.18.52:8083/service/customCall/issueInfo",
-        description="사내 메일 발송 서비스 URL (Redmine issues_controller.rb와 공용) — SR 접수/상태변경 시 요청자 메일 발송",
+        description="사내 메일 발송 서비스 URL (Redmine issues_controller.rb와 공용) — SR 접수 시 요청자 메일 발송",
+    )
+    SR_MAIL_FINISH_URL: str = Field(
+        default="http://10.32.18.52:8083/service/customCall/issueFinish",
+        description="사내 메일 발송 서비스 URL — SR 처리완료 시 요청자 메일 발송",
     )
     CLAUDE_CODE_OAUTH_TOKEN: str = Field(default="", description="Claude Code OAuth token for CLI auth")
 

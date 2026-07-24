@@ -453,8 +453,10 @@ async def change_status(
             target_url=target_url,
         )
 
-    from app.utils.mail_notify import send_sr_notification
-    await send_sr_notification(updated, event="status_changed")
+    # Redmine과 동일하게 "완료" 상태로 바뀔 때만 처리완료 메일 발송 (그 외 상태변경은 무발송)
+    if new_status == "COMPLETED":
+        from app.utils.mail_notify import send_sr_notification
+        await send_sr_notification(updated, event="completed")
 
     return SROut(**sr_to_out(updated))
 
