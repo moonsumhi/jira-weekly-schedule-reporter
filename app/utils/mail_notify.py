@@ -3,8 +3,12 @@
 Redmine(issues_controller.rb의 create_emailsend/update_emailsend)이 쓰는 사내 메일
 발송 서비스를 그대로 재사용한다. 이 서비스는 SMTP를 직접 쓰지 않고, 수신자 목록과
 병합용 데이터를 폼 데이터로 POST 받아 자체적으로 메일을 만들어 보낸다.
-Rails 쪽이 `sendUserEmail[]=...`, `dataMap[key]=...` 형태(중첩 파라미터)로 파싱하므로
-httpx에도 동일한 키 형식으로 넘겨야 한다.
+
+메일 서비스 자체는 Spring(Java, ServiceController#callmailTemplatePost)이지만
+호출하는 쪽(레드마인)이 Ruby라서, tcpdump로 실제 성공 요청을 캡처해보니
+`sendUserEmail`은 대괄호 없이 키 하나(다중 수신자는 같은 키 반복), `dataMap`은
+JSON이 아니라 Ruby `Hash#to_s` 형식 문자열(`{"key"=>"value", ...}`)로 온다.
+그대로 재현해서 보낸다.
 """
 import logging
 import urllib.parse
@@ -24,6 +28,17 @@ def _fmt_date(value: Any) -> str:
     if isinstance(value, datetime):
         return value.strftime("%Y-%m-%d")
     return str(value)[:10]
+
+
+def _ruby_hash_str(data: dict[str, str]) -> str:
+    """Ruby Hash#to_s 형식 문자열로 직렬화한다 (예: {"key"=>"value", ...}).
+
+    실제 발신 측(레드마인, Ruby)이 tcpdump로 캡처한 요청에서 dataMap을 JSON이
+    아니라 이 형식으로 보내는 것을 확인했다. 값에 큰따옴표가 있으면 이스케이프한다.
+    """
+    escaped = {k: str(v).replace('"', '\\"') for k, v in data.items()}
+    parts = [f'"{k}"=>"{v}"' for k, v in escaped.items()]
+    return "{" + ", ".join(parts) + "}"
 
 
 async def _get_assignee_email(assignee_id: Any) -> str | None:
@@ -82,11 +97,11 @@ async def send_sr_notification(doc: dict, event: str) -> None:
         "due_date": _fmt_date(doc.get("desired_due_date")),
     }
 
-    form_items: list[tuple[str, str]] = [("sendUserEmail[]", r) for r in recipients]
-    form_items += [(f"dataMap[{k}]", str(v)) for k, v in data_map.items()]
+    form_items: list[tuple[str, str]] = [("sendUserEmail", r) for r in recipients]
+    form_items.append(("dataMap", _ruby_hash_str(data_map)))
     # httpx 0.28의 data=list[tuple] 조합이 AsyncClient에서 비동기 스트림을 만들지 못하는
     # 버그가 있어(RuntimeError: Attempted to send an sync request...), 폼 바디를 직접
-    # urlencode해서 content로 보낸다 (Rails 쪽은 sendUserEmail[]/dataMap[key] 중첩 표기를 기대함).
+    # urlencode해서 content로 보낸다.
     body = urllib.parse.urlencode(form_items)
     url = _EVENT_URLS.get(event, lambda: settings.SR_MAIL_SERVICE_URL)()
 
