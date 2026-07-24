@@ -26,16 +26,16 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = Field(default="", description="Anthropic Claude API key")
 
     SR_MAIL_SERVICE_URL: str = Field(
-        default="http://10.32.18.52:8083/service/customCall/issueInfo",
-        description="사내 메일 발송 서비스 URL (Redmine issues_controller.rb와 공용) — SR 검토 완료(승인) 시 요청자 메일 발송",
+        default="http://10.32.18.52:8083/service/customCall/Backoffice_IssueInfo",
+        description="사내 메일 발송 서비스 URL (백오피스 전용 엔드포인트) — SR 검토 완료(승인) 시 요청자 메일 발송",
     )
     SR_MAIL_ASSIGN_URL: str = Field(
         default="http://10.32.18.52:8083/service/customCall/issueAssign",
         description="사내 메일 발송 서비스 URL — SR 담당자 배정 시 요청자 메일 발송 (신규 템플릿 필요)",
     )
     SR_MAIL_FINISH_URL: str = Field(
-        default="http://10.32.18.52:8083/service/customCall/issueFinish",
-        description="사내 메일 발송 서비스 URL — SR 처리완료 시 요청자 메일 발송",
+        default="http://10.32.18.52:8083/service/customCall/Backoffice_IssueFinish",
+        description="사내 메일 발송 서비스 URL (백오피스 전용 엔드포인트) — SR 처리완료 시 요청자 메일 발송",
     )
     CLAUDE_CODE_OAUTH_TOKEN: str = Field(default="", description="Claude Code OAuth token for CLI auth")
 
