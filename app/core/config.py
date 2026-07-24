@@ -27,7 +27,11 @@ class Settings(BaseSettings):
 
     SR_MAIL_SERVICE_URL: str = Field(
         default="http://10.32.18.52:8083/service/customCall/issueInfo",
-        description="사내 메일 발송 서비스 URL (Redmine issues_controller.rb와 공용) — SR 접수 시 요청자 메일 발송",
+        description="사내 메일 발송 서비스 URL (Redmine issues_controller.rb와 공용) — SR 검토 완료(승인) 시 요청자 메일 발송",
+    )
+    SR_MAIL_ASSIGN_URL: str = Field(
+        default="http://10.32.18.52:8083/service/customCall/issueAssign",
+        description="사내 메일 발송 서비스 URL — SR 담당자 배정 시 요청자 메일 발송 (신규 템플릿 필요)",
     )
     SR_MAIL_FINISH_URL: str = Field(
         default="http://10.32.18.52:8083/service/customCall/issueFinish",
