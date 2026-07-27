@@ -421,8 +421,10 @@ async def change_status(
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
 
-    # Redmine과 동일하게 "완료" 상태로 바뀔 때만 처리완료 메일 발송 (그 외 상태변경은 무발송)
-    if new_status == "COMPLETED":
+    # Redmine과 동일하게 "완료" 상태로 처음 바뀔 때만 처리완료 메일 발송.
+    # old_status != COMPLETED 체크로, 이미 완료된 SR을 재수정(배포여부/처리결과 등)
+    # 하느라 이 엔드포인트가 다시 호출돼도 완료 메일이 중복 발송되지 않게 한다.
+    if new_status == "COMPLETED" and old_status != "COMPLETED":
         from app.utils.mail_notify import send_sr_notification
         await send_sr_notification(updated, event="completed")
 
