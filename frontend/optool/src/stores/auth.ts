@@ -125,7 +125,7 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchMe()
       return true
     } catch (err) {
-      lastError.value = getErrorMessage(err, 'Login failed')
+      lastError.value = getErrorMessage(err, '로그인에 실패했습니다.')
       // keep state clean if login failed
       setToken(null)
       me.value = null
@@ -147,7 +147,7 @@ export const useAuthStore = defineStore('auth', () => {
       })
       return true
     } catch (err) {
-      lastError.value = getErrorMessage(err, 'Register failed')
+      lastError.value = getErrorMessage(err, '회원가입에 실패했습니다.')
       return false
     } finally {
       loading.value = false

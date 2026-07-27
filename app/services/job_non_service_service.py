@@ -122,13 +122,13 @@ class NonServiceWorkPlanService:
 
         existing = await col.find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise KeyError("Not found")
+            raise KeyError("찾을 수 없습니다.")
 
         if (
             expected_version is not None
             and int(existing.get("version", 1)) != expected_version
         ):
-            raise ValueError("Version conflict. Reload and retry.")
+            raise ValueError("다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해주세요.")
 
         update: Dict[str, Any] = {}
 
@@ -182,7 +182,7 @@ class NonServiceWorkPlanService:
 
         existing = await col.find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise KeyError("Not found")
+            raise KeyError("찾을 수 없습니다.")
 
         now = TimeUtil.now_utc()
         update = {

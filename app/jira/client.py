@@ -63,14 +63,14 @@ class JiraClient:
 
                 # Handle common errors explicitly
                 if r.status_code == 401:
-                    raise RuntimeError("Jira authentication failed. Check email/token.")
+                    raise RuntimeError("Jira 인증에 실패했습니다. 이메일/토큰을 확인해주세요.")
                 if r.status_code == 429:
                     # Respect server backoff if present
                     retry_after = int(r.headers.get("Retry-After", "2"))
                     await asyncio.sleep(retry_after)
                     continue
                 if r.status_code >= 400:
-                    raise RuntimeError(f"Jira error {r.status_code}: {r.text}")
+                    raise RuntimeError(f"Jira 오류 {r.status_code}: {r.text}")
 
                 data = r.json()
                 issues = data.get("issues", [])
@@ -92,9 +92,9 @@ class JiraClient:
         async with httpx.AsyncClient(timeout=30.0, auth=self.auth) as client:
             r = await client.get(url, params=params)
             if r.status_code == 404:
-                raise RuntimeError(f"Issue {key} not found.")
+                raise RuntimeError(f"이슈 {key}를 찾을 수 없습니다.")
             if r.status_code >= 400:
-                raise RuntimeError(f"Jira error {r.status_code}: {r.text}")
+                raise RuntimeError(f"Jira 오류 {r.status_code}: {r.text}")
             return r.json()
 
     def issue_url(self, key: str) -> str:

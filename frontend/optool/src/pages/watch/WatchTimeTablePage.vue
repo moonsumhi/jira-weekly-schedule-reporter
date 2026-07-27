@@ -336,17 +336,17 @@ async function saveDialog() {
       const endIso   = kstDateTimeLocalToUtcIso(dialog.value.endLocal)
       const start = DateTime.fromISO(startIso)
       const end   = DateTime.fromISO(endIso)
-      if (!start.isValid || !end.isValid) throw new Error('Invalid date/time.')
-      if (end <= start) throw new Error('End must be after start.')
+      if (!start.isValid || !end.isValid) throw new Error('날짜/시간이 올바르지 않습니다.')
+      if (end <= start) throw new Error('종료 시각은 시작 시각 이후여야 합니다.')
 
       await patchWatch(dialog.value.id, { assignee, start: startIso, end: endIso, fields: { note }, version: dialog.value.version })
     }
 
     closeDialog()
     refetchCalendar()
-    Notify.create({ type: 'positive', message: 'Saved' })
+    Notify.create({ type: 'positive', message: '저장되었습니다.' })
   } catch (e: unknown) {
-    dialog.value.error = getErrorMessage(e, 'Failed')
+    dialog.value.error = getErrorMessage(e, '처리에 실패했습니다.')
     Notify.create({ type: 'negative', message: dialog.value.error })
   } finally {
     busy.value = false
@@ -360,9 +360,9 @@ async function removeDialog() {
     await deleteWatch(dialog.value.id)
     closeDialog()
     refetchCalendar()
-    Notify.create({ type: 'positive', message: 'Deleted' })
+    Notify.create({ type: 'positive', message: '삭제되었습니다.' })
   } catch (e: unknown) {
-    dialog.value.error = getErrorMessage(e, 'Failed')
+    dialog.value.error = getErrorMessage(e, '처리에 실패했습니다.')
     Notify.create({ type: 'negative', message: dialog.value.error })
   } finally {
     busy.value = false
@@ -394,7 +394,7 @@ async function onMoveOrResize(info: MoveResizeArg) {
     refetchCalendar()
   } catch {
     info.revert?.()
-    Notify.create({ type: 'negative', message: 'Update failed. Reverted.' })
+    Notify.create({ type: 'negative', message: '수정에 실패하여 되돌렸습니다.' })
   }
 }
 
@@ -422,7 +422,7 @@ async function createBulkForSlot(assignee: string, fromDate: string, toDate: str
       const endKst = cursor.set({ hour: eh, minute: em, second: 0, millisecond: 0 })
       const startIso = startKst.toUTC().toISO()
       const endIso = endKst.toUTC().toISO()
-      if (!startIso || !endIso) throw new Error('Invalid datetime')
+      if (!startIso || !endIso) throw new Error('날짜/시간이 올바르지 않습니다.')
       const found = existingByStart.get(startIso)
       if (found) {
         await patchWatch(found.id, { assignee: assignee.trim(), version: found.version })
@@ -441,7 +441,7 @@ async function createBulkA() {
     refetchCalendar()
     Notify.create({ type: 'positive', message: 'A타임 생성 완료' })
   } catch (e: unknown) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, 'Failed') })
+    Notify.create({ type: 'negative', message: getErrorMessage(e, '처리에 실패했습니다.') })
   } finally {
     busy.value = false
   }
@@ -454,7 +454,7 @@ async function createBulkB() {
     refetchCalendar()
     Notify.create({ type: 'positive', message: 'B타임 생성 완료' })
   } catch (e: unknown) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, 'Failed') })
+    Notify.create({ type: 'negative', message: getErrorMessage(e, '처리에 실패했습니다.') })
   } finally {
     busy.value = false
   }
@@ -626,7 +626,7 @@ const calendarOptions = ref<CalendarOptions>({
       .then(() => successCallback(events.value))
       .catch((err: unknown) => {
         failureCallback(
-          err instanceof Error ? err : new Error('Failed to load events')
+          err instanceof Error ? err : new Error('일정을 불러오지 못했습니다.')
         )
       })
   },

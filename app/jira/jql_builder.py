@@ -51,7 +51,7 @@ class JqlBuilder:
 
     def build(self) -> str:
         if self.start is None or self.end is None:
-            raise ValueError("start/end must be set for JQL")
+            raise ValueError("JQL을 만들려면 start/end가 필요합니다.")
 
         def fmt(dt: datetime) -> str:
             if self.field == "due":

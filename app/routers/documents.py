@@ -396,10 +396,10 @@ async def _get_user_any_auth(
     except Exception:
         email = None
     if not email:
-        raise HTTPException(status_code=401, detail="Could not validate credentials")
+        raise HTTPException(status_code=401, detail="인증 정보를 확인할 수 없습니다.")
     user = await get_user_by_email(email)
     if not user:
-        raise HTTPException(status_code=401, detail="User not found")
+        raise HTTPException(status_code=401, detail="사용자를 찾을 수 없습니다.")
     return UserPublic(
         id=str(user["_id"]),
         email=user["email"],

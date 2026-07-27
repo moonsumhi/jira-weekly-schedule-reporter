@@ -87,7 +87,7 @@ class JiraTaskService:
         s_utc = TimeUtil.ensure_utc(start)
         e_utc = TimeUtil.ensure_utc(end)
         if e_utc < s_utc:
-            raise ValueError("end must be >= start")
+            raise ValueError("종료일은 시작일 이후여야 합니다.")
 
         builder = (
             JqlBuilder()

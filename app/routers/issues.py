@@ -81,7 +81,7 @@ async def today_tasks(
     if status:
         invalid_status = [s for s in status if s not in ALLOWED_STATUSES]
         if invalid_status:
-            return {"error": f"Invalid status: {invalid_status}"}
+            return {"error": f"잘못된 상태값입니다: {invalid_status}"}
 
     status_filter = None
     if status:

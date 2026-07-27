@@ -63,20 +63,20 @@ async def create_link(payload: LinkCreate, _=Depends(require_admin)):
 @router.patch("/{link_id}", response_model=LinkOut)
 async def patch_link(link_id: str, payload: LinkPatch, _=Depends(require_admin)):
     col = MongoClientManager.get_links_collection()
-    _oid = parse_oid(link_id, "Invalid link id")
+    _oid = parse_oid(link_id, "잘못된 링크 ID입니다.")
     update = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
     if not update:
-        raise HTTPException(status_code=400, detail="No fields to update")
+        raise HTTPException(status_code=400, detail="수정할 필드가 없습니다.")
     doc = await col.find_one_and_update({"_id": _oid}, {"$set": update}, return_document=True)
     if not doc:
-        raise HTTPException(status_code=404, detail="Link not found")
+        raise HTTPException(status_code=404, detail="링크를 찾을 수 없습니다.")
     return _to_out(doc)
 
 
 @router.delete("/{link_id}", status_code=204)
 async def delete_link(link_id: str, _=Depends(require_admin)):
     col = MongoClientManager.get_links_collection()
-    _oid = parse_oid(link_id, "Invalid link id")
+    _oid = parse_oid(link_id, "잘못된 링크 ID입니다.")
     result = await col.delete_one({"_id": _oid})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Link not found")
+        raise HTTPException(status_code=404, detail="링크를 찾을 수 없습니다.")

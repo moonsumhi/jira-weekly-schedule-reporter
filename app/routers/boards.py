@@ -60,10 +60,10 @@ async def list_boards(menu_id: str | None = Query(default=None)):
 async def create_board(payload: BoardCreate, _=Depends(require_admin)):
     # menu 존재 확인
     menus_col = MongoClientManager.get_menus_collection()
-    menu_oid = parse_oid(payload.menu_id, "Invalid menu id")
+    menu_oid = parse_oid(payload.menu_id, "잘못된 메뉴 ID입니다.")
     menu = await menus_col.find_one({"_id": menu_oid})
     if not menu:
-        raise HTTPException(status_code=404, detail="Menu not found")
+        raise HTTPException(status_code=404, detail="메뉴를 찾을 수 없습니다.")
 
     col = MongoClientManager.get_boards_collection()
     doc = {
@@ -83,14 +83,14 @@ async def create_board(payload: BoardCreate, _=Depends(require_admin)):
 @router.patch("/{board_id}", response_model=BoardOut)
 async def patch_board(board_id: str, payload: BoardPatch, _=Depends(require_admin)):
     col = MongoClientManager.get_boards_collection()
-    _oid = parse_oid(board_id, "Invalid board id")
+    _oid = parse_oid(board_id, "잘못된 게시판 ID입니다.")
     update = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
     if not update:
-        raise HTTPException(status_code=400, detail="No fields to update")
+        raise HTTPException(status_code=400, detail="수정할 필드가 없습니다.")
 
     doc = await col.find_one_and_update({"_id": _oid}, {"$set": update}, return_document=True)
     if not doc:
-        raise HTTPException(status_code=404, detail="Board not found")
+        raise HTTPException(status_code=404, detail="게시판을 찾을 수 없습니다.")
     return _board_to_out(doc)
 
 
@@ -98,10 +98,10 @@ async def patch_board(board_id: str, payload: BoardPatch, _=Depends(require_admi
 async def delete_board(board_id: str, _=Depends(require_admin)):
     col = MongoClientManager.get_boards_collection()
     posts_col = MongoClientManager.get_board_posts_collection()
-    _oid = parse_oid(board_id, "Invalid board id")
+    _oid = parse_oid(board_id, "잘못된 게시판 ID입니다.")
     result = await col.delete_one({"_id": _oid})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Board not found")
+        raise HTTPException(status_code=404, detail="게시판을 찾을 수 없습니다.")
     await posts_col.delete_many({"board_id": board_id})
 
 
@@ -134,10 +134,10 @@ async def create_post(
     current_user: UserPublic = Depends(get_current_user),
 ):
     boards_col = MongoClientManager.get_boards_collection()
-    _oid = parse_oid(board_id, "Invalid board id")
+    _oid = parse_oid(board_id, "잘못된 게시판 ID입니다.")
     board = await boards_col.find_one({"_id": _oid})
     if not board:
-        raise HTTPException(status_code=404, detail="Board not found")
+        raise HTTPException(status_code=404, detail="게시판을 찾을 수 없습니다.")
 
     posts_col = MongoClientManager.get_board_posts_collection()
     doc = {
@@ -161,12 +161,12 @@ async def patch_post(
     current_user: UserPublic = Depends(get_current_user),
 ):
     posts_col = MongoClientManager.get_board_posts_collection()
-    _oid = parse_oid(post_id, "Invalid post id")
+    _oid = parse_oid(post_id, "잘못된 게시글 ID입니다.")
     doc = await posts_col.find_one({"_id": _oid, "board_id": board_id})
     if not doc:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
     if doc.get("author_id") != current_user.id and not getattr(current_user, "is_admin", False):
-        raise HTTPException(status_code=403, detail="Forbidden")
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
     doc = await posts_col.find_one_and_update(
         {"_id": _oid},
         {"$set": {"title": payload.title, "content": payload.content}},
@@ -182,10 +182,10 @@ async def delete_post(
     current_user: UserPublic = Depends(get_current_user),
 ):
     posts_col = MongoClientManager.get_board_posts_collection()
-    _oid = parse_oid(post_id, "Invalid post id")
+    _oid = parse_oid(post_id, "잘못된 게시글 ID입니다.")
     doc = await posts_col.find_one({"_id": _oid, "board_id": board_id})
     if not doc:
-        raise HTTPException(status_code=404, detail="Post not found")
+        raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
     if doc.get("author_id") != current_user.id and not getattr(current_user, "is_admin", False):
-        raise HTTPException(status_code=403, detail="Forbidden")
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
     await posts_col.delete_one({"_id": _oid})

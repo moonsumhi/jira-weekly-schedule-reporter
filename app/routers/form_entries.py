@@ -934,10 +934,10 @@ async def import_entry_from_file(
     try:
         tmpl_oid = ObjectId(template_id)
     except Exception:
-        raise HTTPException(status_code=400, detail="Invalid template_id")
+        raise HTTPException(status_code=400, detail="잘못된 template_id입니다.")
     tmpl = await tmpl_col.find_one({"_id": tmpl_oid})
     if not tmpl:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=404, detail="템플릿을 찾을 수 없습니다.")
 
     content = await file.read()
     if len(content) > MAX_IMPORT_FILE_SIZE:
@@ -1017,7 +1017,7 @@ async def get_entry(
     col = MongoClientManager.get_form_entries_collection()
     doc = await col.find_one({"_id": parse_oid(entry_id)})
     if not doc:
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=404, detail="찾을 수 없습니다.")
 
     name_map = await _email_to_name_map()
     doc["created_by"] = name_map.get(doc.get("created_by", ""), doc.get("created_by"))
@@ -1054,7 +1054,7 @@ async def patch_entry(
     current_user: UserPublic = Depends(get_current_user),
 ):
     col = MongoClientManager.get_form_entries_collection()
-    entry_oid = parse_oid(entry_id, "Invalid entry id")
+    entry_oid = parse_oid(entry_id, "잘못된 항목 ID입니다.")
 
     now = _now()
     result = await col.find_one_and_update(
@@ -1066,8 +1066,8 @@ async def patch_entry(
     if result is None:
         doc = await col.find_one({"_id": entry_oid})
         if doc is None:
-            raise HTTPException(status_code=404, detail="Entry not found")
-        raise HTTPException(status_code=409, detail="Version conflict")
+            raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
+        raise HTTPException(status_code=409, detail="다른 사용자가 먼저 수정하여 버전 충돌이 발생했습니다.")
     return _to_out(result)
 
 
@@ -1077,11 +1077,11 @@ async def delete_entry(
     current_user: UserPublic = Depends(get_current_user),
 ):
     col = MongoClientManager.get_form_entries_collection()
-    entry_oid = parse_oid(entry_id, "Invalid entry id")
+    entry_oid = parse_oid(entry_id, "잘못된 항목 ID입니다.")
 
     result = await col.update_one(
         {"_id": entry_oid, "is_deleted": {"$ne": True}},
         {"$set": {"is_deleted": True, "updated_at": _now(), "updated_by": current_user.full_name or current_user.email}},
     )
     if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Entry not found")
+        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")

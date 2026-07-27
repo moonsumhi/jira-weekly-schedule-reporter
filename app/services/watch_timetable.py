@@ -67,7 +67,7 @@ class WatchTimetableService:
     @staticmethod
     def _validate_range(start: datetime, end: datetime):
         if end <= start:
-            raise ValueError("end must be after start")
+            raise ValueError("종료 시각은 시작 시각 이후여야 합니다.")
 
     async def _check_overlap(
         self,
@@ -92,9 +92,9 @@ class WatchTimetableService:
             q["_id"] = {"$ne": exclude_id}
 
         if await self._col().find_one(q):
-            msg = "Overlaps existing assignment"
+            msg = "기존 배정과 시간이 겹칩니다."
             if self.enforce_no_overlap_per_assignee:
-                msg += " for the same assignee"
+                msg = "동일 담당자의 기존 배정과 시간이 겹칩니다."
             raise ValueError(msg)
 
     async def list(
@@ -165,7 +165,7 @@ class WatchTimetableService:
 
         existing = await self._col().find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise KeyError("Not found")
+            raise KeyError("찾을 수 없습니다.")
 
         await self._check_overlap(
             assignee=assignee, start=start, end=end, exclude_id=_id
@@ -201,13 +201,13 @@ class WatchTimetableService:
     ) -> Dict[str, Any]:
         existing = await self._col().find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise KeyError("Not found")
+            raise KeyError("찾을 수 없습니다.")
 
         if (
             expected_version is not None
             and int(existing.get("version", 1)) != expected_version
         ):
-            raise ValueError("Version conflict")
+            raise ValueError("다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해주세요.")
 
         update: Dict[str, Any] = {}
         for k in ("assignee", "start", "end", "fields"):
@@ -241,7 +241,7 @@ class WatchTimetableService:
     async def delete(self, *, _id: ObjectId, actor_email: str) -> None:
         existing = await self._col().find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
-            raise KeyError("Not found")
+            raise KeyError("찾을 수 없습니다.")
 
         update = {
             "is_deleted": True,
