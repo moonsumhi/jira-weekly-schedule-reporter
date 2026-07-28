@@ -13,14 +13,47 @@ export interface BoardOut {
   createdAt: string | null
 }
 
+export interface PostAttachment {
+  fileId: string
+  originalName: string
+  url: string
+  size: number
+  contentType: string
+}
+
+// 백엔드 전송용 snake_case 첨부파일 타입
+export interface PostAttachmentInput {
+  file_id: string
+  original_name: string
+  url: string
+  size: number
+  content_type: string
+}
+
 export interface PostOut {
   id: string
   boardId: string
   title: string
+  part: string
   content: string
   authorId: string
   authorName: string
+  attachments: PostAttachment[]
   createdAt: string | null
+}
+
+export interface PostHistoryDiff {
+  field: string
+  before: string | null
+  after: string | null
+}
+
+export interface PostHistoryOut {
+  id: string
+  postId: string
+  diff: PostHistoryDiff[]
+  changedBy: string
+  changedAt: string | null
 }
 
 export const boardService = {
@@ -40,13 +73,16 @@ export const boardService = {
   listPosts(boardId: string): Promise<PostOut[]> {
     return api.get(`/boards/${boardId}/posts`).then((r) => r.data)
   },
-  createPost(boardId: string, payload: { title: string; content: string }): Promise<PostOut> {
+  createPost(boardId: string, payload: { title: string; part?: string; content: string; attachments?: PostAttachmentInput[] }): Promise<PostOut> {
     return api.post(`/boards/${boardId}/posts`, payload).then((r) => r.data)
   },
-  patchPost(boardId: string, postId: string, payload: { title: string; content: string }): Promise<PostOut> {
+  patchPost(boardId: string, postId: string, payload: { title: string; part?: string; content: string; attachments?: PostAttachmentInput[] }): Promise<PostOut> {
     return api.patch(`/boards/${boardId}/posts/${postId}`, payload).then((r) => r.data)
   },
   deletePost(boardId: string, postId: string): Promise<void> {
     return api.delete(`/boards/${boardId}/posts/${postId}`)
+  },
+  getPostHistory(boardId: string, postId: string): Promise<PostHistoryOut[]> {
+    return api.get(`/boards/${boardId}/posts/${postId}/history`).then((r) => r.data)
   },
 }

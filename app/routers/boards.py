@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db.mongo import MongoClientManager
-from app.models.board import BoardCreate, BoardOut, BoardPatch, PostCreate, PostOut
+from app.models.board import BoardCreate, BoardOut, BoardPatch, PostCreate, PostHistoryOut, PostOut
 from app.models.user import UserPublic
 from app.routers.admin import require_admin
 from app.routers.auth import get_current_user
@@ -113,9 +113,11 @@ def _post_to_out(doc: dict) -> PostOut:
         id=str(doc["_id"]),
         board_id=doc.get("board_id", ""),
         title=doc.get("title", ""),
+        part=doc.get("part", ""),
         content=doc.get("content", ""),
         author_id=doc.get("author_id", ""),
         author_name=doc.get("author_name", ""),
+        attachments=doc.get("attachments", []),
         created_at=fmt_dt(doc.get("created_at")),
     )
 
@@ -143,9 +145,11 @@ async def create_post(
     doc = {
         "board_id": board_id,
         "title": payload.title,
+        "part": payload.part,
         "content": payload.content,
         "author_id": current_user.id,
         "author_name": current_user.full_name or current_user.email,
+        "attachments": [a.model_dump() for a in payload.attachments],
         "created_at": datetime.now(timezone.utc),
     }
     result = await posts_col.insert_one(doc)
@@ -167,9 +171,29 @@ async def patch_post(
         raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
     if doc.get("author_id") != current_user.id and not getattr(current_user, "is_admin", False):
         raise HTTPException(status_code=403, detail="권한이 없습니다.")
+
+    diff = []
+    for field, label in (("title", "제목"), ("part", "업무 파트"), ("content", "내용")):
+        before, after = doc.get(field, "") or "", getattr(payload, field) or ""
+        if before != after:
+            diff.append({"field": label, "before": before, "after": after})
+    if diff:
+        history_col = MongoClientManager.get_board_post_histories_collection()
+        await history_col.insert_one({
+            "post_id": post_id,
+            "diff": diff,
+            "changed_by": current_user.full_name or current_user.email,
+            "changed_at": datetime.now(timezone.utc),
+        })
+
     doc = await posts_col.find_one_and_update(
         {"_id": _oid},
-        {"$set": {"title": payload.title, "content": payload.content}},
+        {"$set": {
+            "title": payload.title,
+            "part": payload.part,
+            "content": payload.content,
+            "attachments": [a.model_dump() for a in payload.attachments],
+        }},
         return_document=True,
     )
     return _post_to_out(doc)
@@ -189,3 +213,19 @@ async def delete_post(
     if doc.get("author_id") != current_user.id and not getattr(current_user, "is_admin", False):
         raise HTTPException(status_code=403, detail="권한이 없습니다.")
     await posts_col.delete_one({"_id": _oid})
+
+
+@router.get("/{board_id}/posts/{post_id}/history", response_model=list[PostHistoryOut])
+async def list_post_history(board_id: str, post_id: str, _=Depends(get_current_user)):
+    col = MongoClientManager.get_board_post_histories_collection()
+    docs = [doc async for doc in col.find({"post_id": post_id}).sort("changed_at", -1)]
+    return [
+        PostHistoryOut(
+            id=str(d["_id"]),
+            post_id=post_id,
+            diff=d.get("diff", []),
+            changed_by=d.get("changed_by", ""),
+            changed_at=fmt_dt(d.get("changed_at")),
+        )
+        for d in docs
+    ]
