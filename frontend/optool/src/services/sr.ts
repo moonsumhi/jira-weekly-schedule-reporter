@@ -10,7 +10,7 @@ export type SRStatus =
 export type RequestType =
   | 'IMPROVEMENT' | 'BUG_FIX' | 'DATA_REQUEST'
   | 'PERMISSION' | 'CONFIG_CHANGE' | 'SERVER_INFRA'
-  | 'SECURITY' | 'ETC'
+  | 'SECURITY' | 'FIREWALL' | 'ETC'
 
 export type ImpactScope =
   | 'PERSONAL' | 'DEPARTMENT' | 'ALL_USERS' | 'EXTERNAL_USERS' | 'EXTERNAL_SERVICE'
@@ -59,6 +59,7 @@ export const REQUEST_TYPE_LABEL: Record<RequestType, string> = {
   CONFIG_CHANGE: '설정 변경 요청',
   SERVER_INFRA: '서버/인프라 요청',
   SECURITY: '보안 조치 요청',
+  FIREWALL: '방화벽 신청',
   ETC: '기타',
 }
 
@@ -156,8 +157,8 @@ export type SR = {
   deployed: boolean
   deployedAt: string | null
   requesterConfirmed: boolean
-  // 유형별 추가 항목
-  typeDetail: Record<string, string | null> | null
+  // 유형별 추가 항목 (테이블형 필드는 행 배열로 저장됨)
+  typeDetail: Record<string, any> | null
   // 연결 정보
   relatedProjectId: string | null
   relatedIssueId: string | null
@@ -221,7 +222,7 @@ export type SRCreate = {
   reviewer_name?: string
   note?: string
   attachments?: SRAttachmentInput[]
-  type_detail?: Record<string, string | null> | null
+  type_detail?: Record<string, any> | null
   submit: boolean
 }
 

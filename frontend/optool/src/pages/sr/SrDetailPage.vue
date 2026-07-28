@@ -440,6 +440,79 @@
                     </div>
                   </template>
 
+                  <!-- FIREWALL -->
+                  <template v-else-if="sr.requestType === 'FIREWALL'">
+                    <div class="q-gutter-sm">
+                      <div class="row q-col-gutter-md">
+                        <div class="col-12 col-sm-6">
+                          <div class="content-label">신청 구분</div>
+                          <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
+                            {{ fieldSelectLabel('FIREWALL', 'requestKind', sr.typeDetail?.requestKind ?? null) }}
+                          </q-chip>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                          <div class="content-label">적용 환경</div>
+                          <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
+                            {{ fieldSelectLabel('FIREWALL', 'environment', sr.typeDetail?.environment ?? null) }}
+                          </q-chip>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div class="content-label q-mb-xs">방화벽 정책 목록</div>
+                        <div v-if="!firewallRules.length" class="text-caption text-grey-5">등록된 정책이 없습니다.</div>
+                        <div v-else class="firewall-table-wrap">
+                          <table class="firewall-table">
+                            <thead>
+                              <tr>
+                                <th>출발지 IP / 대역</th>
+                                <th>출발지 PC / 서버 이름</th>
+                                <th>목적지 IP / 대역</th>
+                                <th>목적지 PC / 서버 이름</th>
+                                <th>포트 / 프로토콜</th>
+                                <th>포트 용도</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="(row, i) in firewallRules" :key="i">
+                                <td>{{ row.sourceIp || '-' }}</td>
+                                <td>{{ row.sourceHost || '-' }}</td>
+                                <td>{{ row.destinationIp || '-' }}</td>
+                                <td>{{ row.destinationHost || '-' }}</td>
+                                <td>{{ row.portProtocol || '-' }}</td>
+                                <td>{{ row.portPurpose || '-' }}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div class="row q-col-gutter-md">
+                        <div class="col-12 col-sm-6">
+                          <div class="content-label">방향</div>
+                          <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
+                            {{ fieldSelectLabel('FIREWALL', 'direction', sr.typeDetail?.direction ?? null) }}
+                          </q-chip>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                          <div class="content-label">적용 기간</div>
+                          <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
+                            {{ fieldSelectLabel('FIREWALL', 'duration', sr.typeDetail?.duration ?? null) }}
+                          </q-chip>
+                          <span v-if="sr.typeDetail?.expiryDate" class="content-date q-ml-sm">
+                            <q-icon name="event" size="13px" color="blue-5" class="q-mr-xs" />
+                            {{ fmtDate(sr.typeDetail.expiryDate) }}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div v-if="sr.typeDetail?.purpose">
+                        <div class="content-label">업무 목적</div>
+                        <div class="content-text pre-wrap">{{ sr.typeDetail.purpose }}</div>
+                      </div>
+                    </div>
+                  </template>
+
                   <!-- IMPROVEMENT / ETC / 기타 (generic) -->
                   <template v-else>
                     <div class="row q-col-gutter-md">
@@ -1074,12 +1147,12 @@ const REVIEW_RESULT_COLOR: Record<string, string> = {
 const TYPE_ICON: Record<string, string> = {
   IMPROVEMENT: 'tune', BUG_FIX: 'bug_report', DATA_REQUEST: 'storage',
   PERMISSION: 'lock_open', CONFIG_CHANGE: 'settings', SERVER_INFRA: 'dns',
-  SECURITY: 'security', ETC: 'more_horiz',
+  SECURITY: 'security', FIREWALL: 'lan', ETC: 'more_horiz',
 }
 const TYPE_CHIP_COLOR: Record<string, string> = {
   IMPROVEMENT: 'blue-7', BUG_FIX: 'red-7', DATA_REQUEST: 'purple-7',
   PERMISSION: 'teal-7', CONFIG_CHANGE: 'orange-8', SERVER_INFRA: 'indigo-7',
-  SECURITY: 'deep-orange-8', ETC: 'grey-7',
+  SECURITY: 'deep-orange-8', FIREWALL: 'brown-7', ETC: 'grey-7',
 }
 
 // ── refs / store ────────────────────────────────────────────────────
@@ -1250,6 +1323,11 @@ const needsReason = computed(() => ['REJECTED', 'ON_HOLD', 'CANCELLED'].includes
 const currentSRTypeFields = computed((): SRTypeField[] => {
   if (!sr.value) return []
   return SR_TYPE_FIELDS[sr.value.requestType] ?? []
+})
+
+const firewallRules = computed((): Record<string, string>[] => {
+  const v = sr.value?.typeDetail?.firewallRules
+  return Array.isArray(v) ? v : []
 })
 
 const extraAttachments = computed(() => {
@@ -1579,6 +1657,12 @@ watch(() => route.params.id, (newId) => {
 </script>
 
 <style scoped>
+.firewall-table-wrap { overflow-x: auto; border: 1px solid #eee; border-radius: 6px; }
+.firewall-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; white-space: nowrap; }
+.firewall-table th, .firewall-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; text-align: left; }
+.firewall-table th { background: #fafafa; color: #757575; font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
+.firewall-table tr:last-child td { border-bottom: none; }
+
 .section-header {
   display: flex;
   align-items: center;

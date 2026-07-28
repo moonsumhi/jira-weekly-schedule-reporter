@@ -203,6 +203,35 @@
                   />
                 </template>
 
+                <!-- table → 반복 가능한 행 (1:N, N:1, N:M 관계 표현용) -->
+                <template v-else-if="field.type === 'table'">
+                  <div class="table-field">
+                    <div class="text-caption text-grey-7 q-mb-xs">
+                      {{ field.label }}{{ field.required ? ' *' : '' }}
+                    </div>
+                    <div v-if="!tableRows(field).length" class="text-caption text-grey-5 q-mb-sm">
+                      추가된 항목이 없습니다. 출발지 · 목적지 조합이 여러 개면 행을 여러 개 추가해주세요.
+                    </div>
+                    <div
+                      v-for="(row, i) in tableRows(field)" :key="i"
+                      class="row q-col-gutter-sm items-center q-mb-xs table-field-row"
+                    >
+                      <div v-for="col in field.columns" :key="col.key" class="col-12 col-sm">
+                        <q-input
+                          :model-value="row[col.key]"
+                          @update:model-value="v => updateTableCell(field, i, col.key, String(v ?? ''))"
+                          :label="col.label" :placeholder="col.placeholder"
+                          outlined dense
+                        />
+                      </div>
+                      <div class="col-auto">
+                        <q-btn flat round dense icon="close" color="grey-6" size="sm" @click="removeTableRow(field, i)" />
+                      </div>
+                    </div>
+                    <q-btn flat dense icon="add" label="행 추가" color="primary" size="sm" class="q-mt-xs" @click="addTableRow(field)" />
+                  </div>
+                </template>
+
                 <!-- date / datetime / text -->
                 <template v-else>
                   <q-input
@@ -311,7 +340,7 @@ import {
   SR_PRIORITY_OPTIONS, SR_PRIORITY_LABEL, SR_PRIORITY_COLOR,
   type SRAttachment, type SRAttachmentInput, type RequestType, type SRPriority, type SRListItem,
 } from 'src/services/sr'
-import { SR_TYPE_FIELDS, TYPE_CARDS } from 'src/services/sr-type-fields'
+import { SR_TYPE_FIELDS, TYPE_CARDS, type SRTypeField } from 'src/services/sr-type-fields'
 
 const $q        = useQuasar()
 const router    = useRouter()
@@ -344,7 +373,7 @@ const form = ref({
   note:                 '',
 })
 
-const typeDetail = ref<Record<string, string | null>>({})
+const typeDetail = ref<Record<string, any>>({})
 
 // 유형이 바뀌면 type_detail 초기화
 watch(() => form.value.requestType, () => { if (!editId.value) typeDetail.value = {} })
@@ -365,48 +394,85 @@ onMounted(async () => {
   }
 })
 
-// ── 스텝 이동 ────────────────────────────────────────────────────────
-function goToStep2() {
+// ── 검증 ────────────────────────────────────────────────────────────
+// q-stepper의 header-nav로 단계를 건너뛰어도(1 → 4) 저장 시점에 항상 재검증되도록
+// 검증 로직을 함수로 분리해 "다음 단계" 버튼과 save() 양쪽에서 재사용한다.
+function validateStep1(): boolean {
   if (!form.value.requestType) {
     $q.notify({ type: 'warning', message: '요청 유형을 선택해주세요.', position: 'top' })
-    return
+    step.value = 1
+    return false
   }
-  step.value = 2
+  return true
 }
 
-function goToStep3() {
+function validateStep2(): boolean {
   if (!form.value.title.trim()) {
     $q.notify({ type: 'warning', message: '요청 제목을 입력해주세요.', position: 'top' })
-    return
+    step.value = 2
+    return false
   }
   if (!form.value.relatedSystem.trim()) {
     $q.notify({ type: 'warning', message: '대상 시스템을 입력해주세요.', position: 'top' })
-    return
+    step.value = 2
+    return false
   }
   if (!form.value.desiredDueDate) {
     $q.notify({ type: 'warning', message: '희망 완료일을 입력해주세요.', position: 'top' })
-    return
+    step.value = 2
+    return false
   }
-  step.value = 3
+  return true
 }
 
-function goToStep4() {
+function validateStep3(): boolean {
   const editorField = currentTypeFields.value.find(f => f.type === 'editor')
-  if (editorField?.required) {
-    if (!form.value.description.trim()) {
-      $q.notify({ type: 'warning', message: `'${editorField.label}' 항목을 입력해주세요.`, position: 'top' })
-      return
-    }
+  if (editorField?.required && !form.value.description.trim()) {
+    $q.notify({ type: 'warning', message: `'${editorField.label}' 항목을 입력해주세요.`, position: 'top' })
+    step.value = 3
+    return false
   }
-  const missing = currentTypeFields.value.find(f => f.type !== 'editor' && f.required && !typeDetail.value[f.key]?.trim())
+  const missing = currentTypeFields.value.find(f => {
+    if (f.type === 'editor' || !f.required) return false
+    if (f.type === 'table') {
+      const rows = tableRows(f)
+      return !rows.length || rows.some(r => (f.columns ?? []).some(c => !r[c.key]?.trim()))
+    }
+    const v = typeDetail.value[f.key]
+    return typeof v === 'string' ? !v.trim() : !v
+  })
   if (missing) {
     $q.notify({ type: 'warning', message: `'${missing.label}' 항목을 입력해주세요.`, position: 'top' })
-    return
+    step.value = 3
+    return false
   }
-  step.value = 4
+  return true
 }
 
+// ── 스텝 이동 ────────────────────────────────────────────────────────
+function goToStep2() { if (validateStep1()) step.value = 2 }
+function goToStep3() { if (validateStep1() && validateStep2()) step.value = 3 }
+function goToStep4() { if (validateStep1() && validateStep2() && validateStep3()) step.value = 4 }
+
 function selectType(type: string) { form.value.requestType = type }
+
+// ── table 타입 필드 (반복 가능한 행) ─────────────────────────────────────
+function tableRows(field: SRTypeField): Record<string, string>[] {
+  const val = typeDetail.value[field.key]
+  return Array.isArray(val) ? val : []
+}
+function addTableRow(field: SRTypeField) {
+  const row: Record<string, string> = {}
+  field.columns?.forEach(c => { row[c.key] = '' })
+  typeDetail.value[field.key] = [...tableRows(field), row]
+}
+function removeTableRow(field: SRTypeField, index: number) {
+  typeDetail.value[field.key] = tableRows(field).filter((_, i) => i !== index)
+}
+function updateTableCell(field: SRTypeField, index: number, colKey: string, value: string) {
+  const rows = tableRows(field).map((r, i) => (i === index ? { ...r, [colKey]: value } : r))
+  typeDetail.value[field.key] = rows
+}
 
 // ── Step 4 업로더 ────────────────────────────────────────────────────
 const uploadHeaders = computed(() => {
@@ -459,7 +525,7 @@ async function loadDraft(id: string) {
 
     // nextTick으로 watcher를 먼저 소진(typeDetail = {}) 시킨 뒤 복원
     await nextTick()
-    typeDetail.value = (sr.typeDetail as Record<string, string | null>) ?? {}
+    typeDetail.value = sr.typeDetail ?? {}
   } catch {
     $q.notify({ type: 'negative', message: '임시저장 불러오기에 실패했습니다.' })
   } finally {
@@ -501,7 +567,7 @@ async function loadSrForEdit(id: string) {
     draftId.value = id
 
     await nextTick()
-    typeDetail.value = (sr.typeDetail as Record<string, string | null>) ?? {}
+    typeDetail.value = sr.typeDetail ?? {}
     step.value = 2
   } catch {
     $q.notify({ type: 'negative', message: 'SR 정보를 불러오지 못했습니다.' })
@@ -511,15 +577,9 @@ async function loadSrForEdit(id: string) {
 
 // ── 저장 ────────────────────────────────────────────────────────────
 async function save(submit: boolean) {
-  // Toast-UI debounce race guard: re-validate description before sending
-  if (submit) {
-    const editorField = currentTypeFields.value.find(f => f.type === 'editor')
-    if (editorField?.required && !form.value.description.trim()) {
-      $q.notify({ type: 'warning', message: `'${editorField.label}' 항목을 입력해주세요.`, position: 'top' })
-      step.value = 3
-      return
-    }
-  }
+  // header-nav로 단계를 건너뛰고 바로 저장을 눌러도 필수 항목이 채워져 있는지 재검증
+  if (!validateStep1() || !validateStep2() || !validateStep3()) return
+
   saving.value = true
   try {
     const payload = {
@@ -569,6 +629,17 @@ async function save(submit: boolean) {
 </script>
 
 <style scoped>
+.table-field {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 12px;
+}
+.table-field-row {
+  padding: 4px 0;
+  border-bottom: 1px dashed #eee;
+}
+.table-field-row:last-of-type { border-bottom: none; }
+
 .draft-banner :deep(.q-banner__content) { padding: 10px 0; }
 .sr-stepper :deep(.q-stepper__header) { border-bottom: 1px solid #eee; }
 .sr-stepper :deep(.q-stepper__step-inner) { padding: 20px 0 8px; }
