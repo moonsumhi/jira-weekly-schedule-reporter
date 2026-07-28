@@ -279,6 +279,10 @@ const routes: RouteRecordRaw[] = [
             component: () => import('pages/admin/MenuManagePage.vue')
           },
           {
+            path: 'notices',
+            component: () => import('pages/admin/NoticeManagePage.vue')
+          },
+          {
             path: 'audit-log',
             component: () => import('pages/admin/AuditLogPage.vue')
           },

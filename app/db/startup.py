@@ -85,6 +85,10 @@ async def create_indexes() -> None:
     await board_posts_col.create_index("board_id")
     await board_posts_col.create_index("created_at")
 
+    notices_col = MongoClientManager.get_notices_collection()
+    await notices_col.create_index("start_date")
+    await notices_col.create_index("end_date")
+
     logger.info("DB 인덱스 생성 완료")
 
 
@@ -419,6 +423,7 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "회원가입 승인", "icon": "fa-regular fa-thumbs-up",     "link": "/admin/approvals"},
             {"title": "회원 목록",    "icon": "fa-solid fa-users",           "link": "/admin/users"},
             {"title": "메뉴 관리",   "icon": "fa-solid fa-bars",            "link": "/admin/menus"},
+            {"title": "공지사항",    "icon": "fa-solid fa-bullhorn",        "link": "/admin/notices"},
             {"title": "Audit Log",  "icon": "fa-solid fa-clipboard-list",  "link": "/admin/audit-log"},
             {"title": "세션 설정",   "icon": "fa-solid fa-clock",           "link": "/admin/settings"},
             {"title": "스킨 설정",   "icon": "fa-solid fa-palette",         "link": "/admin/theme"},
@@ -480,6 +485,19 @@ async def migrate_guide_submenus() -> None:
             logger.info("가이드 서브메뉴 추가: %s → %s", slug, item["link"])
 
 
+async def migrate_notice_submenu() -> None:
+    """admin 메뉴에 공지사항 서브메뉴가 없으면 추가한다 (멱등)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    item = {"title": "공지사항", "icon": "fa-solid fa-bullhorn", "link": "/admin/notices"}
+    doc = await menus_col.find_one({"slug": "admin"})
+    if not doc:
+        return
+    existing_links = [s.get("link") for s in doc.get("submenus", [])]
+    if item["link"] not in existing_links:
+        await menus_col.update_one({"slug": "admin"}, {"$push": {"submenus": item}})
+        logger.info("공지사항 서브메뉴 추가")
+
+
 async def seed_job_form_templates() -> None:
     """Job 폼 템플릿이 없으면 초기 데이터를 삽입한다."""
     col = MongoClientManager.get_form_templates_collection()
@@ -535,6 +553,7 @@ async def run_startup() -> None:
     await seed_system_menu_extras()
     await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
+    await migrate_notice_submenu()
     await seed_job_form_templates()
     await migrate_assets()
 
