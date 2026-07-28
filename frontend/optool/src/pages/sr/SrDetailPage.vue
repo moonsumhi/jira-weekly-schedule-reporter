@@ -1288,6 +1288,7 @@ const actionButtons = computed(() => {
 
   if (isOperatorUser.value && !['CLOSED', 'REJECTED', 'DRAFT'].includes(s)) {
     btns.push({ key: 'status', label: '상태 변경', color: 'blue-7', icon: 'swap_horiz', action: () => {
+      statusForm.value = { status: null, reason: '', processResult: '', deployed: false, deployedAt: null }
       statusDialog.value = true
     } })
   }
@@ -1647,7 +1648,14 @@ onMounted(async () => {
 })
 
 watch(() => route.params.id, (newId) => {
-  if (newId) void load()
+  if (!newId) return
+  // 다른 SR로 이동할 때 이전 SR에서 입력하던 처리 폼 내용이 남아있지 않도록 초기화
+  cancelDialog.value = false
+  reviewDialog.value = false
+  assignDialog.value = false
+  statusDialog.value = false
+  statusForm.value = { status: null, reason: '', processResult: '', deployed: false, deployedAt: null }
+  void load()
 })
 </script>
 
