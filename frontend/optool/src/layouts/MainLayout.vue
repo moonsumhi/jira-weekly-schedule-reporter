@@ -246,6 +246,8 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+
+    <NoticePopup v-if="auth.isLoggedIn" />
   </q-layout>
 </template>
 
@@ -259,6 +261,7 @@ import { useThemeStore } from 'stores/theme'
 import { useNotificationStore } from 'stores/notification'
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue'
 import NotificationBell from 'components/NotificationBell.vue'
+import NoticePopup from 'components/NoticePopup.vue'
 import type { MenuOut } from 'src/services/menus'
 import { useQuasar } from 'quasar'
 import { fetchLinks, createLink, patchLink, deleteLink, type Link } from 'src/services/links'
