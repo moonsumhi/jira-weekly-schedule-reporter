@@ -1,5 +1,5 @@
 <template>
-  <q-dialog :model-value="modelValue" persistent maximized transition-show="slide-up" transition-hide="slide-down"
+  <q-dialog :model-value="modelValue" maximized transition-show="slide-up" transition-hide="slide-down"
     @update:model-value="$emit('update:modelValue', $event)">
     <q-card class="column" style="width: 100%; height: 100%">
       <!-- Header -->
