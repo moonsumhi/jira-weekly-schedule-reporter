@@ -259,11 +259,6 @@ async def review_sr(
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
 
-    # 검토 완료(승인) 시에만 요청자에게 안내 메일 발송 (반려/보류/추가확인요청은 미발송)
-    if new_status == "APPROVED":
-        from app.utils.mail_notify import send_sr_notification
-        await send_sr_notification(updated, event="reviewed")
-
     _STATUS_KO = {
         "APPROVED": "승인", "REJECTED": "반려", "ON_HOLD": "보류",
         "PENDING_INFO": "추가 확인 요청",

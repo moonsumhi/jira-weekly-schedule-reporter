@@ -105,6 +105,11 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     body = urllib.parse.urlencode(form_items)
     url = _EVENT_URLS.get(event, lambda: settings.SR_MAIL_SERVICE_URL)()
 
+    logger.info(
+        "SR 메일 발송 요청 상세: sr_no=%s event=%s url=%s body=%s",
+        doc.get("sr_no"), event, url, body,
+    )
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.post(
@@ -113,8 +118,8 @@ async def send_sr_notification(doc: dict, event: str) -> None:
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             logger.info(
-                "SR 메일 발송 요청: sr_no=%s event=%s to=%s status_code=%s",
-                doc.get("sr_no"), event, recipients, resp.status_code,
+                "SR 메일 발송 요청: sr_no=%s event=%s to=%s status_code=%s response=%s",
+                doc.get("sr_no"), event, recipients, resp.status_code, resp.text[:500],
             )
     except Exception as e:
         logger.warning(
