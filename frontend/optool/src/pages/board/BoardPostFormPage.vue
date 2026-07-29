@@ -21,10 +21,12 @@
           <div class="text-caption text-grey-7 q-mb-xs">첨부파일 <span class="text-grey-5">(선택)</span></div>
           <q-uploader
             url="/api/pm/uploads"
+            field-name="file"
             label="파일을 드래그하거나 클릭하여 업로드"
             multiple
+            auto-upload
             accept=".pdf,.hwp,.docx,.xlsx,.pptx,.zip,.jpg,.jpeg,.png,.gif"
-            max-file-size="20971520"
+            max-file-size="52428800"
             flat bordered class="full-width"
             :headers="uploadHeaders"
             @uploaded="onFileUploaded"
@@ -86,8 +88,21 @@ function onFileUploaded(info: { files: readonly File[], xhr: XMLHttpRequest }) {
     })
   } catch { $q.notify({ type: 'warning', message: '파일 업로드 응답 처리 중 오류가 발생했습니다.' }) }
 }
-function onUploadFailed() {
-  $q.notify({ type: 'negative', message: '파일 업로드 실패 (최대 20MB, 허용 형식 확인)' })
+function onUploadFailed(info: { files: readonly File[], xhr?: XMLHttpRequest }) {
+  let detail = ''
+  try {
+    if (info.xhr?.response) {
+      const res = JSON.parse(info.xhr.response)
+      detail = typeof res.detail === 'string'
+        ? res.detail
+        : Array.isArray(res.detail)
+          ? res.detail.map((d: { msg?: string }) => d.msg ?? JSON.stringify(d)).join(' / ')
+          : ''
+    }
+  } catch { /* 응답이 JSON이 아니면 무시 */ }
+  const status = info.xhr?.status
+  const message = detail || `파일 업로드 실패${status ? ` (HTTP ${status})` : ''} — 최대 50MB, 허용 형식을 확인해주세요`
+  $q.notify({ type: 'negative', message })
 }
 
 function goBack() {
