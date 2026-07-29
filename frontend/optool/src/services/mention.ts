@@ -5,11 +5,12 @@ export type MentionUser = {
   displayName: string
   team: string | null
   email: string
+  hasProjectAccess?: boolean
 }
 
-export async function searchMentionUsers(q: string, limit = 15): Promise<MentionUser[]> {
+export async function searchMentionUsers(q: string, limit = 15, projectId?: string): Promise<MentionUser[]> {
   const { data } = await api.get<{ items: MentionUser[] }>('/auth/mention-search', {
-    params: { q, limit },
+    params: { q, limit, ...(projectId ? { project_id: projectId } : {}) },
   })
   return data.items
 }

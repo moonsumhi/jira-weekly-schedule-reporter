@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Literal
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -312,6 +313,7 @@ async def change_password(
 async def mention_search(
     q: str = Query("", max_length=50),
     limit: int = Query(15, ge=1, le=30),
+    project_id: str | None = Query(None, description="지정 시 각 사용자의 해당 프로젝트 접근 권한 여부를 함께 반환"),
     current_user: UserPublic = Depends(get_current_user),
 ):
     """멘션용 사용자 검색. 인증된 사용자 전용."""
@@ -328,15 +330,29 @@ async def mention_search(
 
     docs = await users_col.find(
         base_filter,
-        {"full_name": 1, "email": 1, "team": 1},
+        {"full_name": 1, "email": 1, "team": 1, "is_admin": 1},
     ).sort("full_name", 1).limit(limit).to_list(None)
+
+    member_ids: set[str] | None = None
+    if project_id:
+        try:
+            members_col = MongoClientManager.get_pm_project_members_collection()
+            member_docs = await members_col.find(
+                {"project_id": ObjectId(project_id)}, {"user_id": 1},
+            ).to_list(None)
+            member_ids = {str(m["user_id"]) for m in member_docs}
+        except Exception:
+            member_ids = set()
 
     items = []
     for d in docs:
-        items.append({
+        item = {
             "user_id": str(d["_id"]),
             "display_name": d.get("full_name") or d.get("email", ""),
             "team": d.get("team"),
             "email": d.get("email", ""),
-        })
+        }
+        if member_ids is not None:
+            item["has_project_access"] = bool(d.get("is_admin")) or str(d["_id"]) in member_ids
+        items.append(item)
     return {"items": items}

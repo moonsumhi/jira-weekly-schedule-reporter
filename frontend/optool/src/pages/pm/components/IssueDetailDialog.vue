@@ -160,7 +160,7 @@
                 <div v-if="topComments.length === 0" class="text-grey-6 text-caption">댓글이 없습니다.</div>
                 <template v-for="c in topComments" :key="c.id">
                   <!-- 최상위 댓글 -->
-                  <q-card flat bordered>
+                  <q-card :id="`comment-${c.id}`" flat bordered>
                     <q-card-section class="q-py-sm">
                       <div class="row items-center q-mb-xs">
                         <span class="text-caption text-weight-bold">{{ c.authorName }}</span>
@@ -185,7 +185,7 @@
                     <template v-if="repliesOf(c.id).length > 0">
                       <q-separator />
                       <q-card-section class="q-py-xs q-pl-lg">
-                        <div v-for="r in repliesOf(c.id)" :key="r.id" class="q-py-xs reply-item">
+                        <div v-for="r in repliesOf(c.id)" :key="r.id" :id="`comment-${r.id}`" class="q-py-xs reply-item">
                           <div class="row items-center">
                             <q-icon name="subdirectory_arrow_right" size="xs" color="grey-5" class="q-mr-xs" />
                             <span class="text-caption text-weight-bold">{{ r.authorName }}</span>
@@ -214,6 +214,7 @@
                           <MentionInput
                             v-model="replyText"
                             v-model:mentioned-users="replyMentionedUsers"
+                            :project-id="props.projectId"
                             class="col"
                             :rows="2"
                             placeholder="답글 작성... (@로 멘션)"
@@ -245,6 +246,7 @@
                   <MentionInput
                     v-model="newComment"
                     v-model:mentioned-users="mentionedUsers"
+                    :project-id="props.projectId"
                     :rows="3"
                     placeholder="댓글 작성... (@로 멘션, 이미지 붙여넣기 가능)"
                   />
@@ -454,7 +456,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, defineComponent, h, type PropType } from 'vue'
+import { ref, computed, watch, nextTick, defineComponent, h, type PropType } from 'vue'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { useRouter } from 'vue-router'
@@ -506,6 +508,7 @@ const props = defineProps<{
   projectId: string
   projectKey?: string
   issue: Issue | null
+  initialCommentId?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -805,11 +808,24 @@ watch(() => props.modelValue, (open) => {
   if (open && props.issue) {
     issueStack.value = []
     tab.value = 'detail'
-    void loadIssueContent(props.issue)
+    void loadIssueContent(props.issue).then(async () => {
+      if (props.initialCommentId) {
+        await nextTick()
+        scrollToComment(props.initialCommentId)
+      }
+    })
   } else if (!open) {
     issueStack.value = []
   }
 }, { immediate: true })
+
+function scrollToComment(commentId: string) {
+  const el = document.getElementById(`comment-${commentId}`)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('comment-highlight')
+  setTimeout(() => el.classList.remove('comment-highlight'), 2500)
+}
 
 function fmtDate(d: string) { return fmtDatetimeKst(d) }
 
@@ -981,6 +997,12 @@ function confirmDelete() {
 </script>
 
 <style scoped>
+.comment-highlight { animation: comment-flash 2.5s ease; }
+@keyframes comment-flash {
+  0%, 40% { background-color: #ffe69c; }
+  100% { background-color: transparent; }
+}
+
 .inline-field :deep(.q-field__control) {
   padding: 4px 6px;
   border-radius: 4px;

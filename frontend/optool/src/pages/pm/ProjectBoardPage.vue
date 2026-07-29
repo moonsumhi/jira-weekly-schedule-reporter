@@ -162,6 +162,7 @@
       :project-id="projectId"
       :project-key="project?.key ?? ''"
       :issue="detailDialog.issue"
+      :initial-comment-id="detailDialog.commentId"
       @updated="onIssueUpdated"
       @deleted="onIssueDeleted"
       @update:model-value="!$event && loadBoard()"
@@ -210,7 +211,7 @@ const board = ref<Record<IssueStatus, Issue[]>>({
 const loading = ref(false)
 
 const createDialog = ref({ open: false })
-const detailDialog = ref({ open: false, issue: null as Issue | null })
+const detailDialog = ref({ open: false, issue: null as Issue | null, commentId: null as string | null })
 
 const sprintOptions = computed(() => [
   { label: '전체', value: null },
@@ -239,6 +240,12 @@ onMounted(async () => {
     const active = sp.find(s => s.status === 'ACTIVE')
     if (active) selectedSprintId.value = active.id
     await loadBoard()
+
+    const issueId = route.query.issueId as string | undefined
+    if (issueId) {
+      const found = Object.values(board.value).flat().find(i => i.id === issueId)
+      if (found) openIssueDetail(found, (route.query.commentId as string | undefined) ?? null)
+    }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
   } finally {
@@ -291,14 +298,14 @@ function openCreateIssue() {
   createDialog.value.open = true
 }
 
-function openIssueDetail(issue: Issue) {
-  detailDialog.value = { open: true, issue }
+function openIssueDetail(issue: Issue, commentId: string | null = null) {
+  detailDialog.value = { open: true, issue, commentId }
 }
 
 async function openSubtaskDetail(subtaskId: string) {
   try {
     const full = await getIssue(projectId, subtaskId)
-    detailDialog.value = { open: true, issue: full }
+    detailDialog.value = { open: true, issue: full, commentId: null }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '하위작업 로드 실패') })
   }

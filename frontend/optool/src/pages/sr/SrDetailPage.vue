@@ -693,7 +693,7 @@
                   <q-icon name="chat" size="3rem" class="q-mb-sm" /><br />아직 댓글이 없습니다.
                 </div>
 
-                <div v-for="c in comments" :key="c.id" class="comment-item q-mb-md">
+                <div v-for="c in comments" :key="c.id" :id="`comment-${c.id}`" class="comment-item q-mb-md">
                   <div class="row items-center q-gutter-xs q-mb-xs">
                     <q-avatar size="28px" :color="c.isInternal ? 'grey-5' : 'primary'" text-color="white"
                       style="font-size:0.76rem">{{ c.writerName.charAt(0) }}</q-avatar>
@@ -1114,7 +1114,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
@@ -1446,12 +1446,27 @@ async function load() {
     sr.value            = isOperatorUser.value ? await getAdminSR(id) : await getSR(id)
     comments.value      = await listComments(id)
     statusHistory.value = await listHistory(id)
+
+    const targetCommentId = route.query.commentId as string | undefined
+    if (targetCommentId && comments.value.some(c => c.id === targetCommentId)) {
+      activeTab.value = 'comments'
+      await nextTick()
+      scrollToComment(targetCommentId)
+    }
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     $q.notify({ type: 'negative', message: msg || '데이터를 불러오는데 실패했습니다.' })
   } finally {
     loading.value = false
   }
+}
+
+function scrollToComment(commentId: string) {
+  const el = document.getElementById(`comment-${commentId}`)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('comment-highlight')
+  setTimeout(() => el.classList.remove('comment-highlight'), 2500)
 }
 
 function makeItem(file: File): CommentFileItem {
@@ -1786,7 +1801,12 @@ watch(() => route.params.id, (newId) => {
 }
 
 /* 댓글 */
-.comment-item { }
+.comment-item { border-radius: 8px; transition: background-color 0.3s ease; }
+.comment-item.comment-highlight { background-color: #fff3cd; animation: comment-flash 2.5s ease; }
+@keyframes comment-flash {
+  0%, 40% { background-color: #ffe69c; }
+  100% { background-color: transparent; }
+}
 .comment-bubble {
   border-radius: 0 8px 8px 8px;
   padding: 10px 14px;

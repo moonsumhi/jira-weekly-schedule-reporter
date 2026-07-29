@@ -317,14 +317,10 @@ async def create_comment(
     users_col = MongoClientManager.get_users_collection()
     now = datetime.now(timezone.utc)
 
-    # 멘션 처리 — 프로젝트 멤버만 허용
-    members_col = MongoClientManager.get_pm_project_members_collection()
-    member_docs = await members_col.find({"project_id": ObjectId(project_id)}, {"user_id": 1}).to_list(None)
-    allowed_ids = {str(m["user_id"]) for m in member_docs}
+    # 멘션 처리 — 멘션 검색이 전체 사용자 대상이므로 SR과 동일하게 제한 없이 허용
     mentioned = await resolve_mentions(
         body.mentioned_user_ids,
         actor_id=str(current_user.id),
-        allowed_user_ids=allowed_ids,
     )
 
     result = await col.insert_one({
@@ -408,15 +404,11 @@ async def patch_comment(
     if not old_doc:
         raise HTTPException(status_code=403, detail="댓글을 찾을 수 없거나 수정 권한이 없습니다.")
 
-    # 멘션 diff 처리
+    # 멘션 diff 처리 — 멘션 검색이 전체 사용자 대상이므로 SR과 동일하게 제한 없이 허용
     old_mention_ids = {m["user_id"] for m in old_doc.get("mentioned_users", [])}
-    members_col = MongoClientManager.get_pm_project_members_collection()
-    member_docs = await members_col.find({"project_id": ObjectId(project_id)}, {"user_id": 1}).to_list(None)
-    allowed_ids = {str(m["user_id"]) for m in member_docs}
     new_mentioned = await resolve_mentions(
         body.mentioned_user_ids,
         actor_id=str(current_user.id),
-        allowed_user_ids=allowed_ids,
     )
 
     d = await col.find_one_and_update(
