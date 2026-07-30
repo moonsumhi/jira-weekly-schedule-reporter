@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { fetchUnreadCount, fetchNotifications, markRead, markAllRead, archiveNotification, type Notification } from 'src/services/notification'
+import { useIssueDialogStore } from 'src/stores/issueDialog'
 
 export const useNotificationStore = defineStore('notification', () => {
   const unreadCount = ref(0)
@@ -35,6 +36,18 @@ export const useNotificationStore = defineStore('notification', () => {
       const idx = dropdownItems.value.findIndex((i) => i.id === n.id)
       if (idx !== -1) dropdownItems.value[idx] = { ...n }
     }
+
+    // PM 이슈 관련 알림은 보드 페이지로 이동하지 않고, 지금 화면 위에 바로 상세를 띄운다.
+    if (n.targetType === 'PM_ISSUE' && n.targetUrl) {
+      const match = n.targetUrl.match(/^\/pm\/projects\/([^/]+)\/board\?issueId=([^&]+)(?:&commentId=([^&]+))?/)
+      if (match) {
+        const [, projectId, issueId, commentId] = match
+        const issueDialog = useIssueDialogStore()
+        void issueDialog.openIssue(projectId as string, issueId as string, commentId ?? null)
+        return
+      }
+    }
+
     if (n.targetUrl) navigateFn(n.targetUrl)
   }
 

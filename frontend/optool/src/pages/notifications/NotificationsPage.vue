@@ -183,8 +183,9 @@ function formatDate(dateStr: string): string {
 }
 
 async function handleItemClick(n: Notification) {
-  if (!n.isRead) await onMarkRead(n)
-  if (n.targetUrl) void router.push(n.targetUrl)
+  const wasUnread = !n.isRead
+  await notifStore.readAndNavigate(n, (url) => void router.push(url))
+  if (wasUnread) unreadCount.value = Math.max(0, unreadCount.value - 1)
 }
 
 async function onMarkRead(n: Notification) {

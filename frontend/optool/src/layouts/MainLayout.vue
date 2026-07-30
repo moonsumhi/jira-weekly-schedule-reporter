@@ -248,6 +248,15 @@
     </q-page-container>
 
     <NoticePopup v-if="auth.isLoggedIn" />
+
+    <IssueDetailDialog
+      v-if="issueDialog.issue"
+      v-model="issueDialog.open"
+      :project-id="issueDialog.issue.projectId"
+      :project-key="issueDialog.issue.projectKey ?? ''"
+      :issue="issueDialog.issue"
+      :initial-comment-id="issueDialog.initialCommentId"
+    />
   </q-layout>
 </template>
 
@@ -262,6 +271,8 @@ import { useNotificationStore } from 'stores/notification'
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue'
 import NotificationBell from 'components/NotificationBell.vue'
 import NoticePopup from 'components/NoticePopup.vue'
+import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
+import { useIssueDialogStore } from 'stores/issueDialog'
 import type { MenuOut } from 'src/services/menus'
 import { useQuasar } from 'quasar'
 import { fetchLinks, createLink, patchLink, deleteLink, type Link } from 'src/services/links'
@@ -271,6 +282,7 @@ const auth = useAuthStore()
 const menuStore = useMenuStore()
 const theme = useThemeStore()
 const notifStore = useNotificationStore()
+const issueDialog = useIssueDialogStore()
 const $q = useQuasar()
 const { sidebarMenus, sidebarBoards, templateItems } = storeToRefs(menuStore)
 const router = useRouter()
