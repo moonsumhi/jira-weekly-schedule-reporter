@@ -10,6 +10,7 @@ Redmine(issues_controller.rb의 create_emailsend/update_emailsend)이 쓰는 사
 JSON이 아니라 Ruby `Hash#to_s` 형식 문자열(`{"key"=>"value", ...}`)로 온다.
 그대로 재현해서 보낸다.
 """
+import asyncio
 import logging
 import urllib.parse
 from datetime import datetime
@@ -54,6 +55,9 @@ async def _get_assignee_email(assignee_id: Any) -> str | None:
     user = await users.find_one({"_id": oid})
     return user.get("email") if user else None
 
+
+_MAX_RETRY_ON_404 = 3
+_RETRY_DELAY_SECONDS = 2.0
 
 _EVENT_URLS = {
     "reviewed": lambda: settings.SR_MAIL_SERVICE_URL,   # 검토 완료(승인) → Backoffice_IssueInfo 템플릿
@@ -112,15 +116,25 @@ async def send_sr_notification(doc: dict, event: str) -> None:
 
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.post(
-                url,
-                content=body,
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-            )
-            logger.info(
-                "SR 메일 발송 요청: sr_no=%s event=%s to=%s status_code=%s response=%s",
-                doc.get("sr_no"), event, recipients, resp.status_code, resp.text[:500],
-            )
+            for attempt in range(1, _MAX_RETRY_ON_404 + 1):
+                resp = await client.post(
+                    url,
+                    content=body,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                )
+                logger.info(
+                    "SR 메일 발송 요청: sr_no=%s event=%s to=%s status_code=%s response=%s",
+                    doc.get("sr_no"), event, recipients, resp.status_code, resp.text[:500],
+                )
+                # 404는 mail-service가 요청을 라우팅/매칭하는 단계에서 끊긴 것으로,
+                # 실제 발송 로직에 도달하지 못했다는 뜻이라 재시도해도 중복 발송이 아니다.
+                if resp.status_code != 404 or attempt == _MAX_RETRY_ON_404:
+                    break
+                logger.warning(
+                    "SR 메일 발송 404, 재시도 %s/%s (sr_no=%s, event=%s)",
+                    attempt, _MAX_RETRY_ON_404, doc.get("sr_no"), event,
+                )
+                await asyncio.sleep(_RETRY_DELAY_SECONDS)
     except Exception as e:
         logger.warning(
             "SR 메일 발송 실패 (sr_no=%s, event=%s): %s: %s",
