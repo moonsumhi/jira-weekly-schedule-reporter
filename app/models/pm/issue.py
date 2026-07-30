@@ -17,10 +17,10 @@ class Attachment(BaseModel):
 
 
 IssueType = Literal["EPIC", "STORY", "TASK", "BUG", "SUB_TASK"]
-IssueStatus = Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"]
+IssueStatus = Literal["BACKLOG", "TODO", "IN_PROGRESS", "IMPLEMENTED", "DONE"]
 IssuePriority = Literal["LOWEST", "LOW", "MEDIUM", "HIGH", "HIGHEST"]
 
-ISSUE_STATUS_ORDER = ["BACKLOG", "TODO", "IN_PROGRESS", "DONE"]
+ISSUE_STATUS_ORDER = ["BACKLOG", "TODO", "IN_PROGRESS", "IMPLEMENTED", "DONE"]
 
 
 class IssueCreate(BaseModel):

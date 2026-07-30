@@ -125,6 +125,14 @@ const routes: RouteRecordRaw[] = [
           {
             path: ':boardId',
             component: () => import('pages/board/BoardPage.vue')
+          },
+          {
+            path: ':boardId/write',
+            component: () => import('pages/board/BoardPostFormPage.vue')
+          },
+          {
+            path: ':boardId/edit/:postId',
+            component: () => import('pages/board/BoardPostFormPage.vue')
           }
         ]
       },
@@ -289,6 +297,10 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'menus',
             component: () => import('pages/admin/MenuManagePage.vue')
+          },
+          {
+            path: 'notices',
+            component: () => import('pages/admin/NoticeManagePage.vue')
           },
           {
             path: 'audit-log',

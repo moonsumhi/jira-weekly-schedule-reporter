@@ -1,4 +1,10 @@
-export type FieldType = 'text' | 'textarea' | 'date' | 'datetime' | 'select' | 'editor'
+export type FieldType = 'text' | 'textarea' | 'date' | 'datetime' | 'select' | 'editor' | 'table'
+
+export interface SRTableColumn {
+  key: string
+  label: string
+  placeholder?: string
+}
 
 export interface SRTypeField {
   key: string
@@ -9,6 +15,7 @@ export interface SRTypeField {
   rows?: number
   placeholder?: string
   half?: boolean  // col-6 width
+  columns?: SRTableColumn[]  // type === 'table'일 때 행(row) 구성
 }
 
 export const SR_TYPE_FIELDS: Record<string, SRTypeField[]> = {
@@ -124,9 +131,15 @@ export const SR_TYPE_FIELDS: Record<string, SRTypeField[]> = {
       options: [
         { value: 'production', label: '운영' }, { value: 'development', label: '개발' },
       ], half: true },
-    { key: 'sourceIp',       label: '출발지 IP / 대역',   required: true,  type: 'text',    placeholder: '예: 10.1.2.3, 192.168.0.0/24', half: true },
-    { key: 'destinationIp',  label: '목적지 IP / 대역',   required: true,  type: 'text',    placeholder: '예: 10.2.3.4, 0.0.0.0/0',      half: true },
-    { key: 'portProtocol',   label: '포트 / 프로토콜',    required: true,  type: 'text',    placeholder: '예: TCP/443, UDP/53, ALL',      half: true },
+    { key: 'firewallRules',  label: '방화벽 정책 목록',   required: true,  type: 'table',
+      columns: [
+        { key: 'sourceIp',        label: '출발지 IP / 대역',      placeholder: '예: 10.1.2.3, 192.168.0.0/24' },
+        { key: 'sourceHost',      label: '출발지 PC / 서버 이름', placeholder: '예: WEB-SVR-01' },
+        { key: 'destinationIp',   label: '목적지 IP / 대역',      placeholder: '예: 10.2.3.4, 0.0.0.0/0' },
+        { key: 'destinationHost', label: '목적지 PC / 서버 이름', placeholder: '예: DB-SVR-01' },
+        { key: 'portProtocol',    label: '포트 / 프로토콜',       placeholder: '예: TCP/443, UDP/53, ALL' },
+        { key: 'portPurpose',     label: '포트 용도',             placeholder: '예: DB 포트, 웹 서비스 포트' },
+      ] },
     { key: 'direction',      label: '방향',               required: true,  type: 'select',
       options: [
         { value: 'inbound',  label: '인바운드 (외부 → 내부 트래픽)' },

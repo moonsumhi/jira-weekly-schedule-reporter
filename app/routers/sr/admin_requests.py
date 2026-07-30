@@ -259,11 +259,6 @@ async def review_sr(
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
 
-    # 검토 완료(승인) 시에만 요청자에게 안내 메일 발송 (반려/보류/추가확인요청은 미발송)
-    if new_status == "APPROVED":
-        from app.utils.mail_notify import send_sr_notification
-        await send_sr_notification(updated, event="reviewed")
-
     _STATUS_KO = {
         "APPROVED": "승인", "REJECTED": "반려", "ON_HOLD": "보류",
         "PENDING_INFO": "추가 확인 요청",
@@ -434,6 +429,13 @@ async def change_status(
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
 
+    # Redmine과 동일하게 "완료" 상태로 처음 바뀔 때만 처리완료 메일 발송.
+    # old_status != COMPLETED 체크로, 이미 완료된 SR을 재수정(배포여부/처리결과 등)
+    # 하느라 이 엔드포인트가 다시 호출돼도 완료 메일이 중복 발송되지 않게 한다.
+    if new_status == "COMPLETED" and old_status != "COMPLETED":
+        from app.utils.mail_notify import send_sr_notification
+        await send_sr_notification(updated, event="completed")
+
     _SR_STATUS_KO = {
         "SUBMITTED": "접수", "REVIEWING": "검토 중", "PENDING_INFO": "추가 확인 요청",
         "REJECTED": "반려", "APPROVED": "승인", "ASSIGNED": "담당자 배정",
@@ -460,11 +462,6 @@ async def change_status(
             target_id=sr_id,
             target_url=target_url,
         )
-
-    # Redmine과 동일하게 "완료" 상태로 바뀔 때만 처리완료 메일 발송 (그 외 상태변경은 무발송)
-    if new_status == "COMPLETED":
-        from app.utils.mail_notify import send_sr_notification
-        await send_sr_notification(updated, event="completed")
 
     return SROut(**sr_to_out(updated))
 

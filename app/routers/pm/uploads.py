@@ -23,6 +23,8 @@ ALLOWED_TYPES = {
     "text/plain", "text/csv",
     "application/zip",
 }
+# 브라우저가 표준 MIME 타입을 보내지 않는 확장자 (한글 문서 등) → 확장자로 허용 판단
+ALLOWED_EXTENSIONS_FALLBACK = {".hwp", ".hwpx"}
 
 
 class AttachmentOut(BaseModel):
@@ -43,11 +45,11 @@ async def upload_attachment(
         raise HTTPException(status_code=413, detail="파일 크기가 50MB를 초과합니다.")
 
     content_type = file.content_type or "application/octet-stream"
-    if content_type not in ALLOWED_TYPES:
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if content_type not in ALLOWED_TYPES and ext not in ALLOWED_EXTENSIONS_FALLBACK:
         raise HTTPException(status_code=415, detail="지원하지 않는 파일 형식입니다.")
 
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    ext = os.path.splitext(file.filename or "")[1]
     stored_name = f"{uuid.uuid4().hex}{ext}"
     path = os.path.join(UPLOAD_DIR, stored_name)
 

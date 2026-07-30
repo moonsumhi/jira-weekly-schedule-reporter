@@ -44,6 +44,8 @@ class MongoClientManager:
     MENUS = "menus"
     BOARDS = "boards"
     BOARD_POSTS = "board_posts"
+    BOARD_POST_HISTORIES = "board_post_histories"
+    NOTICES = "notices"
     AUTH_LOGS = "auth_logs"
     ACTIVITY_LOGS = "activity_logs"
     HEALTH_REPORTS = "health_reports"
@@ -204,6 +206,14 @@ class MongoClientManager:
     @classmethod
     def get_board_posts_collection(cls):
         return cls.get_db()[cls.BOARD_POSTS]
+
+    @classmethod
+    def get_board_post_histories_collection(cls):
+        return cls.get_db()[cls.BOARD_POST_HISTORIES]
+
+    @classmethod
+    def get_notices_collection(cls):
+        return cls.get_db()[cls.NOTICES]
 
     @classmethod
     def get_auth_logs_collection(cls):

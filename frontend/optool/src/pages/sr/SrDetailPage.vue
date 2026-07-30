@@ -440,6 +440,79 @@
                     </div>
                   </template>
 
+                  <!-- FIREWALL -->
+                  <template v-else-if="sr.requestType === 'FIREWALL'">
+                    <div class="q-gutter-sm">
+                      <div class="row q-col-gutter-md">
+                        <div class="col-12 col-sm-6">
+                          <div class="content-label">신청 구분</div>
+                          <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
+                            {{ fieldSelectLabel('FIREWALL', 'requestKind', sr.typeDetail?.requestKind ?? null) }}
+                          </q-chip>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                          <div class="content-label">적용 환경</div>
+                          <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
+                            {{ fieldSelectLabel('FIREWALL', 'environment', sr.typeDetail?.environment ?? null) }}
+                          </q-chip>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div class="content-label q-mb-xs">방화벽 정책 목록</div>
+                        <div v-if="!firewallRules.length" class="text-caption text-grey-5">등록된 정책이 없습니다.</div>
+                        <div v-else class="firewall-table-wrap">
+                          <table class="firewall-table">
+                            <thead>
+                              <tr>
+                                <th>출발지 IP / 대역</th>
+                                <th>출발지 PC / 서버 이름</th>
+                                <th>목적지 IP / 대역</th>
+                                <th>목적지 PC / 서버 이름</th>
+                                <th>포트 / 프로토콜</th>
+                                <th>포트 용도</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="(row, i) in firewallRules" :key="i">
+                                <td>{{ row.sourceIp || '-' }}</td>
+                                <td>{{ row.sourceHost || '-' }}</td>
+                                <td>{{ row.destinationIp || '-' }}</td>
+                                <td>{{ row.destinationHost || '-' }}</td>
+                                <td>{{ row.portProtocol || '-' }}</td>
+                                <td>{{ row.portPurpose || '-' }}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div class="row q-col-gutter-md">
+                        <div class="col-12 col-sm-6">
+                          <div class="content-label">방향</div>
+                          <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
+                            {{ fieldSelectLabel('FIREWALL', 'direction', sr.typeDetail?.direction ?? null) }}
+                          </q-chip>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                          <div class="content-label">적용 기간</div>
+                          <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
+                            {{ fieldSelectLabel('FIREWALL', 'duration', sr.typeDetail?.duration ?? null) }}
+                          </q-chip>
+                          <span v-if="sr.typeDetail?.expiryDate" class="content-date q-ml-sm">
+                            <q-icon name="event" size="13px" color="blue-5" class="q-mr-xs" />
+                            {{ fmtDate(sr.typeDetail.expiryDate) }}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div v-if="sr.typeDetail?.purpose">
+                        <div class="content-label">업무 목적</div>
+                        <div class="content-text pre-wrap">{{ sr.typeDetail.purpose }}</div>
+                      </div>
+                    </div>
+                  </template>
+
                   <!-- IMPROVEMENT / ETC / 기타 (generic) -->
                   <template v-else>
                     <div class="row q-col-gutter-md">
@@ -620,7 +693,7 @@
                   <q-icon name="chat" size="3rem" class="q-mb-sm" /><br />아직 댓글이 없습니다.
                 </div>
 
-                <div v-for="c in comments" :key="c.id" class="comment-item q-mb-md">
+                <div v-for="c in comments" :key="c.id" :id="`comment-${c.id}`" class="comment-item q-mb-md">
                   <div class="row items-center q-gutter-xs q-mb-xs">
                     <q-avatar size="28px" :color="c.isInternal ? 'grey-5' : 'primary'" text-color="white"
                       style="font-size:0.76rem">{{ c.writerName.charAt(0) }}</q-avatar>
@@ -1041,7 +1114,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
@@ -1075,12 +1148,12 @@ const REVIEW_RESULT_COLOR: Record<string, string> = {
 const TYPE_ICON: Record<string, string> = {
   IMPROVEMENT: 'tune', BUG_FIX: 'bug_report', DATA_REQUEST: 'storage',
   PERMISSION: 'lock_open', CONFIG_CHANGE: 'settings', SERVER_INFRA: 'dns',
-  SECURITY: 'security', ETC: 'more_horiz',
+  SECURITY: 'security', FIREWALL: 'lan', ETC: 'more_horiz',
 }
 const TYPE_CHIP_COLOR: Record<string, string> = {
   IMPROVEMENT: 'blue-7', BUG_FIX: 'red-7', DATA_REQUEST: 'purple-7',
   PERMISSION: 'teal-7', CONFIG_CHANGE: 'orange-8', SERVER_INFRA: 'indigo-7',
-  SECURITY: 'deep-orange-8', ETC: 'grey-7',
+  SECURITY: 'deep-orange-8', FIREWALL: 'brown-7', ETC: 'grey-7',
 }
 // ── refs / store ────────────────────────────────────────────────────
 
@@ -1215,6 +1288,7 @@ const actionButtons = computed(() => {
 
   if (isOperatorUser.value && !['CLOSED', 'REJECTED', 'DRAFT'].includes(s)) {
     btns.push({ key: 'status', label: '상태 변경', color: 'blue-7', icon: 'swap_horiz', action: () => {
+      statusForm.value = { status: null, reason: '', processResult: '', deployed: false, deployedAt: null }
       statusDialog.value = true
     } })
   }
@@ -1235,6 +1309,11 @@ const needsReason = computed(() => ['REJECTED', 'ON_HOLD', 'CANCELLED'].includes
 const currentSRTypeFields = computed((): SRTypeField[] => {
   if (!sr.value) return []
   return SR_TYPE_FIELDS[sr.value.requestType] ?? []
+})
+
+const firewallRules = computed((): Record<string, string>[] => {
+  const v = sr.value?.typeDetail?.firewallRules
+  return Array.isArray(v) ? v : []
 })
 
 const extraAttachments = computed(() => {
@@ -1367,12 +1446,27 @@ async function load() {
     sr.value            = isOperatorUser.value ? await getAdminSR(id) : await getSR(id)
     comments.value      = await listComments(id)
     statusHistory.value = await listHistory(id)
+
+    const targetCommentId = route.query.commentId as string | undefined
+    if (targetCommentId && comments.value.some(c => c.id === targetCommentId)) {
+      activeTab.value = 'comments'
+      await nextTick()
+      scrollToComment(targetCommentId)
+    }
   } catch (e) {
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     $q.notify({ type: 'negative', message: msg || '데이터를 불러오는데 실패했습니다.' })
   } finally {
     loading.value = false
   }
+}
+
+function scrollToComment(commentId: string) {
+  const el = document.getElementById(`comment-${commentId}`)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('comment-highlight')
+  setTimeout(() => el.classList.remove('comment-highlight'), 2500)
 }
 
 function makeItem(file: File): CommentFileItem {
@@ -1569,11 +1663,24 @@ onMounted(async () => {
 })
 
 watch(() => route.params.id, (newId) => {
-  if (newId) void load()
+  if (!newId) return
+  // 다른 SR로 이동할 때 이전 SR에서 입력하던 처리 폼 내용이 남아있지 않도록 초기화
+  cancelDialog.value = false
+  reviewDialog.value = false
+  assignDialog.value = false
+  statusDialog.value = false
+  statusForm.value = { status: null, reason: '', processResult: '', deployed: false, deployedAt: null }
+  void load()
 })
 </script>
 
 <style scoped>
+.firewall-table-wrap { overflow-x: auto; border: 1px solid #eee; border-radius: 6px; }
+.firewall-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; white-space: nowrap; }
+.firewall-table th, .firewall-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; text-align: left; }
+.firewall-table th { background: #fafafa; color: #757575; font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
+.firewall-table tr:last-child td { border-bottom: none; }
+
 .section-header {
   display: flex;
   align-items: center;
@@ -1694,7 +1801,12 @@ watch(() => route.params.id, (newId) => {
 }
 
 /* 댓글 */
-.comment-item { }
+.comment-item { border-radius: 8px; transition: background-color 0.3s ease; }
+.comment-item.comment-highlight { background-color: #fff3cd; animation: comment-flash 2.5s ease; }
+@keyframes comment-flash {
+  0%, 40% { background-color: #ffe69c; }
+  100% { background-color: transparent; }
+}
 .comment-bubble {
   border-radius: 0 8px 8px 8px;
   padding: 10px 14px;

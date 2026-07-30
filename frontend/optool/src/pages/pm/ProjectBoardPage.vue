@@ -162,6 +162,7 @@
       :project-id="projectId"
       :project-key="project?.key ?? ''"
       :issue="detailDialog.issue"
+      :initial-comment-id="detailDialog.commentId"
       @updated="onIssueUpdated"
       @deleted="onIssueDeleted"
       @update:model-value="!$event && loadBoard()"
@@ -205,12 +206,12 @@ const project = ref<Project | null>(null)
 const sprints = ref<Sprint[]>([])
 const selectedSprintId = ref<string | null>(null)
 const board = ref<Record<IssueStatus, Issue[]>>({
-  BACKLOG: [], TODO: [], IN_PROGRESS: [], DONE: [],
+  BACKLOG: [], TODO: [], IN_PROGRESS: [], IMPLEMENTED: [], DONE: [],
 })
 const loading = ref(false)
 
 const createDialog = ref({ open: false })
-const detailDialog = ref({ open: false, issue: null as Issue | null })
+const detailDialog = ref({ open: false, issue: null as Issue | null, commentId: null as string | null })
 
 const sprintOptions = computed(() => [
   { label: '전체', value: null },
@@ -239,6 +240,21 @@ onMounted(async () => {
     const active = sp.find(s => s.status === 'ACTIVE')
     if (active) selectedSprintId.value = active.id
     await loadBoard()
+
+    const issueId = route.query.issueId as string | undefined
+    if (issueId) {
+      const commentId = (route.query.commentId as string | undefined) ?? null
+      const found = Object.values(board.value).flat().find(i => i.id === issueId)
+      if (found) {
+        openIssueDetail(found, commentId)
+      } else {
+        // 현재 필터(스프린트 등)에 해당 이슈가 없을 수 있으므로 직접 조회해서 연다.
+        try {
+          const issue = await getIssue(projectId, issueId)
+          openIssueDetail(issue, commentId)
+        } catch { /* 이슈를 찾을 수 없으면 조용히 무시 */ }
+      }
+    }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
   } finally {
@@ -249,7 +265,7 @@ onMounted(async () => {
 async function loadBoard() {
   try {
     const data = await getBoard(projectId, selectedSprintId.value ?? undefined)
-    const empty: Record<IssueStatus, Issue[]> = { BACKLOG: [], TODO: [], IN_PROGRESS: [], DONE: [] }
+    const empty: Record<IssueStatus, Issue[]> = { BACKLOG: [], TODO: [], IN_PROGRESS: [], IMPLEMENTED: [], DONE: [] }
     board.value = { ...empty, ...data }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '보드 로드 실패') })
@@ -291,14 +307,14 @@ function openCreateIssue() {
   createDialog.value.open = true
 }
 
-function openIssueDetail(issue: Issue) {
-  detailDialog.value = { open: true, issue }
+function openIssueDetail(issue: Issue, commentId: string | null = null) {
+  detailDialog.value = { open: true, issue, commentId }
 }
 
 async function openSubtaskDetail(subtaskId: string) {
   try {
     const full = await getIssue(projectId, subtaskId)
-    detailDialog.value = { open: true, issue: full }
+    detailDialog.value = { open: true, issue: full, commentId: null }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '하위작업 로드 실패') })
   }
