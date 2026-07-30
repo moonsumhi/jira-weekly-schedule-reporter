@@ -1,6 +1,6 @@
 # app/routers/auth.py
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Literal
+from typing import Any, Optional, Literal
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -257,6 +257,21 @@ class UserPrefs(BaseModel):
     dashboard_card_sizes: dict[str, dict[str, int]] = {}
 
 
+def _sanitize_card_sizes(raw: Any) -> dict[str, dict[str, int]]:
+    """예전 버전(프리셋 문자열 'half'/'auto' 등)으로 저장된 값은 버리고,
+    현재 스키마(w/h 정수)에 맞는 항목만 남긴다."""
+    sizes: dict[str, dict[str, int]] = {}
+    if not isinstance(raw, dict):
+        return sizes
+    for key, val in raw.items():
+        if not isinstance(val, dict):
+            continue
+        w, h = val.get("w"), val.get("h")
+        if isinstance(w, int) and isinstance(h, int):
+            sizes[key] = {"w": w, "h": h}
+    return sizes
+
+
 @router.get("/prefs", response_model=UserPrefs)
 async def get_prefs(current_user: UserPublic = Depends(get_current_user)):
     users = MongoClientManager.get_users_collection()
@@ -266,7 +281,7 @@ async def get_prefs(current_user: UserPublic = Depends(get_current_user)):
     return UserPrefs(
         asset_col_presets=[ColPreset(**p) for p in presets],
         dashboard_card_order=raw.get("dashboard_card_order", []),
-        dashboard_card_sizes=raw.get("dashboard_card_sizes", {}),
+        dashboard_card_sizes=_sanitize_card_sizes(raw.get("dashboard_card_sizes", {})),
     )
 
 
