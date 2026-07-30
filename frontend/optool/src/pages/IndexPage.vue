@@ -207,7 +207,7 @@
               v-for="issue in pmMyIssues"
               :key="issue.id"
               class="pm-issue-item"
-              @click="$router.push('/pm/dashboard')"
+              @click="openPmIssueDetail(issue)"
             >
               <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
               <span class="pm-issue-title">{{ issue.title }}</span>
@@ -302,6 +302,16 @@
       </q-card>
     </q-dialog>
 
+    <IssueDetailDialog
+      v-if="pmDetailDialog.issue"
+      v-model="pmDetailDialog.open"
+      :project-id="pmDetailDialog.issue.projectId"
+      :project-key="pmDetailDialog.issue.projectKey ?? ''"
+      :issue="pmDetailDialog.issue"
+      @updated="loadPmDashboard"
+      @deleted="loadPmDashboard"
+    />
+
   </q-page>
 </template>
 
@@ -316,6 +326,7 @@ import { STATUS_LABEL, STATUS_COLOR, type Issue } from 'src/services/pm/issue'
 import { listMySRs, SR_STATUS_LABEL, SR_STATUS_COLOR, type SRListItem } from 'src/services/sr'
 import { getPrefs, savePrefs, type ColPreset, type CardSize } from 'src/services/prefs'
 import CardSizePicker from 'src/components/CardSizePicker.vue'
+import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
 
 const auth = useAuthStore()
 const $q = useQuasar()
@@ -639,6 +650,11 @@ async function loadDangerSummary() {
 const pmLoading = ref(false)
 const pmMyIssues = ref<Issue[]>([])
 const hasPmPerm = computed(() => auth.me?.isAdmin || (auth.me?.permissions ?? []).includes('pm'))
+const pmDetailDialog = ref({ open: false, issue: null as Issue | null })
+
+function openPmIssueDetail(issue: Issue) {
+  pmDetailDialog.value = { open: true, issue }
+}
 
 async function loadPmDashboard() {
   pmLoading.value = true

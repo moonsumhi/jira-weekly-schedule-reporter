@@ -243,8 +243,17 @@ onMounted(async () => {
 
     const issueId = route.query.issueId as string | undefined
     if (issueId) {
+      const commentId = (route.query.commentId as string | undefined) ?? null
       const found = Object.values(board.value).flat().find(i => i.id === issueId)
-      if (found) openIssueDetail(found, (route.query.commentId as string | undefined) ?? null)
+      if (found) {
+        openIssueDetail(found, commentId)
+      } else {
+        // 현재 필터(스프린트 등)에 해당 이슈가 없을 수 있으므로 직접 조회해서 연다.
+        try {
+          const issue = await getIssue(projectId, issueId)
+          openIssueDetail(issue, commentId)
+        } catch { /* 이슈를 찾을 수 없으면 조용히 무시 */ }
+      }
     }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
