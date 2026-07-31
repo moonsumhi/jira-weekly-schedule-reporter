@@ -88,6 +88,22 @@ services:
       # - ${CLAUDE_JSON_PATH:-~/.claude.json}:/home/pilot/.claude.json  # Claude CLI config
       # - ${SSH_KEY_PATH:-~/.ssh}:/home/pilot/.ssh:ro  # SSH keys for git push
 
+  mcp:
+    image: ${HARBOR_URL:-x.x.x.x(HARBOR_URL)}/dev/jira-reporter-mcp:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: mcp-server/Dockerfile
+    container_name: jira-mcp
+    ports:
+      - "8002:8002"
+    environment:
+      - MCP_PORT=8002
+    env_file:
+      - ./app/secret/.env
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
   mongo-express:
     image: mongo-express:1.0.2-20
     container_name: mongo-express
