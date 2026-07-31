@@ -276,12 +276,7 @@ const routes: RouteRecordRaw[] = [
           },
         ]
       },
-      {
-        path: 'ai/chat',
-        meta: { requiresAuth: true },
-        component: () => import('pages/ai/AiChatPage.vue')
-      },
-      {
+{
         path: 'notifications',
         name: 'notifications',
         meta: { requiresAuth: true },
