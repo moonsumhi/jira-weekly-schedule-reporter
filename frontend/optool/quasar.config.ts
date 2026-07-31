@@ -53,7 +53,9 @@ export default defineConfig((ctx) => {
 
       // publicPath: '/',
       // analyze: true,
-      // env: {},
+      env: {
+        VITE_LIBRECHAT_URL: process.env.VITE_LIBRECHAT_URL ?? '',
+      },
       // rawDefine: {}
       // ignorePublicFolder: true,
       // minify: false,
