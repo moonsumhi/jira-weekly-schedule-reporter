@@ -22,7 +22,7 @@
 
         <!-- AI 채팅 -->
         <q-btn
-          v-if="auth.isLoggedIn"
+          v-if="auth.isLoggedIn && (auth.me?.isAdmin || auth.me?.permissions?.includes('ai_access'))"
           flat dense round
           icon="smart_toy"
           aria-label="AI 채팅"

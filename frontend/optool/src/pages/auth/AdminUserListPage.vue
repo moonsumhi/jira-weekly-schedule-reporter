@@ -59,6 +59,13 @@
                 >
                   {{ p.label }}
                 </q-badge>
+                <q-badge
+                  v-if="props.row.permissions?.includes('ai_access')"
+                  color="purple"
+                  text-color="white"
+                >
+                  AI
+                </q-badge>
               </div>
             </q-td>
           </template>
@@ -159,7 +166,14 @@
               <q-checkbox v-model="editPermissions" val="sr_manager" label="관리자 (sr_manager) — 검토·승인·담당자 배정 가능" color="deep-orange" />
             </div>
           </div>
-          <div v-else class="text-caption text-grey-6">
+
+          <div v-if="!editIsAdmin">
+            <q-separator class="q-my-sm" />
+            <div class="text-subtitle2 q-mb-sm">AI 기능</div>
+            <q-checkbox v-model="editPermissions" val="ai_access" label="AI 어시스턴트 사용" color="purple" />
+          </div>
+
+          <div v-if="editIsAdmin" class="text-caption text-grey-6">
             관리자는 모든 메뉴에 접근 가능합니다.
           </div>
         </q-card-section>
