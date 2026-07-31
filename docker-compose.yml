@@ -34,6 +34,7 @@ services:
         NGINX_BASE_IMAGE: ${BO_FE_NGINX_BASE_IMAGE:-nginx:alpine}
         SKIP_NPM_INSTALL: ${BO_FE_SKIP_NPM_INSTALL:-false}
         NPM_REGISTRY: ${BO_FE_NPM_REGISTRY:-}
+        VITE_LIBRECHAT_URL: ${LIBRECHAT_URL:-}
     container_name: jira-frontend
     ports:
       - "9000:80"
