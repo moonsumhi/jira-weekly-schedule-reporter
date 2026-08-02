@@ -45,7 +45,7 @@ docker build --pull -f ${env.REMOTE_DIR}/Dockerfile --build-arg BASE_IMAGE=${env
 
 docker build --pull -f ${env.REMOTE_DIR}/frontend/optool/Dockerfile --build-arg NODE_BASE_IMAGE=${env.HARBOR_URL}/dev/node-base:22-alpine --build-arg NGINX_BASE_IMAGE=${env.HARBOR_URL}/dev/nginx:alpine --build-arg SKIP_NPM_INSTALL=true -t ${env.HARBOR_URL}/dev/jira-reporter-frontend:${env.SAFE_BRANCH}-${params.TAG} ${env.REMOTE_DIR}/
 
-docker build --pull -f ${env.REMOTE_DIR}/mcp-server/Dockerfile --build-arg BASE_IMAGE=${env.HARBOR_URL}/dev/python-base:3.12-slim --build-arg PIP_INDEX_URL=${env.PIP_INDEX_URL} -t ${env.HARBOR_URL}/dev/jira-reporter-mcp:${env.SAFE_BRANCH}-${params.TAG} ${env.REMOTE_DIR}/
+docker build --pull -f ${env.REMOTE_DIR}/mcp-server/Dockerfile --build-arg BASE_IMAGE=${env.HARBOR_URL}/dev/python-base:3.12-slim --build-arg SKIP_PIP_INSTALL=true -t ${env.HARBOR_URL}/dev/jira-reporter-mcp:${env.SAFE_BRANCH}-${params.TAG} ${env.REMOTE_DIR}/
 
 echo "===== 5. Push ====="
 docker push ${env.HARBOR_URL}/dev/jira-reporter-frontend:${env.SAFE_BRANCH}-${params.TAG} --tls-verify=false
