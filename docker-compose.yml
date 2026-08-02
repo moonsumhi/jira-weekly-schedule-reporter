@@ -99,8 +99,8 @@ services:
       - "8002:8002"
     environment:
       - MCP_PORT=8002
-    env_file:
-      - ./app/secret/.env
+      - MONGO_URI=mongodb://${APP_DB_USER}:${APP_DB_PASS}@mongo:27017/?authSource=${APP_DB_NAME}
+      - APP_DB_NAME=${APP_DB_NAME}
     depends_on:
       - mongo
     restart: unless-stopped
