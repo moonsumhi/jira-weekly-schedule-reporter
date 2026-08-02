@@ -12,7 +12,6 @@ RUN if [ "$SKIP_PIP_INSTALL" = "false" ]; then \
     fi
 
 COPY mcp-server/server.py .
-COPY app/secret/.env ./app/secret/.env
 
 EXPOSE 8002
 

@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from pymongo import MongoClient
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "../app/secret/.env"))
+load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("APP_DB_NAME")
