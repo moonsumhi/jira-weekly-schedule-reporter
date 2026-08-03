@@ -256,4 +256,5 @@ if __name__ == "__main__":
     port = int(os.getenv("MCP_PORT", "8002"))
     mcp.settings.host = "0.0.0.0"
     mcp.settings.port = port
+    mcp.settings.allowed_origins = ["*"]
     mcp.run(transport="sse")
