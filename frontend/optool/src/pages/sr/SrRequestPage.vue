@@ -277,12 +277,27 @@
               @uploaded="onFileUploaded"
               @failed="onUploadFailed"
             />
-            <div v-if="extraAttachments.length" class="q-mt-sm row q-gutter-xs">
-              <q-chip v-for="(att, i) in extraAttachments" :key="i"
-                removable @remove="extraAttachments.splice(i, 1)"
-                icon="attach_file" color="blue-1" text-color="blue-9" size="sm">
-                {{ att.originalName }}
-              </q-chip>
+            <div v-if="extraAttachments.length" class="q-mt-sm">
+              <!-- 이미지 썸네일 미리보기 -->
+              <div v-if="extraAttachments.some(isImageAttachment)" class="row wrap q-gutter-sm q-mb-xs">
+                <div v-for="(att, i) in extraAttachments" :key="att.fileId || i" v-show="isImageAttachment(att)" class="relative-position">
+                  <a :href="att.url" target="_blank">
+                    <img :src="att.url" :alt="att.originalName"
+                      style="height:80px;max-width:160px;border-radius:6px;object-fit:cover;display:block;cursor:pointer" />
+                  </a>
+                  <q-btn round dense flat size="xs" icon="close"
+                    style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.45);color:#fff"
+                    @click="extraAttachments.splice(i, 1)" />
+                </div>
+              </div>
+              <!-- 일반 파일 -->
+              <div v-if="extraAttachments.some(att => !isImageAttachment(att))" class="row wrap q-gutter-xs">
+                <q-chip v-for="(att, i) in extraAttachments" :key="att.fileId || i" v-show="!isImageAttachment(att)"
+                  removable @remove="extraAttachments.splice(i, 1)"
+                  :icon="fileIcon(att.contentType)" color="blue-1" text-color="blue-9" size="sm">
+                  {{ att.originalName }} <span class="text-grey-6 q-ml-xs">({{ formatFileSize(att.size) }})</span>
+                </q-chip>
+              </div>
             </div>
           </div>
 
@@ -523,6 +538,20 @@ function onUploadFailed() {
 function priorityLabel(v: string) { return (SR_PRIORITY_LABEL as Record<string, string>)[v] ?? v }
 function priorityColor(v: string) { return (SR_PRIORITY_COLOR as Record<string, string>)[v] ?? 'grey' }
 function fmtDate(d: string) { return d ? d.substring(0, 10) : '' }
+
+function isImageAttachment(att: SRAttachment) { return att.contentType?.startsWith('image/') ?? false }
+function fileIcon(ct: string) {
+  if (ct.startsWith('image/')) return 'image'
+  if (ct.includes('pdf')) return 'picture_as_pdf'
+  if (ct.includes('spreadsheet') || ct.includes('excel')) return 'table_chart'
+  if (ct.includes('zip') || ct.includes('compressed')) return 'folder_zip'
+  return 'insert_drive_file'
+}
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
 
 // ── 임시저장 불러오기 ─────────────────────────────────────────────────
 async function loadDraft(id: string) {
