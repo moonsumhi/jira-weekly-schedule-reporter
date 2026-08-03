@@ -254,4 +254,6 @@ def list_watch_assignments(limit: int = 20) -> str:
 
 if __name__ == "__main__":
     port = int(os.getenv("MCP_PORT", "8002"))
-    mcp.run(transport="sse", host="0.0.0.0", port=port)
+    mcp.settings.host = "0.0.0.0"
+    mcp.settings.port = port
+    mcp.run(transport="sse")
