@@ -5,6 +5,7 @@ from datetime import datetime
 from bson import ObjectId
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pymongo import MongoClient
 
 load_dotenv()
@@ -15,7 +16,13 @@ DB_NAME = os.getenv("APP_DB_NAME")
 _client = MongoClient(MONGO_URI)
 db = _client[DB_NAME]
 
-mcp = FastMCP("백오피스")
+# 내부망 배포 — DNS rebinding 보호를 끄지 않으면 외부 서버(LibreChat 등) 요청이 421로 거부된다.
+mcp = FastMCP(
+    "백오피스",
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    ),
+)
 
 ASSET_COLLECTIONS = {
     "서버": "assets_servers",
@@ -256,5 +263,4 @@ if __name__ == "__main__":
     port = int(os.getenv("MCP_PORT", "8002"))
     mcp.settings.host = "0.0.0.0"
     mcp.settings.port = port
-    mcp.settings.allowed_origins = ["*"]
     mcp.run(transport="sse")
