@@ -107,9 +107,14 @@
                 </q-field>
               </div>
               <div class="col-12 col-sm-6">
-                <q-input v-model="form.relatedSystem" label="대상 시스템 *" outlined dense
-                  placeholder="어떤 시스템에 대한 요청인지"
-                  :rules="[v => !!v || '필수 항목입니다.']" />
+                <q-select v-model="form.relatedSystem" :options="systemOptions" label="대상 시스템 *" outlined dense
+                  :rules="[v => !!v || '필수 항목입니다.']">
+                  <template v-if="!systemOptions.length" #no-option>
+                    <q-item>
+                      <q-item-section class="text-grey">등록된 시스템이 없습니다. 관리자에게 문의하세요.</q-item-section>
+                    </q-item>
+                  </template>
+                </q-select>
               </div>
             </div>
           </div>
@@ -343,6 +348,7 @@ import {
   type SRAttachment, type SRAttachmentInput, type RequestType, type SRPriority, type SRListItem,
 } from 'src/services/sr'
 import { SR_TYPE_FIELDS, TYPE_CARDS, type SRTypeField } from 'src/services/sr-type-fields'
+import { envCategoryService } from 'src/services/envCategory'
 
 const $q        = useQuasar()
 const router    = useRouter()
@@ -358,6 +364,7 @@ const extraAttachments  = ref<SRAttachment[]>([])
 const drafts           = ref<SRListItem[]>([])
 const draftId          = ref<string | null>(null)
 const draftLoading     = ref<string | null>(null)
+const systemOptions    = ref<string[]>([])
 
 const form = ref({
   title:                '',
@@ -386,7 +393,22 @@ const priorityOptions   = SR_PRIORITY_OPTIONS
 const currentTypeFields = computed(() => SR_TYPE_FIELDS[form.value.requestType ?? ''] ?? [])
 const selectedTypeCard  = computed(() => typeCards.find(t => t.value === form.value.requestType))
 
+async function loadSystemOptions() {
+  try {
+    const items = await envCategoryService.itemsByKey('target_system')
+    systemOptions.value = items.map(i => i.label)
+  } catch { /* 조용히 실패 */ }
+}
+
+// 관리 목록에 없는(과거 자유 텍스트 등) 값이 폼에 들어있으면 드롭다운에서 사라지지 않도록 끼워 넣는다.
+function ensureSystemOption(value: string) {
+  if (value && !systemOptions.value.includes(value)) {
+    systemOptions.value = [value, ...systemOptions.value]
+  }
+}
+
 onMounted(async () => {
+  await loadSystemOptions()
   if (editId.value) {
     await loadSrForEdit(editId.value)
   } else {
@@ -415,7 +437,7 @@ function validateStep2(): boolean {
     return false
   }
   if (!form.value.relatedSystem.trim()) {
-    $q.notify({ type: 'warning', message: '대상 시스템을 입력해주세요.', position: 'top' })
+    $q.notify({ type: 'warning', message: '대상 시스템을 선택해주세요.', position: 'top' })
     step.value = 2
     return false
   }
@@ -513,6 +535,7 @@ async function loadDraft(id: string) {
     form.value.title                = sr.title
     form.value.requesterDepartment = sr.requesterDepartment
     form.value.relatedSystem       = sr.relatedSystem ?? ''
+    ensureSystemOption(form.value.relatedSystem)
     form.value.background           = sr.background ?? ''
     form.value.description          = sr.description ?? ''
     form.value.desiredDueDate     = sr.desiredDueDate ? sr.desiredDueDate.substring(0, 10) : null
@@ -558,6 +581,7 @@ async function loadSrForEdit(id: string) {
     form.value.requesterDepartment  = sr.requesterDepartment
     form.value.requesterEmail       = sr.requesterEmail
     form.value.relatedSystem        = sr.relatedSystem ?? ''
+    ensureSystemOption(form.value.relatedSystem)
     form.value.background           = sr.background ?? ''
     form.value.description          = sr.description ?? ''
     form.value.desiredDueDate       = sr.desiredDueDate ? sr.desiredDueDate.substring(0, 10) : null

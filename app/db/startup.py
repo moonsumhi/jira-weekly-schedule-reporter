@@ -89,6 +89,9 @@ async def create_indexes() -> None:
     await notices_col.create_index("start_date")
     await notices_col.create_index("end_date")
 
+    env_categories_col = MongoClientManager.get_env_categories_collection()
+    await env_categories_col.create_index("key", unique=True)
+
     logger.info("DB 인덱스 생성 완료")
 
 
@@ -501,6 +504,33 @@ async def migrate_notice_submenu() -> None:
         logger.info("공지사항 서브메뉴 추가")
 
 
+async def seed_env_categories() -> None:
+    """관리자가 화면에서 관리하는 동적 설정(카테고리) 초기값을 없으면 삽입한다 (멱등)."""
+    col = MongoClientManager.get_env_categories_collection()
+    if not await col.find_one({"key": "target_system"}):
+        await col.insert_one({
+            "key": "target_system",
+            "label": "대상 시스템",
+            "is_system": True,
+            "items": [],
+            "created_at": datetime.now(timezone.utc),
+        })
+        logger.info("env_categories 초기값 삽입: target_system")
+
+
+async def migrate_env_submenu() -> None:
+    """admin 메뉴에 환경설정 서브메뉴가 없으면 추가한다 (멱등)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    item = {"title": "환경설정", "icon": "fa-solid fa-sliders", "link": "/admin/env"}
+    doc = await menus_col.find_one({"slug": "admin"})
+    if not doc:
+        return
+    existing_links = [s.get("link") for s in doc.get("submenus", [])]
+    if item["link"] not in existing_links:
+        await menus_col.update_one({"slug": "admin"}, {"$push": {"submenus": item}})
+        logger.info("환경설정 서브메뉴 추가")
+
+
 async def seed_job_form_templates() -> None:
     """Job 폼 템플릿이 없으면 초기 데이터를 삽입한다."""
     col = MongoClientManager.get_form_templates_collection()
@@ -557,6 +587,8 @@ async def run_startup() -> None:
     await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
     await migrate_notice_submenu()
+    await seed_env_categories()
+    await migrate_env_submenu()
     await seed_job_form_templates()
     await migrate_assets()
 

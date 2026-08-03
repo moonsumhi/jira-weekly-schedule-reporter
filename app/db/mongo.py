@@ -53,6 +53,7 @@ class MongoClientManager:
     APP_SETTINGS = "app_settings"
     LINKS = "links"
     DDAYS = "ddays"
+    ENV_CATEGORIES = "env_categories"
 
     # ── Service Request (SR) ─────────────────────────────────────
     SERVICE_REQUESTS        = "service_requests"
@@ -194,6 +195,10 @@ class MongoClientManager:
     @classmethod
     def get_links_collection(cls):
         return cls.get_db()[cls.LINKS]
+
+    @classmethod
+    def get_env_categories_collection(cls):
+        return cls.get_db()[cls.ENV_CATEGORIES]
 
     @classmethod
     def get_ddays_collection(cls):
