@@ -20,6 +20,19 @@
         <!-- 알림 벨 -->
         <NotificationBell v-if="auth.isLoggedIn" class="q-ml-xs" />
 
+        <!-- AI 채팅 -->
+        <q-btn
+          v-if="auth.isLoggedIn && (auth.me?.isAdmin || auth.me?.permissions?.includes('ai_access'))"
+          flat dense round
+          icon="smart_toy"
+          aria-label="AI 채팅"
+          class="q-ml-xs"
+          :color="aiChatOpen ? 'white' : ''"
+          @click="aiChatOpen = !aiChatOpen"
+        >
+          <q-tooltip>AI 어시스턴트</q-tooltip>
+        </q-btn>
+
         <!-- 링크 사이드바 토글 (내부망만) -->
         <q-btn
           v-if="auth.isLoggedIn && !isExternal"
@@ -249,6 +262,8 @@
 
     <NoticePopup v-if="auth.isLoggedIn" />
 
+    <AiChatPanel :open="aiChatOpen" @close="aiChatOpen = false" />
+
     <IssueDetailDialog
       v-if="issueDialog.issue"
       v-model="issueDialog.open"
@@ -271,6 +286,7 @@ import { useNotificationStore } from 'stores/notification'
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue'
 import NotificationBell from 'components/NotificationBell.vue'
 import NoticePopup from 'components/NoticePopup.vue'
+import AiChatPanel from 'components/AiChatPanel.vue'
 import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
 import { useIssueDialogStore } from 'stores/issueDialog'
 import type { MenuOut } from 'src/services/menus'
@@ -375,6 +391,7 @@ let pendingTimer: ReturnType<typeof setInterval> | null = null
 
 const leftDrawerOpen = ref(false)
 const rightDrawerOpen = ref(false)
+const aiChatOpen = ref(false)
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value

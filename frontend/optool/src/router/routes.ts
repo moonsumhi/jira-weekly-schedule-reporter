@@ -276,7 +276,7 @@ const routes: RouteRecordRaw[] = [
           },
         ]
       },
-      {
+{
         path: 'notifications',
         name: 'notifications',
         meta: { requiresAuth: true },

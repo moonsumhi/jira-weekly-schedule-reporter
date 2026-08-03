@@ -44,6 +44,7 @@ pipeline {
                             echo "===== docker pull ====="
                             docker pull ${env.HARBOR_URL}/dev/jira-reporter-frontend:${params.TAG}
                             docker pull ${env.HARBOR_URL}/dev/jira-reporter-backend:${params.TAG}
+                            docker pull ${env.HARBOR_URL}/dev/jira-reporter-mcp:${params.TAG}
                             docker pull ${env.HARBOR_URL}/dev/mongo:latest
                             docker pull ${env.HARBOR_URL}/dev/mongo-express:latest
 
