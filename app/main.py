@@ -34,6 +34,7 @@ from app.core.config import settings
 from app.db.mongo import MongoClientManager
 from app.db.startup import run_startup
 from app.services.jira_poller import JiraPollerService
+from app.services.delayed_digest_service import DelayedDigestService
 from app.middleware.activity_logger import ActivityLoggerMiddleware
 
 
@@ -49,11 +50,19 @@ async def lifespan(app: FastAPI):
         poller.start()
         logging.getLogger(__name__).info("JiraPollerService started")
 
+    digest_service = None
+    if settings.DELAYED_DIGEST_ENABLED:
+        digest_service = DelayedDigestService()
+        digest_service.start()
+        logging.getLogger(__name__).info("DelayedDigestService started")
+
     yield
 
     # ---- shutdown ----
     if poller:
         poller.stop()
+    if digest_service:
+        digest_service.stop()
     await MongoClientManager.close_client()
 
 

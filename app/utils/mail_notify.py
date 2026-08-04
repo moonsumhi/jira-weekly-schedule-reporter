@@ -74,6 +74,69 @@ _EVENT_URLS = {
 }
 
 
+async def _post_mail(url: str, recipients: list[str], data_map: dict[str, str], log_prefix: str) -> None:
+    """dataMap 폼 바디를 만들어 mail-service에 POST. 404면 최대 _MAX_RETRY_ON_404회 재시도.
+
+    실패해도 예외를 삼키고 로그만 남긴다 (호출 측의 본 작업을 막지 않기 위함).
+    """
+    form_items: list[tuple[str, str]] = [("sendUserEmail", r) for r in recipients]
+    form_items.append(("dataMap", _ruby_hash_str(data_map)))
+    # httpx 0.28의 data=list[tuple] 조합이 AsyncClient에서 비동기 스트림을 만들지 못하는
+    # 버그가 있어(RuntimeError: Attempted to send an sync request...), 폼 바디를 직접
+    # urlencode해서 content로 보낸다.
+    body = urllib.parse.urlencode(form_items)
+
+    logger.info("%s 메일 발송 요청 상세: url=%s body=%s", log_prefix, url, body)
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            for attempt in range(1, _MAX_RETRY_ON_404 + 1):
+                resp = await client.post(
+                    url,
+                    content=body,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                )
+                logger.info(
+                    "%s 메일 발송 요청: to=%s status_code=%s response=%s",
+                    log_prefix, recipients, resp.status_code, resp.text[:500],
+                )
+                # 404는 mail-service가 요청을 라우팅/매칭하는 단계에서 끊긴 것으로,
+                # 실제 발송 로직에 도달하지 못했다는 뜻이라 재시도해도 중복 발송이 아니다.
+                if resp.status_code != 404 or attempt == _MAX_RETRY_ON_404:
+                    break
+                logger.warning("%s 메일 발송 404, 재시도 %s/%s", log_prefix, attempt, _MAX_RETRY_ON_404)
+                await asyncio.sleep(_RETRY_DELAY_SECONDS)
+    except Exception as e:
+        logger.warning("%s 메일 발송 실패: %s: %s", log_prefix, type(e).__name__, e)
+
+
+async def send_delayed_digest(
+    to_email: str, to_name: str, sr_items: list[dict], issue_items: list[dict],
+) -> None:
+    """담당자 한 명에게 그날의 지연 SR/이슈 목록을 한 통으로 보낸다.
+
+    sr_items: [{"sr_no", "title", "days_late"}, ...]
+    issue_items: [{"key", "title", "days_late"}, ...]
+    """
+    total = len(sr_items) + len(issue_items)
+    if total == 0:
+        return
+
+    lines = [f"- {i['sr_no']}: {i['title']} (D+{i['days_late']})" for i in sr_items]
+    lines += [f"- {i['key']}: {i['title']} (D+{i['days_late']})" for i in issue_items]
+
+    data_map = {
+        "subject": _sanitize_for_mail(f"[지연 일정 알림] {to_name}님, 지연된 일정이 {total}건 있습니다"),
+        "description": _sanitize_for_mail("\n".join(lines)),
+        "start_date": _fmt_date(datetime.now()),
+        "adminInfo": to_name or "-",
+    }
+    await _post_mail(
+        settings.SR_MAIL_DELAYED_DIGEST_URL, [to_email], data_map,
+        log_prefix=f"지연 다이제스트(to={to_email})",
+    )
+
+
 async def send_sr_notification(doc: dict, event: str) -> None:
     """SR 문서(dict)를 바탕으로 요청자에게 알림 메일을 발송한다.
 
@@ -109,42 +172,8 @@ async def send_sr_notification(doc: dict, event: str) -> None:
         "due_date": _fmt_date(doc.get("desired_due_date")),
     }
 
-    form_items: list[tuple[str, str]] = [("sendUserEmail", r) for r in recipients]
-    form_items.append(("dataMap", _ruby_hash_str(data_map)))
-    # httpx 0.28의 data=list[tuple] 조합이 AsyncClient에서 비동기 스트림을 만들지 못하는
-    # 버그가 있어(RuntimeError: Attempted to send an sync request...), 폼 바디를 직접
-    # urlencode해서 content로 보낸다.
-    body = urllib.parse.urlencode(form_items)
     url = _EVENT_URLS.get(event, lambda: settings.SR_MAIL_SERVICE_URL)()
-
-    logger.info(
-        "SR 메일 발송 요청 상세: sr_no=%s event=%s url=%s body=%s",
-        doc.get("sr_no"), event, url, body,
+    await _post_mail(
+        url, recipients, data_map,
+        log_prefix=f"SR(sr_no={doc.get('sr_no')}, event={event})",
     )
-
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            for attempt in range(1, _MAX_RETRY_ON_404 + 1):
-                resp = await client.post(
-                    url,
-                    content=body,
-                    headers={"Content-Type": "application/x-www-form-urlencoded"},
-                )
-                logger.info(
-                    "SR 메일 발송 요청: sr_no=%s event=%s to=%s status_code=%s response=%s",
-                    doc.get("sr_no"), event, recipients, resp.status_code, resp.text[:500],
-                )
-                # 404는 mail-service가 요청을 라우팅/매칭하는 단계에서 끊긴 것으로,
-                # 실제 발송 로직에 도달하지 못했다는 뜻이라 재시도해도 중복 발송이 아니다.
-                if resp.status_code != 404 or attempt == _MAX_RETRY_ON_404:
-                    break
-                logger.warning(
-                    "SR 메일 발송 404, 재시도 %s/%s (sr_no=%s, event=%s)",
-                    attempt, _MAX_RETRY_ON_404, doc.get("sr_no"), event,
-                )
-                await asyncio.sleep(_RETRY_DELAY_SECONDS)
-    except Exception as e:
-        logger.warning(
-            "SR 메일 발송 실패 (sr_no=%s, event=%s): %s: %s",
-            doc.get("sr_no"), event, type(e).__name__, e,
-        )
