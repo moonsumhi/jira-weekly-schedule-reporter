@@ -549,20 +549,36 @@
                 <!-- 추가 첨부파일 -->
                 <div v-if="extraAttachments.length">
                   <div class="tab-section-title q-mb-sm">첨부파일</div>
-                  <q-list dense bordered class="rounded-borders">
-                    <q-item v-for="att in extraAttachments" :key="att.fileId"
-                      clickable @click="downloadFile(att.url, att.originalName)">
-                      <q-item-section avatar>
-                        <q-icon :name="fileIcon(att.contentType)" color="blue-6" size="20px" />
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label class="text-primary" style="font-size:0.85rem">{{ att.originalName }}</q-item-label>
-                        <q-item-label caption>{{ fmtSize(att.size) }}</q-item-label>
-                      </q-item-section>
-                      <q-item-section side>
-                        <q-icon name="download" color="grey-4" size="16px" />
-                      </q-item-section>
-                    </q-item>
+                  <!-- 이미지: 미리보기 -->
+                  <div v-if="extraAttachments.some(att => att.contentType?.startsWith('image/'))" class="q-mb-sm">
+                    <template v-for="att in extraAttachments" :key="att.fileId">
+                      <div v-if="att.contentType?.startsWith('image/')" class="q-mb-sm">
+                        <a :href="att.url" target="_blank">
+                          <img :src="att.url" :alt="att.originalName"
+                            style="max-width:100%;max-height:320px;border-radius:6px;display:block;cursor:pointer" />
+                        </a>
+                        <div class="text-caption text-grey-5 q-mt-xs">{{ att.originalName }} ({{ fmtSize(att.size) }})</div>
+                      </div>
+                    </template>
+                  </div>
+                  <!-- 일반 파일: 클릭 시 다운로드 -->
+                  <q-list v-if="extraAttachments.some(att => !att.contentType?.startsWith('image/'))" dense bordered class="rounded-borders">
+                    <template v-for="att in extraAttachments" :key="att.fileId">
+                      <q-item v-if="!att.contentType?.startsWith('image/')"
+                        clickable @click="openPreview(att)">
+                        <q-item-section avatar>
+                          <q-icon :name="fileIcon(att.contentType)" color="blue-6" size="20px" />
+                        </q-item-section>
+                        <q-item-section>
+                          <q-item-label class="text-primary" style="font-size:0.85rem">{{ att.originalName }}</q-item-label>
+                          <q-item-label caption>{{ fmtSize(att.size) }}</q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-btn flat dense round icon="download" color="grey-6" size="sm"
+                            @click.stop="downloadFile(att.url, att.originalName)" />
+                        </q-item-section>
+                      </q-item>
+                    </template>
                   </q-list>
                 </div>
 
@@ -723,12 +739,14 @@
                         <!-- 일반 파일 -->
                         <div v-else
                           class="row items-center q-gutter-xs comment-file-link no-wrap cursor-pointer"
-                          @click="downloadFile(att.url, att.originalName)">
+                          @click="openPreview(att)">
                           <q-icon name="attach_file" size="14px" color="grey-6" />
                           <span class="text-caption ellipsis">{{ att.originalName }}</span>
                           <span class="text-caption text-grey-5" style="white-space:nowrap;flex-shrink:0">
                             ({{ formatFileSize(att.size) }})
                           </span>
+                          <q-btn flat dense round icon="download" color="grey-6" size="xs"
+                            @click.stop="downloadFile(att.url, att.originalName)" />
                         </div>
                       </template>
                     </div>
@@ -1110,6 +1128,8 @@
       :issue="issueDialog.issue"
     />
 
+    <AttachmentPreviewDialog v-model="previewOpen" :attachment="previewAttachment" />
+
   </q-page>
 </template>
 
@@ -1136,6 +1156,8 @@ import MentionContent from 'src/components/MentionContent.vue'
 import type { MentionUser } from 'src/services/mention'
 import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
 import { getLinkedIssue, type Issue } from 'src/services/pm/issue'
+import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
+import { downloadAttachment } from 'src/utils/attachment'
 
 // ── 상수 ────────────────────────────────────────────────────────────
 
@@ -1525,20 +1547,17 @@ async function openLinkedIssue() {
 
 async function downloadFile(url: string, filename: string) {
   try {
-    const token = useAuthStore().token
-    const resp = await fetch(url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-    if (!resp.ok) throw new Error(`${resp.status}`)
-    const blob = await resp.blob()
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(a.href)
+    await downloadAttachment(url, filename)
   } catch {
     $q.notify({ type: 'negative', message: '파일 다운로드에 실패했습니다.' })
   }
+}
+
+const previewOpen = ref(false)
+const previewAttachment = ref<SRAttachment | null>(null)
+function openPreview(att: SRAttachment) {
+  previewAttachment.value = att
+  previewOpen.value = true
 }
 
 async function submitComment() {

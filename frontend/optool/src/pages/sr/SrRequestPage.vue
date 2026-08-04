@@ -293,6 +293,7 @@
               <!-- 일반 파일 -->
               <div v-if="extraAttachments.some(att => !isImageAttachment(att))" class="row wrap q-gutter-xs">
                 <q-chip v-for="(att, i) in extraAttachments" :key="att.fileId || i" v-show="!isImageAttachment(att)"
+                  clickable @click="openPreview(att)"
                   removable @remove="extraAttachments.splice(i, 1)"
                   :icon="fileIcon(att.contentType)" color="blue-1" text-color="blue-9" size="sm">
                   {{ att.originalName }} <span class="text-grey-6 q-ml-xs">({{ formatFileSize(att.size) }})</span>
@@ -348,6 +349,8 @@
       </q-step>
 
     </q-stepper>
+
+    <AttachmentPreviewDialog v-model="previewOpen" :attachment="previewAttachment" />
   </q-page>
 </template>
 
@@ -364,6 +367,7 @@ import {
 } from 'src/services/sr'
 import { SR_TYPE_FIELDS, TYPE_CARDS, type SRTypeField } from 'src/services/sr-type-fields'
 import { envCategoryService } from 'src/services/envCategory'
+import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
 
 const $q        = useQuasar()
 const router    = useRouter()
@@ -540,6 +544,13 @@ function priorityColor(v: string) { return (SR_PRIORITY_COLOR as Record<string, 
 function fmtDate(d: string) { return d ? d.substring(0, 10) : '' }
 
 function isImageAttachment(att: SRAttachment) { return att.contentType?.startsWith('image/') ?? false }
+
+const previewOpen = ref(false)
+const previewAttachment = ref<SRAttachment | null>(null)
+function openPreview(att: SRAttachment) {
+  previewAttachment.value = att
+  previewOpen.value = true
+}
 function fileIcon(ct: string) {
   if (ct.startsWith('image/')) return 'image'
   if (ct.includes('pdf')) return 'picture_as_pdf'
