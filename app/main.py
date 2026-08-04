@@ -6,6 +6,11 @@ from contextlib import asynccontextmanager
 logging.basicConfig(level=logging.INFO)
 
 from fastapi import FastAPI
+from fastapi.openapi.docs import (
+    get_redoc_html,
+    get_swagger_ui_html,
+    get_swagger_ui_oauth2_redirect_html,
+)
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -79,7 +84,45 @@ class ExternalReadOnlyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
-app = FastAPI(title="Jira Task Viewer API", version="1.3.0", lifespan=lifespan)
+# 기본 /docs·/redoc은 CDN(jsdelivr)에서 JS를 불러오므로 내부망(오프라인)에서 깨진다.
+# → 아래에서 정적 파일을 직접 서빙하는 커스텀 라우트로 대체한다.
+app = FastAPI(
+    title="Jira Task Viewer API",
+    version="1.3.0",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+)
+
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+
+
+@app.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=f"{app.title} - Swagger UI",
+        oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+        swagger_js_url="/static/swagger/swagger-ui-bundle.js",
+        swagger_css_url="/static/swagger/swagger-ui.css",
+        swagger_favicon_url="/static/swagger/favicon.png",
+    )
+
+
+@app.get(app.swagger_ui_oauth2_redirect_url, include_in_schema=False)
+async def swagger_ui_redirect():
+    return get_swagger_ui_oauth2_redirect_html()
+
+
+@app.get("/redoc", include_in_schema=False)
+async def custom_redoc_html():
+    return get_redoc_html(
+        openapi_url=app.openapi_url,
+        title=f"{app.title} - ReDoc",
+        redoc_js_url="/static/swagger/redoc.standalone.js",
+        redoc_favicon_url="/static/swagger/favicon.png",
+    )
 
 app.add_middleware(BuildIdMiddleware)
 app.add_middleware(ExternalReadOnlyMiddleware)
