@@ -23,6 +23,14 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_for_mail(text: str) -> str:
+    """mail-service가 백슬래시(\\)+백틱(`) 조합이 포함된 요청을 404로 거부하는 것을
+    확인했다 (아마 방화벽/보안 필터). 마크다운 에디터에서 인라인 코드 안 언더스코어가
+    자동으로 \\_ 로 이스케이프되며 이 패턴이 흔히 생기므로, 메일 발송 전 제거한다.
+    """
+    return text.replace("\\", "").replace("`", "")
+
+
 def _fmt_date(value: Any) -> str:
     if not value:
         return "-"
@@ -93,8 +101,8 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     # subject(제목) / description(내용) / start_date(생성일자) /
     # adminInfo(담당자) / custom_field_values(요청자) / due_date(마감일자)
     data_map = {
-        "subject": doc.get("title") or "-",
-        "description": doc.get("description") or "-",
+        "subject": _sanitize_for_mail(doc.get("title") or "-"),
+        "description": _sanitize_for_mail(doc.get("description") or "-"),
         "start_date": _fmt_date(doc.get("created_at")),
         "adminInfo": doc.get("assignee_name") or "-",
         "custom_field_values": doc.get("requester_name") or "-",
