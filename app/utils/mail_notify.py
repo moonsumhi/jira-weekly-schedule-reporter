@@ -24,11 +24,15 @@ logger = logging.getLogger(__name__)
 
 
 def _sanitize_for_mail(text: str) -> str:
-    """mail-service가 백슬래시(\\)+백틱(`) 조합이 포함된 요청을 404로 거부하는 것을
-    확인했다 (아마 방화벽/보안 필터). 마크다운 에디터에서 인라인 코드 안 언더스코어가
-    자동으로 \\_ 로 이스케이프되며 이 패턴이 흔히 생기므로, 메일 발송 전 제거한다.
+    """mail-service가 백슬래시(\\)+백틱(`) 조합, 그리고 줄바꿈(개행) 자체를 포함한
+    요청을 404로 거부하는 것을 확인했다 (아마 방화벽/보안 필터). 마크다운 에디터에서
+    인라인 코드 안 언더스코어가 자동으로 \\_ 로 이스케이프되며 백슬래시+백틱 패턴이
+    흔히 생기고, 사용자가 설명/제목에 엔터를 치면 개행이 들어가므로, 메일 발송 전
+    둘 다 제거·치환한다.
     """
-    return text.replace("\\", "").replace("`", "")
+    text = text.replace("\\", "").replace("`", "")
+    text = text.replace("\r\n", " / ").replace("\n", " / ").replace("\r", " / ")
+    return text
 
 
 def _fmt_date(value: Any) -> str:
@@ -122,12 +126,14 @@ async def send_delayed_digest(
     if total == 0:
         return
 
-    lines = [f"- {i['sr_no']}: {i['title']} (D+{i['days_late']})" for i in sr_items]
-    lines += [f"- {i['key']}: {i['title']} (D+{i['days_late']})" for i in issue_items]
+    # mail-service가 실제 개행 문자를 포함한 요청을 404로 거부하므로(_sanitize_for_mail 참고),
+    # 줄바꿈이 아니라 " / " 구분자로 항목을 나열한다.
+    lines = [f"{i['sr_no']}: {i['title']} (D+{i['days_late']})" for i in sr_items]
+    lines += [f"{i['key']}: {i['title']} (D+{i['days_late']})" for i in issue_items]
 
     data_map = {
         "subject": _sanitize_for_mail(f"[지연 일정 알림] {to_name}님, 지연된 일정이 {total}건 있습니다"),
-        "description": _sanitize_for_mail("\n".join(lines)),
+        "description": _sanitize_for_mail(" / ".join(lines)),
         "start_date": _fmt_date(datetime.now()),
         "adminInfo": to_name or "-",
     }
