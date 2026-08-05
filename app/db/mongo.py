@@ -31,6 +31,7 @@ class MongoClientManager:
         "VMware":      (ASSETS_VMWARE,   ASSETS_VMWARE_HISTORY),
     }
     PILOT_POLL_STATE = "pilot_poll_state"
+    DELAYED_DIGEST_STATE = "delayed_digest_state"
     INSPECTION_CHECKLISTS = "inspection_checklists"
     INSPECTION_HISTORY = "inspection_history"
     JOB_PLANS = "job_plans"
@@ -147,6 +148,10 @@ class MongoClientManager:
     @classmethod
     def get_pilot_poll_state_collection(cls):
         return cls.get_db()[cls.PILOT_POLL_STATE]
+
+    @classmethod
+    def get_delayed_digest_state_collection(cls):
+        return cls.get_db()[cls.DELAYED_DIGEST_STATE]
 
     @classmethod
     def get_inspection_checklists_collection(cls):

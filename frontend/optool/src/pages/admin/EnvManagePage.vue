@@ -260,10 +260,10 @@ async function moveItem(idx: number, dir: -1 | 1) {
   const current = items[idx]
   if (!other || !current) return
   try {
-    await Promise.all([
-      envCategoryService.patchItem(selected.value.id, current.id, { sortOrder: other.sortOrder }),
-      envCategoryService.patchItem(selected.value.id, other.id, { sortOrder: current.sortOrder }),
-    ])
+    // 백엔드가 items 배열 전체를 읽고-수정하고-통째로 저장하는 방식이라,
+    // 두 PATCH를 동시에 보내면 나중에 끝나는 쪽이 먼저 쓴 걸 덮어써버린다. 순차 실행.
+    await envCategoryService.patchItem(selected.value.id, current.id, { sortOrder: other.sortOrder })
+    await envCategoryService.patchItem(selected.value.id, other.id, { sortOrder: current.sortOrder })
     await load()
   } catch {
     $q.notify({ type: 'negative', message: '순서 변경에 실패했습니다' })

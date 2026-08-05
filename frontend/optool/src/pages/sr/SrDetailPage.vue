@@ -1695,7 +1695,7 @@ watch(() => route.params.id, (newId) => {
 
 <style scoped>
 .firewall-table-wrap { overflow-x: auto; border: 1px solid #eee; border-radius: 6px; }
-.firewall-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; white-space: nowrap; }
+.firewall-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 0.82rem; white-space: nowrap; }
 .firewall-table th, .firewall-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; text-align: left; }
 .firewall-table th { background: #fafafa; color: #757575; font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
 .firewall-table tr:last-child td { border-bottom: none; }

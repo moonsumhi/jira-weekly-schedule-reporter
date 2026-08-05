@@ -37,9 +37,15 @@ class Settings(BaseSettings):
         default="http://10.32.18.52:8083/service/customCall/Backoffice_IssueFinish",
         description="사내 메일 발송 서비스 URL (백오피스 전용 엔드포인트) — SR 처리완료 시 요청자 메일 발송",
     )
+    SR_MAIL_DELAYED_DIGEST_URL: str = Field(
+        default="http://10.32.18.52:8083/service/customCall/Backoffice_DelayedDigest",
+        description="사내 메일 발송 서비스 URL (신규 템플릿 필요) — 지연된 SR/PM 이슈 담당자별 일일 다이제스트",
+    )
     CLAUDE_CODE_OAUTH_TOKEN: str = Field(default="", description="Claude Code OAuth token for CLI auth")
 
     ASSET_EXPORT_PASSWORD: str = Field(default="", description="Password for encrypted asset Excel export")
+
+    DELAYED_DIGEST_ENABLED: bool = Field(default=True, description="지연 일정 담당자별 메일 다이제스트(매일 09시 KST) 활성화 여부")
 
     PILOT_ENABLED: bool = Field(default=False, description="Enable Jira→Pilot polling")
     PILOT_GATEWAY_URL: str = Field(default="http://pilot:9090", description="Pilot gateway URL")

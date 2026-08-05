@@ -1,10 +1,19 @@
 from __future__ import annotations
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 import pytz
 from dateutil import parser as dtparser
 
 KST = pytz.timezone("Asia/Seoul")
+
+
+def next_9am_kst(now_utc: datetime) -> datetime:
+    """now_utc(UTC, tz-aware) 이후 가장 가까운 09:00 KST를 UTC로 반환한다."""
+    now_kst = now_utc.astimezone(KST)
+    candidate = now_kst.replace(hour=9, minute=0, second=0, microsecond=0)
+    if candidate <= now_kst:
+        candidate += timedelta(days=1)
+    return candidate.astimezone(timezone.utc)
 
 
 @dataclass(frozen=True)
