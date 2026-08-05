@@ -461,7 +461,11 @@
                       <div>
                         <div class="content-label q-mb-xs">방화벽 정책 목록</div>
                         <div v-if="!firewallRules.length" class="text-caption text-grey-5">등록된 정책이 없습니다.</div>
-                        <div v-else class="firewall-table-wrap">
+                        <div v-else class="firewall-table-wrap" ref="firewallWrapRef" tabindex="0"
+                          @mousedown="onFirewallDragStart"
+                          @mousemove="onFirewallDragMove"
+                          @mouseup="onFirewallDragEnd"
+                          @mouseleave="onFirewallDragEnd">
                           <table class="firewall-table">
                             <thead>
                               <tr>
@@ -1545,6 +1549,27 @@ async function openLinkedIssue() {
   }
 }
 
+// 방화벽 정책 목록 테이블: 스크롤바를 정확히 잡지 않아도 테이블 아무 곳이나
+// 클릭 후 드래그하면 가로로 밀리도록 지원 (네이티브 스크롤바가 얇아 잡기 어려움).
+const firewallWrapRef = ref<HTMLElement | null>(null)
+const firewallDrag = ref<{ startX: number; startScrollLeft: number } | null>(null)
+
+function onFirewallDragStart(e: MouseEvent) {
+  const el = firewallWrapRef.value
+  if (!el) return
+  firewallDrag.value = { startX: e.pageX, startScrollLeft: el.scrollLeft }
+}
+function onFirewallDragMove(e: MouseEvent) {
+  const el = firewallWrapRef.value
+  if (!el || !firewallDrag.value) return
+  e.preventDefault()
+  const delta = e.pageX - firewallDrag.value.startX
+  el.scrollLeft = firewallDrag.value.startScrollLeft - delta
+}
+function onFirewallDragEnd() {
+  firewallDrag.value = null
+}
+
 async function downloadFile(url: string, filename: string) {
   try {
     await downloadAttachment(url, filename)
@@ -1694,7 +1719,19 @@ watch(() => route.params.id, (newId) => {
 </script>
 
 <style scoped>
-.firewall-table-wrap { overflow-x: auto; border: 1px solid #eee; border-radius: 6px; }
+.firewall-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  scrollbar-width: auto; /* Firefox: 얇은 기본값(thin) 대신 잡기 쉬운 기본 두께 */
+  cursor: grab;
+  user-select: none;
+}
+.firewall-table-wrap:active { cursor: grabbing; }
+.firewall-table-wrap::-webkit-scrollbar { height: 12px; }
+.firewall-table-wrap::-webkit-scrollbar-track { background: #f5f5f5; border-radius: 6px; }
+.firewall-table-wrap::-webkit-scrollbar-thumb { background: #bdbdbd; border-radius: 6px; }
+.firewall-table-wrap::-webkit-scrollbar-thumb:hover { background: #9e9e9e; }
 .firewall-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 0.82rem; white-space: nowrap; }
 .firewall-table th, .firewall-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; text-align: left; }
 .firewall-table th { background: #fafafa; color: #757575; font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
