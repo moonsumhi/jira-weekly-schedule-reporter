@@ -785,7 +785,7 @@ const typeCards = [
   { value: 'SERVER_INFRA',  label: '서버/인프라',   icon: 'dns',        desc: '서버 작업·인프라 요청' },
   { value: 'SECURITY',      label: '보안 조치',     icon: 'security',   desc: '취약점 조치·보안 점검' },
   { value: 'FIREWALL',      label: '방화벽 신청',   icon: 'lan',        desc: '방화벽 정책 오픈·변경·삭제' },
-  { value: 'BACKOFFICE_EAA', label: 'EAA 계정 생성', icon: 'domain_add', desc: 'EAA 계정 생성·환경 설정 등 백오피스 시스템 요청' },
+  { value: 'BACKOFFICE_EAA', label: 'EAA 계정 생성', icon: 'domain_add', desc: 'EAA 계정 생성 요청' },
   { value: 'ETC',           label: '기타',          icon: 'more_horiz', desc: '위 항목에 해당하지 않는 요청' },
 ]
 
