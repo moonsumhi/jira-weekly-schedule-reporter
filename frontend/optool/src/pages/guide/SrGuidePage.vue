@@ -785,6 +785,7 @@ const typeCards = [
   { value: 'SERVER_INFRA',  label: '서버/인프라',   icon: 'dns',        desc: '서버 작업·인프라 요청' },
   { value: 'SECURITY',      label: '보안 조치',     icon: 'security',   desc: '취약점 조치·보안 점검' },
   { value: 'FIREWALL',      label: '방화벽 신청',   icon: 'lan',        desc: '방화벽 정책 오픈·변경·삭제' },
+  { value: 'BACKOFFICE_EAA', label: '백오피스 접수', icon: 'domain_add', desc: 'EAA 계정 생성·환경 설정 등 백오피스 시스템 요청' },
   { value: 'ETC',           label: '기타',          icon: 'more_horiz', desc: '위 항목에 해당하지 않는 요청' },
 ]
 
@@ -797,6 +798,7 @@ const typeExamples = [
   { type: 'SERVER_INFRA',  icon: 'dns',        color: 'indigo-7', label: '서버/인프라', fields: '대상 서버/시스템, 요청 작업 유형(생성/재기동/디스크증설/방화벽 등), 요청 상세, 작업 희망 일시, 서비스 영향 여부, 사전 백업 필요 여부' },
   { type: 'SECURITY',      icon: 'security',   color: 'deep-orange-8', label: '보안 조치', fields: '보안 요청 유형, 취약점/보안 이슈 (에디터), 위험도(상/중/하), 조치 요청 내용, 조치 기한, 증적 필요 여부' },
   { type: 'FIREWALL',      icon: 'lan',        color: 'cyan-8',   label: '방화벽 신청',  fields: '신청 구분(신규 오픈/정책 변경/정책 삭제/임시 오픈), 적용 환경(운영/개발), 출발지 IP/대역, 목적지 IP/대역, 포트/프로토콜, 방향(인바운드/아웃바운드/양방향), 업무 목적' },
+  { type: 'BACKOFFICE_EAA', icon: 'domain_add', color: 'pink-8',  label: '백오피스 접수', fields: '연구번호, 매핑 VM 정보(IP:PORT/ID 등), 사용자 정보(이름(소속)/이메일/비고, 반복 입력), 기타' },
 ]
 
 const myTabs = [

@@ -10,7 +10,7 @@ export type SRStatus =
 export type RequestType =
   | 'IMPROVEMENT' | 'BUG_FIX' | 'DATA_REQUEST'
   | 'PERMISSION' | 'CONFIG_CHANGE' | 'SERVER_INFRA'
-  | 'SECURITY' | 'FIREWALL' | 'ETC'
+  | 'SECURITY' | 'FIREWALL' | 'BACKOFFICE_EAA' | 'ETC'
 
 export type ImpactScope =
   | 'PERSONAL' | 'DEPARTMENT' | 'ALL_USERS' | 'EXTERNAL_USERS' | 'EXTERNAL_SERVICE'
@@ -60,6 +60,7 @@ export const REQUEST_TYPE_LABEL: Record<RequestType, string> = {
   SERVER_INFRA: '서버/인프라 요청',
   SECURITY: '보안 조치 요청',
   FIREWALL: '방화벽 신청',
+  BACKOFFICE_EAA: '백오피스 접수',
   ETC: '기타',
 }
 
