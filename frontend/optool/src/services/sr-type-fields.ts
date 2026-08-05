@@ -152,6 +152,19 @@ export const SR_TYPE_FIELDS: Record<string, SRTypeField[]> = {
     { key: 'expiryDate',     label: '만료일',             required: false, type: 'date',                                                 half: true },
   ],
 
+  BACKOFFICE_EAA: [
+    { key: 'researchNumber', label: '연구번호',       required: true,  type: 'text',     placeholder: '예: kccr2025-02' },
+    { key: 'mappedVmInfo',   label: '매핑 VM 정보',   required: true,  type: 'textarea', rows: 4,
+      placeholder: 'IP:PORT, ID 등 매핑 VM 접속 정보를 입력해주세요. (PW는 대시보드/엑셀 업로드로 별도 안내)' },
+    { key: 'userList',       label: '사용자 정보',     required: true,  type: 'table',
+      columns: [
+        { key: 'name',  label: '이름(소속)',    placeholder: '예: 홍길동(데이터운영팀)' },
+        { key: 'email', label: '이메일 주소',   placeholder: '예: user@ncc.re.kr' },
+        { key: 'note',  label: '비고',          placeholder: '선택 입력' },
+      ] },
+    { key: 'etc',             label: '기타',           required: false, type: 'textarea', rows: 2, placeholder: '특이사항 또는 긴급 연계 요망 시 기재' },
+  ],
+
   ETC: [
     { key: 'description', label: '요청 상세 내용', required: true, type: 'editor' },
   ],
@@ -166,5 +179,6 @@ export const TYPE_CARDS = [
   { value: 'SERVER_INFRA', label: '서버 / 인프라', icon: 'dns',        desc: '서버 작업 · 인프라 요청' },
   { value: 'SECURITY',     label: '보안 조치',    icon: 'security',   desc: '취약점 조치 · 보안 점검' },
   { value: 'FIREWALL',     label: '방화벽 신청',  icon: 'lan',        desc: '방화벽 정책 오픈 · 변경 · 삭제' },
+  { value: 'BACKOFFICE_EAA', label: '백오피스 접수', icon: 'domain_add', desc: 'EAA 계정 생성 · 환경 설정 등 백오피스 시스템 요청' },
   { value: 'ETC',          label: '기타',         icon: 'more_horiz', desc: '위 항목에 해당하지 않는 요청' },
 ]

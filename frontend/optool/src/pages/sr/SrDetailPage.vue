@@ -517,6 +517,52 @@
                     </div>
                   </template>
 
+                  <!-- BACKOFFICE_EAA -->
+                  <template v-else-if="sr.requestType === 'BACKOFFICE_EAA'">
+                    <div class="q-gutter-sm">
+                      <div v-if="sr.typeDetail?.researchNumber">
+                        <div class="content-label">연구번호</div>
+                        <div class="content-text">{{ sr.typeDetail.researchNumber }}</div>
+                      </div>
+                      <div v-if="sr.typeDetail?.mappedVmInfo">
+                        <div class="content-label">매핑 VM 정보</div>
+                        <div class="content-text pre-wrap">{{ sr.typeDetail.mappedVmInfo }}</div>
+                      </div>
+
+                      <div>
+                        <div class="content-label q-mb-xs">사용자 정보</div>
+                        <div v-if="!backofficeUserList.length" class="text-caption text-grey-5">등록된 사용자가 없습니다.</div>
+                        <div v-else class="firewall-table-wrap" ref="firewallWrapRef"
+                          @mousedown="onFirewallDragStart"
+                          @mousemove="onFirewallDragMove"
+                          @mouseup="onFirewallDragEnd"
+                          @mouseleave="onFirewallDragEnd">
+                          <table class="firewall-table">
+                            <thead>
+                              <tr>
+                                <th>이름(소속)</th>
+                                <th>이메일 주소</th>
+                                <th>비고</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr v-for="(row, i) in backofficeUserList" :key="i">
+                                <td>{{ row.name || '-' }}</td>
+                                <td>{{ row.email || '-' }}</td>
+                                <td>{{ row.note || '-' }}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div v-if="sr.typeDetail?.etc">
+                        <div class="content-label">기타</div>
+                        <div class="content-text pre-wrap">{{ sr.typeDetail.etc }}</div>
+                      </div>
+                    </div>
+                  </template>
+
                   <!-- IMPROVEMENT / ETC / 기타 (generic) -->
                   <template v-else>
                     <div class="row q-col-gutter-md">
@@ -1174,12 +1220,12 @@ const REVIEW_RESULT_COLOR: Record<string, string> = {
 const TYPE_ICON: Record<string, string> = {
   IMPROVEMENT: 'tune', BUG_FIX: 'bug_report', DATA_REQUEST: 'storage',
   PERMISSION: 'lock_open', CONFIG_CHANGE: 'settings', SERVER_INFRA: 'dns',
-  SECURITY: 'security', FIREWALL: 'lan', ETC: 'more_horiz',
+  SECURITY: 'security', FIREWALL: 'lan', BACKOFFICE_EAA: 'domain_add', ETC: 'more_horiz',
 }
 const TYPE_CHIP_COLOR: Record<string, string> = {
   IMPROVEMENT: 'blue-7', BUG_FIX: 'red-7', DATA_REQUEST: 'purple-7',
   PERMISSION: 'teal-7', CONFIG_CHANGE: 'orange-8', SERVER_INFRA: 'indigo-7',
-  SECURITY: 'deep-orange-8', FIREWALL: 'brown-7', ETC: 'grey-7',
+  SECURITY: 'deep-orange-8', FIREWALL: 'brown-7', BACKOFFICE_EAA: 'pink-8', ETC: 'grey-7',
 }
 // ── refs / store ────────────────────────────────────────────────────
 
@@ -1339,6 +1385,11 @@ const currentSRTypeFields = computed((): SRTypeField[] => {
 
 const firewallRules = computed((): Record<string, string>[] => {
   const v = sr.value?.typeDetail?.firewallRules
+  return Array.isArray(v) ? v : []
+})
+
+const backofficeUserList = computed((): Record<string, string>[] => {
+  const v = sr.value?.typeDetail?.userList
   return Array.isArray(v) ? v : []
 })
 
