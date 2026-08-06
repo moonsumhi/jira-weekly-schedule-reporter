@@ -516,6 +516,15 @@ async def seed_env_categories() -> None:
             "created_at": datetime.now(timezone.utc),
         })
         logger.info("env_categories 초기값 삽입: target_system")
+    if not await col.find_one({"key": "firewall_notify_emails"}):
+        await col.insert_one({
+            "key": "firewall_notify_emails",
+            "label": "방화벽 담당자 메일",
+            "is_system": True,
+            "items": [],
+            "created_at": datetime.now(timezone.utc),
+        })
+        logger.info("env_categories 초기값 삽입: firewall_notify_emails")
 
 
 async def migrate_env_submenu() -> None:
