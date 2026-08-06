@@ -68,6 +68,17 @@ async def _get_assignee_email(assignee_id: Any) -> str | None:
     return user.get("email") if user else None
 
 
+async def _load_firewall_emails() -> list[str]:
+    """관리자가 환경설정(env_categories, key=firewall_notify_emails) 화면에서 등록한
+    방화벽 담당자 메일 목록을 불러온다. 활성화된 항목만 대상."""
+    from app.db.mongo import MongoClientManager
+    col = MongoClientManager.get_env_categories_collection()
+    doc = await col.find_one({"key": "firewall_notify_emails"})
+    if not doc:
+        return []
+    return [i["label"].strip() for i in doc.get("items", []) if i.get("is_active", True) and i.get("label", "").strip()]
+
+
 _MAX_RETRY_ON_404 = 3
 _RETRY_DELAY_SECONDS = 2.0
 
@@ -147,6 +158,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     """SR 문서(dict)를 바탕으로 요청자에게 알림 메일을 발송한다.
 
     event="reviewed"  → 검토 완료(승인) 메일. 수신자: 요청자
+                        (단, request_type="FIREWALL"이면 환경설정에 등록된 방화벽 담당자 메일도 추가)
     event="assigned"  → 담당자 배정 메일 (issueAssign 템플릿, 신규). 수신자: 요청자 + 담당자
     event="completed" → 처리완료 메일. 수신자: 요청자 + 담당자
 
@@ -162,16 +174,27 @@ async def send_sr_notification(doc: dict, event: str) -> None:
         if assignee_email and assignee_email not in recipients:
             recipients.append(assignee_email)
 
+    if event == "reviewed" and doc.get("request_type") == "FIREWALL":
+        for email in await _load_firewall_emails():
+            if email not in recipients:
+                recipients.append(email)
+
     if not recipients:
         logger.warning("SR 메일 발송 스킵 (수신자 없음): sr_no=%s, event=%s", doc.get("sr_no"), event)
         return
+
+    # 방화벽 신청은 공통 description 입력란이 없고 유형별 항목인 '업무 목적'
+    # (type_detail.purpose)에 내용을 적으므로, 메일 내용은 그쪽을 사용한다.
+    description = doc.get("description")
+    if doc.get("request_type") == "FIREWALL":
+        description = (doc.get("type_detail") or {}).get("purpose") or description
 
     # 실제 메일 템플릿(Backoffice_IssueInfo.html, th:text)이 읽는 키만 채운다:
     # subject(제목) / description(내용) / start_date(생성일자) /
     # adminInfo(담당자) / custom_field_values(요청자) / due_date(마감일자)
     data_map = {
         "subject": _sanitize_for_mail(doc.get("title") or "-"),
-        "description": _sanitize_for_mail(doc.get("description") or "-"),
+        "description": _sanitize_for_mail(description or "-"),
         "start_date": _fmt_date(doc.get("created_at")),
         "adminInfo": doc.get("assignee_name") or "-",
         "custom_field_values": doc.get("requester_name") or "-",

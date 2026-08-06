@@ -106,7 +106,19 @@
       <q-card style="min-width: 420px; max-width: 90vw">
         <q-card-section class="text-h6">{{ itemEditTarget ? '항목 수정' : '항목 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">
-          <q-input v-model="itemForm.label" label="이름 *" outlined dense autofocus />
+          <q-select
+            v-if="selected?.key === 'firewall_notify_emails'"
+            v-model="itemForm.label"
+            label="회원 선택 *"
+            outlined dense autofocus
+            use-input fill-input hide-selected
+            input-debounce="0"
+            emit-value map-options
+            option-value="value" option-label="label"
+            :options="userOptionsFiltered"
+            @filter="filterUserOptions"
+          />
+          <q-input v-else v-model="itemForm.label" label="이름 *" outlined dense autofocus />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
@@ -120,6 +132,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { api } from 'boot/axios'
 import { envCategoryService, type EnvCategoryOut, type EnvItem } from 'src/services/envCategory'
 
 const $q = useQuasar()
@@ -127,6 +140,34 @@ const $q = useQuasar()
 const categories = ref<EnvCategoryOut[]>([])
 const selected = ref<EnvCategoryOut | null>(null)
 const loading = ref(false)
+
+// ── 방화벽 담당자 메일 카테고리 전용: 회원 목록에서 선택 ──
+interface UserOption { label: string; value: string }
+const userOptionsAll = ref<UserOption[]>([])
+const userOptionsFiltered = ref<UserOption[]>([])
+let userOptionsLoaded = false
+
+async function loadUserOptions() {
+  if (userOptionsLoaded) return
+  try {
+    const res = await api.get<{ email: string; full_name?: string }[]>('/admin/users')
+    userOptionsAll.value = res.data
+      .filter((u) => u.email)
+      .map((u) => ({ label: u.full_name ? `${u.full_name} (${u.email})` : u.email, value: u.email }))
+    userOptionsLoaded = true
+  } catch {
+    $q.notify({ type: 'negative', message: '회원 목록을 불러오는데 실패했습니다' })
+  }
+}
+
+function filterUserOptions(val: string, update: (cb: () => void) => void) {
+  update(() => {
+    const needle = val.toLowerCase()
+    userOptionsFiltered.value = needle
+      ? userOptionsAll.value.filter((o) => o.label.toLowerCase().includes(needle))
+      : userOptionsAll.value
+  })
+}
 
 async function load(keepSelection = true) {
   loading.value = true
@@ -212,12 +253,14 @@ function openCreateItem() {
   itemEditTarget.value = null
   itemForm.value = { label: '' }
   itemDialog.value = true
+  if (selected.value?.key === 'firewall_notify_emails') void loadUserOptions()
 }
 
 function openEditItem(item: EnvItem) {
   itemEditTarget.value = item
   itemForm.value = { label: item.label }
   itemDialog.value = true
+  if (selected.value?.key === 'firewall_notify_emails') void loadUserOptions()
 }
 
 async function submitItem() {
