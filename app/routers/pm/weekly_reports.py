@@ -224,6 +224,46 @@ def _next_week(start_dt: datetime, end_dt: datetime):
     return ns, ns + delta - timedelta(seconds=1)
 
 
+async def _seed_attendance_from_prev(
+    col, report_year: int, report_week: int, department, current_user, now: datetime,
+) -> list[dict]:
+    """같은 부서의 직전 주차 보고서에서 복무 현황(ATTENDANCE) 항목을 복사해 온다.
+
+    복무 현황은 전 주차에서 이어지는 정보라, 새 보고서 생성 시 초안으로 채워준다.
+    직전 주차 = (report_year, report_week) 기준으로 현재보다 앞선 가장 최근 보고서.
+    항목은 _id·작성자·시각만 새로 발급하고 나머지 필드는 그대로 유지한다.
+    """
+    prev = await col.find_one(
+        {
+            "deleted_at": None,
+            "department": department,
+            "$or": [
+                {"report_year": {"$lt": report_year}},
+                {"report_year": report_year, "report_week": {"$lt": report_week}},
+            ],
+        },
+        sort=[("report_year", -1), ("report_week", -1)],
+    )
+    if not prev:
+        return []
+
+    seeded: list[dict] = []
+    for item in prev.get("manual_items", []):
+        if item.get("section") != "ATTENDANCE":
+            continue
+        new_item = {
+            k: v for k, v in item.items()
+            if k not in ("_id", "created_by", "created_at", "updated_by", "updated_at")
+        }
+        new_item["_id"] = ObjectId()
+        new_item["created_by"] = ObjectId(current_user.id)
+        new_item["created_at"] = now
+        new_item["updated_by"] = None
+        new_item["updated_at"] = now
+        seeded.append(new_item)
+    return seeded
+
+
 def _excel_response(wb, filename: str) -> StreamingResponse:
     import io
     from urllib.parse import quote
@@ -371,6 +411,12 @@ async def create_weekly_report(
     )
     sr_summary = await _aggregate_sr(body.start_date, body.end_date)
 
+    # 복무 현황(ATTENDANCE)은 전 주차에서 이어지는 정보라, 같은 부서의 직전 주차
+    # 보고서에 항목이 있으면 그대로 복사해 초안으로 채워준다. (_id·작성자·시각만 갱신)
+    seed_items = await _seed_attendance_from_prev(
+        col, body.report_year, body.report_week, body.department, current_user, now
+    )
+
     result = await col.insert_one({
         "report_year":    body.report_year,
         "report_week":    body.report_week,
@@ -384,7 +430,7 @@ async def create_weekly_report(
         "all_items":      [i.model_dump() for i in all_items],
         "upcoming_items": [i.model_dump() for i in upcoming_items],
         "stats":          stats.model_dump(),
-        "manual_items":   [],
+        "manual_items":   seed_items,
         "sr_summary":     sr_summary.model_dump(),
         "admin_comment":  body.admin_comment,
         "created_by":     ObjectId(current_user.id),
