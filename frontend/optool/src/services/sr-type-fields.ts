@@ -4,6 +4,7 @@ export interface SRTableColumn {
   key: string
   label: string
   placeholder?: string
+  optional?: boolean  // true면 테이블 필드가 required여도 이 컬럼은 빈 값 허용
 }
 
 export interface SRTypeField {
@@ -153,14 +154,14 @@ export const SR_TYPE_FIELDS: Record<string, SRTypeField[]> = {
   ],
 
   BACKOFFICE_EAA: [
-    { key: 'researchNumber', label: '연구번호',       required: true,  type: 'text',     placeholder: '예: kccr2025-02' },
+    { key: 'researchNumber', label: '연구번호',       required: true,  type: 'text',     placeholder: '예: kccr20xx-xx' },
     { key: 'mappedVmInfo',   label: '매핑 VM 정보',   required: true,  type: 'textarea', rows: 4,
       placeholder: 'IP:PORT, ID 등 매핑 VM 접속 정보를 입력해주세요. (PW는 대시보드/엑셀 업로드로 별도 안내)' },
     { key: 'userList',       label: '사용자 정보',     required: true,  type: 'table',
       columns: [
         { key: 'name',  label: '이름(소속)',    placeholder: '예: 홍길동(데이터운영팀)' },
         { key: 'email', label: '이메일 주소',   placeholder: '예: user@ncc.re.kr' },
-        { key: 'note',  label: '비고',          placeholder: '선택 입력' },
+        { key: 'note',  label: '비고',          placeholder: '선택 입력', optional: true },
       ] },
     { key: 'etc',             label: '기타',           required: false, type: 'textarea', rows: 2, placeholder: '특이사항 또는 긴급 연계 요망 시 기재' },
   ],

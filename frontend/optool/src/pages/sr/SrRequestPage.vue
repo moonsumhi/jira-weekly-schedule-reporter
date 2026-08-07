@@ -479,7 +479,7 @@ function validateStep3(): boolean {
     if (f.type === 'editor' || !f.required) return false
     if (f.type === 'table') {
       const rows = tableRows(f)
-      return !rows.length || rows.some(r => (f.columns ?? []).some(c => !r[c.key]?.trim()))
+      return !rows.length || rows.some(r => (f.columns ?? []).some(c => !c.optional && !r[c.key]?.trim()))
     }
     const v = typeDetail.value[f.key]
     return typeof v === 'string' ? !v.trim() : !v
