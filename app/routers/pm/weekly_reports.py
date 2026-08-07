@@ -227,16 +227,18 @@ def _next_week(start_dt: datetime, end_dt: datetime):
 async def _seed_attendance_from_prev(
     col, report_year: int, report_week: int, department, current_user, now: datetime,
 ) -> list[dict]:
-    """같은 부서의 직전 주차 보고서에서 복무 현황(ATTENDANCE) 항목을 복사해 온다.
+    """같은 부서의 가장 가까운 이전 보고서에서 복무 현황(ATTENDANCE) 항목을 복사해 온다.
 
     복무 현황은 전 주차에서 이어지는 정보라, 새 보고서 생성 시 초안으로 채워준다.
-    직전 주차 = (report_year, report_week) 기준으로 현재보다 앞선 가장 최근 보고서.
+    바로 전 주차가 없거나 그 보고서에 복무 항목이 없으면, (report_year, report_week)
+    기준으로 현재보다 앞서면서 복무 항목이 실제로 존재하는 가장 가까운 보고서를 쓴다.
     항목은 _id·작성자·시각만 새로 발급하고 나머지 필드는 그대로 유지한다.
     """
     prev = await col.find_one(
         {
             "deleted_at": None,
             "department": department,
+            "manual_items.section": "ATTENDANCE",  # 복무 항목이 실제로 있는 보고서만
             "$or": [
                 {"report_year": {"$lt": report_year}},
                 {"report_year": report_year, "report_week": {"$lt": report_week}},
