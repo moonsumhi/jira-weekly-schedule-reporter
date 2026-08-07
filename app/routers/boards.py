@@ -114,6 +114,7 @@ def _post_to_out(doc: dict) -> PostOut:
         board_id=doc.get("board_id", ""),
         title=doc.get("title", ""),
         part=doc.get("part", ""),
+        category=doc.get("category", ""),
         content=doc.get("content", ""),
         author_id=doc.get("author_id", ""),
         author_name=doc.get("author_name", ""),
@@ -127,6 +128,16 @@ async def list_posts(board_id: str, _=Depends(get_current_user)):
     posts_col = MongoClientManager.get_board_posts_collection()
     docs = [doc async for doc in posts_col.find({"board_id": board_id}).sort("created_at", -1)]
     return [_post_to_out(doc) for doc in docs]
+
+
+@router.get("/{board_id}/posts/{post_id}", response_model=PostOut)
+async def get_post(board_id: str, post_id: str, _=Depends(get_current_user)):
+    posts_col = MongoClientManager.get_board_posts_collection()
+    _oid = parse_oid(post_id, "잘못된 게시글 ID입니다.")
+    doc = await posts_col.find_one({"_id": _oid, "board_id": board_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+    return _post_to_out(doc)
 
 
 @router.post("/{board_id}/posts", response_model=PostOut, status_code=201)
@@ -146,6 +157,7 @@ async def create_post(
         "board_id": board_id,
         "title": payload.title,
         "part": payload.part,
+        "category": payload.category,
         "content": payload.content,
         "author_id": current_user.id,
         "author_name": current_user.full_name or current_user.email,
@@ -173,7 +185,7 @@ async def patch_post(
         raise HTTPException(status_code=403, detail="권한이 없습니다.")
 
     diff = []
-    for field, label in (("title", "제목"), ("part", "업무 파트"), ("content", "내용")):
+    for field, label in (("title", "제목"), ("part", "업무 파트"), ("category", "카테고리"), ("content", "내용")):
         before, after = doc.get(field, "") or "", getattr(payload, field) or ""
         if before != after:
             diff.append({"field": label, "before": before, "after": after})
@@ -191,6 +203,7 @@ async def patch_post(
         {"$set": {
             "title": payload.title,
             "part": payload.part,
+            "category": payload.category,
             "content": payload.content,
             "attachments": [a.model_dump() for a in payload.attachments],
         }},
