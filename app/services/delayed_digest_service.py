@@ -98,13 +98,19 @@ class DelayedDigestService:
     async def _collect_delayed(self, now: datetime) -> tuple[dict, dict]:
         sr_col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
         sr_by_assignee: dict[str, list[dict]] = defaultdict(list)
-        async for doc in sr_col.find({"desired_due_date": {"$exists": True, "$ne": None}}):
+        async for doc in sr_col.find({
+            "$or": [
+                {"planned_due_date": {"$exists": True, "$ne": None}},
+                {"desired_due_date": {"$exists": True, "$ne": None}},
+            ]
+        }):
             if not compute_is_delayed(doc):
                 continue
             assignee_id = doc.get("assignee_id")
             if not assignee_id:
                 continue
-            due_date = doc["desired_due_date"]
+            # 완료목표일 우선, 없으면 희망완료일 (compute_is_delayed와 동일 기준)
+            due_date = doc.get("planned_due_date") or doc.get("desired_due_date")
             if due_date.tzinfo is None:
                 due_date = due_date.replace(tzinfo=timezone.utc)
             sr_by_assignee[str(assignee_id)].append({
