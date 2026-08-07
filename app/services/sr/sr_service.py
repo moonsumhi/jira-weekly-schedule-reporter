@@ -155,7 +155,8 @@ def compute_is_delayed(doc: dict) -> bool:
     non_delayed = {"DRAFT", "COMPLETED", "CONFIRMING", "CLOSED", "CANCELLED", "REJECTED"}
     if doc.get("status") in non_delayed:
         return False
-    check_date = doc.get("desired_due_date")
+    # 완료목표일(planned_due_date) 우선, 없으면 희망완료일(desired_due_date) 기준.
+    check_date = doc.get("planned_due_date") or doc.get("desired_due_date")
     if not check_date:
         return False
     now = datetime.now(timezone.utc)
