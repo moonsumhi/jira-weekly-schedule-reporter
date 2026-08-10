@@ -1,20 +1,21 @@
 <template>
   <q-page padding>
-    <div class="row items-center q-mb-md q-gutter-sm">
-      <div class="text-h6 col">{{ boardTitle }}</div>
+    <div class="row items-center q-mb-md q-gutter-sm no-wrap">
+      <div class="text-h6" style="flex-shrink: 0;">{{ boardTitle }}</div>
+      <q-btn icon="add" label="글쓰기" color="primary" style="flex-shrink: 0; margin-left: 15px;" @click="openWrite" />
+      <q-space />
       <q-select
         v-model="categoryFilter" dense outlined clearable
         :options="categoryOptions" emit-value map-options
-        label="카테고리" style="min-width: 160px"
+        label="카테고리" style="flex: 0 0 160px"
       />
       <q-input
         v-model="filterText" dense outlined clearable
-        placeholder="제목/내용/카테고리 검색"
-        style="min-width: 600px"
+        placeholder="제목 / 내용 검색"
+        style="flex: 0 1 500px; min-width: 150px"
       >
         <template #prepend><q-icon name="search" /></template>
       </q-input>
-      <q-btn icon="add" label="글쓰기" color="primary" @click="openWrite" />
     </div>
 
     <q-table
@@ -96,9 +97,7 @@ function filterPosts(rows: readonly PostOut[]): PostOut[] {
     if (categoryFilter.value && r.category !== categoryFilter.value) return false
     if (!needle) return true
     return r.title.toLowerCase().includes(needle) ||
-      r.content.toLowerCase().includes(needle) ||
-      (r.category ?? '').toLowerCase().includes(needle) ||
-      (r.part ?? '').toLowerCase().includes(needle)
+      r.content.toLowerCase().includes(needle)
   })
 }
 
