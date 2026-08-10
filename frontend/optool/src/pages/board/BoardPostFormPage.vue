@@ -10,19 +10,27 @@
 
     <q-card flat bordered class="q-pa-md">
       <div class="q-gutter-md">
-        <q-input
-          v-model="form.title" label="제목 *" outlined dense autofocus
-          :rules="[v => !!v?.trim() || '제목을 입력해주세요.']"
-        />
-        <div class="row q-col-gutter-md">
-          <div class="col-12 col-sm-6">
-            <q-input v-model="form.part" label="업무 파트" outlined dense placeholder="예: 데이터운영팀, API 개발 파트 등" />
+        <div>
+          <div class="row q-col-gutter-md">
+            <div class="col-12">
+              <q-input
+                v-model="form.title" label="제목 *" outlined dense autofocus
+                :rules="[v => !!v?.trim() || '제목을 입력해주세요.']"
+              />
+            </div>
           </div>
-          <div class="col-12 col-sm-6">
-            <q-select
-              v-model="form.category" label="카테고리" outlined dense clearable
-              :options="categoryOptions" emit-value map-options
-            />
+        </div>
+        <div>
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-sm-6">
+              <q-input v-model="form.part" label="업무 파트" outlined dense placeholder="예: 데이터운영팀, API 개발 파트 등" />
+            </div>
+            <div class="col-12 col-sm-6">
+              <q-select
+                v-model="form.category" label="카테고리" outlined dense clearable
+                :options="categoryOptions" emit-value map-options
+              />
+            </div>
           </div>
         </div>
         <MarkdownEditor v-model="form.content" label="내용" required :rows="20" />

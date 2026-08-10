@@ -191,6 +191,6 @@ onMounted(() => { void load() })
 </script>
 
 <style scoped>
-.board-post-detail-page { max-width: 900px; margin: 0 auto; }
+.board-post-detail-page { width: 100%; }
 .pre-wrap { white-space: pre-wrap; word-break: break-word; }
 </style>
