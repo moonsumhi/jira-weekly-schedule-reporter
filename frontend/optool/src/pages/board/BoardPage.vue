@@ -2,10 +2,15 @@
   <q-page padding>
     <div class="row items-center q-mb-md q-gutter-sm">
       <div class="text-h6 col">{{ boardTitle }}</div>
+      <q-select
+        v-model="categoryFilter" dense outlined clearable
+        :options="categoryOptions" emit-value map-options
+        label="카테고리" style="min-width: 160px"
+      />
       <q-input
-        v-model="filter" dense outlined clearable
+        v-model="filterText" dense outlined clearable
         placeholder="제목/내용/카테고리 검색"
-        style="min-width: 260px"
+        style="min-width: 600px"
       >
         <template #prepend><q-icon name="search" /></template>
       </q-input>
@@ -15,7 +20,7 @@
     <q-table
       :rows="posts"
       :columns="columns"
-      :filter="filter"
+      :filter="tableFilter"
       :filter-method="filterPosts"
       row-key="id"
       flat
@@ -26,7 +31,13 @@
     >
       <template #body-cell-category="{ row }">
         <q-td>
-          <q-chip v-if="row.category" dense size="sm" color="blue-1" text-color="blue-9">{{ row.category }}</q-chip>
+          <q-chip
+            v-if="row.category"
+            dense size="sm" clickable
+            :color="categoryFilter === row.category ? 'blue-6' : 'blue-1'"
+            :text-color="categoryFilter === row.category ? 'white' : 'blue-9'"
+            @click.stop="toggleCategoryFilter(row.category)"
+          >{{ row.category }}</q-chip>
         </q-td>
       </template>
       <template #body-cell-actions="{ row }">
@@ -48,10 +59,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { boardService, type PostOut } from 'src/services/boards'
+import { envCategoryService } from 'src/services/envCategory'
 import { useAuthStore } from 'stores/auth'
 import { formatKst } from 'src/utils/time/kst'
 
@@ -64,7 +76,10 @@ const boardId = ref(route.params.boardId as string)
 const boardTitle = ref('')
 const posts = ref<PostOut[]>([])
 const loading = ref(false)
-const filter = ref('')
+const filterText = ref('')
+const categoryFilter = ref<string | null>(null)
+const categoryOptions = ref<{ label: string; value: string }[]>([])
+const tableFilter = computed(() => `${filterText.value}||${categoryFilter.value ?? ''}`)
 
 const columns = [
   { name: 'title', label: '제목', field: 'title', align: 'left' as const, classes: 'cursor-pointer' },
@@ -75,14 +90,20 @@ const columns = [
   { name: 'actions', label: '', field: 'id', align: 'right' as const },
 ]
 
-function filterPosts(rows: readonly PostOut[], term: string): PostOut[] {
-  const needle = term.toLowerCase()
-  return rows.filter((r) =>
-    r.title.toLowerCase().includes(needle) ||
-    r.content.toLowerCase().includes(needle) ||
-    (r.category ?? '').toLowerCase().includes(needle) ||
-    (r.part ?? '').toLowerCase().includes(needle),
-  )
+function filterPosts(rows: readonly PostOut[]): PostOut[] {
+  const needle = filterText.value.toLowerCase()
+  return rows.filter((r) => {
+    if (categoryFilter.value && r.category !== categoryFilter.value) return false
+    if (!needle) return true
+    return r.title.toLowerCase().includes(needle) ||
+      r.content.toLowerCase().includes(needle) ||
+      (r.category ?? '').toLowerCase().includes(needle) ||
+      (r.part ?? '').toLowerCase().includes(needle)
+  })
+}
+
+function toggleCategoryFilter(category: string) {
+  categoryFilter.value = categoryFilter.value === category ? null : category
 }
 
 function formatDate(dt: string | null | undefined) {
@@ -113,6 +134,11 @@ async function load() {
   } finally {
     loading.value = false
   }
+
+  try {
+    const items = await envCategoryService.itemsByKey('board_post_categories')
+    categoryOptions.value = items.map((i) => ({ label: i.label, value: i.label }))
+  } catch { /* 카테고리 목록 조회 실패는 무시 (선택 항목) */ }
 }
 
 function openWrite() {

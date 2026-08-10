@@ -14,7 +14,8 @@
           <div class="row q-col-gutter-md">
             <div class="col-12">
               <q-input
-                v-model="form.title" label="제목 *" outlined dense autofocus
+                v-model="form.title" label="제목 *" outlined dense
+                lazy-rules
                 :rules="[v => !!v?.trim() || '제목을 입력해주세요.']"
               />
             </div>
