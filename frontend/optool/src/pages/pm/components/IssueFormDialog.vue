@@ -167,7 +167,7 @@
             outlined dense
             type="number"
             :min="0"
-            step="0.1"
+            step="0.001"
             stack-label
             style="flex: 0 0 160px"
           />

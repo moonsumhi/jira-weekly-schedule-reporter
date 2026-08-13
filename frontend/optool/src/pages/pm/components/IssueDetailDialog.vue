@@ -397,7 +397,7 @@
 
             <div>
               <div class="sidebar-label">공수 (일)</div>
-              <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0" step="0.1"
+              <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0" step="0.001"
                 @blur="saveEffort" />
             </div>
 
@@ -708,8 +708,8 @@ function parseEffortToDays(effortMd: string | null | undefined): number | null {
   if (unit === '시간') days = num / 8
   else if (unit === '분') days = num / 480
   else days = num
-  const rounded = Math.round(days * 100) / 100
-  return rounded === 0 && days > 0 ? 0.01 : rounded
+  const rounded = Math.round(days * 1000) / 1000
+  return rounded === 0 && days > 0 ? 0.001 : rounded
 }
 
 async function loadIssueContent(issue: Issue) {
