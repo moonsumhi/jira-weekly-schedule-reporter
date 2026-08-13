@@ -96,6 +96,7 @@ export type Issue = {
   storyPoints: number | null
   effortMd: string | null
   attachments: { fileId: string; originalName: string; url: string; size: number; contentType: string }[]
+  showOnDashboard: boolean
   order: number
   linkedSrId: string | null
   subtasks: SubtaskSummary[]
@@ -127,6 +128,7 @@ export type IssueCreate = {
   story_points?: number | null
   effort_md?: string | null
   attachments?: { file_id: string; original_name: string; url: string; size: number; content_type: string }[]
+  show_on_dashboard?: boolean
 }
 
 export type IssuePatch = Partial<IssueCreate & { order: number }>

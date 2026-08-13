@@ -396,15 +396,9 @@
             </div>
 
             <div>
-              <div class="sidebar-label">공수</div>
-              <div style="display: flex; gap: 4px">
-                <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0"
-                  style="flex: 1"
-                  @blur="saveEffort" />
-                <q-select v-model="localEffortUnit" :options="['일', '시간', '분']"
-                  dense outlined style="width: 64px"
-                  @update:model-value="saveEffort" />
-              </div>
+              <div class="sidebar-label">공수 (일)</div>
+              <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0" step="0.1"
+                @blur="saveEffort" />
             </div>
 
             <q-separator />
@@ -419,6 +413,13 @@
               <div class="sidebar-label">마감일</div>
               <q-input v-model="localDueDate" dense outlined type="date" stack-label
                 @blur="patchField('due_date', localDueDate ? new Date(localDueDate).toISOString() : null)" />
+              <q-checkbox
+                v-model="localShowOnDashboard" label="대시보드 D-Day 표시" dense
+                class="q-mt-xs"
+                @update:model-value="patchField('show_on_dashboard', $event)"
+              >
+                <q-tooltip>완료 처리 전까지 담당자 대시보드의 D-Day 카드에 마감일이 표시됩니다.</q-tooltip>
+              </q-checkbox>
             </div>
 
             <q-separator />
@@ -631,9 +632,9 @@ const localAssigneeId = ref<string | null>(null)
 const localEpicId = ref<string | null>(null)
 const localStoryPoints = ref<number | null>(null)
 const localEffortValue = ref<number | null>(null)
-const localEffortUnit = ref<string>('일')
 const localStartDate = ref('')
 const localDueDate = ref('')
+const localShowOnDashboard = ref(false)
 
 // 하위 작업
 const subIssues = ref<Issue[]>([])
@@ -697,6 +698,20 @@ const epicOptions = computed(() =>
 const labelOptions = computed(() => labelsData.value.map(l => ({ label: l.name, value: l.id, color: l.color })))
 const labelColorMap = computed(() => Object.fromEntries(labelsData.value.map(l => [l.id, l.color])))
 
+function parseEffortToDays(effortMd: string | null | undefined): number | null {
+  if (!effortMd) return null
+  const m = effortMd.match(/^([\d.]+)\s*(.+)$/)
+  if (!m) return null
+  const num = parseFloat(m[1]!)
+  const unit = m[2]!.trim()
+  let days: number
+  if (unit === '시간') days = num / 8
+  else if (unit === '분') days = num / 480
+  else days = num
+  const rounded = Math.round(days * 100) / 100
+  return rounded === 0 && days > 0 ? 0.01 : rounded
+}
+
 async function loadIssueContent(issue: Issue) {
   localIssue.value = { ...issue }
   localStatus.value = issue.status
@@ -707,17 +722,10 @@ async function loadIssueContent(issue: Issue) {
   localAssigneeId.value = issue.assigneeId
   localEpicId.value = issue.epicId
   localStoryPoints.value = issue.storyPoints
-  if (issue.effortMd) {
-    const m = issue.effortMd.match(/^([\d.]+)\s*(.+)$/)
-    localEffortValue.value = m ? parseFloat(m[1]!) : null
-    const unit = m ? m[2]!.trim() : '일'
-    localEffortUnit.value  = unit === 'MD' ? '일' : unit
-  } else {
-    localEffortValue.value = null
-    localEffortUnit.value  = '일'
-  }
+  localEffortValue.value = parseEffortToDays(issue.effortMd)
   localStartDate.value = issue.startDate?.slice(0, 10) ?? ''
   localDueDate.value = issue.dueDate?.slice(0, 10) ?? ''
+  localShowOnDashboard.value = issue.showOnDashboard
   editTitle.value = issue.title
   editDescription.value = issue.description ?? ''
   descriptionEditing.value = false
@@ -884,9 +892,7 @@ function historyAction(h: IssueHistory): string {
 }
 
 function saveEffort() {
-  const val = localEffortValue.value != null
-    ? `${localEffortValue.value} ${localEffortUnit.value}`
-    : null
+  const val = localEffortValue.value != null ? `${localEffortValue.value} 일` : null
   void patchField('effort_md', val)
 }
 

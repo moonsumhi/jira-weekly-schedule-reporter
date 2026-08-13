@@ -65,7 +65,7 @@
           </div>
 
           <div v-if="ddaysLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-          <div v-if="!ddaysLoading && visibleDDays.length > 0" class="dday-list">
+          <div v-if="!ddaysLoading && (visibleDDays.length > 0 || issueDDayItems.length > 0)" class="dday-list">
             <div
               v-for="d in visibleDDays"
               :key="d.id"
@@ -83,6 +83,21 @@
                 <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openDDayEdit(d)" />
                 <q-btn flat dense round icon="delete" size="xs" color="negative" @click="confirmDeleteDDay(d)" />
               </div>
+            </div>
+            <div
+              v-for="d in issueDDayItems"
+              :key="d.id"
+              class="dday-item cursor-pointer"
+              @click="openPmIssueDetail(d.issue)"
+            >
+              <div class="dday-count" style="background: #3949ab">
+                <span class="dday-label">{{ calcDDay(d.date) }}</span>
+              </div>
+              <div class="dday-info">
+                <div class="dday-title">{{ d.title }}</div>
+                <div class="dday-date text-grey-6">{{ d.date }}</div>
+              </div>
+              <q-badge outline color="indigo" label="내 이슈" style="font-size:10px" />
             </div>
           </div>
         </div>
@@ -526,6 +541,19 @@ const visibleDDays = computed(() =>
     if (d.title.startsWith(INSPECTION_KEY_PREFIX)) return false  // 서버 점검일 override는 목록에서 숨김
     return !isDatePast(d.date, 14)
   })
+)
+
+// 이슈 추가 시 'D-Day 표시'를 체크한 내 담당 이슈 — 완료 처리 전까지 개인별로만 노출
+// (/pm/dashboard의 myIssues는 이미 status != DONE, assignee = 나 로 필터링되어 옴)
+const issueDDayItems = computed(() =>
+  pmMyIssues.value
+    .filter((i) => i.showOnDashboard && i.dueDate)
+    .map((i) => ({
+      id: `issue-${i.id}`,
+      title: `${i.projectKey ?? ''}-${i.number} ${i.title}`,
+      date: (i.dueDate as string).slice(0, 10),
+      issue: i,
+    }))
 )
 
 function calcDDay(dateStr: string): string {
