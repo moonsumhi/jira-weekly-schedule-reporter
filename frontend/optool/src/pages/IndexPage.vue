@@ -198,38 +198,40 @@
           </q-btn>
         </div>
 
-        <div v-if="hasPmPerm" class="pm-subsection">
-          <div class="pm-subheader">담당 이슈</div>
-          <div v-if="pmLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-          <div v-else-if="pmMyIssues.length === 0" class="text-center text-grey text-caption q-pa-md">담당 중인 이슈가 없습니다.</div>
-          <div v-else class="pm-issue-list">
-            <div
-              v-for="issue in pmMyIssues"
-              :key="issue.id"
-              class="pm-issue-item"
-              @click="openPmIssueDetail(issue)"
-            >
-              <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
-              <span class="pm-issue-title">{{ issue.title }}</span>
-              <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+        <div class="pm-card-body">
+          <div v-if="hasPmPerm" class="pm-subsection">
+            <div class="pm-subheader">담당 이슈</div>
+            <div v-if="pmLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+            <div v-else-if="pmMyIssues.length === 0" class="text-center text-grey text-caption q-pa-md">담당 중인 이슈가 없습니다.</div>
+            <div v-else class="pm-issue-list">
+              <div
+                v-for="issue in pmMyIssues"
+                :key="issue.id"
+                class="pm-issue-item"
+                @click="openPmIssueDetail(issue)"
+              >
+                <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
+                <span class="pm-issue-title">{{ issue.title }}</span>
+                <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div v-if="hasSrPerm" class="pm-subsection" :class="{ 'q-mt-md': hasPmPerm }">
-          <div class="pm-subheader">내 SR 목록</div>
-          <div v-if="srLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-          <div v-else-if="mySrList.length === 0" class="text-center text-grey text-caption q-pa-md">접수한 SR이 없습니다.</div>
-          <div v-else class="pm-issue-list">
-            <div
-              v-for="sr in mySrList"
-              :key="sr.id"
-              class="pm-issue-item"
-              @click="$router.push(`/pm/sr/${sr.id}`)"
-            >
-              <span class="pm-issue-key">{{ sr.srNo }}</span>
-              <span class="pm-issue-title">{{ sr.title }}</span>
-              <q-badge :color="SR_STATUS_COLOR[sr.status]" :label="SR_STATUS_LABEL[sr.status]" />
+          <div v-if="hasSrPerm" class="pm-subsection" :class="{ 'q-mt-md': hasPmPerm }">
+            <div class="pm-subheader">내 SR 목록</div>
+            <div v-if="srLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+            <div v-else-if="mySrList.length === 0" class="text-center text-grey text-caption q-pa-md">접수한 SR이 없습니다.</div>
+            <div v-else class="pm-issue-list">
+              <div
+                v-for="sr in mySrList"
+                :key="sr.id"
+                class="pm-issue-item"
+                @click="$router.push(`/pm/sr/${sr.id}`)"
+              >
+                <span class="pm-issue-key">{{ sr.srNo }}</span>
+                <span class="pm-issue-title">{{ sr.title }}</span>
+                <q-badge :color="SR_STATUS_COLOR[sr.status]" :label="SR_STATUS_LABEL[sr.status]" />
+              </div>
             </div>
           </div>
         </div>
@@ -818,6 +820,8 @@ onMounted(() => {
   border-radius: 12px;
   border: 1px solid #e8edf5;
   padding: 20px;
+  position: relative;
+  isolation: isolate;
 }
 
 .card-resize-btn {
@@ -838,6 +842,31 @@ onMounted(() => {
   top: 0;
   background: #fff;
   z-index: 1;
+  will-change: transform;
+}
+
+/* 스케줄 관리 카드: sticky 대신 헤더를 스크롤 영역 밖으로 분리해서
+   스크롤 시 리스트 내용이 헤더에 겹쳐 보이던 문제를 근본적으로 제거 */
+.pm-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.pm-card.card-h-1,
+.pm-card.card-h-2,
+.pm-card.card-h-3 {
+  overflow: hidden;
+}
+
+.pm-card .card-header {
+  position: static;
+  flex-shrink: 0;
+}
+
+.pm-card-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .card-title {
@@ -1019,8 +1048,6 @@ onMounted(() => {
 }
 
 .pm-issue-list {
-  max-height: 260px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
