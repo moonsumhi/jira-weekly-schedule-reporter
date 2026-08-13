@@ -59,8 +59,26 @@ function handlePaste(e: Event) {
 
   const items = Array.from(ce.clipboardData.items)
 
-  // 바이너리 이미지(스크린샷, 브라우저 복사)는 addImageBlobHook에 위임
-  const hasBinaryImage = items.some(item => item.type.startsWith('image/'))
+  const imageItems = items.filter(item => item.type.startsWith('image/'))
+
+  // 이미지 여러 장을 한 번에 붙여넣으면 addImageBlobHook이 비동기로 동시에 여러 번
+  // 호출되면서 완료 순서가 뒤섞여, 일부가 이미지가 아니라 빈 링크로 삽입되는 문제가
+  // 있었다. 2장 이상이면 직접 순서대로 업로드 → 삽입해서 순서를 보장한다.
+  if (imageItems.length > 1) {
+    ce.preventDefault()
+    ce.stopImmediatePropagation()
+    const blobs = imageItems.map(item => item.getAsFile()).filter((f): f is File => !!f)
+    void (async () => {
+      for (const blob of blobs) {
+        const url = await uploadImageBlob(blob)
+        if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
+      }
+    })()
+    return
+  }
+
+  // 바이너리 이미지 한 장(스크린샷, 브라우저 복사)은 addImageBlobHook에 위임
+  const hasBinaryImage = imageItems.length > 0
   if (hasBinaryImage) return
 
   // HTML clipboard with <img> (HWP, Word, etc.) — block alt-text insertion
