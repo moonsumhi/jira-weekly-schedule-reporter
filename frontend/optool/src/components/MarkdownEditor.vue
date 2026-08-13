@@ -44,6 +44,17 @@ async function uploadImageBlob(blob: Blob | File): Promise<string | null> {
   }
 }
 
+// 이미지 업로드를 전부 이 큐를 통해 직렬화한다. 같은 이미지를 빠르게 연속으로
+// 붙여넣으면(Ctrl+V 반복) addImageBlobHook 호출이 서로 겹치면서 일부가 빈 링크로
+// 삽입되는 문제가 있었는데, 붙여넣기 방식(단일/다중, hook/직접삽입)과 무관하게
+// 모든 업로드를 하나의 체인으로 묶어 항상 이전 업로드가 끝난 뒤 다음이 시작되도록 한다.
+let uploadChain: Promise<unknown> = Promise.resolve()
+function queueUpload(blob: Blob | File): Promise<string | null> {
+  const run = uploadChain.then(() => uploadImageBlob(blob))
+  uploadChain = run.then(() => undefined, () => undefined)
+  return run
+}
+
 function dataUrlToBlob(dataUrl: string): Blob {
   const sepIdx = dataUrl.indexOf(',')
   const header = dataUrl.slice(0, sepIdx)
@@ -70,7 +81,7 @@ function handlePaste(e: Event) {
     const blobs = imageItems.map(item => item.getAsFile()).filter((f): f is File => !!f)
     void (async () => {
       for (const blob of blobs) {
-        const url = await uploadImageBlob(blob)
+        const url = await queueUpload(blob)
         if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
       }
     })()
@@ -99,7 +110,7 @@ function handlePaste(e: Event) {
     const dataSrc = match?.[1]
     if (dataSrc && editor) {
       const blob = dataUrlToBlob(dataSrc)
-      void uploadImageBlob(blob).then(url => {
+      void queueUpload(blob).then(url => {
         if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
       })
     }
@@ -126,7 +137,7 @@ onMounted(() => {
     ],
     hooks: {
       addImageBlobHook: (blob, callback) => {
-        void uploadImageBlob(blob).then(url => {
+        void queueUpload(blob).then(url => {
           callback(url ?? '', url ? '' : '업로드 실패')
         })
       },
