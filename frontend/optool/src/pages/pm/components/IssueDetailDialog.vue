@@ -413,9 +413,13 @@
               <div class="sidebar-label">마감일</div>
               <q-input v-model="localDueDate" dense outlined type="date" stack-label
                 @blur="patchField('due_date', localDueDate ? new Date(localDueDate).toISOString() : null)" />
+            </div>
+
+            <q-separator />
+
+            <div>
               <q-checkbox
                 v-model="localShowOnDashboard" label="대시보드 D-Day 표시" dense
-                class="q-mt-xs"
                 @update:model-value="patchField('show_on_dashboard', $event)"
               >
                 <q-tooltip>완료 처리 전까지 담당자 대시보드의 D-Day 카드에 마감일이 표시됩니다.</q-tooltip>
