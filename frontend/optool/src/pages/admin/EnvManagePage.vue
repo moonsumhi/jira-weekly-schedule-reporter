@@ -71,6 +71,7 @@
                   </q-item-section>
                   <q-item-section>
                     <q-item-label :class="{ 'text-grey-5': !item.isActive }">{{ item.label }}</q-item-label>
+                    <q-item-label v-if="item.value" caption>{{ item.value }}</q-item-label>
                   </q-item-section>
                   <q-item-section side>
                     <div class="row items-center q-gutter-xs">
@@ -119,15 +120,15 @@
         <q-card-section class="q-gutter-md">
           <q-select
             v-if="selected?.key === 'firewall_notify_emails'"
-            v-model="itemForm.label"
+            v-model="firewallPick"
             label="회원 선택 *"
             outlined dense autofocus
             use-input fill-input hide-selected
             input-debounce="0"
-            emit-value map-options
             option-value="value" option-label="label"
             :options="userOptionsFiltered"
             @filter="filterUserOptions"
+            @update:model-value="onPickFirewallUser"
           />
           <q-input v-else v-model="itemForm.label" label="이름 *" outlined dense autofocus />
         </q-card-section>
@@ -154,18 +155,28 @@ const selected = ref<EnvCategoryOut | null>(null)
 const loading = ref(false)
 
 // ── 방화벽 담당자 메일 카테고리 전용: 회원 목록에서 선택 ──
-interface UserOption { label: string; value: string }
+// label은 드롭다운에 보여줄 "이름 (이메일)" 표시 텍스트, name은 항목의 표시 이름으로
+// 저장할 순수 이름, value는 실제 메일 발송에 쓰일 이메일.
+interface UserOption { label: string; value: string; name: string }
 const userOptionsAll = ref<UserOption[]>([])
 const userOptionsFiltered = ref<UserOption[]>([])
+const firewallPick = ref<UserOption | null>(null)
 let userOptionsLoaded = false
+
+function onPickFirewallUser(opt: UserOption | null) {
+  if (!opt) return
+  itemForm.value.label = opt.name
+  itemForm.value.value = opt.value
+}
 
 async function loadUserOptions() {
   if (userOptionsLoaded) return
   try {
-    const res = await api.get<{ email: string; full_name?: string }[]>('/admin/users')
+    // axios 인터셉터가 응답을 camelCase로 변환하므로 full_name이 아닌 fullName으로 온다.
+    const res = await api.get<{ email: string; fullName?: string }[]>('/admin/users')
     userOptionsAll.value = res.data
       .filter((u) => u.email)
-      .map((u) => ({ label: u.full_name ? `${u.full_name} (${u.email})` : u.email, value: u.email }))
+      .map((u) => ({ label: u.fullName ? `${u.fullName} (${u.email})` : u.email, value: u.email, name: u.fullName || u.email }))
     userOptionsLoaded = true
   } catch {
     $q.notify({ type: 'negative', message: '회원 목록을 불러오는데 실패했습니다' })
@@ -259,18 +270,20 @@ function confirmDeleteCategory(c: EnvCategoryOut) {
 const itemDialog = ref(false)
 const itemSaving = ref(false)
 const itemEditTarget = ref<EnvItem | null>(null)
-const itemForm = ref({ label: '' })
+const itemForm = ref({ label: '', value: '' })
 
 function openCreateItem() {
   itemEditTarget.value = null
-  itemForm.value = { label: '' }
+  itemForm.value = { label: '', value: '' }
+  firewallPick.value = null
   itemDialog.value = true
   if (selected.value?.key === 'firewall_notify_emails') void loadUserOptions()
 }
 
 function openEditItem(item: EnvItem) {
   itemEditTarget.value = item
-  itemForm.value = { label: item.label }
+  itemForm.value = { label: item.label, value: item.value ?? '' }
+  firewallPick.value = null
   itemDialog.value = true
   if (selected.value?.key === 'firewall_notify_emails') void loadUserOptions()
 }
@@ -281,12 +294,20 @@ async function submitItem() {
     $q.notify({ type: 'warning', message: '이름을 입력해주세요.', position: 'top' })
     return
   }
+  const isFirewall = selected.value.key === 'firewall_notify_emails'
+  if (isFirewall && !itemForm.value.value.trim()) {
+    $q.notify({ type: 'warning', message: '목록에서 회원을 선택해주세요.', position: 'top' })
+    return
+  }
   itemSaving.value = true
   try {
+    const payload = isFirewall
+      ? { label: itemForm.value.label.trim(), value: itemForm.value.value.trim() }
+      : { label: itemForm.value.label.trim() }
     if (itemEditTarget.value) {
-      await envCategoryService.patchItem(selected.value.id, itemEditTarget.value.id, { label: itemForm.value.label.trim() })
+      await envCategoryService.patchItem(selected.value.id, itemEditTarget.value.id, payload)
     } else {
-      await envCategoryService.addItem(selected.value.id, { label: itemForm.value.label.trim() })
+      await envCategoryService.addItem(selected.value.id, payload)
     }
     itemDialog.value = false
     await load()

@@ -119,6 +119,7 @@ async def add_item(category_id: str, payload: EnvItemCreate, _=Depends(require_a
     items.append({
         "id": str(uuid4()),
         "label": payload.label,
+        "value": payload.value,
         "sort_order": next_order,
         "is_active": True,
     })

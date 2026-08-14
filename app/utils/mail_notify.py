@@ -76,7 +76,13 @@ async def _load_firewall_emails() -> list[str]:
     doc = await col.find_one({"key": "firewall_notify_emails"})
     if not doc:
         return []
-    return [i["label"].strip() for i in doc.get("items", []) if i.get("is_active", True) and i.get("label", "").strip()]
+    # 항목의 표시 이름(label)과 실제 발송 대상 이메일(value)을 분리해 저장하는 화면으로
+    # 바뀌었지만, value 없이 label에 이메일을 직접 넣어둔 과거 데이터도 있으므로 폴백한다.
+    return [
+        (i.get("value") or i.get("label", "")).strip()
+        for i in doc.get("items", [])
+        if i.get("is_active", True) and (i.get("value") or i.get("label", "")).strip()
+    ]
 
 
 _MAX_RETRY_ON_404 = 3
