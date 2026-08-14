@@ -553,8 +553,12 @@ function isImage(file: File | Attachment): boolean {
   return type.startsWith('image/')
 }
 
+function localUuid(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
 async function addPendingFile(file: File) {
-  const id = crypto.randomUUID()
+  const id = localUuid()
   const preview = isImage(file) ? await new Promise<string | null>(resolve => {
     const reader = new FileReader()
     reader.onload = e => resolve(e.target?.result as string)
