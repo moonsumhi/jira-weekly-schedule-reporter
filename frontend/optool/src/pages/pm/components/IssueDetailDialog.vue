@@ -415,8 +415,6 @@
                 @blur="patchField('due_date', localDueDate ? new Date(localDueDate).toISOString() : null)" />
             </div>
 
-            <q-separator />
-
             <div>
               <q-checkbox
                 v-model="localShowOnDashboard" label="대시보드 D-Day 표시" dense
