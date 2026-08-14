@@ -18,6 +18,10 @@ class EnvItemPatch(BaseModel):
     is_active: bool | None = None
 
 
+class EnvItemsReorder(BaseModel):
+    item_ids: list[str]
+
+
 class EnvCategoryCreate(BaseModel):
     key: str
     label: str

@@ -49,4 +49,7 @@ export const envCategoryService = {
   removeItem(categoryId: string, itemId: string): Promise<EnvCategoryOut> {
     return api.delete(`/env-categories/${categoryId}/items/${itemId}`).then((r) => r.data)
   },
+  reorderItems(categoryId: string, itemIds: string[]): Promise<EnvCategoryOut> {
+    return api.put(`/env-categories/${categoryId}/items/reorder`, { item_ids: itemIds }).then((r) => r.data)
+  },
 }

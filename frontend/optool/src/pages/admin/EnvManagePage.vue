@@ -57,20 +57,31 @@
           </q-card-section>
           <q-separator />
           <q-list separator>
-            <q-item v-for="(item, idx) in selected.items" :key="item.id">
-              <q-item-section>
-                <q-item-label :class="{ 'text-grey-5': !item.isActive }">{{ item.label }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <div class="row items-center q-gutter-xs">
-                  <q-btn flat dense round icon="arrow_upward" size="sm" :disable="idx === 0" @click="moveItem(idx, -1)" />
-                  <q-btn flat dense round icon="arrow_downward" size="sm" :disable="idx === selected.items.length - 1" @click="moveItem(idx, 1)" />
-                  <q-toggle :model-value="item.isActive" dense color="positive" @update:model-value="(v) => toggleItem(item, v)" />
-                  <q-btn flat dense round icon="edit" size="sm" @click="openEditItem(item)" />
-                  <q-btn flat dense round icon="delete" color="negative" size="sm" @click="confirmDeleteItem(item)" />
-                </div>
-              </q-item-section>
-            </q-item>
+            <draggable
+              v-model="selected.items"
+              item-key="id"
+              handle=".item-drag-handle"
+              ghost-class="drag-ghost"
+              @end="onItemDragEnd"
+            >
+              <template #item="{ element: item }">
+                <q-item :key="item.id">
+                  <q-item-section avatar style="min-width: 28px; padding-right: 2px">
+                    <q-icon name="drag_indicator" class="item-drag-handle cursor-grab" color="grey-5" size="sm" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label :class="{ 'text-grey-5': !item.isActive }">{{ item.label }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="row items-center q-gutter-xs">
+                      <q-toggle :model-value="item.isActive" dense color="positive" @update:model-value="(v) => toggleItem(item, v)" />
+                      <q-btn flat dense round icon="edit" size="sm" @click="openEditItem(item)" />
+                      <q-btn flat dense round icon="delete" color="negative" size="sm" @click="confirmDeleteItem(item)" />
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </template>
+            </draggable>
             <q-item v-if="selected.items.length === 0">
               <q-item-section class="text-grey">등록된 항목이 없습니다.</q-item-section>
             </q-item>
@@ -122,7 +133,7 @@
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
-          <q-btn color="primary" label="저장" :loading="itemSaving" @click="submitItem" />
+          <q-btn color="primary" label="저장" :loading="itemSaving" :disable="itemSaving" @click="submitItem" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -132,6 +143,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import draggable from 'vuedraggable'
 import { api } from 'boot/axios'
 import { envCategoryService, type EnvCategoryOut, type EnvItem } from 'src/services/envCategory'
 
@@ -296,20 +308,15 @@ async function toggleItem(item: EnvItem, active: boolean) {
   }
 }
 
-async function moveItem(idx: number, dir: -1 | 1) {
+async function onItemDragEnd() {
   if (!selected.value) return
-  const items = selected.value.items
-  const other = items[idx + dir]
-  const current = items[idx]
-  if (!other || !current) return
+  const itemIds = selected.value.items.map((i) => i.id)
   try {
-    // 백엔드가 items 배열 전체를 읽고-수정하고-통째로 저장하는 방식이라,
-    // 두 PATCH를 동시에 보내면 나중에 끝나는 쪽이 먼저 쓴 걸 덮어써버린다. 순차 실행.
-    await envCategoryService.patchItem(selected.value.id, current.id, { sortOrder: other.sortOrder })
-    await envCategoryService.patchItem(selected.value.id, other.id, { sortOrder: current.sortOrder })
+    await envCategoryService.reorderItems(selected.value.id, itemIds)
     await load()
   } catch {
     $q.notify({ type: 'negative', message: '순서 변경에 실패했습니다' })
+    await load()
   }
 }
 
@@ -334,3 +341,13 @@ function confirmDeleteItem(item: EnvItem) {
 
 onMounted(() => { void load() })
 </script>
+
+<style scoped>
+.item-drag-handle {
+  cursor: grab;
+}
+.drag-ghost {
+  opacity: 0.4;
+  background: #c8ebfb;
+}
+</style>
