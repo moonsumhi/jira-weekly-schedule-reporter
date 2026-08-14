@@ -120,8 +120,10 @@ const canDelete = canEdit
 
 function fileIcon(ct: string) {
   if (ct.startsWith('image/')) return 'image'
+  if (ct.startsWith('video/')) return 'movie'
   if (ct.includes('pdf')) return 'picture_as_pdf'
   if (ct.includes('spreadsheet') || ct.includes('excel')) return 'table_chart'
+  if (ct.includes('powerpoint') || ct.includes('presentation')) return 'slideshow'
   if (ct.includes('zip') || ct.includes('compressed')) return 'folder_zip'
   return 'insert_drive_file'
 }

@@ -848,7 +848,7 @@
                   </div>
                 </div>
                 <input ref="commentFileInput" type="file" multiple style="display:none"
-                  accept="image/*,.pdf,.xls,.xlsx,.doc,.docx,.txt,.csv,.zip"
+                  accept="image/*,.pdf,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4"
                   @change="onCommentFileChange" />
 
               </q-tab-panel>
@@ -1459,8 +1459,10 @@ function fieldSelectLabel(typeName: string, fieldKey: string, value: string | nu
 
 function fileIcon(ct: string) {
   if (ct.startsWith('image/')) return 'image'
+  if (ct.startsWith('video/')) return 'movie'
   if (ct.includes('pdf')) return 'picture_as_pdf'
   if (ct.includes('spreadsheet') || ct.includes('excel')) return 'table_chart'
+  if (ct.includes('powerpoint') || ct.includes('presentation')) return 'slideshow'
   if (ct.includes('zip') || ct.includes('compressed')) return 'folder_zip'
   return 'insert_drive_file'
 }

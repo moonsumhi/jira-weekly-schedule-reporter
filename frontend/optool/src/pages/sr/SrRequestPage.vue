@@ -270,13 +270,14 @@
               label="파일을 드래그하거나 클릭하여 업로드"
               multiple
               auto-upload
-              accept=".pdf,.hwp,.docx,.xlsx,.pptx,.zip,.jpg,.jpeg,.png,.gif"
+              accept=".pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,.gif,.webp,.mp4"
               max-file-size="20971520"
               flat bordered class="full-width"
               :headers="uploadHeaders"
               @uploaded="onFileUploaded"
               @failed="onUploadFailed"
             />
+            <div class="text-caption text-grey-5 q-mt-xs">지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), ZIP, MP4 (최대 20MB)</div>
             <div v-if="extraAttachments.length" class="q-mt-sm">
               <!-- 이미지 썸네일 미리보기 -->
               <div v-if="extraAttachments.some(isImageAttachment)" class="row wrap q-gutter-sm q-mb-xs">
@@ -553,8 +554,10 @@ function openPreview(att: SRAttachment) {
 }
 function fileIcon(ct: string) {
   if (ct.startsWith('image/')) return 'image'
+  if (ct.startsWith('video/')) return 'movie'
   if (ct.includes('pdf')) return 'picture_as_pdf'
   if (ct.includes('spreadsheet') || ct.includes('excel')) return 'table_chart'
+  if (ct.includes('powerpoint') || ct.includes('presentation')) return 'slideshow'
   if (ct.includes('zip') || ct.includes('compressed')) return 'folder_zip'
   return 'insert_drive_file'
 }

@@ -223,10 +223,12 @@
                 ref="fileInputRef"
                 type="file"
                 multiple
+                :accept="ATTACHMENT_ACCEPT"
                 style="display: none"
                 @change="onFilesSelected"
               />
             </div>
+            <div class="text-caption text-grey-5 q-mb-xs">{{ ATTACHMENT_HINT }}</div>
             <!-- 드롭존 (파일 없을 때) -->
             <div
               v-if="attachments.length === 0"
@@ -306,6 +308,9 @@ const emit = defineEmits<{
   'update:modelValue': [boolean]
   'created': [Issue]
 }>()
+
+const ATTACHMENT_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4'
+const ATTACHMENT_HINT = '지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), TXT, CSV, ZIP, MP4 (최대 50MB)'
 
 const auth = useAuthStore()
 const loading = ref(false)
@@ -449,8 +454,8 @@ async function uploadFiles(files: File[]) {
     try {
       const att = await uploadAttachment(file)
       attachments.value.push(att)
-    } catch {
-      Notify.create({ type: 'negative', message: `${file.name} 업로드 실패` })
+    } catch (e) {
+      Notify.create({ type: 'negative', message: `${file.name}: ${getErrorMessage(e, '업로드 실패')}` })
     } finally {
       uploadingCount.value--
     }
@@ -475,9 +480,11 @@ function removeAttachment(index: number) {
 
 function fileIcon(contentType: string) {
   if (contentType.startsWith('image/')) return 'image'
+  if (contentType.startsWith('video/')) return 'movie'
   if (contentType === 'application/pdf') return 'picture_as_pdf'
   if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'table_chart'
   if (contentType.includes('word')) return 'description'
+  if (contentType.includes('powerpoint') || contentType.includes('presentation')) return 'slideshow'
   if (contentType === 'text/plain' || contentType === 'text/csv') return 'article'
   return 'attach_file'
 }

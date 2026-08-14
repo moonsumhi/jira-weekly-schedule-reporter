@@ -44,13 +44,14 @@
             label="파일을 드래그하거나 클릭하여 업로드"
             multiple
             auto-upload
-            accept=".pdf,.hwp,.docx,.xlsx,.pptx,.zip,.jpg,.jpeg,.png,.gif"
+            accept=".pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,.gif,.webp,.mp4"
             max-file-size="52428800"
             flat bordered class="full-width"
             :headers="uploadHeaders"
             @uploaded="onFileUploaded"
             @failed="onUploadFailed"
           />
+          <div class="text-caption text-grey-5 q-mt-xs">지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), ZIP, MP4 (최대 50MB)</div>
           <div v-if="attachments.length" class="q-mt-sm row q-gutter-xs">
             <q-chip v-for="(att, i) in attachments" :key="i"
               removable @remove="attachments.splice(i, 1)"

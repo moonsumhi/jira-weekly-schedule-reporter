@@ -237,7 +237,7 @@
                   ref="fileInputRef"
                   type="file"
                   multiple
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4"
                   style="display:none"
                   @change="onFileInputChange"
                 />
@@ -845,9 +845,11 @@ function fmtSize(bytes: number) {
 
 function fileIcon(contentType: string) {
   if (contentType.startsWith('image/')) return 'image'
+  if (contentType.startsWith('video/')) return 'movie'
   if (contentType === 'application/pdf') return 'picture_as_pdf'
   if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'table_chart'
   if (contentType.includes('word')) return 'description'
+  if (contentType.includes('powerpoint') || contentType.includes('presentation')) return 'slideshow'
   return 'attach_file'
 }
 
