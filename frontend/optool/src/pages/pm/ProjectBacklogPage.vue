@@ -199,6 +199,65 @@
           </q-menu>
         </q-chip>
 
+        <q-separator vertical inset class="q-mx-xs" />
+        <span class="text-caption text-grey-5 q-mr-xs" style="line-height: 32px">제외</span>
+
+        <!-- 제외: 담당자 -->
+        <q-chip
+          :color="filterExcludeAssigneeIds.length ? 'negative' : undefined"
+          :text-color="filterExcludeAssigneeIds.length ? 'white' : 'grey-8'"
+          :outline="!filterExcludeAssigneeIds.length"
+          clickable
+          :removable="!!filterExcludeAssigneeIds.length"
+          @remove="filterExcludeAssigneeIds = []"
+          class="filter-chip"
+          size="sm"
+        >
+          <q-icon v-if="filterExcludeAssigneeIds.length" name="person_off" size="10px" class="q-mr-xs" />
+          <span>{{ filterExcludeAssigneeIds.length ? `담당자 제외 (${filterExcludeAssigneeIds.length})` : '담당자 제외' }}</span>
+          <q-icon v-if="!filterExcludeAssigneeIds.length" name="expand_more" size="14px" class="q-ml-xs" />
+          <q-menu>
+            <q-list dense style="min-width: 190px">
+              <q-item-label header class="text-grey-5" style="font-size: 11px; padding-bottom: 4px">제외할 담당자 선택</q-item-label>
+              <q-item v-if="memberOptions.length === 0" class="text-grey-5 text-caption q-px-md q-py-xs">멤버가 없습니다</q-item>
+              <q-item v-for="opt in memberOptions" :key="opt.value" clickable @click="toggleExcludeAssignee(opt.value)">
+                <q-item-section side style="padding-right: 8px; min-width: 28px">
+                  <q-checkbox :model-value="filterExcludeAssigneeIds.includes(opt.value)" dense color="negative" @update:model-value="toggleExcludeAssignee(opt.value)" />
+                </q-item-section>
+                <q-item-section>{{ opt.label }}</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-chip>
+
+        <!-- 제외: 완료 상태 -->
+        <q-chip
+          :color="filterExcludeDone ? 'negative' : undefined"
+          :text-color="filterExcludeDone ? 'white' : 'grey-8'"
+          :outline="!filterExcludeDone"
+          clickable
+          class="filter-chip"
+          size="sm"
+          @click="filterExcludeDone = !filterExcludeDone"
+        >
+          <q-icon name="visibility_off" size="10px" class="q-mr-xs" />
+          <span>완료 제외</span>
+        </q-chip>
+
+        <!-- 제외: 구현완료 상태 -->
+        <q-chip
+          :color="filterExcludeImplemented ? 'negative' : undefined"
+          :text-color="filterExcludeImplemented ? 'white' : 'grey-8'"
+          :outline="!filterExcludeImplemented"
+          clickable
+          class="filter-chip"
+          size="sm"
+          @click="filterExcludeImplemented = !filterExcludeImplemented"
+        >
+          <q-icon name="visibility_off" size="10px" class="q-mr-xs" />
+          <span>구현완료 제외</span>
+        </q-chip>
+
         <!-- 필터 초기화 -->
         <q-btn
           v-if="hasFilter"
@@ -625,6 +684,9 @@ const filterType      = ref<IssueType | null>(null)
 const filterAssigneeId = ref<string | null>(null)
 const filterDateFrom  = ref<string | null>(null)
 const filterDateTo    = ref<string | null>(null)
+const filterExcludeAssigneeIds  = ref<string[]>([])
+const filterExcludeDone         = ref(false)
+const filterExcludeImplemented  = ref(false)
 
 const FILTER_KEY = `backlog_filter_${projectId}`
 
@@ -633,6 +695,8 @@ function saveFilters() {
     search: filterSearch.value, status: filterStatus.value,
     priority: filterPriority.value, type: filterType.value, assigneeId: filterAssigneeId.value,
     dateFrom: filterDateFrom.value, dateTo: filterDateTo.value,
+    excludeAssigneeIds: filterExcludeAssigneeIds.value,
+    excludeDone: filterExcludeDone.value, excludeImplemented: filterExcludeImplemented.value,
   }))
 }
 
@@ -640,24 +704,42 @@ function restoreFilters() {
   try {
     const raw = localStorage.getItem(FILTER_KEY)
     if (!raw) return
-    const s = JSON.parse(raw) as { search: string; status: IssueStatus | null; priority: IssuePriority | null; type: IssueType | null; assigneeId: string | null; dateFrom: string | null; dateTo: string | null }
+    const s = JSON.parse(raw) as {
+      search: string; status: IssueStatus | null; priority: IssuePriority | null; type: IssueType | null
+      assigneeId: string | null; dateFrom: string | null; dateTo: string | null
+      excludeAssigneeIds?: string[]; excludeDone?: boolean; excludeImplemented?: boolean
+    }
     filterSearch.value = s.search ?? ''; filterStatus.value = s.status ?? null
     filterPriority.value = s.priority ?? null; filterType.value = s.type ?? null
     filterAssigneeId.value = s.assigneeId ?? null
     filterDateFrom.value = s.dateFrom ?? null; filterDateTo.value = s.dateTo ?? null
+    filterExcludeAssigneeIds.value = s.excludeAssigneeIds ?? []
+    filterExcludeDone.value = s.excludeDone ?? false
+    filterExcludeImplemented.value = s.excludeImplemented ?? false
   } catch { /* ignore */ }
 }
 
-watch([filterSearch, filterStatus, filterPriority, filterType, filterAssigneeId, filterDateFrom, filterDateTo], saveFilters)
+watch([
+  filterSearch, filterStatus, filterPriority, filterType, filterAssigneeId, filterDateFrom, filterDateTo,
+  filterExcludeAssigneeIds, filterExcludeDone, filterExcludeImplemented,
+], saveFilters, { deep: true })
 
 const hasFilter = computed(() =>
-  !!(filterSearch.value || filterStatus.value || filterPriority.value || filterType.value || filterAssigneeId.value || filterDateFrom.value || filterDateTo.value)
+  !!(filterSearch.value || filterStatus.value || filterPriority.value || filterType.value || filterAssigneeId.value || filterDateFrom.value || filterDateTo.value
+    || filterExcludeAssigneeIds.value.length || filterExcludeDone.value || filterExcludeImplemented.value)
 )
 
 function clearFilters() {
   filterSearch.value = ''; filterStatus.value = null
   filterPriority.value = null; filterType.value = null; filterAssigneeId.value = null
   filterDateFrom.value = null; filterDateTo.value = null
+  filterExcludeAssigneeIds.value = []; filterExcludeDone.value = false; filterExcludeImplemented.value = false
+}
+
+function toggleExcludeAssignee(id: string) {
+  filterExcludeAssigneeIds.value = filterExcludeAssigneeIds.value.includes(id)
+    ? filterExcludeAssigneeIds.value.filter(v => v !== id)
+    : [...filterExcludeAssigneeIds.value, id]
 }
 
 // ── 드래그 순서 관리 ──────────────────────────────────────────────────
@@ -744,6 +826,9 @@ function matches(issue: Issue): boolean {
   if (filterAssigneeId.value && issue.assigneeId !== filterAssigneeId.value) return false
   if (filterDateFrom.value   && (!issue.dueDate  || issue.dueDate < filterDateFrom.value)) return false
   if (filterDateTo.value     && (!issue.dueDate  || issue.dueDate > filterDateTo.value))   return false
+  if (filterExcludeAssigneeIds.value.length && issue.assigneeId && filterExcludeAssigneeIds.value.includes(issue.assigneeId)) return false
+  if (filterExcludeDone.value && issue.status === 'DONE') return false
+  if (filterExcludeImplemented.value && issue.status === 'IMPLEMENTED') return false
   return true
 }
 
