@@ -597,6 +597,34 @@ async def migrate_assets() -> None:
         logger.info("assets 마이그레이션 완료: %d건 이동", migrated)
 
 
+async def migrate_firewall_contact_names() -> None:
+    """방화벽 담당자 메일 항목 중 value 없이 label에 이메일을 그대로 저장해둔
+    과거 데이터를, users 컬렉션에서 이메일로 조회해 label=이름/value=이메일로
+    분리해준다. 일치하는 회원이 없으면 건드리지 않는다(멱등).
+    """
+    col = MongoClientManager.get_env_categories_collection()
+    doc = await col.find_one({"key": "firewall_notify_emails"})
+    if not doc:
+        return
+    items = doc.get("items", [])
+    users_col = MongoClientManager.get_users_collection()
+    changed = False
+    for item in items:
+        if item.get("value"):
+            continue
+        email = (item.get("label") or "").strip()
+        if not email:
+            continue
+        user = await users_col.find_one({"email": email})
+        if user and user.get("full_name"):
+            item["label"] = user["full_name"]
+            item["value"] = email
+            changed = True
+    if changed:
+        await col.update_one({"_id": doc["_id"]}, {"$set": {"items": items}})
+        logger.info("방화벽 담당자 항목 이름/이메일 분리 마이그레이션 완료")
+
+
 async def run_startup() -> None:
     """lifespan startup에서 호출하는 진입점."""
     await create_indexes()
@@ -606,6 +634,7 @@ async def run_startup() -> None:
     await migrate_guide_submenus()
     await migrate_notice_submenu()
     await seed_env_categories()
+    await migrate_firewall_contact_names()
     await migrate_env_submenu()
     await seed_job_form_templates()
     await migrate_assets()
