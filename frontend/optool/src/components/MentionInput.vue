@@ -32,11 +32,11 @@
           <q-item
             v-for="(u, i) in searchResults"
             :key="u.userId"
-            clickable
+            :clickable="u.hasProjectAccess !== false"
             :active="i === activeIdx"
             active-class="bg-primary text-white"
             :class="{ 'mention-item--no-access': u.hasProjectAccess === false }"
-            @mousedown.prevent="selectUser(u)"
+            @mousedown.prevent="u.hasProjectAccess !== false && selectUser(u)"
             @mouseenter="activeIdx = i"
           >
             <q-item-section avatar>
@@ -216,7 +216,7 @@ function onKeydown(e: KeyboardEvent) {
   } else if (e.key === 'Enter' && searchResults.value.length > 0) {
     e.preventDefault()
     const u = searchResults.value[activeIdx.value]
-    if (u) selectUser(u)
+    if (u && u.hasProjectAccess !== false) selectUser(u)
   } else if (e.key === 'Escape') {
     showMenu.value = false
     mentionActive.value = false
@@ -267,6 +267,7 @@ watch(showMenu, (open) => {
 
 .mention-item--no-access {
   opacity: 0.55;
+  cursor: not-allowed;
 }
 .mention-item--no-access :deep(.q-item__label) {
   color: #9e9e9e;
