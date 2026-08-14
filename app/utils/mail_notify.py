@@ -54,6 +54,10 @@ def _ruby_hash_str(data: dict[str, str]) -> str:
     return "{" + ", ".join(parts) + "}"
 
 
+def _sr_detail_url(sr_id: Any) -> str:
+    return f"{settings.FRONTEND_BASE_URL}/#/pm/sr/{sr_id}"
+
+
 async def _get_assignee_email(assignee_id: Any) -> str | None:
     if not assignee_id:
         return None
@@ -195,9 +199,18 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     if doc.get("request_type") == "FIREWALL":
         description = (doc.get("type_detail") or {}).get("purpose") or description
 
+    detail_url = _sr_detail_url(doc.get("_id"))
+
+    # reviewed(=접수/검토완료 알림)는 외부에 이미 등록된 Backoffice_IssueInfo
+    # 템플릿이라 이 저장소에서 직접 수정할 수 없다 — 링크는 description 안에
+    # 텍스트로 끼워 넣는다(대부분의 메일 클라이언트가 자동으로 하이퍼링크 처리).
+    if event == "reviewed":
+        description = f"{description or '-'} (상세보기: {detail_url})"
+
     # 실제 메일 템플릿(Backoffice_IssueInfo.html, th:text)이 읽는 키만 채운다:
     # subject(제목) / description(내용) / start_date(생성일자) /
     # adminInfo(담당자) / custom_field_values(요청자) / due_date(마감일자)
+    # link는 issueAssign 템플릿 전용 신규 키(담당자 배정 메일의 바로가기 버튼).
     data_map = {
         "subject": _sanitize_for_mail(doc.get("title") or "-"),
         "description": _sanitize_for_mail(description or "-"),
@@ -205,6 +218,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
         "adminInfo": doc.get("assignee_name") or "-",
         "custom_field_values": doc.get("requester_name") or "-",
         "due_date": _fmt_date(doc.get("desired_due_date")),
+        "link": detail_url,
     }
 
     url = _EVENT_URLS.get(event, lambda: settings.SR_MAIL_SERVICE_URL)()

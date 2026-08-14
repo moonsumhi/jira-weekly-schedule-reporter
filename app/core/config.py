@@ -25,6 +25,11 @@ class Settings(BaseSettings):
 
     ANTHROPIC_API_KEY: str = Field(default="", description="Anthropic Claude API key")
 
+    FRONTEND_BASE_URL: str = Field(
+        default="http://10.32.50.22:9000",
+        description="SR 알림 메일 등에 넣는 상세 페이지 링크의 기준 주소",
+    )
+
     SR_MAIL_SERVICE_URL: str = Field(
         default="http://10.32.18.52:8083/service/customCall/Backoffice_IssueInfo",
         description="사내 메일 발송 서비스 URL (백오피스 전용 엔드포인트) — SR 검토 완료(승인) 시 요청자 메일 발송",
