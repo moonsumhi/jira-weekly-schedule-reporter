@@ -125,6 +125,7 @@ function fileIcon(ct: string) {
   if (ct.includes('spreadsheet') || ct.includes('excel')) return 'table_chart'
   if (ct.includes('powerpoint') || ct.includes('presentation')) return 'slideshow'
   if (ct.includes('zip') || ct.includes('compressed')) return 'folder_zip'
+  if (ct === 'text/html' || ct === 'application/json' || ct.includes('xml')) return 'code'
   return 'insert_drive_file'
 }
 

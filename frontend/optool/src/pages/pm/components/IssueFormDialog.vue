@@ -309,8 +309,8 @@ const emit = defineEmits<{
   'created': [Issue]
 }>()
 
-const ATTACHMENT_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4'
-const ATTACHMENT_HINT = '지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), TXT, CSV, ZIP, MP4 (최대 100MB)'
+const ATTACHMENT_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4,.html,.htm,.log,.json,.xml,.yaml,.yml'
+const ATTACHMENT_HINT = '지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), TXT, CSV, ZIP, MP4, HTML, LOG, JSON, XML, YAML (최대 100MB)'
 
 const auth = useAuthStore()
 const loading = ref(false)
@@ -485,6 +485,7 @@ function fileIcon(contentType: string) {
   if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'table_chart'
   if (contentType.includes('word')) return 'description'
   if (contentType.includes('powerpoint') || contentType.includes('presentation')) return 'slideshow'
+  if (contentType === 'text/html' || contentType === 'application/json' || contentType.includes('xml')) return 'code'
   if (contentType === 'text/plain' || contentType === 'text/csv') return 'article'
   return 'attach_file'
 }

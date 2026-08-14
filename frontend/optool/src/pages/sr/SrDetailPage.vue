@@ -848,7 +848,7 @@
                   </div>
                 </div>
                 <input ref="commentFileInput" type="file" multiple style="display:none"
-                  accept="image/*,.pdf,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4"
+                  accept="image/*,.pdf,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4,.html,.htm,.log,.json,.xml,.yaml,.yml"
                   @change="onCommentFileChange" />
 
               </q-tab-panel>
@@ -1464,6 +1464,7 @@ function fileIcon(ct: string) {
   if (ct.includes('spreadsheet') || ct.includes('excel')) return 'table_chart'
   if (ct.includes('powerpoint') || ct.includes('presentation')) return 'slideshow'
   if (ct.includes('zip') || ct.includes('compressed')) return 'folder_zip'
+  if (ct === 'text/html' || ct === 'application/json' || ct.includes('xml')) return 'code'
   return 'insert_drive_file'
 }
 

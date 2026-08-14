@@ -22,12 +22,13 @@ ALLOWED_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "text/plain", "text/csv",
+    "text/plain", "text/csv", "text/html",
+    "application/json", "application/xml", "text/xml",
     "application/zip",
     "video/mp4",
 }
-# 브라우저가 표준 MIME 타입을 보내지 않는 확장자 (한글 문서 등) → 확장자로 허용 판단
-ALLOWED_EXTENSIONS_FALLBACK = {".hwp", ".hwpx"}
+# 브라우저가 표준 MIME 타입을 보내지 않는 확장자 (한글 문서, 로그/설정 파일 등) → 확장자로 허용 판단
+ALLOWED_EXTENSIONS_FALLBACK = {".hwp", ".hwpx", ".log", ".yaml", ".yml"}
 
 
 class AttachmentOut(BaseModel):

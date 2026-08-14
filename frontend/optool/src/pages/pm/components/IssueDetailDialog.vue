@@ -237,7 +237,7 @@
                   ref="fileInputRef"
                   type="file"
                   multiple
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4,.html,.htm,.log,.json,.xml,.yaml,.yml"
                   style="display:none"
                   @change="onFileInputChange"
                 />
@@ -858,6 +858,7 @@ function fileIcon(contentType: string) {
   if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'table_chart'
   if (contentType.includes('word')) return 'description'
   if (contentType.includes('powerpoint') || contentType.includes('presentation')) return 'slideshow'
+  if (contentType === 'text/html' || contentType === 'application/json' || contentType.includes('xml')) return 'code'
   return 'attach_file'
 }
 
