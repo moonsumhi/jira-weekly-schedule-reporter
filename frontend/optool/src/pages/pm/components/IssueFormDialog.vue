@@ -310,7 +310,7 @@ const emit = defineEmits<{
 }>()
 
 const ATTACHMENT_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4'
-const ATTACHMENT_HINT = '지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), TXT, CSV, ZIP, MP4 (최대 50MB)'
+const ATTACHMENT_HINT = '지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), TXT, CSV, ZIP, MP4 (최대 100MB)'
 
 const auth = useAuthStore()
 const loading = ref(false)

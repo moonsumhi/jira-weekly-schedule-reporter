@@ -12,7 +12,7 @@ from app.routers.auth import get_current_user
 router = APIRouter()
 
 UPLOAD_DIR = "/app/uploads/pm"
-MAX_SIZE = 50 * 1024 * 1024  # 50 MB
+MAX_SIZE = 100 * 1024 * 1024  # 100 MB
 ALLOWED_TYPES = {
     "image/jpeg", "image/png", "image/gif", "image/webp",
     "application/pdf",
@@ -45,7 +45,7 @@ async def upload_attachment(
 ) -> AttachmentOut:
     content = await file.read()
     if len(content) > MAX_SIZE:
-        raise HTTPException(status_code=413, detail="파일 크기가 50MB를 초과합니다.")
+        raise HTTPException(status_code=413, detail="파일 크기가 100MB를 초과합니다.")
 
     content_type = file.content_type or "application/octet-stream"
     ext = os.path.splitext(file.filename or "")[1].lower()

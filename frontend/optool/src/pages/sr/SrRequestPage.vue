@@ -271,13 +271,13 @@
               multiple
               auto-upload
               accept=".pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,.gif,.webp,.mp4"
-              max-file-size="20971520"
+              max-file-size="104857600"
               flat bordered class="full-width"
               :headers="uploadHeaders"
               @uploaded="onFileUploaded"
               @failed="onUploadFailed"
             />
-            <div class="text-caption text-grey-5 q-mt-xs">지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), ZIP, MP4 (최대 20MB)</div>
+            <div class="text-caption text-grey-5 q-mt-xs">지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), ZIP, MP4 (최대 100MB)</div>
             <div v-if="extraAttachments.length" class="q-mt-sm">
               <!-- 이미지 썸네일 미리보기 -->
               <div v-if="extraAttachments.some(isImageAttachment)" class="row wrap q-gutter-sm q-mb-xs">
