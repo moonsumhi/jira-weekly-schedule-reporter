@@ -277,7 +277,7 @@
       <!-- 하단 버튼 -->
       <q-card-actions align="right" class="q-pa-md q-gutter-x-sm">
         <q-btn flat label="취소" @click="$emit('update:modelValue', false)" />
-        <q-btn color="primary" label="이슈 추가" :loading="loading" @click="submit" />
+        <q-btn color="primary" label="이슈 추가" :loading="loading" :disable="loading" @click="submit" />
       </q-card-actions>
 
     </q-card>
