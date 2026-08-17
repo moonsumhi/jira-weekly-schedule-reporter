@@ -114,15 +114,16 @@
     </q-dialog>
 
     <!-- 항목 등록/수정 다이얼로그 -->
-    <q-dialog v-model="itemDialog" persistent>
+    <q-dialog v-model="itemDialog" persistent @show="onItemDialogShow">
       <q-card style="min-width: 420px; max-width: 90vw">
         <q-card-section class="text-h6">{{ itemEditTarget ? '항목 수정' : '항목 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">
           <q-select
             v-if="selected?.key === 'firewall_notify_emails'"
+            ref="firewallPickRef"
             v-model="firewallPick"
             label="회원 선택 *"
-            outlined dense autofocus
+            outlined dense
             use-input fill-input hide-selected
             input-debounce="0"
             option-value="value" option-label="label"
@@ -130,7 +131,7 @@
             @filter="filterUserOptions"
             @update:model-value="onPickFirewallUser"
           />
-          <q-input v-else v-model="itemForm.label" label="이름 *" outlined dense autofocus />
+          <q-input v-else ref="itemLabelInputRef" v-model="itemForm.label" label="이름 *" outlined dense />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
@@ -142,8 +143,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
+import type { QInput, QSelect } from 'quasar'
 import draggable from 'vuedraggable'
 import { api } from 'boot/axios'
 import { envCategoryService, type EnvCategoryOut, type EnvItem } from 'src/services/envCategory'
@@ -271,6 +273,15 @@ const itemDialog = ref(false)
 const itemSaving = ref(false)
 const itemEditTarget = ref<EnvItem | null>(null)
 const itemForm = ref({ label: '', value: '' })
+const firewallPickRef = ref<QSelect | null>(null)
+const itemLabelInputRef = ref<QInput | null>(null)
+
+// autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지). 두 필드는 서로 배타적으로
+// 렌더링되므로 현재 렌더링된 쪽을 포커스한다.
+function onItemDialogShow() {
+  void nextTick(() => (firewallPickRef.value ?? itemLabelInputRef.value)?.focus())
+}
 
 function openCreateItem() {
   itemEditTarget.value = null

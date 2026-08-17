@@ -232,11 +232,11 @@
     </q-dialog>
 
     <!-- 하위 메뉴 다이얼로그 -->
-    <q-dialog v-model="subDialog" persistent>
+    <q-dialog v-model="subDialog" persistent @show="onSubDialogShow">
       <q-card style="min-width: 380px">
         <q-card-section class="text-h6">{{ editSubTarget ? '하위 메뉴 수정' : '하위 메뉴 추가' }}</q-card-section>
         <q-card-section class="q-gutter-sm">
-          <q-input v-model="subForm.title" label="이름" outlined dense autofocus />
+          <q-input ref="subTitleInputRef" v-model="subForm.title" label="이름" outlined dense />
           <q-input v-model="subForm.description" label="설명 (선택)" outlined dense />
           <div>
             <div class="text-caption text-grey q-mb-xs">아이콘</div>
@@ -254,8 +254,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
+import type { QInput } from 'quasar'
 import draggable from 'vuedraggable'
 import IconPicker from 'src/components/IconPicker.vue'
 import { menuService, type MenuOut } from 'src/services/menus'
@@ -328,6 +329,13 @@ const subDialog = ref(false)
 const editSubTarget = ref<BoardOut | null>(null)
 const subMenuTarget = ref<MenuOut | null>(null)
 const subForm = ref({ title: '', description: '', icon: 'fa-solid fa-clipboard-list', link: '' })
+const subTitleInputRef = ref<QInput | null>(null)
+
+// autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지).
+function onSubDialogShow() {
+  void nextTick(() => subTitleInputRef.value?.focus())
+}
 
 function subsOf(menuId: string): BoardOut[] {
   return subsMap.value[menuId] ?? []

@@ -1,5 +1,5 @@
 <template>
-  <q-dialog :model-value="modelValue" persistent @update:model-value="$emit('update:modelValue', $event)">
+  <q-dialog :model-value="modelValue" persistent @update:model-value="$emit('update:modelValue', $event)" @show="onDialogShow">
     <q-card style="width: 1080px; max-width: 96vw">
 
       <!-- 헤더 -->
@@ -21,9 +21,10 @@
         <div class="section-label q-mt-sm q-mb-sm">기본 정보</div>
         <div style="display: flex; flex-direction: column; gap: 12px">
           <q-input
+            ref="titleInputRef"
             v-model="form.title"
             label="제목 *"
-            outlined dense autofocus hide-bottom-space
+            outlined dense hide-bottom-space
           />
           <div style="display: flex; gap: 12px">
             <q-select
@@ -285,9 +286,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
-import { Notify } from 'quasar'
+import { Notify, type QInput } from 'quasar'
 import {
   createIssue, listIssues, listLabels, uploadAttachment,
   ISSUE_STATUSES, STATUS_LABEL,
@@ -314,6 +315,14 @@ const ATTACHMENT_HINT = '지원 형식: 이미지, PDF, 워드/엑셀/파워포�
 
 const auth = useAuthStore()
 const loading = ref(false)
+const titleInputRef = ref<QInput | null>(null)
+
+// autofocus는 다이얼로그의 진입 트랜지션이 끝나기 전에 포커스를 걸어버려서,
+// 트랜지션 중에 바로 한글을 입력하면 IME 조합이 깨져 첫 글자가 씹히거나
+// 중복 입력되는 문제가 있었다. 트랜지션이 완전히 끝난 뒤(@show)에 포커스한다.
+function onDialogShow() {
+  void nextTick(() => titleInputRef.value?.focus())
+}
 const sprints = ref<Sprint[]>([])
 const labelsData = ref<Label[]>([])
 const members = ref<ProjectMember[]>([])

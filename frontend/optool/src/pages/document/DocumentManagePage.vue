@@ -411,16 +411,17 @@
     </q-dialog>
 
     <!-- 폴더 추가 다이얼로그 -->
-    <q-dialog v-model="createFolderDialog">
+    <q-dialog v-model="createFolderDialog" @show="onCreateFolderDialogShow">
       <q-card style="min-width:360px">
         <q-card-section>
           <div class="text-h6">폴더 추가</div>
         </q-card-section>
         <q-card-section class="q-pt-none q-gutter-sm">
           <q-input
+            ref="newFolderNameInputRef"
             v-model="newFolderName"
             label="폴더명"
-            dense outlined autofocus
+            dense outlined
             :rules="[(v) => !!v || '폴더명을 입력하세요.']"
             @keyup.enter="void doCreateFolder()"
           />
@@ -442,16 +443,17 @@
     </q-dialog>
 
     <!-- 폴더 이름 변경 다이얼로그 -->
-    <q-dialog v-model="renameFolderDialog">
+    <q-dialog v-model="renameFolderDialog" @show="onRenameFolderDialogShow">
       <q-card style="min-width:360px">
         <q-card-section>
           <div class="text-h6">폴더 이름 변경</div>
         </q-card-section>
         <q-card-section class="q-pt-none">
           <q-input
+            ref="renameFolderNameInputRef"
             v-model="renameFolderName"
             label="폴더명"
-            dense outlined autofocus
+            dense outlined
             :rules="[(v) => !!v || '폴더명을 입력하세요.']"
             @keyup.enter="void doRenameFolder()"
           />
@@ -470,6 +472,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
+import type { QInput } from 'quasar'
 import { useAuthStore } from 'stores/auth'
 import * as XLSX from 'xlsx'
 import { documentService, type DocFile, type DocFolder } from 'src/services/documents'
@@ -574,6 +577,13 @@ const createFolderDialog = ref(false)
 const newFolderName = ref('')
 const newFolderParentId = ref<string | null>(null)
 const creatingFolder = ref(false)
+const newFolderNameInputRef = ref<QInput | null>(null)
+
+// autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지).
+function onCreateFolderDialogShow() {
+  void nextTick(() => newFolderNameInputRef.value?.focus())
+}
 
 function openCreateFolder() {
   newFolderName.value = ''
@@ -601,6 +611,11 @@ const renameFolderDialog = ref(false)
 const renameFolderTarget = ref<DocFolder | null>(null)
 const renameFolderName = ref('')
 const renamingFolder = ref(false)
+const renameFolderNameInputRef = ref<QInput | null>(null)
+
+function onRenameFolderDialogShow() {
+  void nextTick(() => renameFolderNameInputRef.value?.focus())
+}
 
 function openRenameFolder(f: DocFolder) {
   renameFolderTarget.value = f

@@ -274,7 +274,7 @@
     </q-card>
 
     <!-- ── 상태 변경 사유 다이얼로그 ────────────────────────────────── -->
-    <q-dialog v-model="statusDialog.open" persistent>
+    <q-dialog v-model="statusDialog.open" persistent @show="onStatusDialogShow">
       <q-card style="min-width:400px">
         <q-card-section class="q-pb-sm">
           <div class="text-h6">{{ statusDialog.title }}</div>
@@ -282,9 +282,10 @@
         </q-card-section>
         <q-card-section>
           <q-input
+            ref="statusInputRef"
             v-model="statusDialog.input"
             :label="statusDialog.inputLabel"
-            outlined autogrow :rows="3" autofocus
+            outlined autogrow :rows="3"
           />
         </q-card-section>
         <q-card-actions align="right">
@@ -329,10 +330,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import type { QTableProps } from 'quasar'
+import type { QTableProps, QInput } from 'quasar'
 import { api } from 'src/boot/axios'
 import {
   listAllSRs, getSRStats, changeSRStatus, patchSRInline, changePlannedDueDate,
@@ -480,6 +481,13 @@ const statusDialog = ref({
   input:      '',
   fieldKey:   '' as 'reason' | 'process_result',
 })
+const statusInputRef = ref<QInput | null>(null)
+
+// autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지).
+function onStatusDialogShow() {
+  void nextTick(() => statusInputRef.value?.focus())
+}
 
 // ── 테이블 컬럼 ───────────────────────────────────────────────────────────
 

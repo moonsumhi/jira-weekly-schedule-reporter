@@ -1,5 +1,5 @@
 <template>
-  <q-dialog :model-value="modelValue" no-backdrop-dismiss @update:model-value="$emit('update:modelValue', $event)">
+  <q-dialog :model-value="modelValue" no-backdrop-dismiss @update:model-value="$emit('update:modelValue', $event)" @show="onDialogShow">
     <q-card class="wr-dialog">
       <!-- 헤더 -->
       <div class="wr-header row items-center no-wrap q-px-lg q-py-md">
@@ -26,9 +26,9 @@
               <span class="text-negative">*</span>
             </div>
             <q-input
+              ref="titleInputRef"
               v-model="form.title"
               outlined
-              autofocus
               :placeholder="section === 'ATTENDANCE' ? '성명을 입력하세요' : section === 'ANNOUNCEMENT' ? '공지 제목을 입력하세요' : section === 'NETWORK' ? '네트워크 제목을 입력하세요' : '안건 제목을 간결하게 입력하세요'"
               :rules="[v => !!v.trim() || '필수 항목입니다.']"
               hide-bottom-space
@@ -336,8 +336,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
-import { Notify } from 'quasar'
+import { ref, watch, onMounted, nextTick } from 'vue'
+import { Notify, type QInput } from 'quasar'
 import { addManualItem, updateManualItem, type ManualItem, type ManualItemCreate, type ManualItemSection } from 'src/services/pm/reports'
 import { listPmUsers } from 'src/services/pm/users'
 import { getErrorMessage } from 'src/utils/http/error'
@@ -354,6 +354,15 @@ const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
   (e: 'saved', report: Awaited<ReturnType<typeof addManualItem>>): void
 }>()
+
+const titleInputRef = ref<QInput | null>(null)
+
+// autofocus는 다이얼로그 진입 트랜지션 중에 포커스를 걸어, Quasar가 트랜지션이
+// 끝난 뒤(@show) 다시 포커스를 재적용할 때와 겹치면 한글 IME 조합이 깨진다.
+// 트랜지션이 끝난 뒤 한 번만 포커스한다.
+function onDialogShow() {
+  void nextTick(() => titleInputRef.value?.focus())
+}
 
 const SECTION_LABEL: Record<ManualItemSection, string> = {
   MAIN_AGENDA: '주요 안건',
