@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
 })
 
 watch(() => props.modelValue, async (newVal) => {
-  if (!editor) return
+  if (!editor || isComposing) return
   const cur = editor.getMarkdown()
   if ((newVal ?? '') !== cur) {
     externalSet = true
