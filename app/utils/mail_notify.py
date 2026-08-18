@@ -201,12 +201,6 @@ async def send_sr_notification(doc: dict, event: str) -> None:
 
     detail_url = _sr_detail_url(doc.get("_id"))
 
-    # reviewed(=접수/검토완료 알림)는 외부에 이미 등록된 Backoffice_IssueInfo
-    # 템플릿이라 이 저장소에서 직접 수정할 수 없다 — 링크는 description 안에
-    # 텍스트로 끼워 넣는다(대부분의 메일 클라이언트가 자동으로 하이퍼링크 처리).
-    if event == "reviewed":
-        description = f"{description or '-'} (상세보기: {detail_url})"
-
     # 실제 메일 템플릿(Backoffice_IssueInfo.html, th:text)이 읽는 키만 채운다:
     # subject(제목) / description(내용) / start_date(생성일자) /
     # adminInfo(담당자) / custom_field_values(요청자) / due_date(마감일자)
