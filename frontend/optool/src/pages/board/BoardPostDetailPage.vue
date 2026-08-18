@@ -29,7 +29,7 @@
           <div class="text-caption text-grey-7 q-mb-xs">첨부파일</div>
           <q-list dense bordered class="rounded-borders">
             <q-item v-for="att in post.attachments" :key="att.fileId"
-              clickable tag="a" :href="att.url" target="_blank">
+              clickable tag="a" :href="att.url" target="_blank" :download="att.originalName">
               <q-item-section avatar>
                 <q-icon :name="fileIcon(att.contentType)" color="blue-6" size="20px" />
               </q-item-section>
