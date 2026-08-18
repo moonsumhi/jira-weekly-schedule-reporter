@@ -94,7 +94,7 @@ _RETRY_DELAY_SECONDS = 2.0
 
 _EVENT_URLS = {
     "reviewed": lambda: settings.SR_MAIL_SERVICE_URL,   # 검토 완료(승인) → Backoffice_IssueInfo 템플릿
-    "assigned": lambda: settings.SR_MAIL_ASSIGN_URL,    # 담당자 배정 → issueAssign 템플릿(신규)
+    "assigned": lambda: settings.SR_MAIL_ASSIGN_URL,    # 담당자 배정 → issueAssign_link 템플릿(신규)
     "completed": lambda: settings.SR_MAIL_FINISH_URL,   # 처리완료 → Backoffice_IssueFinish 템플릿
 }
 
@@ -169,7 +169,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
 
     event="reviewed"  → 검토 완료(승인) 메일. 수신자: 요청자
                         (단, request_type="FIREWALL"이면 환경설정에 등록된 방화벽 담당자 메일도 추가)
-    event="assigned"  → 담당자 배정 메일 (issueAssign 템플릿, 신규). 수신자: 요청자 + 담당자
+    event="assigned"  → 담당자 배정 메일 (issueAssign_link 템플릿, 신규). 수신자: 요청자 + 담당자
     event="completed" → 처리완료 메일. 수신자: 요청자 + 담당자
 
     메일 발송 실패는 SR 접수/처리 자체를 막지 않도록 예외를 삼키고 로그만 남긴다.
@@ -210,7 +210,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     # 실제 메일 템플릿(Backoffice_IssueInfo.html, th:text)이 읽는 키만 채운다:
     # subject(제목) / description(내용) / start_date(생성일자) /
     # adminInfo(담당자) / custom_field_values(요청자) / due_date(마감일자)
-    # link는 issueAssign 템플릿 전용 신규 키(담당자 배정 메일의 바로가기 버튼).
+    # link는 issueAssign_link 템플릿 전용 신규 키(담당자 배정 메일의 바로가기 버튼).
     data_map = {
         "subject": _sanitize_for_mail(doc.get("title") or "-"),
         "description": _sanitize_for_mail(description or "-"),

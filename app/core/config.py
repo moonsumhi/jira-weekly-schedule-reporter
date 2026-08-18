@@ -35,8 +35,8 @@ class Settings(BaseSettings):
         description="사내 메일 발송 서비스 URL (백오피스 전용 엔드포인트) — SR 검토 완료(승인) 시 요청자 메일 발송",
     )
     SR_MAIL_ASSIGN_URL: str = Field(
-        default="http://10.32.18.52:8083/service/customCall/issueAssign",
-        description="사내 메일 발송 서비스 URL — SR 담당자 배정 시 요청자 메일 발송 (신규 템플릿 필요)",
+        default="http://10.32.18.52:8083/service/customCall/issueAssign_link",
+        description="사내 메일 발송 서비스 URL — SR 담당자 배정 시 요청자 메일 발송 (issueAssign_link 템플릿)",
     )
     SR_MAIL_FINISH_URL: str = Field(
         default="http://10.32.18.52:8083/service/customCall/Backoffice_IssueFinish",
