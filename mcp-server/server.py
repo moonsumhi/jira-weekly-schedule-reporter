@@ -153,7 +153,7 @@ def create_asset(
     ip: str = "",
     asset_id: str = "",
     asset_no: str = "",
-    fields: dict | None = None,
+    fields: dict | str | None = None,
 ) -> str:
     """자산을 백오피스에 등록합니다. (서버·네트워크·보안장비·DBMS·VMware 등 모든 유형)
 
@@ -178,7 +178,21 @@ def create_asset(
             "error": f"알 수 없는 category '{category}'. 사용 가능: {', '.join(ASSET_COLLECTIONS)}",
         })
 
-    merged_fields: dict = dict(fields or {})
+    # 약한 LLM이 fields를 dict가 아니라 JSON 문자열로 넘기는 경우가 많아 관대하게 파싱한다.
+    if isinstance(fields, str):
+        try:
+            fields = json.loads(fields) if fields.strip() else {}
+        except (json.JSONDecodeError, ValueError):
+            return _dump({
+                "ok": False,
+                "error": f"fields 를 JSON 객체로 파싱하지 못했습니다: {fields[:200]}",
+                "schema_hint": _asset_schema(category),
+                "note": "fields 는 {\"키\":\"값\"} 형태의 JSON 객체여야 합니다. schema_hint 를 참고해 다시 호출하세요.",
+            })
+    if not isinstance(fields, dict):
+        fields = {}
+
+    merged_fields: dict = dict(fields)
     merged_fields.setdefault("자산유형", category)
 
     body = {
