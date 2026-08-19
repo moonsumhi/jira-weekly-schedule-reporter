@@ -101,8 +101,12 @@ services:
       - MCP_PORT=8002
       - MONGO_URI=mongodb://${APP_DB_USER}:${APP_DB_PASS}@mongo:27017/?authSource=${APP_DB_NAME}
       - APP_DB_NAME=${APP_DB_NAME}
+      - BACKEND_API_URL=http://backend:8000
+      - MCP_SVC_EMAIL=${MCP_SVC_EMAIL:-}
+      - MCP_SVC_PASSWORD=${MCP_SVC_PASSWORD:-}
     depends_on:
       - mongo
+      - backend
     restart: unless-stopped
 
   mongo-express:

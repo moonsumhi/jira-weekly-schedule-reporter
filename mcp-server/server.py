@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime
 
+import httpx
 from bson import ObjectId
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
@@ -15,6 +16,42 @@ DB_NAME = os.getenv("APP_DB_NAME")
 
 _client = MongoClient(MONGO_URI)
 db = _client[DB_NAME]
+
+# ── 백엔드 API 클라이언트 (쓰기 작업용) ────────────────────────────────────────
+# MCP엔 로그인 유저가 없으므로 전용 서비스 계정으로 로그인해 JWT를 얻어 쓰기 API를
+# 호출한다. Mongo 직접 쓰기 대신 백엔드 API를 재사용해 중복검사·감사로그·검증을 그대로 탄다.
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://backend:8000").rstrip("/")
+MCP_SVC_EMAIL = os.getenv("MCP_SVC_EMAIL")
+MCP_SVC_PASSWORD = os.getenv("MCP_SVC_PASSWORD")
+
+_token_cache: dict[str, str | None] = {"token": None}
+
+
+def _login() -> str:
+    if not MCP_SVC_EMAIL or not MCP_SVC_PASSWORD:
+        raise RuntimeError("서비스 계정 미설정 (MCP_SVC_EMAIL / MCP_SVC_PASSWORD 환경변수 필요)")
+    resp = httpx.post(
+        f"{BACKEND_API_URL}/auth/login",
+        data={"username": MCP_SVC_EMAIL, "password": MCP_SVC_PASSWORD},
+        timeout=10.0,
+    )
+    resp.raise_for_status()
+    token = resp.json()["access_token"]
+    _token_cache["token"] = token
+    return token
+
+
+def _backend_post(path: str, json_body: dict, params: dict | None = None) -> httpx.Response:
+    """JWT를 붙여 백엔드에 POST. 토큰이 없거나 401이면 재로그인 후 1회 재시도."""
+    token = _token_cache["token"] or _login()
+    url = f"{BACKEND_API_URL}{path}"
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = httpx.post(url, json=json_body, params=params, headers=headers, timeout=15.0)
+    if resp.status_code == 401:
+        token = _login()
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = httpx.post(url, json=json_body, params=params, headers=headers, timeout=15.0)
+    return resp
 
 # 내부망 배포 — DNS rebinding 보호를 끄지 않으면 외부 서버(LibreChat 등) 요청이 421로 거부된다.
 mcp = FastMCP(
@@ -67,6 +104,65 @@ def list_assets(category: str = "서버", limit: int = 50) -> str:
         {"_id": 1, "name": 1, "ip": 1, "asset_id": 1, "asset_no": 1, "fields": 1, "updated_at": 1}
     ).limit(limit))
     return _dump(docs)
+
+
+@mcp.tool()
+def create_asset(
+    category: str,
+    name: str,
+    ip: str = "",
+    asset_id: str = "",
+    asset_no: str = "",
+    fields: dict | None = None,
+) -> str:
+    """자산을 백오피스에 등록합니다. (서버·네트워크·보안장비·DBMS·VMware 등 모든 유형)
+
+    사람이 붙여넣은 장비 정보를 파싱해서 호출하세요.
+
+    category : 자산 유형 (필수) — 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware
+    name     : 자산 이름 (필수)
+    ip       : IP 주소 (없으면 비워둠)
+    asset_id : 유형별 고유 PK. 재등록 시 중복 방지에 쓰이므로 고유 식별자를 알면 채우세요.
+    asset_no : 자산번호 (있으면)
+    fields   : 그 외 나머지 속성 전부를 {키: 값} 형태로. 어떤 키로 넣을지는 붙여넣은
+               정보의 항목명에 맞춰 자유롭게 판단하세요. (한글 키 권장)
+               정확한 항목 구분이 애매하면 일단 담아 두면 됩니다 — 사람이 백오피스에서
+               직접 수정할 수 있으니 완벽하게 맞추려 애쓸 필요는 없습니다.
+
+    성공 시 생성된 자산 정보를, 실패 시 사유(중복·검증오류 등)를 반환합니다.
+    """
+    if category not in ASSET_COLLECTIONS:
+        return _dump({
+            "ok": False,
+            "error": f"알 수 없는 category '{category}'. 사용 가능: {', '.join(ASSET_COLLECTIONS)}",
+        })
+
+    merged_fields: dict = dict(fields or {})
+    merged_fields.setdefault("자산유형", category)
+
+    body = {
+        "ip": ip,
+        "name": name,
+        "asset_id": asset_id or None,
+        "asset_no": asset_no or None,
+        "fields": merged_fields,
+    }
+    try:
+        resp = _backend_post(
+            "/assets", body, params={"category": category, "source": "mcp"}
+        )
+    except Exception as e:
+        return _dump({"ok": False, "error": f"백엔드 호출 실패: {type(e).__name__}: {e}"})
+
+    if resp.status_code in (200, 201):
+        return _dump({"ok": True, "asset": resp.json()})
+    if resp.status_code == 409:
+        return _dump({
+            "ok": False,
+            "error": "이미 존재하는 자산입니다(중복). asset_id 또는 IP가 기존 자산과 겹칩니다.",
+            "detail": resp.text[:300],
+        })
+    return _dump({"ok": False, "status": resp.status_code, "error": resp.text[:300]})
 
 
 @mcp.tool()
