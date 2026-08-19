@@ -106,6 +106,46 @@ def list_assets(category: str = "서버", limit: int = 50) -> str:
     return _dump(docs)
 
 
+def _asset_field_keys(category: str, sample: int = 200) -> list[str]:
+    """해당 유형 기존 자산들이 fields에 실제로 쓰는 키를, 자주 쓰인 순으로 반환한다."""
+    col = ASSET_COLLECTIONS.get(category)
+    if not col:
+        return []
+    counts: dict[str, int] = {}
+    for doc in db[col].find({"is_deleted": {"$ne": True}}, {"fields": 1}).limit(sample):
+        for k in (doc.get("fields") or {}):
+            counts[k] = counts.get(k, 0) + 1
+    return sorted(counts, key=lambda k: -counts[k])
+
+
+def _asset_schema(category: str) -> dict:
+    """create_asset 입력에 참고할 스키마(고정 필드 + 기존 fields 키)."""
+    return {
+        "category": category,
+        "top_level_fields": {
+            "name": "자산 이름 (필수)",
+            "ip": "IP 주소",
+            "asset_id": "유형별 고유 PK (중복 방지용, 있으면 채움)",
+            "asset_no": "자산번호",
+        },
+        "field_keys": _asset_field_keys(category),  # fields dict에 쓰는 키 (기존 자산 기준)
+        "note": "fields에는 위 field_keys를 참고해 {키:값}으로 넣으세요. 해당 없는 값은 생략.",
+    }
+
+
+@mcp.tool()
+def get_asset_schema(category: str = "서버") -> str:
+    """자산 등록(create_asset) 전에, 해당 유형이 어떤 필드를 쓰는지 알려줍니다.
+
+    category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware
+    기존 자산들이 실제로 쓰는 fields 키 목록을 돌려주니, 그 키에 맞춰 create_asset의
+    fields를 구성하세요.
+    """
+    if category not in ASSET_COLLECTIONS:
+        return _dump({"error": f"알 수 없는 category '{category}'. 사용 가능: {', '.join(ASSET_COLLECTIONS)}"})
+    return _dump(_asset_schema(category))
+
+
 @mcp.tool()
 def create_asset(
     category: str,
@@ -126,10 +166,11 @@ def create_asset(
     asset_no : 자산번호 (있으면)
     fields   : 그 외 나머지 속성 전부를 {키: 값} 형태로. 어떤 키로 넣을지는 붙여넣은
                정보의 항목명에 맞춰 자유롭게 판단하세요. (한글 키 권장)
-               정확한 항목 구분이 애매하면 일단 담아 두면 됩니다 — 사람이 백오피스에서
-               직접 수정할 수 있으니 완벽하게 맞추려 애쓸 필요는 없습니다.
+               필드 키가 애매하면 먼저 get_asset_schema(category)로 기존 자산이 쓰는
+               필드 키를 확인하고 그에 맞추면 됩니다.
 
-    성공 시 생성된 자산 정보를, 실패 시 사유(중복·검증오류 등)를 반환합니다.
+    성공 시 생성된 자산 정보를 반환합니다. 실패 시 사유와 함께 schema_hint(사용 가능한
+    필드 정보)를 돌려주니, 그걸 참고해 fields를 고쳐서 다시 호출하세요.
     """
     if category not in ASSET_COLLECTIONS:
         return _dump({
@@ -159,10 +200,18 @@ def create_asset(
     if resp.status_code == 409:
         return _dump({
             "ok": False,
-            "error": "이미 존재하는 자산입니다(중복). asset_id 또는 IP가 기존 자산과 겹칩니다.",
+            "error": "이미 존재하는 자산입니다(중복). asset_id 또는 IP가 기존 자산과 겹칩니다. "
+                     "재시도하지 말고 사용자에게 알리거나, 다른 자산이면 값을 바꿔 호출하세요.",
             "detail": resp.text[:300],
         })
-    return _dump({"ok": False, "status": resp.status_code, "error": resp.text[:300]})
+    # 검증오류(422/400 등) — LLM이 스키마를 몰라 헤매지 않도록 사용 가능한 필드 정보를 함께 준다.
+    return _dump({
+        "ok": False,
+        "status": resp.status_code,
+        "error": resp.text[:300],
+        "schema_hint": _asset_schema(category),
+        "note": "위 schema_hint의 필드에 맞춰 입력을 고쳐서 다시 호출하세요.",
+    })
 
 
 @mcp.tool()
