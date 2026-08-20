@@ -112,8 +112,8 @@
 
                   <!-- BUG_FIX -->
                   <template v-if="sr.requestType === 'BUG_FIX'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">오류 발생 화면</div>
                           <div class="content-text">{{ sr.typeDetail?.errorScreen || '-' }}</div>
@@ -134,7 +134,7 @@
                         <div class="content-label">재현 절차</div>
                         <MarkdownContent :content="sr.description ?? ''" />
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">기대 동작</div>
                           <div class="compare-box compare-box--expected pre-wrap">{{ sr.typeDetail?.expectedResult || '-' }}</div>
@@ -153,7 +153,7 @@
 
                   <!-- CONFIG_CHANGE -->
                   <template v-else-if="sr.requestType === 'CONFIG_CHANGE'">
-                    <div class="q-gutter-sm">
+                    <div class="q-gutter-sm type-detail-body">
                       <div class="info-row">
                         <span class="info-row__label">설정 대상</span>
                         <span class="info-row__value">{{ sr.typeDetail?.configTarget || '-' }}</span>
@@ -162,7 +162,7 @@
                         <div class="content-label">변경 요청 상세 내용</div>
                         <MarkdownContent :content="sr.description ?? ''" />
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">현재 설정값</div>
                           <div class="compare-box compare-box--before pre-wrap">{{ sr.typeDetail?.currentValue || '-' }}</div>
@@ -180,7 +180,7 @@
                         <div class="content-label">영향 범위</div>
                         <div class="content-text pre-wrap">{{ sr.typeDetail.impactScope }}</div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">적용 희망 일시</div>
                           <div class="content-date">
@@ -208,7 +208,7 @@
 
                   <!-- DATA_REQUEST -->
                   <template v-else-if="sr.requestType === 'DATA_REQUEST'">
-                    <div class="q-gutter-sm">
+                    <div class="q-gutter-sm type-detail-body">
                       <div v-if="sr.typeDetail?.dataPurpose">
                         <div class="content-label">요청 목적</div>
                         <div class="content-text pre-wrap">{{ sr.typeDetail.dataPurpose }}</div>
@@ -217,7 +217,7 @@
                         <div class="content-label">요청 데이터 항목</div>
                         <MarkdownContent :content="sr.description ?? ''" />
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">데이터 기간 (시작)</div>
                           <div class="content-date">
@@ -237,7 +237,7 @@
                         <div class="content-label">대상 조건</div>
                         <div class="content-text pre-wrap">{{ sr.typeDetail.dataCondition }}</div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">제공 형식</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -282,8 +282,8 @@
 
                   <!-- PERMISSION -->
                   <template v-else-if="sr.requestType === 'PERMISSION'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">권한 대상자</div>
                           <div class="content-text text-weight-medium">{{ sr.typeDetail?.targetUser || '-' }}</div>
@@ -297,7 +297,7 @@
                         <div class="content-label">요청 사유</div>
                         <MarkdownContent :content="sr.description ?? ''" />
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">권한 사용 기간</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -318,7 +318,7 @@
                           </div>
                         </div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">승인자</div>
                           <div class="content-text">{{ sr.typeDetail?.approver || '-' }}</div>
@@ -335,8 +335,8 @@
 
                   <!-- SERVER_INFRA -->
                   <template v-else-if="sr.requestType === 'SERVER_INFRA'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">대상 서버/시스템</div>
                           <div class="content-text text-weight-medium">{{ sr.typeDetail?.targetServer || '-' }}</div>
@@ -356,7 +356,7 @@
                         <div class="content-label">리소스 정보</div>
                         <div class="resource-box content-text">{{ sr.typeDetail.resourceInfo }}</div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">작업 희망 일시</div>
                           <div class="content-date">
@@ -388,8 +388,8 @@
 
                   <!-- SECURITY -->
                   <template v-else-if="sr.requestType === 'SECURITY'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">보안 요청 유형</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -412,7 +412,7 @@
                         <div class="content-label">조치 요청 내용</div>
                         <div class="content-text pre-wrap">{{ sr.typeDetail.requestedAction }}</div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">조치 기한</div>
                           <div class="content-date">
@@ -442,8 +442,8 @@
 
                   <!-- FIREWALL -->
                   <template v-else-if="sr.requestType === 'FIREWALL'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">신청 구분</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -491,7 +491,7 @@
                         </div>
                       </div>
 
-                      <div class="row q-col-gutter-md">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">방향</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -519,7 +519,7 @@
 
                   <!-- BACKOFFICE_EAA -->
                   <template v-else-if="sr.requestType === 'BACKOFFICE_EAA'">
-                    <div class="q-gutter-sm">
+                    <div class="q-gutter-sm type-detail-body">
                       <div v-if="sr.typeDetail?.researchNumber">
                         <div class="content-label">연구번호</div>
                         <div class="content-text">{{ sr.typeDetail.researchNumber }}</div>
@@ -1986,6 +1986,17 @@ watch(() => route.params.id, (newId) => {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 3px;
+}
+
+/* 유형별 상세 필드 사이 세로 간격 (q-gutter-sm 기본 8px + 3px) */
+.type-detail-body {
+  margin-top: 0 !important;
+}
+.type-detail-body > * {
+  margin-top: 11px !important;
+}
+.type-detail-body > *:first-child {
+  margin-top: 0 !important;
 }
 
 .content-text  { font-size: 0.9rem; line-height: 1.65; color: #212121; }
