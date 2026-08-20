@@ -296,6 +296,7 @@ class SRListItem(BaseModel):
     assignee_id: Optional[str] = None
     assignee_name: Optional[str] = None
     is_delayed: bool = False
+    comment_count: int = 0
     created_at: datetime
     updated_at: datetime
 

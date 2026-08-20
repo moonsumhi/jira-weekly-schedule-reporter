@@ -33,6 +33,21 @@ def _user_label(user: UserPublic) -> str:
     return user.full_name or user.email
 
 
+async def _attach_comment_counts(items: list[dict]) -> None:
+    """목록에 실린 SR들의 댓글 개수를 한 번의 집계로 채워넣는다 (N+1 방지)."""
+    sr_ids = [i["id"] for i in items]
+    if not sr_ids:
+        return
+    comments_col = MongoClientManager.get_db()[MongoClientManager.SR_COMMENTS]
+    pipeline = [
+        {"$match": {"sr_id": {"$in": sr_ids}, "deleted_at": None}},
+        {"$group": {"_id": "$sr_id", "count": {"$sum": 1}}},
+    ]
+    counts = {row["_id"]: row["count"] async for row in comments_col.aggregate(pipeline)}
+    for i in items:
+        i["comment_count"] = counts.get(i["id"], 0)
+
+
 # ── 전체 SR 목록 ──────────────────────────────────────────────────────
 
 @router.get("", response_model=SRListPage)
@@ -140,11 +155,13 @@ async def list_all_srs(
         outs = [sr_to_out(d) for d in all_docs]
         outs = [o for o in outs if o["is_delayed"] == is_delayed]
         page = outs[skip: skip + limit]
+        await _attach_comment_counts(page)
         return SRListPage(items=[SRListItem(**o) for o in page], total=len(outs))
 
     total = await col.count_documents(q)
     docs = await col.find(q).sort(sort_field, sort_dir).skip(skip).limit(limit).to_list(None)
     outs = [sr_to_out(d) for d in docs]
+    await _attach_comment_counts(outs)
     return SRListPage(items=[SRListItem(**o) for o in outs], total=total)
 
 

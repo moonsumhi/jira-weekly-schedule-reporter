@@ -195,6 +195,7 @@ export type SRListItem = {
   assigneeId: string | null
   assigneeName: string | null
   isDelayed: boolean
+  commentCount: number
   createdAt: string
   updatedAt: string
 }

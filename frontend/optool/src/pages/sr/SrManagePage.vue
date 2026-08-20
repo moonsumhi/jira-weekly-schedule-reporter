@@ -128,6 +128,9 @@
             <q-td>
               <div class="row items-center q-gutter-xs no-wrap">
                 <span>{{ formatTitle(row) }}</span>
+                <span v-if="row.commentCount > 0" class="text-primary text-weight-medium" style="font-size:0.85rem">
+                  ({{ row.commentCount }})
+                </span>
                 <q-badge v-if="row.isUrgent"  color="red"      label="긴급" />
                 <q-badge v-if="row.isDelayed" color="negative" label="지연" />
               </div>
