@@ -6,6 +6,7 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.models.mention import MentionedUser
+from app.models.comment_reaction import CommentReactionOut, CommentReactionToggle
 
 
 class Attachment(BaseModel):
@@ -125,6 +126,7 @@ class IssueCommentOut(BaseModel):
     content: str
     attachments: List[Attachment] = []
     mentioned_users: List[MentionedUser] = []
+    reactions: List[CommentReactionOut] = []
     created_at: datetime
     updated_at: datetime
 

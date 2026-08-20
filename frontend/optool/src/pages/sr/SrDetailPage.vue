@@ -759,13 +759,27 @@
                   <q-icon name="chat" size="3rem" class="q-mb-sm" /><br />아직 댓글이 없습니다.
                 </div>
 
-                <div v-for="c in comments" :key="c.id" :id="`comment-${c.id}`" class="comment-item q-mb-md">
+                <div v-for="c in topComments" :key="c.id" :id="`comment-${c.id}`" class="comment-item q-mb-md">
                   <div class="row items-center q-gutter-xs q-mb-xs">
                     <q-avatar size="28px" :color="c.isInternal ? 'grey-5' : 'primary'" text-color="white"
                       style="font-size:0.76rem">{{ c.writerName.charAt(0) }}</q-avatar>
                     <span class="text-weight-medium" style="font-size:0.9rem">{{ c.writerName }}</span>
                     <q-badge v-if="c.isInternal" color="grey-5" label="내부 메모" size="xs" />
                     <span class="text-caption text-grey-5 q-ml-auto">{{ fmtDateTime(c.createdAt) }}</span>
+                    <q-btn flat dense round icon="reply" size="xs" color="primary" @click="toggleReply(c.id)" />
+                    <q-btn flat dense round icon="mood" size="xs" color="grey-6">
+                      <q-menu anchor="top right" self="bottom right">
+                        <div class="row no-wrap q-pa-xs">
+                          <q-btn
+                            v-for="e in REACTION_EMOJIS" :key="e"
+                            flat dense size="md" class="emoji-pick-btn"
+                            v-close-popup
+                            @click="toggleReaction(c.id, e)"
+                          >{{ e }}</q-btn>
+                        </div>
+                      </q-menu>
+                    </q-btn>
+                    <q-btn v-if="canDeleteComment(c)" flat dense round icon="delete" size="xs" color="negative" @click="removeComment(c.id)" />
                   </div>
                   <div class="comment-bubble q-ml-lg"
                     :class="c.isInternal ? 'comment-bubble--internal' : 'comment-bubble--user'">
@@ -799,6 +813,79 @@
                             @click.stop="downloadFile(att.url, att.originalName)" />
                         </div>
                       </template>
+                    </div>
+                  </div>
+                  <!-- 이모티콘 반응 -->
+                  <div v-if="c.reactions?.length" class="row q-gutter-xs q-mt-xs q-ml-lg">
+                    <q-chip
+                      v-for="rc in c.reactions" :key="rc.emoji"
+                      clickable dense size="sm"
+                      :outline="!hasReacted(rc)"
+                      :color="hasReacted(rc) ? 'blue-1' : 'grey-2'"
+                      @click="toggleReaction(c.id, rc.emoji)"
+                    >
+                      <span class="q-mr-xs">{{ rc.emoji }}</span>{{ rc.users.length }}
+                      <q-tooltip>{{ rc.users.map(u => u.displayName).join(', ') }}</q-tooltip>
+                    </q-chip>
+                  </div>
+
+                  <!-- 답글 목록 -->
+                  <div v-for="r in repliesOf(c.id)" :key="r.id" :id="`comment-${r.id}`" class="q-ml-xl q-mt-sm">
+                    <div class="row items-center q-gutter-xs q-mb-xs">
+                      <q-icon name="subdirectory_arrow_right" size="xs" color="grey-5" />
+                      <q-avatar size="24px" :color="r.isInternal ? 'grey-5' : 'primary'" text-color="white"
+                        style="font-size:0.68rem">{{ r.writerName.charAt(0) }}</q-avatar>
+                      <span class="text-weight-medium" style="font-size:0.85rem">{{ r.writerName }}</span>
+                      <q-badge v-if="r.isInternal" color="grey-5" label="내부 메모" size="xs" />
+                      <span class="text-caption text-grey-5 q-ml-auto">{{ fmtDateTime(r.createdAt) }}</span>
+                      <q-btn flat dense round icon="mood" size="xs" color="grey-6">
+                        <q-menu anchor="top right" self="bottom right">
+                          <div class="row no-wrap q-pa-xs">
+                            <q-btn
+                              v-for="e in REACTION_EMOJIS" :key="e"
+                              flat dense size="md" class="emoji-pick-btn"
+                              v-close-popup
+                              @click="toggleReaction(r.id, e)"
+                            >{{ e }}</q-btn>
+                          </div>
+                        </q-menu>
+                      </q-btn>
+                      <q-btn v-if="canDeleteComment(r)" flat dense round icon="delete" size="xs" color="negative" @click="removeComment(r.id)" />
+                    </div>
+                    <div class="comment-bubble q-ml-lg"
+                      :class="r.isInternal ? 'comment-bubble--internal' : 'comment-bubble--user'">
+                      <MentionContent
+                        v-if="r.content"
+                        :content="r.content"
+                        :mentioned-users="r.mentionedUsers || []"
+                      />
+                    </div>
+                    <div v-if="r.reactions?.length" class="row q-gutter-xs q-mt-xs q-ml-lg">
+                      <q-chip
+                        v-for="rc in r.reactions" :key="rc.emoji"
+                        clickable dense size="sm"
+                        :outline="!hasReacted(rc)"
+                        :color="hasReacted(rc) ? 'blue-1' : 'grey-2'"
+                        @click="toggleReaction(r.id, rc.emoji)"
+                      >
+                        <span class="q-mr-xs">{{ rc.emoji }}</span>{{ rc.users.length }}
+                        <q-tooltip>{{ rc.users.map(u => u.displayName).join(', ') }}</q-tooltip>
+                      </q-chip>
+                    </div>
+                  </div>
+
+                  <!-- 인라인 답글 입력 -->
+                  <div v-if="replyingTo === c.id" class="q-ml-xl q-mt-sm">
+                    <MentionInput
+                      v-model="replyText"
+                      v-model:mentioned-users="replyMentionedUsers"
+                      :rows="2"
+                      placeholder="답글 작성... (@로 멘션)"
+                      :dense="true"
+                    />
+                    <div class="row q-gutter-xs q-mt-xs">
+                      <q-btn unelevated color="primary" label="등록" size="sm" :loading="replying" @click="submitReply(c.id)" />
+                      <q-btn flat label="취소" size="sm" @click="replyingTo = null" />
                     </div>
                   </div>
                 </div>
@@ -1192,10 +1279,12 @@ import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import {
   getSR, getAdminSR, listComments, listHistory, addComment, uploadSRAttachment,
+  deleteComment, toggleCommentReaction,
   cancelSR, reviewSR, assignSR, changeSRStatus,
   SR_STATUS_LABEL, SR_STATUS_COLOR, SR_PRIORITY_LABEL,
   REQUEST_TYPE_LABEL,
   type SR, type SRComment, type SRHistory, type SRStatus, type ReviewResult, type SRAttachment,
+  type CommentReaction,
 } from 'src/services/sr'
 import { SR_TYPE_FIELDS } from 'src/services/sr-type-fields'
 import type { SRTypeField } from 'src/services/sr-type-fields'
@@ -1254,6 +1343,64 @@ const newComment     = ref('')
 const mentionedUsers = ref<MentionUser[]>([])
 const newCommentInternal = ref(false)
 const commenting     = ref(false)
+const replyingTo     = ref<string | null>(null)
+const replyText      = ref('')
+const replyMentionedUsers = ref<MentionUser[]>([])
+const replying       = ref(false)
+const topComments    = computed(() => comments.value.filter(c => !c.parentId))
+function repliesOf(parentId: string) {
+  return comments.value.filter(c => c.parentId === parentId)
+}
+function toggleReply(commentId: string) {
+  if (replyingTo.value === commentId) {
+    replyingTo.value = null
+  } else {
+    replyingTo.value = commentId
+    replyText.value = ''
+    replyMentionedUsers.value = []
+  }
+}
+
+// ── 댓글 삭제 / 이모티콘 반응 ────────────────────────────────────────
+const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '👀', '🙏', '✅']
+const currentUserId = computed(() => String(authStore.me?.id ?? ''))
+
+function hasReacted(reaction: CommentReaction): boolean {
+  return reaction.users.some(u => u.userId === currentUserId.value)
+}
+
+function canDeleteComment(c: SRComment): boolean {
+  return c.writerId === currentUserId.value
+}
+
+async function toggleReaction(commentId: string, emoji: string) {
+  try {
+    const updated = await toggleCommentReaction(srId.value, commentId, emoji)
+    const idx = comments.value.findIndex(c => c.id === commentId)
+    if (idx !== -1) comments.value[idx] = updated
+  } catch {
+    $q.notify({ type: 'negative', message: '반응 처리 실패' })
+  }
+}
+
+function removeComment(commentId: string) {
+  $q.dialog({
+    title: '댓글 삭제',
+    message: '이 댓글을 삭제하시겠습니까?',
+    cancel: true,
+    persistent: true,
+    ok: { color: 'negative', label: '삭제' },
+  }).onOk(() => {
+    void (async () => {
+      try {
+        await deleteComment(srId.value, commentId)
+        comments.value = comments.value.filter(c => c.id !== commentId && c.parentId !== commentId)
+      } catch {
+        $q.notify({ type: 'negative', message: '삭제 실패' })
+      }
+    })()
+  })
+}
 type CommentFileItem = { file: File; previewUrl: string | null }
 const commentFiles   = ref<CommentFileItem[]>([])
 const commentFileInput = ref<HTMLInputElement | null>(null)
@@ -1661,6 +1808,24 @@ async function submitComment() {
   } finally { commenting.value = false }
 }
 
+async function submitReply(parentId: string) {
+  if (!replyText.value.trim()) return
+  replying.value = true
+  try {
+    const mentionIds = replyMentionedUsers.value.map(m => m.userId)
+    await addComment(srId.value, replyText.value.trim(), false, [], mentionIds, parentId)
+    replyText.value = ''
+    replyMentionedUsers.value = []
+    replyingTo.value = null
+    comments.value = await listComments(srId.value)
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    $q.notify({ type: 'negative', message: msg || '답글 등록 실패' })
+  } finally {
+    replying.value = false
+  }
+}
+
 async function doCancel() {
   if (!cancelReason.value.trim()) return
   actionLoading.value = true; activeAction.value = 'cancel'
@@ -1773,6 +1938,8 @@ watch(() => route.params.id, (newId) => {
 </script>
 
 <style scoped>
+.emoji-pick-btn { font-size: 18px; min-width: 32px; }
+
 .firewall-table-wrap {
   overflow-x: auto;
   border: 1px solid #eee;

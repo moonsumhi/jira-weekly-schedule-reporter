@@ -138,6 +138,16 @@ export type MentionedUser = {
   displayName: string
 }
 
+export type CommentReactionUser = {
+  userId: string
+  displayName: string
+}
+
+export type CommentReaction = {
+  emoji: string
+  users: CommentReactionUser[]
+}
+
 export type IssueComment = {
   id: string
   issueId: string
@@ -147,6 +157,7 @@ export type IssueComment = {
   content: string
   attachments: Attachment[]
   mentionedUsers: MentionedUser[]
+  reactions: CommentReaction[]
   createdAt: string
   updatedAt: string
 }
@@ -262,6 +273,19 @@ export async function patchComment(
 
 export async function deleteComment(projectId: string, issueId: string, commentId: string) {
   await api.delete(`/pm/projects/${projectId}/issues/${issueId}/comments/${commentId}`)
+}
+
+export async function toggleCommentReaction(
+  projectId: string,
+  issueId: string,
+  commentId: string,
+  emoji: string,
+) {
+  const { data } = await api.post<IssueComment>(
+    `/pm/projects/${projectId}/issues/${issueId}/comments/${commentId}/reactions`,
+    { emoji },
+  )
+  return data
 }
 
 export async function getIssueHistory(projectId: string, issueId: string) {

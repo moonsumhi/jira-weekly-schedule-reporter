@@ -167,6 +167,18 @@
                         <span class="text-caption text-grey-5 q-ml-sm">{{ fmtDate(c.createdAt) }}</span>
                         <q-space />
                         <q-btn flat dense round icon="reply" size="xs" color="primary" @click="toggleReply(c.id)" />
+                        <q-btn flat dense round icon="mood" size="xs" color="grey-6">
+                          <q-menu anchor="top right" self="bottom right">
+                            <div class="row no-wrap q-pa-xs">
+                              <q-btn
+                                v-for="e in REACTION_EMOJIS" :key="e"
+                                flat dense size="md" class="emoji-pick-btn"
+                                v-close-popup
+                                @click="toggleReaction(c.id, e)"
+                              >{{ e }}</q-btn>
+                            </div>
+                          </q-menu>
+                        </q-btn>
                         <q-btn flat dense round icon="delete" size="xs" color="negative" @click="removeComment(c.id)" />
                       </div>
                       <MentionContent
@@ -178,6 +190,19 @@
                       <!-- 첨부파일 -->
                       <div v-if="c.attachments?.length" class="q-mt-sm">
                         <CommentAttachments :attachments="c.attachments" />
+                      </div>
+                      <!-- 이모티콘 반응 -->
+                      <div v-if="c.reactions?.length" class="row q-gutter-xs q-mt-xs">
+                        <q-chip
+                          v-for="r in c.reactions" :key="r.emoji"
+                          clickable dense size="sm"
+                          :outline="!hasReacted(r)"
+                          :color="hasReacted(r) ? 'blue-1' : 'grey-2'"
+                          @click="toggleReaction(c.id, r.emoji)"
+                        >
+                          <span class="q-mr-xs">{{ r.emoji }}</span>{{ r.users.length }}
+                          <q-tooltip>{{ r.users.map(u => u.displayName).join(', ') }}</q-tooltip>
+                        </q-chip>
                       </div>
                     </q-card-section>
 
@@ -191,6 +216,18 @@
                             <span class="text-caption text-weight-bold">{{ r.authorName }}</span>
                             <span class="text-caption text-grey-5 q-ml-sm">{{ fmtDate(r.createdAt) }}</span>
                             <q-space />
+                            <q-btn flat dense round icon="mood" size="xs" color="grey-6">
+                              <q-menu anchor="top right" self="bottom right">
+                                <div class="row no-wrap q-pa-xs">
+                                  <q-btn
+                                    v-for="e in REACTION_EMOJIS" :key="e"
+                                    flat dense size="md" class="emoji-pick-btn"
+                                    v-close-popup
+                                    @click="toggleReaction(r.id, e)"
+                                  >{{ e }}</q-btn>
+                                </div>
+                              </q-menu>
+                            </q-btn>
                             <q-btn flat dense round icon="delete" size="xs" color="negative" @click="removeComment(r.id)" />
                           </div>
                           <MentionContent
@@ -201,6 +238,18 @@
                           />
                           <div v-if="r.attachments?.length" class="q-pl-md q-mt-xs">
                             <CommentAttachments :attachments="r.attachments" />
+                          </div>
+                          <div v-if="r.reactions?.length" class="row q-gutter-xs q-mt-xs q-pl-md">
+                            <q-chip
+                              v-for="rc in r.reactions" :key="rc.emoji"
+                              clickable dense size="sm"
+                              :outline="!hasReacted(rc)"
+                              :color="hasReacted(rc) ? 'blue-1' : 'grey-2'"
+                              @click="toggleReaction(r.id, rc.emoji)"
+                            >
+                              <span class="q-mr-xs">{{ rc.emoji }}</span>{{ rc.users.length }}
+                              <q-tooltip>{{ rc.users.map(u => u.displayName).join(', ') }}</q-tooltip>
+                            </q-chip>
                           </div>
                         </div>
                       </q-card-section>
@@ -490,13 +539,14 @@ const CommentAttachments = defineComponent({
 import { Notify, Dialog } from 'quasar'
 import {
   updateIssue, deleteIssue, listIssues, createIssue,
-  listComments, createComment, deleteComment,
+  listComments, createComment, deleteComment, toggleCommentReaction,
   uploadAttachment,
   getIssueHistory, listLabels,
   ISSUE_STATUSES, STATUS_LABEL,
   TYPE_ICON,
   type Issue, type IssueStatus, type IssueType, type IssuePriority,
   type IssueComment, type IssueHistory, type Label, type Attachment,
+  type CommentReaction,
 } from 'src/services/pm/issue'
 import MentionInput from 'components/MentionInput.vue'
 import MentionContent from 'components/MentionContent.vue'
@@ -505,6 +555,7 @@ import { listSprints, type Sprint } from 'src/services/pm/sprint'
 import { listProjectMembers, type ProjectMember } from 'src/services/pm/project'
 import { getErrorMessage } from 'src/utils/http/error'
 import { fmtDatetimeKst } from 'src/utils/time/kst'
+import { useAuthStore } from 'src/stores/auth'
 
 const props = defineProps<{
   modelValue: boolean
@@ -621,6 +672,26 @@ function toggleReply(commentId: string) {
   } else {
     replyingTo.value = commentId
     replyText.value = ''
+  }
+}
+
+// ── 댓글 이모티콘 반응 ─────────────────────────────────────────────
+const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '👀', '🙏', '✅']
+const authStore = useAuthStore()
+const currentUserId = computed(() => String(authStore.me?.id ?? ''))
+
+function hasReacted(reaction: CommentReaction): boolean {
+  return reaction.users.some(u => u.userId === currentUserId.value)
+}
+
+async function toggleReaction(commentId: string, emoji: string) {
+  if (!localIssue.value) return
+  try {
+    const updated = await toggleCommentReaction(props.projectId, localIssue.value.id, commentId, emoji)
+    const idx = comments.value.findIndex(c => c.id === commentId)
+    if (idx !== -1) comments.value[idx] = updated
+  } catch (e) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, '반응 처리 실패') })
   }
 }
 const sprints = ref<Sprint[]>([])
@@ -1012,6 +1083,8 @@ function confirmDelete() {
 </script>
 
 <style scoped>
+.emoji-pick-btn { font-size: 18px; min-width: 32px; }
+
 .comment-highlight { animation: comment-flash 2.5s ease; }
 @keyframes comment-flash {
   0%, 40% { background-color: #ffe69c; }
