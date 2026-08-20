@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import io
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from bson import ObjectId
@@ -17,6 +17,7 @@ from app.models.sr.service_request import (
     SRStats, SR_STATUS_LABEL, REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL,
 )
 from app.routers.auth import get_current_user
+from app.utils.time import KST
 from app.services.sr.sr_service import (
     get_sr_or_404, record_sr_history, record_status_history,
     record_due_date_history, sr_to_out, require_sr_operator,
@@ -46,6 +47,8 @@ async def list_all_srs(
     is_urgent: Optional[bool] = Query(None),
     is_delayed: Optional[bool] = Query(None),
     my_assigned: Optional[bool] = Query(None),
+    created_from: Optional[str] = Query(None),
+    created_to: Optional[str] = Query(None),
     desired_due_from: Optional[str] = Query(None),
     desired_due_to: Optional[str] = Query(None),
     planned_due_from: Optional[str] = Query(None),
@@ -103,6 +106,17 @@ async def list_all_srs(
 
     def _dt(s: str) -> datetime:
         return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+
+    # 접수일(created_at)은 UTC 타임스탬프이고 사용자는 KST 날짜로 고른다.
+    # KST 기준 시작일 0시 ~ 종료일 다음날 0시 미만(종료일 당일 포함)을 UTC로 변환해 비교한다.
+    if created_from or created_to:
+        cf: dict = {}
+        if created_from:
+            cf["$gte"] = KST.localize(datetime.fromisoformat(created_from)).astimezone(timezone.utc)
+        if created_to:
+            end_kst = KST.localize(datetime.fromisoformat(created_to)) + timedelta(days=1)
+            cf["$lt"] = end_kst.astimezone(timezone.utc)
+        q["created_at"] = cf
 
     if desired_due_from or desired_due_to:
         df: dict = {}
