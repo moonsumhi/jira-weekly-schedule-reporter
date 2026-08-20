@@ -6,6 +6,7 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.models.mention import MentionedUser
+from app.models.comment_reaction import CommentReactionOut, CommentReactionToggle
 
 
 class Attachment(BaseModel):
@@ -39,6 +40,7 @@ class IssueCreate(BaseModel):
     story_points: Optional[int] = Field(None, ge=0, le=999)
     effort_md: Optional[str] = None
     attachments: List[Attachment] = []
+    show_on_dashboard: bool = False
 
 
 class IssuePatch(BaseModel):
@@ -58,6 +60,7 @@ class IssuePatch(BaseModel):
     effort_md: Optional[str] = None
     attachments: Optional[List[Attachment]] = None
     order: Optional[float] = None
+    show_on_dashboard: Optional[bool] = None
 
 
 class SubtaskSummary(BaseModel):
@@ -94,6 +97,7 @@ class IssueOut(BaseModel):
     story_points: Optional[int] = None
     effort_md: Optional[str] = None
     attachments: List[Attachment] = []
+    show_on_dashboard: bool = False
     order: float
     linked_sr_id: Optional[str] = None
     subtasks: List[SubtaskSummary] = []
@@ -122,6 +126,7 @@ class IssueCommentOut(BaseModel):
     content: str
     attachments: List[Attachment] = []
     mentioned_users: List[MentionedUser] = []
+    reactions: List[CommentReactionOut] = []
     created_at: datetime
     updated_at: datetime
 

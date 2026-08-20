@@ -167,6 +167,18 @@
                         <span class="text-caption text-grey-5 q-ml-sm">{{ fmtDate(c.createdAt) }}</span>
                         <q-space />
                         <q-btn flat dense round icon="reply" size="xs" color="primary" @click="toggleReply(c.id)" />
+                        <q-btn flat dense round icon="mood" size="xs" color="grey-6">
+                          <q-menu anchor="top right" self="bottom right">
+                            <div class="row no-wrap q-pa-xs">
+                              <q-btn
+                                v-for="e in REACTION_EMOJIS" :key="e"
+                                flat dense size="md" class="emoji-pick-btn"
+                                v-close-popup
+                                @click="toggleReaction(c.id, e)"
+                              >{{ e }}</q-btn>
+                            </div>
+                          </q-menu>
+                        </q-btn>
                         <q-btn flat dense round icon="delete" size="xs" color="negative" @click="removeComment(c.id)" />
                       </div>
                       <MentionContent
@@ -178,6 +190,19 @@
                       <!-- 첨부파일 -->
                       <div v-if="c.attachments?.length" class="q-mt-sm">
                         <CommentAttachments :attachments="c.attachments" />
+                      </div>
+                      <!-- 이모티콘 반응 -->
+                      <div v-if="c.reactions?.length" class="row q-gutter-xs q-mt-xs">
+                        <q-chip
+                          v-for="r in c.reactions" :key="r.emoji"
+                          clickable dense size="sm"
+                          :outline="!hasReacted(r)"
+                          :color="hasReacted(r) ? 'blue-1' : 'grey-2'"
+                          @click="toggleReaction(c.id, r.emoji)"
+                        >
+                          <span class="q-mr-xs">{{ r.emoji }}</span>{{ r.users.length }}
+                          <q-tooltip>{{ r.users.map(u => u.displayName).join(', ') }}</q-tooltip>
+                        </q-chip>
                       </div>
                     </q-card-section>
 
@@ -191,6 +216,18 @@
                             <span class="text-caption text-weight-bold">{{ r.authorName }}</span>
                             <span class="text-caption text-grey-5 q-ml-sm">{{ fmtDate(r.createdAt) }}</span>
                             <q-space />
+                            <q-btn flat dense round icon="mood" size="xs" color="grey-6">
+                              <q-menu anchor="top right" self="bottom right">
+                                <div class="row no-wrap q-pa-xs">
+                                  <q-btn
+                                    v-for="e in REACTION_EMOJIS" :key="e"
+                                    flat dense size="md" class="emoji-pick-btn"
+                                    v-close-popup
+                                    @click="toggleReaction(r.id, e)"
+                                  >{{ e }}</q-btn>
+                                </div>
+                              </q-menu>
+                            </q-btn>
                             <q-btn flat dense round icon="delete" size="xs" color="negative" @click="removeComment(r.id)" />
                           </div>
                           <MentionContent
@@ -201,6 +238,18 @@
                           />
                           <div v-if="r.attachments?.length" class="q-pl-md q-mt-xs">
                             <CommentAttachments :attachments="r.attachments" />
+                          </div>
+                          <div v-if="r.reactions?.length" class="row q-gutter-xs q-mt-xs q-pl-md">
+                            <q-chip
+                              v-for="rc in r.reactions" :key="rc.emoji"
+                              clickable dense size="sm"
+                              :outline="!hasReacted(rc)"
+                              :color="hasReacted(rc) ? 'blue-1' : 'grey-2'"
+                              @click="toggleReaction(r.id, rc.emoji)"
+                            >
+                              <span class="q-mr-xs">{{ rc.emoji }}</span>{{ rc.users.length }}
+                              <q-tooltip>{{ rc.users.map(u => u.displayName).join(', ') }}</q-tooltip>
+                            </q-chip>
                           </div>
                         </div>
                       </q-card-section>
@@ -237,7 +286,7 @@
                   ref="fileInputRef"
                   type="file"
                   multiple
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4,.html,.htm,.log,.json,.xml,.yaml,.yml"
                   style="display:none"
                   @change="onFileInputChange"
                 />
@@ -396,15 +445,9 @@
             </div>
 
             <div>
-              <div class="sidebar-label">공수</div>
-              <div style="display: flex; gap: 4px">
-                <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0"
-                  style="flex: 1"
-                  @blur="saveEffort" />
-                <q-select v-model="localEffortUnit" :options="['일', '시간', '분']"
-                  dense outlined style="width: 64px"
-                  @update:model-value="saveEffort" />
-              </div>
+              <div class="sidebar-label">공수 (일)</div>
+              <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0" step="0.001"
+                @blur="saveEffort" />
             </div>
 
             <q-separator />
@@ -419,6 +462,15 @@
               <div class="sidebar-label">마감일</div>
               <q-input v-model="localDueDate" dense outlined type="date" stack-label
                 @blur="patchField('due_date', localDueDate ? new Date(localDueDate).toISOString() : null)" />
+            </div>
+
+            <div>
+              <q-checkbox
+                v-model="localShowOnDashboard" label="대시보드 D-Day 표시" dense
+                @update:model-value="patchField('show_on_dashboard', $event)"
+              >
+                <q-tooltip>완료 처리 전까지 담당자 대시보드의 D-Day 카드에 마감일이 표시됩니다.</q-tooltip>
+              </q-checkbox>
             </div>
 
             <q-separator />
@@ -487,13 +539,14 @@ const CommentAttachments = defineComponent({
 import { Notify, Dialog } from 'quasar'
 import {
   updateIssue, deleteIssue, listIssues, createIssue,
-  listComments, createComment, deleteComment,
+  listComments, createComment, deleteComment, toggleCommentReaction,
   uploadAttachment,
   getIssueHistory, listLabels,
   ISSUE_STATUSES, STATUS_LABEL,
   TYPE_ICON,
   type Issue, type IssueStatus, type IssueType, type IssuePriority,
   type IssueComment, type IssueHistory, type Label, type Attachment,
+  type CommentReaction,
 } from 'src/services/pm/issue'
 import MentionInput from 'components/MentionInput.vue'
 import MentionContent from 'components/MentionContent.vue'
@@ -502,6 +555,7 @@ import { listSprints, type Sprint } from 'src/services/pm/sprint'
 import { listProjectMembers, type ProjectMember } from 'src/services/pm/project'
 import { getErrorMessage } from 'src/utils/http/error'
 import { fmtDatetimeKst } from 'src/utils/time/kst'
+import { useAuthStore } from 'src/stores/auth'
 
 const props = defineProps<{
   modelValue: boolean
@@ -552,8 +606,12 @@ function isImage(file: File | Attachment): boolean {
   return type.startsWith('image/')
 }
 
+function localUuid(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
 async function addPendingFile(file: File) {
-  const id = crypto.randomUUID()
+  const id = localUuid()
   const preview = isImage(file) ? await new Promise<string | null>(resolve => {
     const reader = new FileReader()
     reader.onload = e => resolve(e.target?.result as string)
@@ -616,6 +674,26 @@ function toggleReply(commentId: string) {
     replyText.value = ''
   }
 }
+
+// ── 댓글 이모티콘 반응 ─────────────────────────────────────────────
+const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '👀', '🙏', '✅']
+const authStore = useAuthStore()
+const currentUserId = computed(() => String(authStore.me?.id ?? ''))
+
+function hasReacted(reaction: CommentReaction): boolean {
+  return reaction.users.some(u => u.userId === currentUserId.value)
+}
+
+async function toggleReaction(commentId: string, emoji: string) {
+  if (!localIssue.value) return
+  try {
+    const updated = await toggleCommentReaction(props.projectId, localIssue.value.id, commentId, emoji)
+    const idx = comments.value.findIndex(c => c.id === commentId)
+    if (idx !== -1) comments.value[idx] = updated
+  } catch (e) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, '반응 처리 실패') })
+  }
+}
 const sprints = ref<Sprint[]>([])
 const members = ref<ProjectMember[]>([])
 const labelsData = ref<Label[]>([])
@@ -631,9 +709,9 @@ const localAssigneeId = ref<string | null>(null)
 const localEpicId = ref<string | null>(null)
 const localStoryPoints = ref<number | null>(null)
 const localEffortValue = ref<number | null>(null)
-const localEffortUnit = ref<string>('일')
 const localStartDate = ref('')
 const localDueDate = ref('')
+const localShowOnDashboard = ref(false)
 
 // 하위 작업
 const subIssues = ref<Issue[]>([])
@@ -697,6 +775,20 @@ const epicOptions = computed(() =>
 const labelOptions = computed(() => labelsData.value.map(l => ({ label: l.name, value: l.id, color: l.color })))
 const labelColorMap = computed(() => Object.fromEntries(labelsData.value.map(l => [l.id, l.color])))
 
+function parseEffortToDays(effortMd: string | null | undefined): number | null {
+  if (!effortMd) return null
+  const m = effortMd.match(/^([\d.]+)\s*(.+)$/)
+  if (!m) return null
+  const num = parseFloat(m[1]!)
+  const unit = m[2]!.trim()
+  let days: number
+  if (unit === '시간') days = num / 8
+  else if (unit === '분') days = num / 480
+  else days = num
+  const rounded = Math.round(days * 1000) / 1000
+  return rounded === 0 && days > 0 ? 0.001 : rounded
+}
+
 async function loadIssueContent(issue: Issue) {
   localIssue.value = { ...issue }
   localStatus.value = issue.status
@@ -707,17 +799,10 @@ async function loadIssueContent(issue: Issue) {
   localAssigneeId.value = issue.assigneeId
   localEpicId.value = issue.epicId
   localStoryPoints.value = issue.storyPoints
-  if (issue.effortMd) {
-    const m = issue.effortMd.match(/^([\d.]+)\s*(.+)$/)
-    localEffortValue.value = m ? parseFloat(m[1]!) : null
-    const unit = m ? m[2]!.trim() : '일'
-    localEffortUnit.value  = unit === 'MD' ? '일' : unit
-  } else {
-    localEffortValue.value = null
-    localEffortUnit.value  = '일'
-  }
+  localEffortValue.value = parseEffortToDays(issue.effortMd)
   localStartDate.value = issue.startDate?.slice(0, 10) ?? ''
   localDueDate.value = issue.dueDate?.slice(0, 10) ?? ''
+  localShowOnDashboard.value = issue.showOnDashboard
   editTitle.value = issue.title
   editDescription.value = issue.description ?? ''
   descriptionEditing.value = false
@@ -837,9 +922,12 @@ function fmtSize(bytes: number) {
 
 function fileIcon(contentType: string) {
   if (contentType.startsWith('image/')) return 'image'
+  if (contentType.startsWith('video/')) return 'movie'
   if (contentType === 'application/pdf') return 'picture_as_pdf'
   if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'table_chart'
   if (contentType.includes('word')) return 'description'
+  if (contentType.includes('powerpoint') || contentType.includes('presentation')) return 'slideshow'
+  if (contentType === 'text/html' || contentType === 'application/json' || contentType.includes('xml')) return 'code'
   return 'attach_file'
 }
 
@@ -884,9 +972,7 @@ function historyAction(h: IssueHistory): string {
 }
 
 function saveEffort() {
-  const val = localEffortValue.value != null
-    ? `${localEffortValue.value} ${localEffortUnit.value}`
-    : null
+  const val = localEffortValue.value != null ? `${localEffortValue.value} 일` : null
   void patchField('effort_md', val)
 }
 
@@ -997,6 +1083,8 @@ function confirmDelete() {
 </script>
 
 <style scoped>
+.emoji-pick-btn { font-size: 18px; min-width: 32px; }
+
 .comment-highlight { animation: comment-flash 2.5s ease; }
 @keyframes comment-flash {
   0%, 40% { background-color: #ffe69c; }

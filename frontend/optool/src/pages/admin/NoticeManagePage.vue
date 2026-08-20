@@ -30,11 +30,11 @@
     </q-table>
 
     <!-- 등록 / 수정 다이얼로그 -->
-    <q-dialog v-model="dialog" persistent>
+    <q-dialog v-model="dialog" persistent @show="onDialogShow">
       <q-card style="min-width: 560px; max-width: 90vw">
         <q-card-section class="text-h6">{{ editTarget ? '공지사항 수정' : '공지 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">
-          <q-input v-model="form.title" label="제목 *" outlined dense autofocus />
+          <q-input ref="titleInputRef" v-model="form.title" label="제목 *" outlined dense />
           <MarkdownEditor v-model="form.content" label="내용" required :rows="8" />
           <div class="row q-col-gutter-md">
             <div class="col-6">
@@ -56,8 +56,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
+import type { QInput } from 'quasar'
 import { noticeService, type NoticeOut } from 'src/services/notices'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 
@@ -69,6 +70,13 @@ const saving = ref(false)
 const dialog = ref(false)
 const editTarget = ref<NoticeOut | null>(null)
 const form = ref({ title: '', content: '', startDate: '', endDate: '', isActive: true })
+const titleInputRef = ref<QInput | null>(null)
+
+// autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지).
+function onDialogShow() {
+  void nextTick(() => titleInputRef.value?.focus())
+}
 
 const columns = [
   { name: 'title', label: '제목', field: 'title', align: 'left' as const },

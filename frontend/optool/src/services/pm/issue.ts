@@ -96,6 +96,7 @@ export type Issue = {
   storyPoints: number | null
   effortMd: string | null
   attachments: { fileId: string; originalName: string; url: string; size: number; contentType: string }[]
+  showOnDashboard: boolean
   order: number
   linkedSrId: string | null
   subtasks: SubtaskSummary[]
@@ -127,6 +128,7 @@ export type IssueCreate = {
   story_points?: number | null
   effort_md?: string | null
   attachments?: { file_id: string; original_name: string; url: string; size: number; content_type: string }[]
+  show_on_dashboard?: boolean
 }
 
 export type IssuePatch = Partial<IssueCreate & { order: number }>
@@ -134,6 +136,16 @@ export type IssuePatch = Partial<IssueCreate & { order: number }>
 export type MentionedUser = {
   userId: string
   displayName: string
+}
+
+export type CommentReactionUser = {
+  userId: string
+  displayName: string
+}
+
+export type CommentReaction = {
+  emoji: string
+  users: CommentReactionUser[]
 }
 
 export type IssueComment = {
@@ -145,6 +157,7 @@ export type IssueComment = {
   content: string
   attachments: Attachment[]
   mentionedUsers: MentionedUser[]
+  reactions: CommentReaction[]
   createdAt: string
   updatedAt: string
 }
@@ -260,6 +273,19 @@ export async function patchComment(
 
 export async function deleteComment(projectId: string, issueId: string, commentId: string) {
   await api.delete(`/pm/projects/${projectId}/issues/${issueId}/comments/${commentId}`)
+}
+
+export async function toggleCommentReaction(
+  projectId: string,
+  issueId: string,
+  commentId: string,
+  emoji: string,
+) {
+  const { data } = await api.post<IssueComment>(
+    `/pm/projects/${projectId}/issues/${issueId}/comments/${commentId}/reactions`,
+    { emoji },
+  )
+  return data
 }
 
 export async function getIssueHistory(projectId: string, issueId: string) {

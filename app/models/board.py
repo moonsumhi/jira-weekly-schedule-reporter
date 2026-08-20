@@ -41,6 +41,7 @@ class BoardOut(BaseModel):
 class PostCreate(BaseModel):
     title: str
     part: str = ""
+    category: str = ""
     content: str
     attachments: list[BoardAttachment] = []
 
@@ -50,6 +51,7 @@ class PostOut(BaseModel):
     board_id: str
     title: str
     part: str = ""
+    category: str = ""
     content: str
     author_id: str
     author_name: str

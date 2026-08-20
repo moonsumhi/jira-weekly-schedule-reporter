@@ -1,6 +1,6 @@
 <template>
-  <q-dialog :model-value="modelValue" persistent @update:model-value="$emit('update:modelValue', $event)">
-    <q-card style="width: 820px; max-width: 96vw">
+  <q-dialog :model-value="modelValue" persistent @update:model-value="$emit('update:modelValue', $event)" @show="onDialogShow">
+    <q-card style="width: 1080px; max-width: 96vw">
 
       <!-- 헤더 -->
       <q-card-section class="row items-center q-pb-none q-pt-md q-px-lg">
@@ -21,9 +21,10 @@
         <div class="section-label q-mt-sm q-mb-sm">기본 정보</div>
         <div style="display: flex; flex-direction: column; gap: 12px">
           <q-input
+            ref="titleInputRef"
             v-model="form.title"
             label="제목 *"
-            outlined dense autofocus hide-bottom-space
+            outlined dense hide-bottom-space
           />
           <div style="display: flex; gap: 12px">
             <q-select
@@ -154,23 +155,23 @@
             stack-label
             style="flex: 1"
           />
-          <div style="flex: 0 0 160px; display: flex; gap: 4px; align-items: flex-end">
-            <q-input
-              v-model.number="form.effortValue"
-              label="공수"
-              outlined dense
-              type="number"
-              :min="0"
-              stack-label
-              style="flex: 1"
-            />
-            <q-select
-              v-model="form.effortUnit"
-              :options="['일', '시간', '분']"
-              outlined dense
-              style="width: 60px"
-            />
+          <div style="flex: 0 0 auto; display: flex; align-items: center">
+            <q-checkbox v-model="form.showOnDashboard" label="대시보드 D-Day 표시" dense>
+              <q-tooltip>완료 처리 전까지 담당자 대시보드의 D-Day 카드에 마감일이 표시됩니다.</q-tooltip>
+            </q-checkbox>
           </div>
+        </div>
+        <div style="display: flex; gap: 12px; margin-top: 12px">
+          <q-input
+            v-model.number="form.effortValue"
+            label="공수 (일)"
+            outlined dense
+            type="number"
+            :min="0"
+            step="0.001"
+            stack-label
+            style="flex: 0 0 160px"
+          />
         </div>
 
         <q-separator class="q-my-md" />
@@ -223,10 +224,12 @@
                 ref="fileInputRef"
                 type="file"
                 multiple
+                :accept="ATTACHMENT_ACCEPT"
                 style="display: none"
                 @change="onFilesSelected"
               />
             </div>
+            <div class="text-caption text-grey-5 q-mb-xs">{{ ATTACHMENT_HINT }}</div>
             <!-- 드롭존 (파일 없을 때) -->
             <div
               v-if="attachments.length === 0"
@@ -275,7 +278,7 @@
       <!-- 하단 버튼 -->
       <q-card-actions align="right" class="q-pa-md q-gutter-x-sm">
         <q-btn flat label="취소" @click="$emit('update:modelValue', false)" />
-        <q-btn color="primary" label="이슈 추가" :loading="loading" @click="submit" />
+        <q-btn color="primary" label="이슈 추가" :loading="loading" :disable="loading" @click="submit" />
       </q-card-actions>
 
     </q-card>
@@ -283,9 +286,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
-import { Notify } from 'quasar'
+import { Notify, type QInput } from 'quasar'
 import {
   createIssue, listIssues, listLabels, uploadAttachment,
   ISSUE_STATUSES, STATUS_LABEL,
@@ -307,8 +310,19 @@ const emit = defineEmits<{
   'created': [Issue]
 }>()
 
+const ATTACHMENT_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4,.html,.htm,.log,.json,.xml,.yaml,.yml'
+const ATTACHMENT_HINT = '지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), TXT, CSV, ZIP, MP4, HTML, LOG, JSON, XML, YAML (최대 100MB)'
+
 const auth = useAuthStore()
 const loading = ref(false)
+const titleInputRef = ref<QInput | null>(null)
+
+// autofocus는 다이얼로그의 진입 트랜지션이 끝나기 전에 포커스를 걸어버려서,
+// 트랜지션 중에 바로 한글을 입력하면 IME 조합이 깨져 첫 글자가 씹히거나
+// 중복 입력되는 문제가 있었다. 트랜지션이 완전히 끝난 뒤(@show)에 포커스한다.
+function onDialogShow() {
+  void nextTick(() => titleInputRef.value?.focus())
+}
 const sprints = ref<Sprint[]>([])
 const labelsData = ref<Label[]>([])
 const members = ref<ProjectMember[]>([])
@@ -330,11 +344,11 @@ const form = ref<{
   epicId: string | null
   storyPoints: number | null
   effortValue: number | null
-  effortUnit: string
   labelIds: string[]
   description: string
   startDate: string
   dueDate: string
+  showOnDashboard: boolean
 }>({
   title: '',
   type: 'TASK',
@@ -345,11 +359,11 @@ const form = ref<{
   epicId: null,
   storyPoints: null,
   effortValue: null,
-  effortUnit: '일',
   labelIds: [],
   description: '',
   startDate: '',
   dueDate: '',
+  showOnDashboard: false,
 })
 
 const typeOptions = [
@@ -424,11 +438,11 @@ watch(() => props.modelValue, async (open) => {
       epicId: null,
       storyPoints: null,
       effortValue: null,
-      effortUnit: '일',
       labelIds: [],
       description: '',
       startDate: '',
       dueDate: '',
+      showOnDashboard: false,
     }
     attachments.value = []
     try {
@@ -449,8 +463,8 @@ async function uploadFiles(files: File[]) {
     try {
       const att = await uploadAttachment(file)
       attachments.value.push(att)
-    } catch {
-      Notify.create({ type: 'negative', message: `${file.name} 업로드 실패` })
+    } catch (e) {
+      Notify.create({ type: 'negative', message: `${file.name}: ${getErrorMessage(e, '업로드 실패')}` })
     } finally {
       uploadingCount.value--
     }
@@ -475,9 +489,12 @@ function removeAttachment(index: number) {
 
 function fileIcon(contentType: string) {
   if (contentType.startsWith('image/')) return 'image'
+  if (contentType.startsWith('video/')) return 'movie'
   if (contentType === 'application/pdf') return 'picture_as_pdf'
   if (contentType.includes('spreadsheet') || contentType.includes('excel')) return 'table_chart'
   if (contentType.includes('word')) return 'description'
+  if (contentType.includes('powerpoint') || contentType.includes('presentation')) return 'slideshow'
+  if (contentType === 'text/html' || contentType === 'application/json' || contentType.includes('xml')) return 'code'
   if (contentType === 'text/plain' || contentType === 'text/csv') return 'article'
   return 'attach_file'
 }
@@ -504,11 +521,12 @@ async function submit() {
       ...(form.value.assigneeId ? { assignee_id: form.value.assigneeId } : {}),
       ...(form.value.epicId ? { epic_id: form.value.epicId } : {}),
       ...(form.value.storyPoints != null ? { story_points: form.value.storyPoints } : {}),
-      ...(form.value.effortValue != null ? { effort_md: `${form.value.effortValue} ${form.value.effortUnit}` } : {}),
+      ...(form.value.effortValue != null ? { effort_md: `${form.value.effortValue} 일` } : {}),
       ...(form.value.labelIds.length ? { label_ids: form.value.labelIds } : {}),
       ...(form.value.description ? { description: form.value.description } : {}),
       ...(form.value.startDate ? { start_date: new Date(form.value.startDate).toISOString() } : {}),
       ...(form.value.dueDate ? { due_date: new Date(form.value.dueDate).toISOString() } : {}),
+      show_on_dashboard: form.value.showOnDashboard,
       attachments: attachments.value.map(a => ({
         file_id: a.fileId,
         original_name: a.originalName,

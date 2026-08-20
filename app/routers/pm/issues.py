@@ -11,6 +11,7 @@ from app.models.user import UserPublic
 from app.models.pm.issue import (
     IssueCreate, IssuePatch, IssueOut,
     IssueCommentCreate, IssueCommentPatch, IssueCommentOut,
+    CommentReactionToggle,
     IssueHistoryOut, LabelCreate, LabelOut,
 )
 from app.routers.auth import get_current_user
@@ -94,6 +95,7 @@ async def create_issue(
         "story_points": body.story_points,
         "effort_md": body.effort_md,
         "attachments": [a.model_dump() for a in body.attachments],
+        "show_on_dashboard": body.show_on_dashboard,
         "order": float(number),
         "created_at": now,
         "updated_at": now,
@@ -290,6 +292,7 @@ async def list_comments(
             content=d["content"],
             attachments=d.get("attachments") or [],
             mentioned_users=mentioned_users,
+            reactions=d.get("reactions") or [],
             created_at=d["created_at"],
             updated_at=d["updated_at"],
         ))
@@ -382,6 +385,7 @@ async def create_comment(
         content=d["content"],
         attachments=d.get("attachments") or [],
         mentioned_users=mentioned,
+        reactions=d.get("reactions") or [],
         created_at=d["created_at"],
         updated_at=d["updated_at"],
     )
@@ -451,6 +455,7 @@ async def patch_comment(
         author_name=user.get("full_name") or user.get("email", "") if user else "",
         content=d["content"],
         mentioned_users=new_mentioned,
+        reactions=d.get("reactions") or [],
         created_at=d["created_at"],
         updated_at=d["updated_at"],
     )
@@ -473,6 +478,71 @@ async def delete_comment(
             f"첨부파일 {len(old_doc.get('attachments', []))}개" if old_doc.get("attachments") else None
         )
         await record_history(ObjectId(issue_id), ObjectId(current_user.id), "comment", old_display, None)
+
+
+# ── 댓글 이모티콘 반응 ─────────────────────────────────────────────────
+
+ALLOWED_REACTION_EMOJIS = {"👍", "❤️", "😄", "🎉", "👀", "🙏", "✅"}
+
+
+@router.post("/{project_id}/issues/{issue_id}/comments/{comment_id}/reactions", response_model=IssueCommentOut)
+async def toggle_comment_reaction(
+    project_id: str,
+    issue_id: str,
+    comment_id: str,
+    body: CommentReactionToggle,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    await require_pm_member(current_user, project_id)
+
+    if body.emoji not in ALLOWED_REACTION_EMOJIS:
+        raise HTTPException(status_code=400, detail="지원하지 않는 이모티콘입니다.")
+
+    col = MongoClientManager.get_pm_issue_comments_collection()
+    users_col = MongoClientManager.get_users_collection()
+
+    doc = await col.find_one({"_id": ObjectId(comment_id), "issue_id": ObjectId(issue_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="댓글을 찾을 수 없습니다.")
+
+    reactions: list[dict] = doc.get("reactions") or []
+    uid = str(current_user.id)
+    display_name = current_user.full_name or current_user.email
+
+    group = next((r for r in reactions if r["emoji"] == body.emoji), None)
+    if group is None:
+        reactions.append({"emoji": body.emoji, "users": [{"user_id": uid, "display_name": display_name}]})
+    elif any(u["user_id"] == uid for u in group["users"]):
+        # 이미 반응함 → 토글로 제거
+        group["users"] = [u for u in group["users"] if u["user_id"] != uid]
+        if not group["users"]:
+            reactions = [r for r in reactions if r["emoji"] != body.emoji]
+    else:
+        group["users"].append({"user_id": uid, "display_name": display_name})
+
+    d = await col.find_one_and_update(
+        {"_id": ObjectId(comment_id)},
+        {"$set": {"reactions": reactions}},
+        return_document=True,
+    )
+    user = await users_col.find_one({"_id": d["author_id"]}, {"full_name": 1, "email": 1})
+    mentioned_users = [
+        MentionedUser(user_id=m["user_id"], display_name=m["display_name"])
+        for m in d.get("mentioned_users", [])
+    ]
+    return IssueCommentOut(
+        id=str(d["_id"]),
+        issue_id=str(d["issue_id"]),
+        parent_id=str(d["parent_id"]) if d.get("parent_id") else None,
+        author_id=str(d["author_id"]),
+        author_name=user.get("full_name") or user.get("email", "") if user else "",
+        content=d["content"],
+        attachments=d.get("attachments") or [],
+        mentioned_users=mentioned_users,
+        reactions=d.get("reactions") or [],
+        created_at=d["created_at"],
+        updated_at=d["updated_at"],
+    )
 
 
 # ── 변경이력 ───────────────────────────────────────────────────────

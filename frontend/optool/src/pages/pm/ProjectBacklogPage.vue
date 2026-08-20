@@ -40,34 +40,25 @@
       <div class="row items-center q-px-md q-py-xs q-gutter-x-xs flex-wrap">
         <span class="text-caption text-grey-5 q-mr-xs" style="line-height: 32px">필터</span>
 
-        <!-- 상태 -->
+        <!-- 상태: 클릭할 때마다 포함 → 제외 → 해제로 순환 (SR 관리 상태 탭과 동일한 방식) -->
         <q-chip
-          :color="filterStatus ? 'primary' : undefined"
-          :text-color="filterStatus ? 'white' : 'grey-8'"
-          :outline="!filterStatus"
+          v-for="opt in statusOptions"
+          :key="opt.value"
           clickable
-          :removable="!!filterStatus"
-          @remove="filterStatus = null"
+          :color="statusChipState(opt.value) === 'include' ? STATUS_COLOR[opt.value] : undefined"
+          :text-color="statusChipState(opt.value) === 'include' ? 'white' : (statusChipState(opt.value) === 'exclude' ? 'negative' : 'grey-8')"
+          :outline="statusChipState(opt.value) !== 'include'"
           class="filter-chip"
           size="sm"
+          @click="onStatusChipClick(opt.value)"
         >
-          <q-icon v-if="filterStatus" name="radio_button_checked" size="10px" class="q-mr-xs" />
-          <span>{{ filterStatus ? STATUS_LABEL[filterStatus] : '상태' }}</span>
-          <q-icon v-if="!filterStatus" name="expand_more" size="14px" class="q-ml-xs" />
-          <q-menu>
-            <q-list dense style="min-width: 150px">
-              <q-item-label header class="text-grey-5" style="font-size: 11px; padding-bottom: 4px">상태 선택</q-item-label>
-              <q-item v-for="opt in statusOptions" :key="opt.value" clickable v-close-popup @click="filterStatus = opt.value">
-                <q-item-section side style="padding-right: 8px; min-width: 24px">
-                  <q-badge :color="STATUS_COLOR[opt.value]" rounded style="width: 8px; height: 8px; min-width: 8px" />
-                </q-item-section>
-                <q-item-section>{{ opt.label }}</q-item-section>
-                <q-item-section side v-if="filterStatus === opt.value">
-                  <q-icon name="check" color="primary" size="xs" />
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-menu>
+          <q-icon v-if="statusChipState(opt.value) === 'exclude'" name="block" size="10px" class="q-mr-xs" />
+          <span>{{ opt.label }}</span>
+          <q-tooltip anchor="bottom middle" self="top middle">
+            {{ statusChipState(opt.value) === 'include' ? '다시 클릭 → 제외'
+              : statusChipState(opt.value) === 'exclude' ? '다시 클릭 → 해제'
+              : '클릭 → 포함 (복수 선택 가능)' }}
+          </q-tooltip>
         </q-chip>
 
         <!-- 우선순위 -->
@@ -619,7 +610,8 @@ const detailDialog = ref({ open: false, issue: null as Issue | null })
 
 // ── 필터 ──────────────────────────────────────────────────────────────
 const filterSearch    = ref('')
-const filterStatus    = ref<IssueStatus | null>(null)
+// 상태 탭: 'DONE' = 포함, '!DONE' = 제외 (SR 관리 상태 칩과 동일한 표현)
+const filterStatusTabs = ref<string[]>([])
 const filterPriority  = ref<IssuePriority | null>(null)
 const filterType      = ref<IssueType | null>(null)
 const filterAssigneeId = ref<string | null>(null)
@@ -630,7 +622,7 @@ const FILTER_KEY = `backlog_filter_${projectId}`
 
 function saveFilters() {
   localStorage.setItem(FILTER_KEY, JSON.stringify({
-    search: filterSearch.value, status: filterStatus.value,
+    search: filterSearch.value, statusTabs: filterStatusTabs.value,
     priority: filterPriority.value, type: filterType.value, assigneeId: filterAssigneeId.value,
     dateFrom: filterDateFrom.value, dateTo: filterDateTo.value,
   }))
@@ -640,24 +632,51 @@ function restoreFilters() {
   try {
     const raw = localStorage.getItem(FILTER_KEY)
     if (!raw) return
-    const s = JSON.parse(raw) as { search: string; status: IssueStatus | null; priority: IssuePriority | null; type: IssueType | null; assigneeId: string | null; dateFrom: string | null; dateTo: string | null }
-    filterSearch.value = s.search ?? ''; filterStatus.value = s.status ?? null
+    const s = JSON.parse(raw) as {
+      search: string; statusTabs?: string[]; status?: IssueStatus | null; priority: IssuePriority | null; type: IssueType | null
+      assigneeId: string | null; dateFrom: string | null; dateTo: string | null
+    }
+    filterSearch.value = s.search ?? ''
+    // statusTabs가 없으면(예전 저장분) 단일 status 값을 include 탭 하나로 이관
+    filterStatusTabs.value = s.statusTabs ?? (s.status ? [s.status] : [])
     filterPriority.value = s.priority ?? null; filterType.value = s.type ?? null
     filterAssigneeId.value = s.assigneeId ?? null
     filterDateFrom.value = s.dateFrom ?? null; filterDateTo.value = s.dateTo ?? null
   } catch { /* ignore */ }
 }
 
-watch([filterSearch, filterStatus, filterPriority, filterType, filterAssigneeId, filterDateFrom, filterDateTo], saveFilters)
+watch([
+  filterSearch, filterStatusTabs, filterPriority, filterType, filterAssigneeId, filterDateFrom, filterDateTo,
+], saveFilters, { deep: true })
 
 const hasFilter = computed(() =>
-  !!(filterSearch.value || filterStatus.value || filterPriority.value || filterType.value || filterAssigneeId.value || filterDateFrom.value || filterDateTo.value)
+  !!(filterSearch.value || filterStatusTabs.value.length || filterPriority.value || filterType.value || filterAssigneeId.value || filterDateFrom.value || filterDateTo.value)
 )
 
 function clearFilters() {
-  filterSearch.value = ''; filterStatus.value = null
+  filterSearch.value = ''; filterStatusTabs.value = []
   filterPriority.value = null; filterType.value = null; filterAssigneeId.value = null
   filterDateFrom.value = null; filterDateTo.value = null
+}
+
+// ── 상태 칩 (포함 → 제외 → 해제 3단계 순환, SR 관리 상태 탭과 동일) ────────
+type ChipState = 'include' | 'exclude' | 'none'
+
+function statusChipState(status: IssueStatus): ChipState {
+  if (filterStatusTabs.value.includes(status)) return 'include'
+  if (filterStatusTabs.value.includes(`!${status}`)) return 'exclude'
+  return 'none'
+}
+
+function onStatusChipClick(status: IssueStatus) {
+  const st = statusChipState(status)
+  if (st === 'none') {
+    filterStatusTabs.value = [...filterStatusTabs.value, status]
+  } else if (st === 'include') {
+    filterStatusTabs.value = filterStatusTabs.value.filter(s => s !== status).concat(`!${status}`)
+  } else {
+    filterStatusTabs.value = filterStatusTabs.value.filter(s => s !== `!${status}`)
+  }
 }
 
 // ── 드래그 순서 관리 ──────────────────────────────────────────────────
@@ -738,7 +757,10 @@ watch(allIssues, (issues) => applyOrder(issues))
 function matches(issue: Issue): boolean {
   const q = filterSearch.value.toLowerCase()
   if (q && !issue.title.toLowerCase().includes(q)) return false
-  if (filterStatus.value     && issue.status     !== filterStatus.value)     return false
+  const includeStatuses = filterStatusTabs.value.filter(s => !s.startsWith('!'))
+  const excludeStatuses = filterStatusTabs.value.filter(s => s.startsWith('!')).map(s => s.slice(1))
+  if (includeStatuses.length && !includeStatuses.includes(issue.status)) return false
+  if (excludeStatuses.includes(issue.status)) return false
   if (filterPriority.value   && issue.priority   !== filterPriority.value)   return false
   if (filterType.value       && issue.type       !== filterType.value)       return false
   if (filterAssigneeId.value && issue.assigneeId !== filterAssigneeId.value) return false

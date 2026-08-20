@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, model_validator
 
 from app.models.mention import MentionedUser
+from app.models.comment_reaction import CommentReactionOut, CommentReactionToggle
 
 # ── 타입 정의 ─────────────────────────────────────────────────────────
 
@@ -196,6 +197,7 @@ class SRDueDateChange(BaseModel):
 class SRComment(BaseModel):
     content: str = Field(default="")
     is_internal: bool = False
+    parent_id: Optional[str] = None
     attachments: List[SRAttachment] = []
     mentioned_user_ids: List[str] = []
 
@@ -294,6 +296,7 @@ class SRListItem(BaseModel):
     assignee_id: Optional[str] = None
     assignee_name: Optional[str] = None
     is_delayed: bool = False
+    comment_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -301,12 +304,14 @@ class SRListItem(BaseModel):
 class SRCommentOut(BaseModel):
     id: str
     sr_id: str
+    parent_id: Optional[str] = None
     writer_id: str
     writer_name: str
     content: str
     is_internal: bool
     attachments: List[SRAttachment] = []
     mentioned_users: List[MentionedUser] = []
+    reactions: List[CommentReactionOut] = []
     created_at: datetime
     updated_at: datetime
 

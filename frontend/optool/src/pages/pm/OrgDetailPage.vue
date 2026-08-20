@@ -148,14 +148,14 @@
     </q-dialog>
 
     <!-- 조직 이름 수정 다이얼로그 -->
-    <q-dialog v-model="editDialog.open" persistent>
+    <q-dialog v-model="editDialog.open" persistent @show="onEditDialogShow">
       <q-card style="min-width: 360px">
         <q-card-section>
           <div class="text-h6">조직 이름 수정</div>
         </q-card-section>
         <q-separator />
         <q-card-section>
-          <q-input v-model="editDialog.name" label="조직 이름 *" dense outlined autofocus />
+          <q-input ref="editNameInputRef" v-model="editDialog.name" label="조직 이름 *" dense outlined />
         </q-card-section>
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat label="취소" @click="editDialog.open = false" />
@@ -170,7 +170,7 @@
     </q-dialog>
 
     <!-- 새 프로젝트 생성 다이얼로그 -->
-    <q-dialog v-model="createDialog.open" persistent>
+    <q-dialog v-model="createDialog.open" persistent @show="onCreateDialogShow">
       <q-card style="min-width: 420px">
         <q-card-section>
           <div class="text-h6">새 프로젝트</div>
@@ -178,9 +178,10 @@
         <q-separator />
         <q-card-section class="q-gutter-sm">
           <q-input
+            ref="createNameInputRef"
             v-model="createDialog.name"
             label="프로젝트 이름 *"
-            dense outlined autofocus
+            dense outlined
             @update:model-value="autoKey"
           />
           <q-input
@@ -207,9 +208,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Dialog, Notify } from 'quasar'
+import { Dialog, Notify, type QInput } from 'quasar'
 import { useAuthStore } from 'src/stores/auth'
 import {
   getOrganization, patchOrganization, listOrgProjects,
@@ -234,6 +235,17 @@ const loading = ref(false)
 
 const editDialog = ref({ open: false, name: '', loading: false })
 const createDialog = ref({ open: false, name: '', key: '', description: '', loading: false })
+const editNameInputRef = ref<QInput | null>(null)
+const createNameInputRef = ref<QInput | null>(null)
+
+// autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지).
+function onEditDialogShow() {
+  void nextTick(() => editNameInputRef.value?.focus())
+}
+function onCreateDialogShow() {
+  void nextTick(() => createNameInputRef.value?.focus())
+}
 const addMemberDialog = ref<{
   open: boolean
   selectedUser: PmUser | null

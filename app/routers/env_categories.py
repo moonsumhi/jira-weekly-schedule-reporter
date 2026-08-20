@@ -17,6 +17,7 @@ from app.models.env_category import (
     EnvItem,
     EnvItemCreate,
     EnvItemPatch,
+    EnvItemsReorder,
 )
 from app.models.user import UserPublic
 from app.routers.auth import get_current_user
@@ -27,7 +28,12 @@ router = APIRouter()
 
 
 def _to_out(doc: dict) -> EnvCategoryOut:
+    # 동시 등록 등으로 sort_order가 중복되면 스왑(교체)이 항상 같은 값끼리 맞바뀌어
+    # 화면상 순서가 바뀌지 않는 것처럼 보인다. 클라이언트에 내려줄 때 상대 순서를
+    # 유지한 채 0..n-1로 다시 매겨 중복을 없앤다.
     items = sorted(doc.get("items", []), key=lambda i: i.get("sort_order", 0))
+    for idx, item in enumerate(items):
+        item["sort_order"] = idx
     return EnvCategoryOut(
         id=str(doc["_id"]),
         key=doc.get("key", ""),
@@ -113,9 +119,31 @@ async def add_item(category_id: str, payload: EnvItemCreate, _=Depends(require_a
     items.append({
         "id": str(uuid4()),
         "label": payload.label,
+        "value": payload.value,
         "sort_order": next_order,
         "is_active": True,
     })
+    col = MongoClientManager.get_env_categories_collection()
+    await col.update_one({"_id": doc["_id"]}, {"$set": {"items": items}})
+    doc["items"] = items
+    return _to_out(doc)
+
+
+@router.put("/{category_id}/items/reorder", response_model=EnvCategoryOut)
+async def reorder_items(category_id: str, payload: EnvItemsReorder, _=Depends(require_admin)):
+    """items 배열 전체를 한 번에 덮어써서 순서를 재배치한다.
+
+    항목마다 개별 PATCH(스왑)를 순차로 보내던 이전 방식은 sort_order가
+    중복되면 스왑이 같은 값끼리 맞바뀌어 화면상 순서가 바뀌지 않는 문제가
+    있었다. 드래그로 정렬한 최종 순서를 한 번에 통째로 반영해 이를 없앤다.
+    """
+    doc = await _get_category_or_404(category_id)
+    items = doc.get("items", [])
+    order_map = {item_id: idx for idx, item_id in enumerate(payload.item_ids)}
+    if len(order_map) != len(items) or any(i.get("id") not in order_map for i in items):
+        raise HTTPException(status_code=400, detail="전달된 항목 목록이 기존 항목과 일치하지 않습니다.")
+    for item in items:
+        item["sort_order"] = order_map[item["id"]]
     col = MongoClientManager.get_env_categories_collection()
     await col.update_one({"_id": doc["_id"]}, {"$set": {"items": items}})
     doc["items"] = items

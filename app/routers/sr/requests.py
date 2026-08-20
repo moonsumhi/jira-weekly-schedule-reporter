@@ -12,6 +12,7 @@ from app.models.user import UserPublic
 from app.models.sr.service_request import (
     SRCreate, SRPatch, SROut, SRListItem, SRComment, SRCommentOut, SRHistoryOut,
 )
+from app.models.comment_reaction import CommentReactionToggle
 from app.routers.auth import get_current_user
 from app.services.sr.sr_service import (
     next_sr_number, get_sr_or_404, record_sr_history,
@@ -306,6 +307,7 @@ async def add_comment(
 
     comment_doc = {
         "sr_id": sr_id,
+        "parent_id": body.parent_id,
         "writer_id": current_user.id,
         "writer_name": _user_label(current_user),
         "content": body.content,
@@ -396,6 +398,63 @@ async def list_comments(
         d["id"] = str(d.pop("_id"))
         result.append(SRCommentOut(**d))
     return result
+
+
+@router.delete("/{sr_id}/comments/{comment_id}", status_code=204)
+async def delete_comment(
+    sr_id: str,
+    comment_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    col = MongoClientManager.get_db()[MongoClientManager.SR_COMMENTS]
+    result = await col.delete_one({
+        "_id": ObjectId(comment_id), "sr_id": sr_id, "writer_id": current_user.id,
+    })
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=403, detail="댓글을 찾을 수 없거나 삭제 권한이 없습니다.")
+
+
+# ── 댓글 이모티콘 반응 ─────────────────────────────────────────────────
+
+ALLOWED_REACTION_EMOJIS = {"👍", "❤️", "😄", "🎉", "👀", "🙏", "✅"}
+
+
+@router.post("/{sr_id}/comments/{comment_id}/reactions", response_model=SRCommentOut)
+async def toggle_comment_reaction(
+    sr_id: str,
+    comment_id: str,
+    body: CommentReactionToggle,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    if body.emoji not in ALLOWED_REACTION_EMOJIS:
+        raise HTTPException(status_code=400, detail="지원하지 않는 이모티콘입니다.")
+
+    col = MongoClientManager.get_db()[MongoClientManager.SR_COMMENTS]
+    doc = await col.find_one({"_id": ObjectId(comment_id), "sr_id": sr_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="댓글을 찾을 수 없습니다.")
+
+    reactions: list[dict] = doc.get("reactions") or []
+    uid = str(current_user.id)
+    display_name = current_user.full_name or current_user.email
+
+    group = next((r for r in reactions if r["emoji"] == body.emoji), None)
+    if group is None:
+        reactions.append({"emoji": body.emoji, "users": [{"user_id": uid, "display_name": display_name}]})
+    elif any(u["user_id"] == uid for u in group["users"]):
+        group["users"] = [u for u in group["users"] if u["user_id"] != uid]
+        if not group["users"]:
+            reactions = [r for r in reactions if r["emoji"] != body.emoji]
+    else:
+        group["users"].append({"user_id": uid, "display_name": display_name})
+
+    d = await col.find_one_and_update(
+        {"_id": ObjectId(comment_id)},
+        {"$set": {"reactions": reactions}},
+        return_document=True,
+    )
+    d["id"] = str(d.pop("_id"))
+    return SRCommentOut(**d)
 
 
 @router.get("/{sr_id}/history", response_model=List[SRHistoryOut])

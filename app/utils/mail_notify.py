@@ -54,6 +54,10 @@ def _ruby_hash_str(data: dict[str, str]) -> str:
     return "{" + ", ".join(parts) + "}"
 
 
+def _sr_detail_url(sr_id: Any) -> str:
+    return f"{settings.FRONTEND_BASE_URL}/#/pm/sr/{sr_id}"
+
+
 async def _get_assignee_email(assignee_id: Any) -> str | None:
     if not assignee_id:
         return None
@@ -76,7 +80,13 @@ async def _load_firewall_emails() -> list[str]:
     doc = await col.find_one({"key": "firewall_notify_emails"})
     if not doc:
         return []
-    return [i["label"].strip() for i in doc.get("items", []) if i.get("is_active", True) and i.get("label", "").strip()]
+    # 항목의 표시 이름(label)과 실제 발송 대상 이메일(value)을 분리해 저장하는 화면으로
+    # 바뀌었지만, value 없이 label에 이메일을 직접 넣어둔 과거 데이터도 있으므로 폴백한다.
+    return [
+        (i.get("value") or i.get("label", "")).strip()
+        for i in doc.get("items", [])
+        if i.get("is_active", True) and (i.get("value") or i.get("label", "")).strip()
+    ]
 
 
 _MAX_RETRY_ON_404 = 3
@@ -84,7 +94,7 @@ _RETRY_DELAY_SECONDS = 2.0
 
 _EVENT_URLS = {
     "reviewed": lambda: settings.SR_MAIL_SERVICE_URL,   # 검토 완료(승인) → Backoffice_IssueInfo 템플릿
-    "assigned": lambda: settings.SR_MAIL_ASSIGN_URL,    # 담당자 배정 → issueAssign 템플릿(신규)
+    "assigned": lambda: settings.SR_MAIL_ASSIGN_URL,    # 담당자 배정 → issueAssign_link 템플릿(신규)
     "completed": lambda: settings.SR_MAIL_FINISH_URL,   # 처리완료 → Backoffice_IssueFinish 템플릿
 }
 
@@ -159,7 +169,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
 
     event="reviewed"  → 검토 완료(승인) 메일. 수신자: 요청자
                         (단, request_type="FIREWALL"이면 환경설정에 등록된 방화벽 담당자 메일도 추가)
-    event="assigned"  → 담당자 배정 메일 (issueAssign 템플릿, 신규). 수신자: 요청자 + 담당자
+    event="assigned"  → 담당자 배정 메일 (issueAssign_link 템플릿, 신규). 수신자: 요청자 + 담당자
     event="completed" → 처리완료 메일. 수신자: 요청자 + 담당자
 
     메일 발송 실패는 SR 접수/처리 자체를 막지 않도록 예외를 삼키고 로그만 남긴다.
@@ -189,9 +199,12 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     if doc.get("request_type") == "FIREWALL":
         description = (doc.get("type_detail") or {}).get("purpose") or description
 
+    detail_url = _sr_detail_url(doc.get("_id"))
+
     # 실제 메일 템플릿(Backoffice_IssueInfo.html, th:text)이 읽는 키만 채운다:
     # subject(제목) / description(내용) / start_date(생성일자) /
     # adminInfo(담당자) / custom_field_values(요청자) / due_date(마감일자)
+    # link는 issueAssign_link 템플릿 전용 신규 키(담당자 배정 메일의 바로가기 버튼).
     data_map = {
         "subject": _sanitize_for_mail(doc.get("title") or "-"),
         "description": _sanitize_for_mail(description or "-"),
@@ -199,6 +212,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
         "adminInfo": doc.get("assignee_name") or "-",
         "custom_field_values": doc.get("requester_name") or "-",
         "due_date": _fmt_date(doc.get("desired_due_date")),
+        "link": detail_url,
     }
 
     url = _EVENT_URLS.get(event, lambda: settings.SR_MAIL_SERVICE_URL)()

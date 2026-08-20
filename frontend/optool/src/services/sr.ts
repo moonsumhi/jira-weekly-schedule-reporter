@@ -195,6 +195,7 @@ export type SRListItem = {
   assigneeId: string | null
   assigneeName: string | null
   isDelayed: boolean
+  commentCount: number
   createdAt: string
   updatedAt: string
 }
@@ -258,15 +259,27 @@ export type SRStatusChange = {
   requester_confirmed?: boolean | undefined
 }
 
+export type CommentReactionUser = {
+  userId: string
+  displayName: string
+}
+
+export type CommentReaction = {
+  emoji: string
+  users: CommentReactionUser[]
+}
+
 export type SRComment = {
   id: string
   srId: string
+  parentId: string | null
   writerId: string
   writerName: string
   content: string
   isInternal: boolean
   attachments: SRAttachment[]
   mentionedUsers: { userId: string; displayName: string }[]
+  reactions: CommentReaction[]
   createdAt: string
   updatedAt: string
 }
@@ -365,10 +378,12 @@ export async function addComment(
   isInternal = false,
   attachments: SRAttachment[] = [],
   mentionedUserIds: string[] = [],
+  parentId?: string,
 ) {
   const { data } = await api.post<SRComment>(`/schedule/service-requests/${id}/comments`, {
     content,
     is_internal: isInternal,
+    ...(parentId ? { parent_id: parentId } : {}),
     attachments: attachments.map(a => ({
       file_id: a.fileId,
       original_name: a.originalName,
@@ -383,6 +398,18 @@ export async function addComment(
 
 export async function listComments(id: string) {
   const { data } = await api.get<SRComment[]>(`/schedule/service-requests/${id}/comments`)
+  return data
+}
+
+export async function deleteComment(srId: string, commentId: string) {
+  await api.delete(`/schedule/service-requests/${srId}/comments/${commentId}`)
+}
+
+export async function toggleCommentReaction(srId: string, commentId: string, emoji: string) {
+  const { data } = await api.post<SRComment>(
+    `/schedule/service-requests/${srId}/comments/${commentId}/reactions`,
+    { emoji },
+  )
   return data
 }
 

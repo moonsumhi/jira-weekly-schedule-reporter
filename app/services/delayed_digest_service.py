@@ -65,6 +65,10 @@ class DelayedDigestService:
 
     async def _run_once(self) -> None:
         now = datetime.now(timezone.utc)
+        if now.astimezone(KST).weekday() >= 5:  # 5=토요일, 6=일요일
+            logger.info("DelayedDigestService: 주말이라 발송 건너뜀")
+            await self._mark_ran(now)
+            return
 
         sr_by_assignee, issue_by_assignee = await self._collect_delayed(now)
         assignee_ids = set(sr_by_assignee) | set(issue_by_assignee)

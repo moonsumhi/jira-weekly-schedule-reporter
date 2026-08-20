@@ -31,56 +31,73 @@
           </q-btn>
         </div>
 
-        <!-- 서버 점검일 (정기: 3번째 목요일) — D-Day 지나면 숨김 -->
-        <div v-if="showInspectionDay" class="dday-item dday-item--inspection q-mb-sm">
-          <div class="dday-count" style="background: #00897b">
-            <span class="dday-label">{{ calcDDay(inspectionDate) }}</span>
-          </div>
-          <div class="dday-info">
-            <div class="dday-title">
-              서버 점검일
-              <q-badge outline color="teal" label="정기" class="q-ml-xs" style="font-size:10px" />
-            </div>
-            <div class="dday-date text-grey-6">{{ inspectionDate }}{{ inspectionOverridden ? ' (수정됨)' : ' (3번째 목요일)' }}</div>
-          </div>
-          <div v-if="auth.me?.isAdmin" class="dday-actions">
-            <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openInspectionEdit" />
-            <q-btn v-if="inspectionOverridden" flat dense round icon="refresh" size="xs" color="grey" title="자동 계산으로 초기화" @click="resetInspection" />
-          </div>
-        </div>
-
-        <!-- 다음 당직일 — 14일 이내로 다가왔을 때만 표시 -->
-        <div v-if="showDutyDDay && nextDutyDay" class="dday-item dday-item--inspection q-mb-sm">
-          <div class="dday-count" style="background: #7b1fa2">
-            <span class="dday-label">{{ calcDDay(nextDutyDay.date) }}</span>
-          </div>
-          <div class="dday-info">
-            <div class="dday-title">
-              당직일
-              <q-badge outline color="purple" label="당직" class="q-ml-xs" style="font-size:10px" />
-            </div>
-            <div class="dday-date text-grey-6">{{ nextDutyDay.date }}</div>
-          </div>
-        </div>
-
-        <div v-if="ddaysLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-        <div v-if="!ddaysLoading && visibleDDays.length > 0" class="dday-list">
-          <div
-            v-for="d in visibleDDays"
-            :key="d.id"
-            class="dday-item"
-          >
-            <div class="dday-count" :style="{ background: ddayColorMap[d.color] ?? '#1e88e5' }">
-              <span class="dday-label">{{ calcDDay(d.date) }}</span>
+        <div class="dash-card-body">
+          <!-- 서버 점검일 (정기: 3번째 목요일) — D-Day 지나면 숨김 -->
+          <div v-if="showInspectionDay" class="dday-item dday-item--inspection q-mb-sm">
+            <div class="dday-count" style="background: #00897b">
+              <span class="dday-label">{{ calcDDay(inspectionDate) }}</span>
             </div>
             <div class="dday-info">
-              <div class="dday-title">{{ d.title }}</div>
-              <div class="dday-date text-grey-6">{{ d.date }}</div>
-              <div v-if="d.note" class="dday-note text-grey-5">{{ d.note }}</div>
+              <div class="dday-title">
+                서버 점검일
+                <q-badge outline color="teal" label="정기" class="q-ml-xs" style="font-size:10px" />
+              </div>
+              <div class="dday-date text-grey-6">{{ inspectionDate }}{{ inspectionOverridden ? ' (수정됨)' : ' (3번째 목요일)' }}</div>
             </div>
             <div v-if="auth.me?.isAdmin" class="dday-actions">
-              <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openDDayEdit(d)" />
-              <q-btn flat dense round icon="delete" size="xs" color="negative" @click="confirmDeleteDDay(d)" />
+              <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openInspectionEdit" />
+              <q-btn v-if="inspectionOverridden" flat dense round icon="refresh" size="xs" color="grey" title="자동 계산으로 초기화" @click="resetInspection" />
+            </div>
+          </div>
+
+          <!-- 다음 당직일 — 14일 이내로 다가왔을 때만 표시 -->
+          <div v-if="showDutyDDay && nextDutyDay" class="dday-item dday-item--inspection q-mb-sm">
+            <div class="dday-count" style="background: #7b1fa2">
+              <span class="dday-label">{{ calcDDay(nextDutyDay.date) }}</span>
+            </div>
+            <div class="dday-info">
+              <div class="dday-title">
+                당직일
+                <q-badge outline color="purple" label="당직" class="q-ml-xs" style="font-size:10px" />
+              </div>
+              <div class="dday-date text-grey-6">{{ nextDutyDay.date }}</div>
+            </div>
+          </div>
+
+          <div v-if="ddaysLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+          <div v-if="!ddaysLoading && (visibleDDays.length > 0 || issueDDayItems.length > 0)" class="dday-list">
+            <div
+              v-for="d in visibleDDays"
+              :key="d.id"
+              class="dday-item"
+            >
+              <div class="dday-count" :style="{ background: ddayColorMap[d.color] ?? '#1e88e5' }">
+                <span class="dday-label">{{ calcDDay(d.date) }}</span>
+              </div>
+              <div class="dday-info">
+                <div class="dday-title">{{ d.title }}</div>
+                <div class="dday-date text-grey-6">{{ d.date }}</div>
+                <div v-if="d.note" class="dday-note text-grey-5">{{ d.note }}</div>
+              </div>
+              <div v-if="auth.me?.isAdmin" class="dday-actions">
+                <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openDDayEdit(d)" />
+                <q-btn flat dense round icon="delete" size="xs" color="negative" @click="confirmDeleteDDay(d)" />
+              </div>
+            </div>
+            <div
+              v-for="d in issueDDayItems"
+              :key="d.id"
+              class="dday-item cursor-pointer"
+              @click="openPmIssueDetail(d.issue)"
+            >
+              <div class="dday-count" style="background: #3949ab">
+                <span class="dday-label">{{ calcDDay(d.date) }}</span>
+              </div>
+              <div class="dday-info">
+                <div class="dday-title">{{ d.title }}</div>
+                <div class="dday-date text-grey-6">{{ d.date }}</div>
+              </div>
+              <q-badge outline color="indigo" label="내 이슈" style="font-size:10px" />
             </div>
           </div>
         </div>
@@ -106,35 +123,37 @@
           </q-btn>
         </div>
 
-        <div v-if="eosLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-        <div v-else class="eos-summary">
-          <!-- 카운트 요약 -->
-          <div class="eos-counts">
-            <div class="eos-count-item eos-count--danger" @click="eosTab = 'eos'">
-              <div class="eos-count-num">{{ eosSummary.eosCount }}</div>
-              <div class="eos-count-label">EoS된 장비</div>
-            </div>
-            <div class="eos-count-item eos-count--warn" @click="eosTab = 'soon'">
-              <div class="eos-count-num">{{ eosSummary.soonCount }}</div>
-              <div class="eos-count-label">1년 내 EoS 예정</div>
-            </div>
-          </div>
-
-          <!-- 탭 목록 -->
-          <div class="eos-tab-btns q-mt-sm">
-            <q-btn flat dense :color="eosTab === 'eos' ? 'negative' : 'grey'" size="sm" label="EoS 목록" @click="eosTab = 'eos'" />
-            <q-btn flat dense :color="eosTab === 'soon' ? 'orange' : 'grey'" size="sm" label="예정 목록" @click="eosTab = 'soon'" />
-          </div>
-
-          <div class="eos-list q-mt-xs">
-            <div v-if="currentEosList.length === 0" class="text-grey text-caption text-center q-pa-sm">해당 장비가 없습니다.</div>
-            <div v-for="a in currentEosList" :key="a.id" class="eos-item">
-              <q-icon :name="eosTab === 'eos' ? 'cancel' : 'schedule'" :color="eosTab === 'eos' ? 'negative' : 'orange'" size="16px" />
-              <div class="eos-item-info">
-                <span class="eos-item-name">{{ a.name }}</span>
-                <span class="eos-item-os text-grey-6">{{ a.os }}{{ a.version ? ` ${a.version}` : '' }}</span>
+        <div class="dash-card-body">
+          <div v-if="eosLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+          <div v-else class="eos-summary">
+            <!-- 카운트 요약 -->
+            <div class="eos-counts">
+              <div class="eos-count-item eos-count--danger" @click="eosTab = 'eos'">
+                <div class="eos-count-num">{{ eosSummary.eosCount }}</div>
+                <div class="eos-count-label">EoS된 장비</div>
               </div>
-              <span class="eos-item-date" :class="eosTab === 'eos' ? 'text-negative' : 'text-orange'">{{ a.eosDate }}</span>
+              <div class="eos-count-item eos-count--warn" @click="eosTab = 'soon'">
+                <div class="eos-count-num">{{ eosSummary.soonCount }}</div>
+                <div class="eos-count-label">1년 내 EoS 예정</div>
+              </div>
+            </div>
+
+            <!-- 탭 목록 -->
+            <div class="eos-tab-btns q-mt-sm">
+              <q-btn flat dense :color="eosTab === 'eos' ? 'negative' : 'grey'" size="sm" label="EoS 목록" @click="eosTab = 'eos'" />
+              <q-btn flat dense :color="eosTab === 'soon' ? 'orange' : 'grey'" size="sm" label="예정 목록" @click="eosTab = 'soon'" />
+            </div>
+
+            <div class="eos-list q-mt-xs">
+              <div v-if="currentEosList.length === 0" class="text-grey text-caption text-center q-pa-sm">해당 장비가 없습니다.</div>
+              <div v-for="a in currentEosList" :key="a.id" class="eos-item">
+                <q-icon :name="eosTab === 'eos' ? 'cancel' : 'schedule'" :color="eosTab === 'eos' ? 'negative' : 'orange'" size="16px" />
+                <div class="eos-item-info">
+                  <span class="eos-item-name">{{ a.name }}</span>
+                  <span class="eos-item-os text-grey-6">{{ a.os }}{{ a.version ? ` ${a.version}` : '' }}</span>
+                </div>
+                <span class="eos-item-date" :class="eosTab === 'eos' ? 'text-negative' : 'text-orange'">{{ a.eosDate }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -160,19 +179,21 @@
             </q-menu>
           </q-btn>
         </div>
-        <div v-if="dangerLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-        <div v-else-if="dangerReport.servers.length === 0" class="text-center text-grey text-caption q-pa-md">위험 수치 서버가 없습니다.</div>
-        <div v-else class="resource-list">
-          <div v-for="s in dangerReport.servers" :key="s.ip" class="resource-item">
-            <div class="resource-name">{{ s.hostName || s.ip }}</div>
-            <div class="resource-badges">
-              <q-badge
-                :color="s.ramPct >= 90 ? 'negative' : 'orange'"
-                class="q-mr-xs"
-              >RAM {{ s.ram }}</q-badge>
-              <q-badge
-                :color="s.diskPct >= 90 ? 'negative' : 'orange'"
-              >Disk {{ s.diskMax }}</q-badge>
+        <div class="dash-card-body">
+          <div v-if="dangerLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+          <div v-else-if="dangerReport.servers.length === 0" class="text-center text-grey text-caption q-pa-md">위험 수치 서버가 없습니다.</div>
+          <div v-else class="resource-list">
+            <div v-for="s in dangerReport.servers" :key="s.ip" class="resource-item">
+              <div class="resource-name">{{ s.hostName || s.ip }}</div>
+              <div class="resource-badges">
+                <q-badge
+                  :color="s.ramPct >= 90 ? 'negative' : 'orange'"
+                  class="q-mr-xs"
+                >RAM {{ s.ram }}</q-badge>
+                <q-badge
+                  :color="s.diskPct >= 90 ? 'negative' : 'orange'"
+                >Disk {{ s.diskMax }}</q-badge>
+              </div>
             </div>
           </div>
         </div>
@@ -198,38 +219,40 @@
           </q-btn>
         </div>
 
-        <div v-if="hasPmPerm" class="pm-subsection">
-          <div class="pm-subheader">담당 이슈</div>
-          <div v-if="pmLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-          <div v-else-if="pmMyIssues.length === 0" class="text-center text-grey text-caption q-pa-md">담당 중인 이슈가 없습니다.</div>
-          <div v-else class="pm-issue-list">
-            <div
-              v-for="issue in pmMyIssues"
-              :key="issue.id"
-              class="pm-issue-item"
-              @click="openPmIssueDetail(issue)"
-            >
-              <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
-              <span class="pm-issue-title">{{ issue.title }}</span>
-              <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+        <div class="dash-card-body">
+          <div v-if="hasPmPerm" class="pm-subsection">
+            <div class="pm-subheader">담당 이슈</div>
+            <div v-if="pmLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+            <div v-else-if="pmMyIssues.length === 0" class="text-center text-grey text-caption q-pa-md">담당 중인 이슈가 없습니다.</div>
+            <div v-else class="pm-issue-list">
+              <div
+                v-for="issue in pmMyIssues"
+                :key="issue.id"
+                class="pm-issue-item"
+                @click="openPmIssueDetail(issue)"
+              >
+                <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
+                <span class="pm-issue-title">{{ issue.title }}</span>
+                <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div v-if="hasSrPerm" class="pm-subsection" :class="{ 'q-mt-md': hasPmPerm }">
-          <div class="pm-subheader">내 SR 목록</div>
-          <div v-if="srLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-          <div v-else-if="mySrList.length === 0" class="text-center text-grey text-caption q-pa-md">접수한 SR이 없습니다.</div>
-          <div v-else class="pm-issue-list">
-            <div
-              v-for="sr in mySrList"
-              :key="sr.id"
-              class="pm-issue-item"
-              @click="$router.push(`/pm/sr/${sr.id}`)"
-            >
-              <span class="pm-issue-key">{{ sr.srNo }}</span>
-              <span class="pm-issue-title">{{ sr.title }}</span>
-              <q-badge :color="SR_STATUS_COLOR[sr.status]" :label="SR_STATUS_LABEL[sr.status]" />
+          <div v-if="hasSrPerm" class="pm-subsection" :class="{ 'q-mt-md': hasPmPerm }">
+            <div class="pm-subheader">내 SR 목록</div>
+            <div v-if="srLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+            <div v-else-if="mySrList.length === 0" class="text-center text-grey text-caption q-pa-md">접수한 SR이 없습니다.</div>
+            <div v-else class="pm-issue-list">
+              <div
+                v-for="sr in mySrList"
+                :key="sr.id"
+                class="pm-issue-item"
+                @click="$router.push(`/pm/sr/${sr.id}`)"
+              >
+                <span class="pm-issue-key">{{ sr.srNo }}</span>
+                <span class="pm-issue-title">{{ sr.title }}</span>
+                <q-badge :color="SR_STATUS_COLOR[sr.status]" :label="SR_STATUS_LABEL[sr.status]" />
+              </div>
             </div>
           </div>
         </div>
@@ -255,20 +278,22 @@
           </q-btn>
         </div>
 
-        <div v-if="watchLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-        <div v-else-if="myWatchList.length === 0" class="text-center text-grey text-caption q-pa-md">이번 달 당직 일정이 없습니다.</div>
-        <div v-else class="watch-cards">
-          <div v-for="w in myWatchList" :key="w.id" class="watch-card-item">
-            <div class="watch-card-date" :style="{ background: watchShiftColor(w.start) }">
-              <div class="watch-card-month">{{ new Date(w.start).getMonth() + 1 }}월</div>
-              <div class="watch-card-day">{{ new Date(w.start).getDate() }}</div>
-              <div class="watch-card-dow">{{ ['일','월','화','수','목','금','토'][new Date(w.start).getDay()] }}</div>
-            </div>
-            <div class="watch-card-body" :style="{ background: watchShiftColor(w.start) + '18' }">
-              <div class="watch-card-name">{{ w.assignee }}</div>
-              <div class="watch-card-time" :style="{ color: watchShiftColor(w.start) }">
-                <q-icon name="schedule" size="12px" />
-                {{ watchTime(w.start, w.end) }}
+        <div class="dash-card-body">
+          <div v-if="watchLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
+          <div v-else-if="myWatchList.length === 0" class="text-center text-grey text-caption q-pa-md">이번 달 당직 일정이 없습니다.</div>
+          <div v-else class="watch-cards">
+            <div v-for="w in myWatchList" :key="w.id" class="watch-card-item">
+              <div class="watch-card-date" :style="{ background: watchShiftColor(w.start) }">
+                <div class="watch-card-month">{{ new Date(w.start).getMonth() + 1 }}월</div>
+                <div class="watch-card-day">{{ new Date(w.start).getDate() }}</div>
+                <div class="watch-card-dow">{{ ['일','월','화','수','목','금','토'][new Date(w.start).getDay()] }}</div>
+              </div>
+              <div class="watch-card-body" :style="{ background: watchShiftColor(w.start) + '18' }">
+                <div class="watch-card-name">{{ w.assignee }}</div>
+                <div class="watch-card-time" :style="{ color: watchShiftColor(w.start) }">
+                  <q-icon name="schedule" size="12px" />
+                  {{ watchTime(w.start, w.end) }}
+                </div>
               </div>
             </div>
           </div>
@@ -516,6 +541,19 @@ const visibleDDays = computed(() =>
     if (d.title.startsWith(INSPECTION_KEY_PREFIX)) return false  // 서버 점검일 override는 목록에서 숨김
     return !isDatePast(d.date, 14)
   })
+)
+
+// 이슈 추가 시 'D-Day 표시'를 체크한 내 담당 이슈 — 완료 처리 전까지 개인별로만 노출
+// (/pm/dashboard의 myIssues는 이미 status != DONE, assignee = 나 로 필터링되어 옴)
+const issueDDayItems = computed(() =>
+  pmMyIssues.value
+    .filter((i) => i.showOnDashboard && i.dueDate)
+    .map((i) => ({
+      id: `issue-${i.id}`,
+      title: `${i.projectKey ?? ''}-${i.number} ${i.title}`,
+      date: (i.dueDate as string).slice(0, 10),
+      issue: i,
+    }))
 )
 
 function calcDDay(dateStr: string): string {
@@ -818,6 +856,8 @@ onMounted(() => {
   border-radius: 12px;
   border: 1px solid #e8edf5;
   padding: 20px;
+  position: relative;
+  isolation: isolate;
 }
 
 .card-resize-btn {
@@ -834,10 +874,26 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
-  position: sticky;
-  top: 0;
-  background: #fff;
-  z-index: 1;
+  flex-shrink: 0;
+}
+
+/* 모든 대시보드 카드: sticky 대신 헤더를 스크롤 영역 밖으로 분리해서
+   스크롤 시 내용이 헤더에 겹쳐 보이던 문제를 근본적으로 제거 */
+.dash-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-card.card-h-1,
+.dash-card.card-h-2,
+.dash-card.card-h-3 {
+  overflow: hidden;
+}
+
+.dash-card-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .card-title {
@@ -944,8 +1000,6 @@ onMounted(() => {
 }
 
 .eos-list {
-  max-height: 200px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -979,13 +1033,9 @@ onMounted(() => {
 }
 
 .resource-list {
-  max-height: 310px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow-y: auto;
-  min-height: 0;
 }
 
 .resource-item {
@@ -1019,8 +1069,6 @@ onMounted(() => {
 }
 
 .pm-issue-list {
-  max-height: 260px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1062,8 +1110,6 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  max-height: 260px;
-  overflow-y: auto;
 }
 
 .watch-card-item {

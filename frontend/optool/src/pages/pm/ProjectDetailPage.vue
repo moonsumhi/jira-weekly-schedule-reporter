@@ -359,14 +359,14 @@
     </template>
 
     <!-- ── 라벨 다이얼로그 ── -->
-    <q-dialog v-model="labelDialog.open" persistent>
+    <q-dialog v-model="labelDialog.open" persistent @show="onLabelDialogShow">
       <q-card style="min-width: 380px">
         <q-card-section class="q-pb-sm">
           <div class="text-h6">{{ labelDialog.id ? '라벨 수정' : '새 라벨 만들기' }}</div>
         </q-card-section>
         <q-separator />
         <q-card-section class="q-gutter-md">
-          <q-input v-model="labelDialog.name" label="라벨 이름 *" outlined autofocus />
+          <q-input ref="labelNameInputRef" v-model="labelDialog.name" label="라벨 이름 *" outlined />
           <div>
             <div class="text-caption text-grey-6 q-mb-sm">색상 선택</div>
             <div class="row q-gutter-sm">
@@ -448,9 +448,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Notify, Dialog } from 'quasar'
+import { Notify, Dialog, type QInput } from 'quasar'
 import { useAuthStore } from 'src/stores/auth'
 import {
   getProject, listProjectMembers, addProjectMember,
@@ -613,6 +613,13 @@ async function submitEdit() {
 
 // ── 라벨 ──
 const labelDialog = ref({ open: false, id: '', name: '', color: '#3b82f6', loading: false })
+const labelNameInputRef = ref<QInput | null>(null)
+
+// autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지).
+function onLabelDialogShow() {
+  void nextTick(() => labelNameInputRef.value?.focus())
+}
 
 function openLabelCreate() {
   labelDialog.value = { open: true, id: '', name: '', color: '#3b82f6', loading: false }

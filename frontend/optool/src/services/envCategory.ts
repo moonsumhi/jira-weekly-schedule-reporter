@@ -4,6 +4,7 @@ import { api } from 'boot/axios'
 export interface EnvItem {
   id: string
   label: string
+  value?: string | null
   sortOrder: number
   isActive: boolean
 }
@@ -32,21 +33,25 @@ export const envCategoryService = {
   removeCategory(id: string): Promise<void> {
     return api.delete(`/env-categories/${id}`)
   },
-  addItem(categoryId: string, payload: { label: string }): Promise<EnvCategoryOut> {
+  addItem(categoryId: string, payload: { label: string; value?: string }): Promise<EnvCategoryOut> {
     return api.post(`/env-categories/${categoryId}/items`, payload).then((r) => r.data)
   },
   patchItem(
     categoryId: string,
     itemId: string,
-    payload: { label?: string; sortOrder?: number; isActive?: boolean },
+    payload: { label?: string; value?: string; sortOrder?: number; isActive?: boolean },
   ): Promise<EnvCategoryOut> {
     const body: Record<string, unknown> = {}
     if (payload.label !== undefined) body.label = payload.label
+    if (payload.value !== undefined) body.value = payload.value
     if (payload.sortOrder !== undefined) body.sort_order = payload.sortOrder
     if (payload.isActive !== undefined) body.is_active = payload.isActive
     return api.patch(`/env-categories/${categoryId}/items/${itemId}`, body).then((r) => r.data)
   },
   removeItem(categoryId: string, itemId: string): Promise<EnvCategoryOut> {
     return api.delete(`/env-categories/${categoryId}/items/${itemId}`).then((r) => r.data)
+  },
+  reorderItems(categoryId: string, itemIds: string[]): Promise<EnvCategoryOut> {
+    return api.put(`/env-categories/${categoryId}/items/reorder`, { item_ids: itemIds }).then((r) => r.data)
   },
 }

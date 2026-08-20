@@ -14,7 +14,7 @@ from app.routers.auth import get_current_user
 router = APIRouter()
 
 UPLOAD_DIR = "/app/uploads/sr"
-MAX_SIZE = 50 * 1024 * 1024  # 50 MB
+MAX_SIZE = 100 * 1024 * 1024  # 100 MB
 ALLOWED_TYPES = {
     "image/jpeg", "image/png", "image/gif", "image/webp",
     "application/pdf",
@@ -22,11 +22,15 @@ ALLOWED_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "text/plain", "text/csv",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain", "text/csv", "text/html",
+    "application/json", "application/xml", "text/xml",
     "application/zip",
+    "video/mp4",
 }
-# 브라우저가 표준 MIME 타입을 보내지 않는 확장자 (한글 문서 등) → 확장자로 허용 판단
-ALLOWED_EXTENSIONS_FALLBACK = {".hwp", ".hwpx"}
+# 브라우저가 표준 MIME 타입을 보내지 않는 확장자 (한글 문서, 로그/설정 파일 등) → 확장자로 허용 판단
+ALLOWED_EXTENSIONS_FALLBACK = {".hwp", ".hwpx", ".log", ".yaml", ".yml"}
 
 
 class AttachmentOut(BaseModel):
@@ -63,7 +67,7 @@ async def upload_attachment(
 ) -> AttachmentOut:
     content = await file.read()
     if len(content) > MAX_SIZE:
-        raise HTTPException(status_code=413, detail="파일 크기가 50MB를 초과합니다.")
+        raise HTTPException(status_code=413, detail="파일 크기가 100MB를 초과합니다.")
 
     content_type = file.content_type or "application/octet-stream"
     ext = os.path.splitext(file.filename or "")[1].lower()

@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import io
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from bson import ObjectId
@@ -17,6 +18,7 @@ from app.models.sr.service_request import (
     SRStats, SR_STATUS_LABEL, REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL,
 )
 from app.routers.auth import get_current_user
+from app.utils.time import KST
 from app.services.sr.sr_service import (
     get_sr_or_404, record_sr_history, record_status_history,
     record_due_date_history, sr_to_out, require_sr_operator,
@@ -32,11 +34,27 @@ def _user_label(user: UserPublic) -> str:
     return user.full_name or user.email
 
 
+async def _attach_comment_counts(items: list[dict]) -> None:
+    """목록에 실린 SR들의 댓글 개수를 한 번의 집계로 채워넣는다 (N+1 방지)."""
+    sr_ids = [i["id"] for i in items]
+    if not sr_ids:
+        return
+    comments_col = MongoClientManager.get_db()[MongoClientManager.SR_COMMENTS]
+    pipeline = [
+        {"$match": {"sr_id": {"$in": sr_ids}, "deleted_at": None}},
+        {"$group": {"_id": "$sr_id", "count": {"$sum": 1}}},
+    ]
+    counts = {row["_id"]: row["count"] async for row in comments_col.aggregate(pipeline)}
+    for i in items:
+        i["comment_count"] = counts.get(i["id"], 0)
+
+
 # ── 전체 SR 목록 ──────────────────────────────────────────────────────
 
 @router.get("", response_model=SRListPage)
 async def list_all_srs(
     status: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     request_type: Optional[str] = Query(None),
     requester_department: Optional[str] = Query(None),
     requester_name: Optional[str] = Query(None),
@@ -46,6 +64,8 @@ async def list_all_srs(
     is_urgent: Optional[bool] = Query(None),
     is_delayed: Optional[bool] = Query(None),
     my_assigned: Optional[bool] = Query(None),
+    created_from: Optional[str] = Query(None),
+    created_to: Optional[str] = Query(None),
     desired_due_from: Optional[str] = Query(None),
     desired_due_to: Optional[str] = Query(None),
     planned_due_from: Optional[str] = Query(None),
@@ -86,6 +106,23 @@ async def list_all_srs(
     else:
         # 특정 status 필터 없이 전체 조회 시 임시저장(DRAFT) 제외
         q["status"] = {"$ne": "DRAFT"}
+    if search:
+        keyword = search.strip()
+        pattern = re.escape(keyword)
+        or_conditions: list[dict] = [
+            {"title": {"$regex": pattern, "$options": "i"}},
+            {"sr_no": {"$regex": pattern, "$options": "i"}},
+            {"requester_name": {"$regex": pattern, "$options": "i"}},
+        ]
+        # 목록 화면은 제목 앞에 "[유형 라벨]"을 붙여서 보여주므로(title 필드 자체엔 없음),
+        # 검색어가 유형 라벨(예: "오류 수정 요청")과 매칭되면 해당 request_type도 함께 찾는다.
+        matching_types = [
+            code for code, label in REQUEST_TYPE_LABEL.items()
+            if keyword.lower() in label.lower()
+        ]
+        if matching_types:
+            or_conditions.append({"request_type": {"$in": matching_types}})
+        q["$or"] = or_conditions
     if request_type:
         q["request_type"] = request_type
     if requester_department:
@@ -103,6 +140,17 @@ async def list_all_srs(
 
     def _dt(s: str) -> datetime:
         return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+
+    # 접수일(created_at)은 UTC 타임스탬프이고 사용자는 KST 날짜로 고른다.
+    # KST 기준 시작일 0시 ~ 종료일 다음날 0시 미만(종료일 당일 포함)을 UTC로 변환해 비교한다.
+    if created_from or created_to:
+        cf: dict = {}
+        if created_from:
+            cf["$gte"] = KST.localize(datetime.fromisoformat(created_from)).astimezone(timezone.utc)
+        if created_to:
+            end_kst = KST.localize(datetime.fromisoformat(created_to)) + timedelta(days=1)
+            cf["$lt"] = end_kst.astimezone(timezone.utc)
+        q["created_at"] = cf
 
     if desired_due_from or desired_due_to:
         df: dict = {}
@@ -126,11 +174,13 @@ async def list_all_srs(
         outs = [sr_to_out(d) for d in all_docs]
         outs = [o for o in outs if o["is_delayed"] == is_delayed]
         page = outs[skip: skip + limit]
+        await _attach_comment_counts(page)
         return SRListPage(items=[SRListItem(**o) for o in page], total=len(outs))
 
     total = await col.count_documents(q)
     docs = await col.find(q).sort(sort_field, sort_dir).skip(skip).limit(limit).to_list(None)
     outs = [sr_to_out(d) for d in docs]
+    await _attach_comment_counts(outs)
     return SRListPage(items=[SRListItem(**o) for o in outs], total=total)
 
 

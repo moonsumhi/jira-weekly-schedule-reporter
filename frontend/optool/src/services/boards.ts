@@ -35,6 +35,7 @@ export interface PostOut {
   boardId: string
   title: string
   part: string
+  category: string
   content: string
   authorId: string
   authorName: string
@@ -73,10 +74,13 @@ export const boardService = {
   listPosts(boardId: string): Promise<PostOut[]> {
     return api.get(`/boards/${boardId}/posts`).then((r) => r.data)
   },
-  createPost(boardId: string, payload: { title: string; part?: string; content: string; attachments?: PostAttachmentInput[] }): Promise<PostOut> {
+  getPost(boardId: string, postId: string): Promise<PostOut> {
+    return api.get(`/boards/${boardId}/posts/${postId}`).then((r) => r.data)
+  },
+  createPost(boardId: string, payload: { title: string; part?: string; category?: string; content: string; attachments?: PostAttachmentInput[] }): Promise<PostOut> {
     return api.post(`/boards/${boardId}/posts`, payload).then((r) => r.data)
   },
-  patchPost(boardId: string, postId: string, payload: { title: string; part?: string; content: string; attachments?: PostAttachmentInput[] }): Promise<PostOut> {
+  patchPost(boardId: string, postId: string, payload: { title: string; part?: string; category?: string; content: string; attachments?: PostAttachmentInput[] }): Promise<PostOut> {
     return api.patch(`/boards/${boardId}/posts/${postId}`, payload).then((r) => r.data)
   },
   deletePost(boardId: string, postId: string): Promise<void> {

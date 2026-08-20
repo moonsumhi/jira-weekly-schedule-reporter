@@ -54,9 +54,6 @@
         <span v-if="srSearch.activeFilterCount.value || srSearch.activeTab.value.length" class="q-ml-xs">
           · 필터 <strong class="text-indigo-7">{{ totalActiveConditions }}</strong>개 적용
         </span>
-        <span v-if="filteredRows.length !== rows.length" class="q-ml-xs text-primary">
-          (검색 {{ filteredRows.length }}건)
-        </span>
       </div>
       <div class="row items-center q-gutter-xs">
         <!-- 정렬 드롭다운 -->
@@ -84,7 +81,7 @@
     <!-- ── 테이블 ─────────────────────────────────────────────────────── -->
     <q-card flat bordered>
       <q-table
-        :rows="filteredRows"
+        :rows="rows"
         :columns="columns"
         row-key="id"
         :loading="loading"
@@ -128,6 +125,9 @@
             <q-td>
               <div class="row items-center q-gutter-xs no-wrap">
                 <span>{{ formatTitle(row) }}</span>
+                <span v-if="row.commentCount > 0" class="text-primary text-weight-medium" style="font-size:0.85rem">
+                  ({{ row.commentCount }})
+                </span>
                 <q-badge v-if="row.isUrgent"  color="red"      label="긴급" />
                 <q-badge v-if="row.isDelayed" color="negative" label="지연" />
               </div>
@@ -274,7 +274,7 @@
     </q-card>
 
     <!-- ── 상태 변경 사유 다이얼로그 ────────────────────────────────── -->
-    <q-dialog v-model="statusDialog.open" persistent>
+    <q-dialog v-model="statusDialog.open" persistent @show="onStatusDialogShow">
       <q-card style="min-width:400px">
         <q-card-section class="q-pb-sm">
           <div class="text-h6">{{ statusDialog.title }}</div>
@@ -282,9 +282,10 @@
         </q-card-section>
         <q-card-section>
           <q-input
+            ref="statusInputRef"
             v-model="statusDialog.input"
             :label="statusDialog.inputLabel"
-            outlined autogrow :rows="3" autofocus
+            outlined autogrow :rows="3"
           />
         </q-card-section>
         <q-card-actions align="right">
@@ -329,10 +330,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import type { QTableProps } from 'quasar'
+import type { QTableProps, QInput } from 'quasar'
 import { api } from 'src/boot/axios'
 import {
   listAllSRs, getSRStats, changeSRStatus, patchSRInline, changePlannedDueDate,
@@ -431,17 +432,6 @@ const stats     = ref<SRStats | null>(null)
 const selected  = ref<SRListItem[]>([])
 const pmUsers   = ref<PmUser[]>([])
 
-// 클라이언트사이드 키워드 필터 (현재 페이지 내에서)
-const filteredRows = computed(() => {
-  const q = (srSearch.search.value ?? '').trim().toLowerCase()
-  if (!q) return rows.value
-  return rows.value.filter(r =>
-    r.title.toLowerCase().includes(q) ||
-    r.srNo.toLowerCase().includes(q) ||
-    r.requesterName.toLowerCase().includes(q),
-  )
-})
-
 // ── SR 기본 프로젝트 ──────────────────────────────────────────────────────
 
 const srProjectDialog   = ref(false)
@@ -480,6 +470,13 @@ const statusDialog = ref({
   input:      '',
   fieldKey:   '' as 'reason' | 'process_result',
 })
+const statusInputRef = ref<QInput | null>(null)
+
+// autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지).
+function onStatusDialogShow() {
+  void nextTick(() => statusInputRef.value?.focus())
+}
 
 // ── 테이블 컬럼 ───────────────────────────────────────────────────────────
 
@@ -553,7 +550,7 @@ function switchStatTab(tab: string) {
 // ── 상세 페이지 이동 ──────────────────────────────────────────────────────
 
 function navigateToDetail(row: SRListItem) {
-  sessionStorage.setItem('sr-list-ids', JSON.stringify(filteredRows.value.map(r => r.id)))
+  sessionStorage.setItem('sr-list-ids', JSON.stringify(rows.value.map(r => r.id)))
   void router.push(`/pm/sr/${row.id}`)
 }
 
@@ -563,11 +560,13 @@ async function fetchList() {
   loading.value = true
   try {
     const skip = (pagination.value.page - 1) * pagination.value.rowsPerPage
+    const search = srSearch.search.value.trim()
     const params = buildSrApiParams(srSearch.filter.value, srSearch.activeTab.value, {
       skip,
       limit:      pagination.value.rowsPerPage,
       sort_by:    pagination.value.sortBy || 'created_at',
       descending: pagination.value.descending,
+      ...(search ? { search } : {}),
     })
     const [page, srStats] = await Promise.all([listAllSRs(params), getSRStats()])
     rows.value  = page.items

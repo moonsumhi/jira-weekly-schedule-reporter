@@ -112,8 +112,8 @@
 
                   <!-- BUG_FIX -->
                   <template v-if="sr.requestType === 'BUG_FIX'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">오류 발생 화면</div>
                           <div class="content-text">{{ sr.typeDetail?.errorScreen || '-' }}</div>
@@ -134,7 +134,7 @@
                         <div class="content-label">재현 절차</div>
                         <MarkdownContent :content="sr.description ?? ''" />
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">기대 동작</div>
                           <div class="compare-box compare-box--expected pre-wrap">{{ sr.typeDetail?.expectedResult || '-' }}</div>
@@ -153,7 +153,7 @@
 
                   <!-- CONFIG_CHANGE -->
                   <template v-else-if="sr.requestType === 'CONFIG_CHANGE'">
-                    <div class="q-gutter-sm">
+                    <div class="q-gutter-sm type-detail-body">
                       <div class="info-row">
                         <span class="info-row__label">설정 대상</span>
                         <span class="info-row__value">{{ sr.typeDetail?.configTarget || '-' }}</span>
@@ -162,7 +162,7 @@
                         <div class="content-label">변경 요청 상세 내용</div>
                         <MarkdownContent :content="sr.description ?? ''" />
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">현재 설정값</div>
                           <div class="compare-box compare-box--before pre-wrap">{{ sr.typeDetail?.currentValue || '-' }}</div>
@@ -180,7 +180,7 @@
                         <div class="content-label">영향 범위</div>
                         <div class="content-text pre-wrap">{{ sr.typeDetail.impactScope }}</div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">적용 희망 일시</div>
                           <div class="content-date">
@@ -208,7 +208,7 @@
 
                   <!-- DATA_REQUEST -->
                   <template v-else-if="sr.requestType === 'DATA_REQUEST'">
-                    <div class="q-gutter-sm">
+                    <div class="q-gutter-sm type-detail-body">
                       <div v-if="sr.typeDetail?.dataPurpose">
                         <div class="content-label">요청 목적</div>
                         <div class="content-text pre-wrap">{{ sr.typeDetail.dataPurpose }}</div>
@@ -217,7 +217,7 @@
                         <div class="content-label">요청 데이터 항목</div>
                         <MarkdownContent :content="sr.description ?? ''" />
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">데이터 기간 (시작)</div>
                           <div class="content-date">
@@ -237,7 +237,7 @@
                         <div class="content-label">대상 조건</div>
                         <div class="content-text pre-wrap">{{ sr.typeDetail.dataCondition }}</div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">제공 형식</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -282,8 +282,8 @@
 
                   <!-- PERMISSION -->
                   <template v-else-if="sr.requestType === 'PERMISSION'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">권한 대상자</div>
                           <div class="content-text text-weight-medium">{{ sr.typeDetail?.targetUser || '-' }}</div>
@@ -297,7 +297,7 @@
                         <div class="content-label">요청 사유</div>
                         <MarkdownContent :content="sr.description ?? ''" />
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">권한 사용 기간</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -318,7 +318,7 @@
                           </div>
                         </div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">승인자</div>
                           <div class="content-text">{{ sr.typeDetail?.approver || '-' }}</div>
@@ -335,8 +335,8 @@
 
                   <!-- SERVER_INFRA -->
                   <template v-else-if="sr.requestType === 'SERVER_INFRA'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">대상 서버/시스템</div>
                           <div class="content-text text-weight-medium">{{ sr.typeDetail?.targetServer || '-' }}</div>
@@ -356,7 +356,7 @@
                         <div class="content-label">리소스 정보</div>
                         <div class="resource-box content-text">{{ sr.typeDetail.resourceInfo }}</div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">작업 희망 일시</div>
                           <div class="content-date">
@@ -388,8 +388,8 @@
 
                   <!-- SECURITY -->
                   <template v-else-if="sr.requestType === 'SECURITY'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">보안 요청 유형</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -412,7 +412,7 @@
                         <div class="content-label">조치 요청 내용</div>
                         <div class="content-text pre-wrap">{{ sr.typeDetail.requestedAction }}</div>
                       </div>
-                      <div class="row q-col-gutter-sm">
+                      <div class="row q-col-gutter-sm q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">조치 기한</div>
                           <div class="content-date">
@@ -442,8 +442,8 @@
 
                   <!-- FIREWALL -->
                   <template v-else-if="sr.requestType === 'FIREWALL'">
-                    <div class="q-gutter-sm">
-                      <div class="row q-col-gutter-md">
+                    <div class="q-gutter-sm type-detail-body">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">신청 구분</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -491,7 +491,7 @@
                         </div>
                       </div>
 
-                      <div class="row q-col-gutter-md">
+                      <div class="row q-col-gutter-md q-pl-sm">
                         <div class="col-12 col-sm-6">
                           <div class="content-label">방향</div>
                           <q-chip dense size="sm" color="blue-1" text-color="blue-9" class="q-ml-none q-my-none">
@@ -519,7 +519,7 @@
 
                   <!-- BACKOFFICE_EAA -->
                   <template v-else-if="sr.requestType === 'BACKOFFICE_EAA'">
-                    <div class="q-gutter-sm">
+                    <div class="q-gutter-sm type-detail-body">
                       <div v-if="sr.typeDetail?.researchNumber">
                         <div class="content-label">연구번호</div>
                         <div class="content-text">{{ sr.typeDetail.researchNumber }}</div>
@@ -759,13 +759,27 @@
                   <q-icon name="chat" size="3rem" class="q-mb-sm" /><br />아직 댓글이 없습니다.
                 </div>
 
-                <div v-for="c in comments" :key="c.id" :id="`comment-${c.id}`" class="comment-item q-mb-md">
+                <div v-for="c in topComments" :key="c.id" :id="`comment-${c.id}`" class="comment-item q-mb-md">
                   <div class="row items-center q-gutter-xs q-mb-xs">
                     <q-avatar size="28px" :color="c.isInternal ? 'grey-5' : 'primary'" text-color="white"
                       style="font-size:0.76rem">{{ c.writerName.charAt(0) }}</q-avatar>
                     <span class="text-weight-medium" style="font-size:0.9rem">{{ c.writerName }}</span>
                     <q-badge v-if="c.isInternal" color="grey-5" label="내부 메모" size="xs" />
                     <span class="text-caption text-grey-5 q-ml-auto">{{ fmtDateTime(c.createdAt) }}</span>
+                    <q-btn flat dense round icon="reply" size="xs" color="primary" @click="toggleReply(c.id)" />
+                    <q-btn flat dense round icon="mood" size="xs" color="grey-6">
+                      <q-menu anchor="top right" self="bottom right">
+                        <div class="row no-wrap q-pa-xs">
+                          <q-btn
+                            v-for="e in REACTION_EMOJIS" :key="e"
+                            flat dense size="md" class="emoji-pick-btn"
+                            v-close-popup
+                            @click="toggleReaction(c.id, e)"
+                          >{{ e }}</q-btn>
+                        </div>
+                      </q-menu>
+                    </q-btn>
+                    <q-btn v-if="canDeleteComment(c)" flat dense round icon="delete" size="xs" color="negative" @click="removeComment(c.id)" />
                   </div>
                   <div class="comment-bubble q-ml-lg"
                     :class="c.isInternal ? 'comment-bubble--internal' : 'comment-bubble--user'">
@@ -799,6 +813,79 @@
                             @click.stop="downloadFile(att.url, att.originalName)" />
                         </div>
                       </template>
+                    </div>
+                  </div>
+                  <!-- 이모티콘 반응 -->
+                  <div v-if="c.reactions?.length" class="row q-gutter-xs q-mt-xs q-ml-lg">
+                    <q-chip
+                      v-for="rc in c.reactions" :key="rc.emoji"
+                      clickable dense size="sm"
+                      :outline="!hasReacted(rc)"
+                      :color="hasReacted(rc) ? 'blue-1' : 'grey-2'"
+                      @click="toggleReaction(c.id, rc.emoji)"
+                    >
+                      <span class="q-mr-xs">{{ rc.emoji }}</span>{{ rc.users.length }}
+                      <q-tooltip>{{ rc.users.map(u => u.displayName).join(', ') }}</q-tooltip>
+                    </q-chip>
+                  </div>
+
+                  <!-- 답글 목록 -->
+                  <div v-for="r in repliesOf(c.id)" :key="r.id" :id="`comment-${r.id}`" class="q-ml-xl q-mt-sm">
+                    <div class="row items-center q-gutter-xs q-mb-xs">
+                      <q-icon name="subdirectory_arrow_right" size="xs" color="grey-5" />
+                      <q-avatar size="24px" :color="r.isInternal ? 'grey-5' : 'primary'" text-color="white"
+                        style="font-size:0.68rem">{{ r.writerName.charAt(0) }}</q-avatar>
+                      <span class="text-weight-medium" style="font-size:0.85rem">{{ r.writerName }}</span>
+                      <q-badge v-if="r.isInternal" color="grey-5" label="내부 메모" size="xs" />
+                      <span class="text-caption text-grey-5 q-ml-auto">{{ fmtDateTime(r.createdAt) }}</span>
+                      <q-btn flat dense round icon="mood" size="xs" color="grey-6">
+                        <q-menu anchor="top right" self="bottom right">
+                          <div class="row no-wrap q-pa-xs">
+                            <q-btn
+                              v-for="e in REACTION_EMOJIS" :key="e"
+                              flat dense size="md" class="emoji-pick-btn"
+                              v-close-popup
+                              @click="toggleReaction(r.id, e)"
+                            >{{ e }}</q-btn>
+                          </div>
+                        </q-menu>
+                      </q-btn>
+                      <q-btn v-if="canDeleteComment(r)" flat dense round icon="delete" size="xs" color="negative" @click="removeComment(r.id)" />
+                    </div>
+                    <div class="comment-bubble q-ml-lg"
+                      :class="r.isInternal ? 'comment-bubble--internal' : 'comment-bubble--user'">
+                      <MentionContent
+                        v-if="r.content"
+                        :content="r.content"
+                        :mentioned-users="r.mentionedUsers || []"
+                      />
+                    </div>
+                    <div v-if="r.reactions?.length" class="row q-gutter-xs q-mt-xs q-ml-lg">
+                      <q-chip
+                        v-for="rc in r.reactions" :key="rc.emoji"
+                        clickable dense size="sm"
+                        :outline="!hasReacted(rc)"
+                        :color="hasReacted(rc) ? 'blue-1' : 'grey-2'"
+                        @click="toggleReaction(r.id, rc.emoji)"
+                      >
+                        <span class="q-mr-xs">{{ rc.emoji }}</span>{{ rc.users.length }}
+                        <q-tooltip>{{ rc.users.map(u => u.displayName).join(', ') }}</q-tooltip>
+                      </q-chip>
+                    </div>
+                  </div>
+
+                  <!-- 인라인 답글 입력 -->
+                  <div v-if="replyingTo === c.id" class="q-ml-xl q-mt-sm">
+                    <MentionInput
+                      v-model="replyText"
+                      v-model:mentioned-users="replyMentionedUsers"
+                      :rows="2"
+                      placeholder="답글 작성... (@로 멘션)"
+                      :dense="true"
+                    />
+                    <div class="row q-gutter-xs q-mt-xs">
+                      <q-btn unelevated color="primary" label="등록" size="sm" :loading="replying" @click="submitReply(c.id)" />
+                      <q-btn flat label="취소" size="sm" @click="replyingTo = null" />
                     </div>
                   </div>
                 </div>
@@ -848,7 +935,7 @@
                   </div>
                 </div>
                 <input ref="commentFileInput" type="file" multiple style="display:none"
-                  accept="image/*,.pdf,.xls,.xlsx,.doc,.docx,.txt,.csv,.zip"
+                  accept="image/*,.pdf,.xls,.xlsx,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4,.html,.htm,.log,.json,.xml,.yaml,.yml"
                   @change="onCommentFileChange" />
 
               </q-tab-panel>
@@ -1192,10 +1279,12 @@ import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import {
   getSR, getAdminSR, listComments, listHistory, addComment, uploadSRAttachment,
+  deleteComment, toggleCommentReaction,
   cancelSR, reviewSR, assignSR, changeSRStatus,
   SR_STATUS_LABEL, SR_STATUS_COLOR, SR_PRIORITY_LABEL,
   REQUEST_TYPE_LABEL,
   type SR, type SRComment, type SRHistory, type SRStatus, type ReviewResult, type SRAttachment,
+  type CommentReaction,
 } from 'src/services/sr'
 import { SR_TYPE_FIELDS } from 'src/services/sr-type-fields'
 import type { SRTypeField } from 'src/services/sr-type-fields'
@@ -1254,6 +1343,64 @@ const newComment     = ref('')
 const mentionedUsers = ref<MentionUser[]>([])
 const newCommentInternal = ref(false)
 const commenting     = ref(false)
+const replyingTo     = ref<string | null>(null)
+const replyText      = ref('')
+const replyMentionedUsers = ref<MentionUser[]>([])
+const replying       = ref(false)
+const topComments    = computed(() => comments.value.filter(c => !c.parentId))
+function repliesOf(parentId: string) {
+  return comments.value.filter(c => c.parentId === parentId)
+}
+function toggleReply(commentId: string) {
+  if (replyingTo.value === commentId) {
+    replyingTo.value = null
+  } else {
+    replyingTo.value = commentId
+    replyText.value = ''
+    replyMentionedUsers.value = []
+  }
+}
+
+// ── 댓글 삭제 / 이모티콘 반응 ────────────────────────────────────────
+const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '👀', '🙏', '✅']
+const currentUserId = computed(() => String(authStore.me?.id ?? ''))
+
+function hasReacted(reaction: CommentReaction): boolean {
+  return reaction.users.some(u => u.userId === currentUserId.value)
+}
+
+function canDeleteComment(c: SRComment): boolean {
+  return c.writerId === currentUserId.value
+}
+
+async function toggleReaction(commentId: string, emoji: string) {
+  try {
+    const updated = await toggleCommentReaction(srId.value, commentId, emoji)
+    const idx = comments.value.findIndex(c => c.id === commentId)
+    if (idx !== -1) comments.value[idx] = updated
+  } catch {
+    $q.notify({ type: 'negative', message: '반응 처리 실패' })
+  }
+}
+
+function removeComment(commentId: string) {
+  $q.dialog({
+    title: '댓글 삭제',
+    message: '이 댓글을 삭제하시겠습니까?',
+    cancel: true,
+    persistent: true,
+    ok: { color: 'negative', label: '삭제' },
+  }).onOk(() => {
+    void (async () => {
+      try {
+        await deleteComment(srId.value, commentId)
+        comments.value = comments.value.filter(c => c.id !== commentId && c.parentId !== commentId)
+      } catch {
+        $q.notify({ type: 'negative', message: '삭제 실패' })
+      }
+    })()
+  })
+}
 type CommentFileItem = { file: File; previewUrl: string | null }
 const commentFiles   = ref<CommentFileItem[]>([])
 const commentFileInput = ref<HTMLInputElement | null>(null)
@@ -1459,9 +1606,12 @@ function fieldSelectLabel(typeName: string, fieldKey: string, value: string | nu
 
 function fileIcon(ct: string) {
   if (ct.startsWith('image/')) return 'image'
+  if (ct.startsWith('video/')) return 'movie'
   if (ct.includes('pdf')) return 'picture_as_pdf'
   if (ct.includes('spreadsheet') || ct.includes('excel')) return 'table_chart'
+  if (ct.includes('powerpoint') || ct.includes('presentation')) return 'slideshow'
   if (ct.includes('zip') || ct.includes('compressed')) return 'folder_zip'
+  if (ct === 'text/html' || ct === 'application/json' || ct.includes('xml')) return 'code'
   return 'insert_drive_file'
 }
 
@@ -1658,6 +1808,24 @@ async function submitComment() {
   } finally { commenting.value = false }
 }
 
+async function submitReply(parentId: string) {
+  if (!replyText.value.trim()) return
+  replying.value = true
+  try {
+    const mentionIds = replyMentionedUsers.value.map(m => m.userId)
+    await addComment(srId.value, replyText.value.trim(), false, [], mentionIds, parentId)
+    replyText.value = ''
+    replyMentionedUsers.value = []
+    replyingTo.value = null
+    comments.value = await listComments(srId.value)
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    $q.notify({ type: 'negative', message: msg || '답글 등록 실패' })
+  } finally {
+    replying.value = false
+  }
+}
+
 async function doCancel() {
   if (!cancelReason.value.trim()) return
   actionLoading.value = true; activeAction.value = 'cancel'
@@ -1770,6 +1938,8 @@ watch(() => route.params.id, (newId) => {
 </script>
 
 <style scoped>
+.emoji-pick-btn { font-size: 18px; min-width: 32px; }
+
 .firewall-table-wrap {
   overflow-x: auto;
   border: 1px solid #eee;
@@ -1816,6 +1986,17 @@ watch(() => route.params.id, (newId) => {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 3px;
+}
+
+/* 유형별 상세 필드 사이 세로 간격 (q-gutter-sm 기본 8px + 3px) */
+.type-detail-body {
+  margin-top: 0 !important;
+}
+.type-detail-body > * {
+  margin-top: 11px !important;
+}
+.type-detail-body > *:first-child {
+  margin-top: 0 !important;
 }
 
 .content-text  { font-size: 0.9rem; line-height: 1.65; color: #212121; }

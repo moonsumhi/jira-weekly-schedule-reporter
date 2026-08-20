@@ -57,20 +57,32 @@
           </q-card-section>
           <q-separator />
           <q-list separator>
-            <q-item v-for="(item, idx) in selected.items" :key="item.id">
-              <q-item-section>
-                <q-item-label :class="{ 'text-grey-5': !item.isActive }">{{ item.label }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <div class="row items-center q-gutter-xs">
-                  <q-btn flat dense round icon="arrow_upward" size="sm" :disable="idx === 0" @click="moveItem(idx, -1)" />
-                  <q-btn flat dense round icon="arrow_downward" size="sm" :disable="idx === selected.items.length - 1" @click="moveItem(idx, 1)" />
-                  <q-toggle :model-value="item.isActive" dense color="positive" @update:model-value="(v) => toggleItem(item, v)" />
-                  <q-btn flat dense round icon="edit" size="sm" @click="openEditItem(item)" />
-                  <q-btn flat dense round icon="delete" color="negative" size="sm" @click="confirmDeleteItem(item)" />
-                </div>
-              </q-item-section>
-            </q-item>
+            <draggable
+              v-model="selected.items"
+              item-key="id"
+              handle=".item-drag-handle"
+              ghost-class="drag-ghost"
+              @end="onItemDragEnd"
+            >
+              <template #item="{ element: item }">
+                <q-item :key="item.id">
+                  <q-item-section avatar style="min-width: 28px; padding-right: 2px">
+                    <q-icon name="drag_indicator" class="item-drag-handle cursor-grab" color="grey-5" size="sm" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label :class="{ 'text-grey-5': !item.isActive }">{{ item.label }}</q-item-label>
+                    <q-item-label v-if="item.value" caption>{{ item.value }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <div class="row items-center q-gutter-xs">
+                      <q-toggle :model-value="item.isActive" dense color="positive" @update:model-value="(v) => toggleItem(item, v)" />
+                      <q-btn flat dense round icon="edit" size="sm" @click="openEditItem(item)" />
+                      <q-btn flat dense round icon="delete" color="negative" size="sm" @click="confirmDeleteItem(item)" />
+                    </div>
+                  </q-item-section>
+                </q-item>
+              </template>
+            </draggable>
             <q-item v-if="selected.items.length === 0">
               <q-item-section class="text-grey">등록된 항목이 없습니다.</q-item-section>
             </q-item>
@@ -102,27 +114,28 @@
     </q-dialog>
 
     <!-- 항목 등록/수정 다이얼로그 -->
-    <q-dialog v-model="itemDialog" persistent>
+    <q-dialog v-model="itemDialog" persistent @show="onItemDialogShow">
       <q-card style="min-width: 420px; max-width: 90vw">
         <q-card-section class="text-h6">{{ itemEditTarget ? '항목 수정' : '항목 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">
           <q-select
             v-if="selected?.key === 'firewall_notify_emails'"
-            v-model="itemForm.label"
+            ref="firewallPickRef"
+            v-model="firewallPick"
             label="회원 선택 *"
-            outlined dense autofocus
+            outlined dense
             use-input fill-input hide-selected
             input-debounce="0"
-            emit-value map-options
             option-value="value" option-label="label"
             :options="userOptionsFiltered"
             @filter="filterUserOptions"
+            @update:model-value="onPickFirewallUser"
           />
-          <q-input v-else v-model="itemForm.label" label="이름 *" outlined dense autofocus />
+          <q-input v-else ref="itemLabelInputRef" v-model="itemForm.label" label="이름 *" outlined dense />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
-          <q-btn color="primary" label="저장" :loading="itemSaving" @click="submitItem" />
+          <q-btn color="primary" label="저장" :loading="itemSaving" :disable="itemSaving" @click="submitItem" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -130,8 +143,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
+import type { QInput, QSelect } from 'quasar'
+import draggable from 'vuedraggable'
 import { api } from 'boot/axios'
 import { envCategoryService, type EnvCategoryOut, type EnvItem } from 'src/services/envCategory'
 
@@ -142,18 +157,28 @@ const selected = ref<EnvCategoryOut | null>(null)
 const loading = ref(false)
 
 // ── 방화벽 담당자 메일 카테고리 전용: 회원 목록에서 선택 ──
-interface UserOption { label: string; value: string }
+// label은 드롭다운에 보여줄 "이름 (이메일)" 표시 텍스트, name은 항목의 표시 이름으로
+// 저장할 순수 이름, value는 실제 메일 발송에 쓰일 이메일.
+interface UserOption { label: string; value: string; name: string }
 const userOptionsAll = ref<UserOption[]>([])
 const userOptionsFiltered = ref<UserOption[]>([])
+const firewallPick = ref<UserOption | null>(null)
 let userOptionsLoaded = false
+
+function onPickFirewallUser(opt: UserOption | null) {
+  if (!opt) return
+  itemForm.value.label = opt.name
+  itemForm.value.value = opt.value
+}
 
 async function loadUserOptions() {
   if (userOptionsLoaded) return
   try {
-    const res = await api.get<{ email: string; full_name?: string }[]>('/admin/users')
+    // axios 인터셉터가 응답을 camelCase로 변환하므로 full_name이 아닌 fullName으로 온다.
+    const res = await api.get<{ email: string; fullName?: string }[]>('/admin/users')
     userOptionsAll.value = res.data
       .filter((u) => u.email)
-      .map((u) => ({ label: u.full_name ? `${u.full_name} (${u.email})` : u.email, value: u.email }))
+      .map((u) => ({ label: u.fullName ? `${u.fullName} (${u.email})` : u.email, value: u.email, name: u.fullName || u.email }))
     userOptionsLoaded = true
   } catch {
     $q.notify({ type: 'negative', message: '회원 목록을 불러오는데 실패했습니다' })
@@ -247,18 +272,29 @@ function confirmDeleteCategory(c: EnvCategoryOut) {
 const itemDialog = ref(false)
 const itemSaving = ref(false)
 const itemEditTarget = ref<EnvItem | null>(null)
-const itemForm = ref({ label: '' })
+const itemForm = ref({ label: '', value: '' })
+const firewallPickRef = ref<QSelect | null>(null)
+const itemLabelInputRef = ref<QInput | null>(null)
+
+// autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지). 두 필드는 서로 배타적으로
+// 렌더링되므로 현재 렌더링된 쪽을 포커스한다.
+function onItemDialogShow() {
+  void nextTick(() => (firewallPickRef.value ?? itemLabelInputRef.value)?.focus())
+}
 
 function openCreateItem() {
   itemEditTarget.value = null
-  itemForm.value = { label: '' }
+  itemForm.value = { label: '', value: '' }
+  firewallPick.value = null
   itemDialog.value = true
   if (selected.value?.key === 'firewall_notify_emails') void loadUserOptions()
 }
 
 function openEditItem(item: EnvItem) {
   itemEditTarget.value = item
-  itemForm.value = { label: item.label }
+  itemForm.value = { label: item.label, value: item.value ?? '' }
+  firewallPick.value = null
   itemDialog.value = true
   if (selected.value?.key === 'firewall_notify_emails') void loadUserOptions()
 }
@@ -269,12 +305,20 @@ async function submitItem() {
     $q.notify({ type: 'warning', message: '이름을 입력해주세요.', position: 'top' })
     return
   }
+  const isFirewall = selected.value.key === 'firewall_notify_emails'
+  if (isFirewall && !itemForm.value.value.trim()) {
+    $q.notify({ type: 'warning', message: '목록에서 회원을 선택해주세요.', position: 'top' })
+    return
+  }
   itemSaving.value = true
   try {
+    const payload = isFirewall
+      ? { label: itemForm.value.label.trim(), value: itemForm.value.value.trim() }
+      : { label: itemForm.value.label.trim() }
     if (itemEditTarget.value) {
-      await envCategoryService.patchItem(selected.value.id, itemEditTarget.value.id, { label: itemForm.value.label.trim() })
+      await envCategoryService.patchItem(selected.value.id, itemEditTarget.value.id, payload)
     } else {
-      await envCategoryService.addItem(selected.value.id, { label: itemForm.value.label.trim() })
+      await envCategoryService.addItem(selected.value.id, payload)
     }
     itemDialog.value = false
     await load()
@@ -296,20 +340,15 @@ async function toggleItem(item: EnvItem, active: boolean) {
   }
 }
 
-async function moveItem(idx: number, dir: -1 | 1) {
+async function onItemDragEnd() {
   if (!selected.value) return
-  const items = selected.value.items
-  const other = items[idx + dir]
-  const current = items[idx]
-  if (!other || !current) return
+  const itemIds = selected.value.items.map((i) => i.id)
   try {
-    // 백엔드가 items 배열 전체를 읽고-수정하고-통째로 저장하는 방식이라,
-    // 두 PATCH를 동시에 보내면 나중에 끝나는 쪽이 먼저 쓴 걸 덮어써버린다. 순차 실행.
-    await envCategoryService.patchItem(selected.value.id, current.id, { sortOrder: other.sortOrder })
-    await envCategoryService.patchItem(selected.value.id, other.id, { sortOrder: current.sortOrder })
+    await envCategoryService.reorderItems(selected.value.id, itemIds)
     await load()
   } catch {
     $q.notify({ type: 'negative', message: '순서 변경에 실패했습니다' })
+    await load()
   }
 }
 
@@ -334,3 +373,13 @@ function confirmDeleteItem(item: EnvItem) {
 
 onMounted(() => { void load() })
 </script>
+
+<style scoped>
+.item-drag-handle {
+  cursor: grab;
+}
+.drag-ghost {
+  opacity: 0.4;
+  background: #c8ebfb;
+}
+</style>
