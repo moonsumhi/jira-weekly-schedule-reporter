@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -53,6 +54,7 @@ async def _attach_comment_counts(items: list[dict]) -> None:
 @router.get("", response_model=SRListPage)
 async def list_all_srs(
     status: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     request_type: Optional[str] = Query(None),
     requester_department: Optional[str] = Query(None),
     requester_name: Optional[str] = Query(None),
@@ -104,6 +106,23 @@ async def list_all_srs(
     else:
         # 특정 status 필터 없이 전체 조회 시 임시저장(DRAFT) 제외
         q["status"] = {"$ne": "DRAFT"}
+    if search:
+        keyword = search.strip()
+        pattern = re.escape(keyword)
+        or_conditions: list[dict] = [
+            {"title": {"$regex": pattern, "$options": "i"}},
+            {"sr_no": {"$regex": pattern, "$options": "i"}},
+            {"requester_name": {"$regex": pattern, "$options": "i"}},
+        ]
+        # 목록 화면은 제목 앞에 "[유형 라벨]"을 붙여서 보여주므로(title 필드 자체엔 없음),
+        # 검색어가 유형 라벨(예: "오류 수정 요청")과 매칭되면 해당 request_type도 함께 찾는다.
+        matching_types = [
+            code for code, label in REQUEST_TYPE_LABEL.items()
+            if keyword.lower() in label.lower()
+        ]
+        if matching_types:
+            or_conditions.append({"request_type": {"$in": matching_types}})
+        q["$or"] = or_conditions
     if request_type:
         q["request_type"] = request_type
     if requester_department:

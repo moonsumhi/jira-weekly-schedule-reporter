@@ -54,9 +54,6 @@
         <span v-if="srSearch.activeFilterCount.value || srSearch.activeTab.value.length" class="q-ml-xs">
           · 필터 <strong class="text-indigo-7">{{ totalActiveConditions }}</strong>개 적용
         </span>
-        <span v-if="filteredRows.length !== rows.length" class="q-ml-xs text-primary">
-          (검색 {{ filteredRows.length }}건)
-        </span>
       </div>
       <div class="row items-center q-gutter-xs">
         <!-- 정렬 드롭다운 -->
@@ -84,7 +81,7 @@
     <!-- ── 테이블 ─────────────────────────────────────────────────────── -->
     <q-card flat bordered>
       <q-table
-        :rows="filteredRows"
+        :rows="rows"
         :columns="columns"
         row-key="id"
         :loading="loading"
@@ -435,17 +432,6 @@ const stats     = ref<SRStats | null>(null)
 const selected  = ref<SRListItem[]>([])
 const pmUsers   = ref<PmUser[]>([])
 
-// 클라이언트사이드 키워드 필터 (현재 페이지 내에서)
-const filteredRows = computed(() => {
-  const q = (srSearch.search.value ?? '').trim().toLowerCase()
-  if (!q) return rows.value
-  return rows.value.filter(r =>
-    r.title.toLowerCase().includes(q) ||
-    r.srNo.toLowerCase().includes(q) ||
-    r.requesterName.toLowerCase().includes(q),
-  )
-})
-
 // ── SR 기본 프로젝트 ──────────────────────────────────────────────────────
 
 const srProjectDialog   = ref(false)
@@ -564,7 +550,7 @@ function switchStatTab(tab: string) {
 // ── 상세 페이지 이동 ──────────────────────────────────────────────────────
 
 function navigateToDetail(row: SRListItem) {
-  sessionStorage.setItem('sr-list-ids', JSON.stringify(filteredRows.value.map(r => r.id)))
+  sessionStorage.setItem('sr-list-ids', JSON.stringify(rows.value.map(r => r.id)))
   void router.push(`/pm/sr/${row.id}`)
 }
 
@@ -574,11 +560,13 @@ async function fetchList() {
   loading.value = true
   try {
     const skip = (pagination.value.page - 1) * pagination.value.rowsPerPage
+    const search = srSearch.search.value.trim()
     const params = buildSrApiParams(srSearch.filter.value, srSearch.activeTab.value, {
       skip,
       limit:      pagination.value.rowsPerPage,
       sort_by:    pagination.value.sortBy || 'created_at',
       descending: pagination.value.descending,
+      ...(search ? { search } : {}),
     })
     const [page, srStats] = await Promise.all([listAllSRs(params), getSRStats()])
     rows.value  = page.items
