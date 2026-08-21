@@ -73,19 +73,24 @@
                     size="18px"
                     @click.stop
                   />
+                  <q-badge color="primary" :label="project.key" />
+                  <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" />
+                </div>
+                <div class="row items-start no-wrap q-gutter-x-xs">
                   <q-btn
                     flat dense round size="sm"
                     :icon="project.isFavorite ? 'star' : 'star_border'"
                     :color="project.isFavorite ? 'amber-8' : 'grey-5'"
+                    class="q-mt-xs"
                     @click.stop="toggleFavorite(project)"
                   >
                     <q-tooltip>{{ project.isFavorite ? '즐겨찾기 해제' : '즐겨찾기' }}</q-tooltip>
                   </q-btn>
-                  <q-badge color="primary" :label="project.key" />
-                  <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" />
+                  <div class="col" style="min-width: 0">
+                    <div class="text-h6 ellipsis">{{ project.name }}</div>
+                    <div class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
+                  </div>
                 </div>
-                <div class="text-h6 ellipsis">{{ project.name }}</div>
-                <div class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
               </q-card-section>
               <q-card-actions align="right">
                 <q-btn flat dense icon="fa-solid fa-table-columns" label="보드" @click.stop="goToBoard(project)" />
@@ -104,19 +109,24 @@
         <q-card flat bordered class="cursor-pointer project-card" @click="goToProject(project)">
           <q-card-section>
             <div class="row items-center q-gutter-sm q-mb-xs">
+              <q-badge color="primary" :label="project.key" />
+              <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" />
+            </div>
+            <div class="row items-start no-wrap q-gutter-x-xs">
               <q-btn
                 flat dense round size="sm"
                 :icon="project.isFavorite ? 'star' : 'star_border'"
                 :color="project.isFavorite ? 'amber-8' : 'grey-5'"
+                class="q-mt-xs"
                 @click.stop="toggleFavorite(project)"
               >
                 <q-tooltip>{{ project.isFavorite ? '즐겨찾기 해제' : '즐겨찾기' }}</q-tooltip>
               </q-btn>
-              <q-badge color="primary" :label="project.key" />
-              <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" />
+              <div class="col" style="min-width: 0">
+                <div class="text-h6 ellipsis">{{ project.name }}</div>
+                <div class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
+              </div>
             </div>
-            <div class="text-h6 ellipsis">{{ project.name }}</div>
-            <div class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
           </q-card-section>
           <q-card-actions align="right">
             <q-btn flat dense icon="fa-solid fa-table-columns" label="보드" @click.stop="goToBoard(project)" />
