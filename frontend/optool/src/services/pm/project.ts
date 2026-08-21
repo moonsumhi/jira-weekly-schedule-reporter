@@ -9,6 +9,8 @@ export type Project = {
   key: string
   description: string | null
   isSrDefault: boolean
+  isFavorite: boolean
+  favoriteOrder: number | null
   createdAt: string
   updatedAt: string
 }
@@ -50,6 +52,19 @@ export async function updateProject(projectId: string, payload: { name?: string;
 
 export async function deleteProject(projectId: string) {
   await api.delete(`/pm/projects/${projectId}`)
+}
+
+export async function toggleProjectFavorite(projectId: string) {
+  const { data } = await api.post<Project>(`/pm/projects/${projectId}/favorite`)
+  return data
+}
+
+export async function reorderFavoriteProjects(projectIds: string[]) {
+  await api.put('/pm/projects/favorites/order', { project_ids: projectIds })
+}
+
+export async function clearFavoriteProjects() {
+  await api.delete('/pm/projects/favorites')
 }
 
 export async function listProjectMembers(projectId: string) {
