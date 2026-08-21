@@ -250,7 +250,11 @@
                 class="attachment-item row items-center q-gutter-xs"
               >
                 <q-icon :name="fileIcon(att.contentType)" color="grey-7" size="18px" />
-                <a :href="att.url" target="_blank" class="attachment-name text-caption">{{ att.originalName }}</a>
+                <a v-if="att.contentType.startsWith('image/')"
+                  :href="att.url" target="_blank" class="attachment-name text-caption">{{ att.originalName }}</a>
+                <span v-else class="attachment-name text-caption text-primary cursor-pointer" @click="openPreview(att)">
+                  {{ att.originalName }}
+                </span>
                 <span class="text-caption text-grey-5">({{ fmtSize(att.size) }})</span>
                 <q-space />
                 <q-btn flat dense round icon="close" size="xs" color="grey" @click="removeAttachment(i)" />
@@ -282,6 +286,7 @@
       </q-card-actions>
 
     </q-card>
+    <AttachmentPreviewDialog v-model="previewOpen" :attachment="previewAttachment" />
   </q-dialog>
 </template>
 
@@ -298,6 +303,7 @@ import { listSprints, type Sprint } from 'src/services/pm/sprint'
 import { listProjectMembers, type ProjectMember } from 'src/services/pm/project'
 import { useAuthStore } from 'src/stores/auth'
 import { getErrorMessage } from 'src/utils/http/error'
+import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -485,6 +491,13 @@ function onDrop(e: DragEvent) {
 
 function removeAttachment(index: number) {
   attachments.value.splice(index, 1)
+}
+
+const previewOpen = ref(false)
+const previewAttachment = ref<Attachment | null>(null)
+function openPreview(att: Attachment) {
+  previewAttachment.value = att
+  previewOpen.value = true
 }
 
 function fileIcon(contentType: string) {

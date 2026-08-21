@@ -78,10 +78,18 @@
                 <div class="column q-gutter-xs q-mb-md">
                   <div v-for="att in localIssue.attachments" :key="att.fileId" class="row items-center q-gutter-xs">
                     <q-icon :name="fileIcon(att.contentType)" color="grey-7" size="18px" />
-                    <a :href="att.url" target="_blank" class="text-caption text-primary" style="text-decoration:none">
+                    <a v-if="att.contentType.startsWith('image/')"
+                      :href="att.url" target="_blank" class="text-caption text-primary" style="text-decoration:none">
                       {{ att.originalName }}
                     </a>
+                    <span v-else
+                      class="text-caption text-primary cursor-pointer"
+                      @click="openPreview(att)">
+                      {{ att.originalName }}
+                    </span>
                     <span class="text-caption text-grey-5">({{ fmtSize(att.size) }})</span>
+                    <q-btn flat dense round icon="download" size="xs" color="grey-6"
+                      @click.stop="downloadFile(att.url, att.originalName)" />
                   </div>
                 </div>
               </template>
@@ -189,7 +197,7 @@
                       />
                       <!-- 첨부파일 -->
                       <div v-if="c.attachments?.length" class="q-mt-sm">
-                        <CommentAttachments :attachments="c.attachments" />
+                        <CommentAttachments :attachments="c.attachments" :on-preview="openPreview" />
                       </div>
                       <!-- 이모티콘 반응 -->
                       <div v-if="c.reactions?.length" class="row q-gutter-xs q-mt-xs">
@@ -237,7 +245,7 @@
                             class="text-body2 q-pl-md"
                           />
                           <div v-if="r.attachments?.length" class="q-pl-md q-mt-xs">
-                            <CommentAttachments :attachments="r.attachments" />
+                            <CommentAttachments :attachments="r.attachments" :on-preview="openPreview" />
                           </div>
                           <div v-if="r.reactions?.length" class="row q-gutter-xs q-mt-xs q-pl-md">
                             <q-chip
@@ -504,6 +512,7 @@
         </div>
       </div>
     </q-card>
+    <AttachmentPreviewDialog v-model="previewOpen" :attachment="previewAttachment" />
   </q-dialog>
 </template>
 
@@ -517,16 +526,19 @@ import draggable from 'vuedraggable'
 
 // 첨부파일 표시 인라인 컴포넌트
 const CommentAttachments = defineComponent({
-  props: { attachments: { type: Array as PropType<Attachment[]>, required: true } },
+  props: {
+    attachments: { type: Array as PropType<Attachment[]>, required: true },
+    onPreview: { type: Function as PropType<(a: Attachment) => void>, required: true },
+  },
   setup(props) {
     return () => h('div', { class: 'comment-attachments' },
       props.attachments.map(a =>
         a.contentType.startsWith('image/')
           ? h('a', { href: a.url, target: '_blank', class: 'comment-img-wrap' },
               h('img', { src: a.url, class: 'comment-img', alt: a.originalName }))
-          : h('a', {
-              href: a.url, target: '_blank', download: a.originalName,
-              class: 'comment-file-chip row items-center q-gutter-xs no-decoration',
+          : h('div', {
+              onClick: () => props.onPreview(a),
+              class: 'comment-file-chip row items-center q-gutter-xs no-decoration cursor-pointer',
             }, [
               h(QIcon, { name: 'attach_file', size: 'xs', color: 'grey-6' }),
               h('span', { class: 'text-caption' }, a.originalName),
@@ -556,6 +568,8 @@ import { listProjectMembers, type ProjectMember } from 'src/services/pm/project'
 import { getErrorMessage } from 'src/utils/http/error'
 import { fmtDatetimeKst } from 'src/utils/time/kst'
 import { useAuthStore } from 'src/stores/auth'
+import { downloadAttachment } from 'src/utils/attachment'
+import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -918,6 +932,21 @@ function fmtSize(bytes: number) {
   if (bytes < 1024) return `${bytes}B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
+const previewOpen = ref(false)
+const previewAttachment = ref<Attachment | null>(null)
+function openPreview(att: Attachment) {
+  previewAttachment.value = att
+  previewOpen.value = true
+}
+
+async function downloadFile(url: string, filename: string) {
+  try {
+    await downloadAttachment(url, filename)
+  } catch {
+    Notify.create({ type: 'negative', message: '파일 다운로드에 실패했습니다.' })
+  }
 }
 
 function fileIcon(contentType: string) {

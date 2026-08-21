@@ -29,7 +29,11 @@
           <div class="text-caption text-grey-7 q-mb-xs">첨부파일</div>
           <q-list dense bordered class="rounded-borders">
             <q-item v-for="att in post.attachments" :key="att.fileId"
-              clickable tag="a" :href="att.url" target="_blank" :download="att.originalName">
+              clickable
+              :tag="att.contentType.startsWith('image/') ? 'a' : 'div'"
+              :href="att.contentType.startsWith('image/') ? att.url : undefined"
+              :target="att.contentType.startsWith('image/') ? '_blank' : undefined"
+              @click="att.contentType.startsWith('image/') ? undefined : openPreview(att)">
               <q-item-section avatar>
                 <q-icon :name="fileIcon(att.contentType)" color="blue-6" size="20px" />
               </q-item-section>
@@ -38,7 +42,8 @@
                 <q-item-label caption>{{ fmtSize(att.size) }}</q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-icon name="open_in_new" color="grey-4" size="16px" />
+                <q-btn flat dense round icon="download" size="sm" color="grey-6"
+                  @click.stop="downloadFile(att.url, att.originalName)" />
               </q-item-section>
             </q-item>
           </q-list>
@@ -89,6 +94,8 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <AttachmentPreviewDialog v-model="previewOpen" :attachment="previewAttachment" />
   </q-page>
 </template>
 
@@ -96,10 +103,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { boardService, type PostOut, type PostHistoryOut } from 'src/services/boards'
+import { boardService, type PostOut, type PostHistoryOut, type PostAttachment } from 'src/services/boards'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { useAuthStore } from 'stores/auth'
 import { formatKst } from 'src/utils/time/kst'
+import { downloadAttachment } from 'src/utils/attachment'
+import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -117,6 +126,21 @@ const history = ref<PostHistoryOut[]>([])
 
 const canEdit = computed(() => !!post.value && (auth.me?.isAdmin || String(post.value.authorId) === String(auth.me?.id)))
 const canDelete = canEdit
+
+const previewOpen = ref(false)
+const previewAttachment = ref<PostAttachment | null>(null)
+function openPreview(att: PostAttachment) {
+  previewAttachment.value = att
+  previewOpen.value = true
+}
+
+async function downloadFile(url: string, filename: string) {
+  try {
+    await downloadAttachment(url, filename)
+  } catch {
+    $q.notify({ type: 'negative', message: '파일 다운로드에 실패했습니다.' })
+  }
+}
 
 function fileIcon(ct: string) {
   if (ct.startsWith('image/')) return 'image'
