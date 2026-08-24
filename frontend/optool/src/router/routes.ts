@@ -66,11 +66,6 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true },
         children: [
           {
-            path: 'checklist',
-            meta: { requiresPermission: 'inspection' },
-            component: () => import('pages/inspection/ServerRoomInspectionPage.vue')
-          },
-          {
             path: 'health-summary',
             meta: { requiresPermission: 'server_check' },
             component: () => import('pages/inspection/HealthSummaryPage.vue')
@@ -148,47 +143,6 @@ const routes: RouteRecordRaw[] = [
             path: '',
             meta: { requiresPermission: 'calendar' },
             component: () => import('pages/calendar/TeamCalendarPage.vue')
-          }
-        ]
-      },
-      {
-        path: 'documents',
-        meta: { requiresAuth: true },
-        children: [
-          {
-            path: '',
-            meta: { requiresPermission: 'document_manage' },
-            component: () => import('pages/document/DocumentManagePage.vue')
-          }
-        ]
-      },
-      {
-        path: 'isms-p',
-        meta: { requiresAuth: true, requiresPermission: 'isms-p' },
-        children: [
-          {
-            path: 'vulnerabilities',
-            component: () => import('pages/isms/IsmsVulnListPage.vue')
-          },
-          {
-            path: 'vulnerabilities/dashboard',
-            component: () => import('pages/isms/IsmsDashboardPage.vue')
-          },
-          {
-            path: 'vulnerabilities/new',
-            component: () => import('pages/isms/IsmsVulnNewPage.vue')
-          },
-          {
-            path: 'vulnerabilities/import-history',
-            component: () => import('pages/isms/IsmsImportHistoryPage.vue')
-          },
-          {
-            path: 'vulnerabilities/:id',
-            component: () => import('pages/isms/IsmsVulnDetailPage.vue')
-          },
-          {
-            path: ':folderName',
-            component: () => import('pages/document/IsmsDocPage.vue')
           }
         ]
       },
