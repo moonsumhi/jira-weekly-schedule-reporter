@@ -11,6 +11,7 @@ from app.models.user import UserPublic
 from app.models.pm.project import (
     ProjectCreate, ProjectPatch, ProjectOut,
     ProjectMemberAdd, ProjectMemberOut, ProjectMemberRolePatch,
+    FavoriteOrderPatch,
 )
 from app.routers.auth import get_current_user
 from app.services.pm.permission import require_pm_admin
@@ -18,7 +19,8 @@ from app.services.pm.permission import require_pm_admin
 router = APIRouter()
 
 
-def _proj_to_out(doc: dict) -> ProjectOut:
+def _proj_to_out(doc: dict, favorite_orders: dict[str, float] | None = None) -> ProjectOut:
+    order = (favorite_orders or {}).get(str(doc["_id"]))
     return ProjectOut(
         id=str(doc["_id"]),
         org_id=str(doc["org_id"]),
@@ -26,9 +28,18 @@ def _proj_to_out(doc: dict) -> ProjectOut:
         key=doc["key"],
         description=doc.get("description"),
         is_sr_default=bool(doc.get("is_sr_default", False)),
+        is_favorite=order is not None,
+        favorite_order=order,
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )
+
+
+async def _favorite_orders(user_id: str) -> dict[str, float]:
+    """사용자가 즐겨찾기한 프로젝트 id → 정렬 순서(order) 매핑."""
+    col = MongoClientManager.get_pm_project_favorites_collection()
+    docs = await col.find({"user_id": ObjectId(user_id)}).to_list(None)
+    return {str(d["project_id"]): d.get("order", 0.0) for d in docs}
 
 
 # ── 프로젝트 CRUD ──────────────────────────────────────────────────
@@ -46,7 +57,8 @@ async def list_projects(current_user: UserPublic = Depends(get_current_user)):
         ).to_list(None)
         project_ids = [m["project_id"] for m in member_docs]
         docs = await projects_col.find({"_id": {"$in": project_ids}}).sort("created_at", -1).to_list(None)
-    return [_proj_to_out(d) for d in docs]
+    favorite_orders = await _favorite_orders(current_user.id)
+    return [_proj_to_out(d, favorite_orders) for d in docs]
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
@@ -113,7 +125,55 @@ async def get_project(project_id: str, current_user: UserPublic = Depends(get_cu
     doc = await MongoClientManager.get_pm_projects_collection().find_one({"_id": ObjectId(project_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
-    return _proj_to_out(doc)
+    favorite_orders = await _favorite_orders(current_user.id)
+    return _proj_to_out(doc, favorite_orders)
+
+
+@router.post("/{project_id}/favorite", response_model=ProjectOut)
+async def toggle_project_favorite(project_id: str, current_user: UserPublic = Depends(get_current_user)):
+    """즐겨찾기는 사용자별 개인 설정 — 로그인한 사용자 자신에게만 적용된다."""
+    doc = await MongoClientManager.get_pm_projects_collection().find_one({"_id": ObjectId(project_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+
+    col = MongoClientManager.get_pm_project_favorites_collection()
+    uid = ObjectId(current_user.id)
+    pid = ObjectId(project_id)
+    existing = await col.find_one({"user_id": uid, "project_id": pid})
+    if existing:
+        await col.delete_one({"_id": existing["_id"]})
+        return _proj_to_out(doc)
+
+    # 새로 즐겨찾기하면 기존 즐겨찾기들 맨 뒤(가장 나중 순서)에 추가된다.
+    last = await col.find_one({"user_id": uid}, sort=[("order", -1)])
+    next_order = (last["order"] + 1) if last else 0.0
+    await col.insert_one({
+        "user_id": uid, "project_id": pid, "order": next_order,
+        "created_at": datetime.now(timezone.utc),
+    })
+    return _proj_to_out(doc, {project_id: next_order})
+
+
+@router.put("/favorites/order", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_favorite_projects(
+    body: FavoriteOrderPatch,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """즐겨찾기 프로젝트를 드래그로 재정렬한 순서를 저장한다 (사용자별)."""
+    col = MongoClientManager.get_pm_project_favorites_collection()
+    uid = ObjectId(current_user.id)
+    for idx, pid in enumerate(body.project_ids):
+        await col.update_one(
+            {"user_id": uid, "project_id": ObjectId(pid)},
+            {"$set": {"order": float(idx)}},
+        )
+
+
+@router.delete("/favorites", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_favorite_projects(current_user: UserPublic = Depends(get_current_user)):
+    """내 즐겨찾기를 전부 해제한다."""
+    col = MongoClientManager.get_pm_project_favorites_collection()
+    await col.delete_many({"user_id": ObjectId(current_user.id)})
 
 
 @router.patch("/{project_id}", response_model=ProjectOut)
@@ -136,7 +196,8 @@ async def patch_project(
     )
     if not doc:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
-    return _proj_to_out(doc)
+    favorite_orders = await _favorite_orders(current_user.id)
+    return _proj_to_out(doc, favorite_orders)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -153,6 +214,7 @@ async def delete_project(project_id: str, current_user: UserPublic = Depends(get
     await MongoClientManager.get_pm_issue_history_collection().delete_many({"issue_id": {"$in": issue_ids}})
     await issues_col.delete_many({"project_id": pid})
     await MongoClientManager.get_pm_project_members_collection().delete_many({"project_id": pid})
+    await MongoClientManager.get_pm_project_favorites_collection().delete_many({"project_id": pid})
     await MongoClientManager.get_pm_sprints_collection().delete_many({"project_id": pid})
     await MongoClientManager.get_pm_labels_collection().delete_many({"project_id": pid})
     await MongoClientManager.get_pm_projects_collection().delete_one({"_id": pid})

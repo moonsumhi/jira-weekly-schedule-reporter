@@ -31,6 +31,8 @@ class ProjectOut(BaseModel):
     key: str
     description: Optional[str]
     is_sr_default: bool = False
+    is_favorite: bool = False
+    favorite_order: Optional[float] = None
     created_at: datetime
     updated_at: datetime
 
@@ -52,3 +54,7 @@ class ProjectMemberAdd(BaseModel):
 
 class ProjectMemberRolePatch(BaseModel):
     role: ProjectRole
+
+
+class FavoriteOrderPatch(BaseModel):
+    project_ids: list[str] = Field(..., description="드래그로 정해진 즐겨찾기 프로젝트 순서 (앞이 먼저)")

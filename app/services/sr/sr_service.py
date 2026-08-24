@@ -152,7 +152,7 @@ async def record_due_date_history(
 # ── 지연 여부 계산 ────────────────────────────────────────────────────
 
 def compute_is_delayed(doc: dict) -> bool:
-    non_delayed = {"DRAFT", "COMPLETED", "CONFIRMING", "CLOSED", "CANCELLED", "REJECTED"}
+    non_delayed = {"DRAFT", "COMPLETED", "CONFIRMING", "CLOSED", "CANCELLED", "REJECTED", "ON_HOLD"}
     if doc.get("status") in non_delayed:
         return False
     # 완료목표일(planned_due_date) 우선, 없으면 희망완료일(desired_due_date) 기준.

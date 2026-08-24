@@ -2,7 +2,7 @@
   <q-page class="q-pa-md">
     <div class="row items-center q-mb-md">
       <div class="text-h5">프로젝트</div>
-      <q-badge v-if="projects.length" color="grey-5" :label="`${filteredProjects.length} / ${projects.length}`" class="q-ml-sm" />
+      <q-badge v-if="projects.length" color="grey-5" :label="`${totalCount} / ${projects.length}`" class="q-ml-sm" />
       <q-space />
       <q-btn color="primary" icon="add" label="새 프로젝트" @click="openCreateDialog" />
     </div>
@@ -35,23 +35,98 @@
       <div class="text-h6">프로젝트가 없습니다</div>
       <div class="text-caption">새 프로젝트를 만들어보세요.</div>
     </div>
-    <div v-else-if="!loading && filteredProjects.length === 0" class="column items-center q-mt-xl text-grey-6">
+    <div v-else-if="!loading && totalCount === 0" class="column items-center q-mt-xl text-grey-6">
       <q-icon name="search_off" size="4rem" class="q-mb-md" />
       <div class="text-h6">검색 결과가 없습니다</div>
       <div class="text-caption">다른 검색어를 입력하거나 검색을 초기화하세요.</div>
       <q-btn flat dense color="primary" label="검색 초기화" class="q-mt-sm" @click="search = ''" />
     </div>
 
+    <!-- 즐겨찾기 (드래그로 순서 변경 가능) -->
+    <template v-if="favoriteProjects.length">
+      <div class="text-caption text-grey-6 text-weight-medium q-mb-xs row items-center">
+        <q-icon name="star" color="amber-8" size="14px" class="q-mr-xs" />즐겨찾기
+        <span v-if="search" class="q-ml-sm text-grey-5">(검색 중에는 순서 변경 불가)</span>
+        <q-space />
+        <q-btn flat dense no-caps size="sm" color="grey-6" label="전체 해제" @click="confirmClearFavorites" />
+      </div>
+      <draggable
+        v-model="favoriteProjects"
+        item-key="id"
+        handle=".drag-handle"
+        :animation="150"
+        ghost-class="drag-ghost"
+        :disabled="!!search"
+        tag="div"
+        class="row q-col-gutter-md q-mb-lg"
+        @end="onFavoriteReorder"
+      >
+        <template #item="{ element: project }">
+          <div class="col-12 col-sm-6 col-md-4">
+            <q-card flat bordered class="cursor-pointer project-card" @click="goToProject(project)">
+              <q-card-section>
+                <div class="row items-center q-gutter-sm q-mb-xs">
+                  <q-icon
+                    name="drag_indicator"
+                    class="drag-handle"
+                    :class="{ 'drag-active': !search }"
+                    size="18px"
+                    @click.stop
+                  />
+                  <q-badge color="primary" :label="project.key" />
+                  <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" />
+                </div>
+                <div class="row items-start no-wrap q-gutter-x-xs">
+                  <q-btn
+                    flat dense round size="sm"
+                    :icon="project.isFavorite ? 'star' : 'star_border'"
+                    :color="project.isFavorite ? 'amber-8' : 'grey-5'"
+                    class="q-mt-xs"
+                    @click.stop="toggleFavorite(project)"
+                  >
+                    <q-tooltip>{{ project.isFavorite ? '즐겨찾기 해제' : '즐겨찾기' }}</q-tooltip>
+                  </q-btn>
+                  <div class="col" style="min-width: 0">
+                    <div class="text-h6 ellipsis">{{ project.name }}</div>
+                    <div class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
+                  </div>
+                </div>
+              </q-card-section>
+              <q-card-actions align="right">
+                <q-btn flat dense icon="fa-solid fa-table-columns" label="보드" @click.stop="goToBoard(project)" />
+                <q-btn flat dense icon="fa-solid fa-list" label="백로그" @click.stop="goToBacklog(project)" />
+              </q-card-actions>
+            </q-card>
+          </div>
+        </template>
+      </draggable>
+    </template>
+
+    <!-- 나머지 프로젝트 -->
+    <div v-if="favoriteProjects.length && otherProjects.length" class="text-caption text-grey-6 text-weight-medium q-mb-xs">전체</div>
     <div class="row q-col-gutter-md">
-      <div v-for="project in filteredProjects" :key="project.id" class="col-12 col-sm-6 col-md-4">
+      <div v-for="project in otherProjects" :key="project.id" class="col-12 col-sm-6 col-md-4">
         <q-card flat bordered class="cursor-pointer project-card" @click="goToProject(project)">
           <q-card-section>
             <div class="row items-center q-gutter-sm q-mb-xs">
               <q-badge color="primary" :label="project.key" />
               <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" />
             </div>
-            <div class="text-h6 ellipsis">{{ project.name }}</div>
-            <div class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
+            <div class="row items-start no-wrap q-gutter-x-xs">
+              <q-btn
+                flat dense round size="sm"
+                :icon="project.isFavorite ? 'star' : 'star_border'"
+                :color="project.isFavorite ? 'amber-8' : 'grey-5'"
+                class="q-mt-xs"
+                @click.stop="toggleFavorite(project)"
+              >
+                <q-tooltip>{{ project.isFavorite ? '즐겨찾기 해제' : '즐겨찾기' }}</q-tooltip>
+              </q-btn>
+              <div class="col" style="min-width: 0">
+                <div class="text-h6 ellipsis">{{ project.name }}</div>
+                <div class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
+              </div>
+            </div>
           </q-card-section>
           <q-card-actions align="right">
             <q-btn flat dense icon="fa-solid fa-table-columns" label="보드" @click.stop="goToBoard(project)" />
@@ -97,10 +172,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Notify } from 'quasar'
-import { listProjects, createProject, type Project } from 'src/services/pm/project'
+import { Notify, Dialog } from 'quasar'
+import draggable from 'vuedraggable'
+import {
+  listProjects, createProject, toggleProjectFavorite, reorderFavoriteProjects, clearFavoriteProjects,
+  type Project,
+} from 'src/services/pm/project'
 import { listOrganizations, type Organization } from 'src/services/pm/organization'
 import { usePmStore } from 'src/stores/pm'
 import { getErrorMessage } from 'src/utils/http/error'
@@ -122,15 +201,29 @@ const sortOptions = [
   { label: '키 오름차순',   value: 'key_asc'     },
 ]
 
-const filteredProjects = computed(() => {
+function matchesSearch(p: Project, q: string): boolean {
+  if (!q) return true
+  return p.name.toLowerCase().includes(q) ||
+    p.key.toLowerCase().includes(q) ||
+    (p.description ?? '').toLowerCase().includes(q)
+}
+
+// 즐겨찾기 목록은 draggable용 ref — projects/search가 바뀌면 재계산하되,
+// 드래그 중 순서 자체는 vuedraggable이 이 ref를 직접 변경한다.
+const favoriteProjects = ref<Project[]>([])
+
+function recomputeFavorites() {
   const q = search.value.trim().toLowerCase()
-  const list = q
-    ? projects.value.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.key.toLowerCase().includes(q) ||
-        (p.description ?? '').toLowerCase().includes(q)
-      )
-    : [...projects.value]
+  const favs = projects.value.filter(p => p.isFavorite && matchesSearch(p, q))
+  favs.sort((a, b) => (a.favoriteOrder ?? 0) - (b.favoriteOrder ?? 0))
+  favoriteProjects.value = favs
+}
+
+watch([projects, search], recomputeFavorites, { immediate: true })
+
+const otherProjects = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  const list = projects.value.filter(p => !p.isFavorite && matchesSearch(p, q))
 
   const [field, dir] = sortKey.value.split('_') as [string, string]
   return [...list].sort((a, b) => {
@@ -140,6 +233,40 @@ const filteredProjects = computed(() => {
     return dir === 'asc' ? cmp : -cmp
   })
 })
+
+const totalCount = computed(() => favoriteProjects.value.length + otherProjects.value.length)
+
+function confirmClearFavorites() {
+  Dialog.create({
+    title: '즐겨찾기 전체 해제',
+    message: `즐겨찾기한 프로젝트 ${favoriteProjects.value.length}개를 모두 해제하시겠습니까?`,
+    cancel: true,
+    persistent: true,
+    ok: { color: 'negative', label: '전체 해제' },
+  }).onOk(() => { void clearAllFavorites() })
+}
+
+async function clearAllFavorites() {
+  try {
+    await clearFavoriteProjects()
+    projects.value = projects.value.map(p => p.isFavorite ? { ...p, isFavorite: false, favoriteOrder: null } : p)
+  } catch (e) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, '즐겨찾기 해제 실패') })
+  }
+}
+
+async function onFavoriteReorder() {
+  const ids = favoriteProjects.value.map(p => p.id)
+  const orderOf = new Map(ids.map((id, i) => [id, i]))
+  projects.value = projects.value.map(p =>
+    orderOf.has(p.id) ? { ...p, favoriteOrder: orderOf.get(p.id)! } : p
+  )
+  try {
+    await reorderFavoriteProjects(ids)
+  } catch (e) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, '순서 저장 실패') })
+  }
+}
 
 const orgOptions = computed(() => orgs.value.map(o => ({ id: o.id, name: `${o.name} (${o.slug})` })))
 
@@ -193,6 +320,15 @@ async function submitCreate() {
   }
 }
 
+async function toggleFavorite(project: Project) {
+  try {
+    const updated = await toggleProjectFavorite(project.id)
+    projects.value = projects.value.map(p => p.id === updated.id ? updated : p)
+  } catch (e) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, '즐겨찾기 처리 실패') })
+  }
+}
+
 function goToProject(project: Project) {
   pmStore.setProject(project)
   void router.push(`/pm/projects/${project.id}`)
@@ -218,5 +354,18 @@ function goToBacklog(project: Project) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.drag-handle {
+  color: #bbb;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.project-card:hover .drag-handle.drag-active {
+  opacity: 1;
+  cursor: grab;
+}
+.drag-ghost {
+  opacity: 0.5;
+  background: #e8e8fb;
 }
 </style>
