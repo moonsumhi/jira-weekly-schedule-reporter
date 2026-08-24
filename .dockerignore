@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.quasar
+__pycache__/
+app/secret/*
+.git
+data/
+*.bundle
+*.bundle.zip
+pilot/
