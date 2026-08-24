@@ -19,10 +19,7 @@ _SYSTEM_MENUS = [
     {"slug": "calendar", "title": "팀캘린더",    "icon": "fa-solid fa-calendar",   "sort_order": 6},
     {"slug": "pm",           "title": "스케줄 관리",  "icon": "fa-solid fa-diagram-project",  "sort_order": 7},
     {"slug": "sr",           "title": "SR",           "icon": "fa-solid fa-paper-plane",      "sort_order": 8},
-    {"slug": "inspection",   "title": "점검",         "icon": "fa-solid fa-clipboard-check",  "sort_order": 9},
     {"slug": "server_check", "title": "서버 점검",    "icon": "fa-solid fa-server",           "sort_order": 10},
-    {"slug": "documents",    "title": "문서 관리",    "icon": "fa-solid fa-folder-open",      "sort_order": 11},
-    {"slug": "isms-p",       "title": "ISMS-P",       "icon": "fa-solid fa-shield-halved",    "sort_order": 12},
     {"slug": "admin",        "title": "관리자",       "icon": "fa-solid fa-user-shield",      "sort_order": 99},
 ]
 
@@ -55,14 +52,6 @@ async def create_indexes() -> None:
         hist = db[hist_name]
         await hist.create_index("asset_id")
         await hist.create_index("changed_at")
-
-    inspection_checklists = MongoClientManager.get_inspection_checklists_collection()
-    await inspection_checklists.create_index("inspection_month", unique=True)
-    await inspection_checklists.create_index("person_in_charge")
-
-    inspection_history = MongoClientManager.get_inspection_history_collection()
-    await inspection_history.create_index("checklist_id")
-    await inspection_history.create_index("changed_at")
 
     job_plans = MongoClientManager.get_job_plans_collection()
     await job_plans.create_index("work_date")
@@ -387,9 +376,7 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
         ],
     },
     "watch":      {"link": "/watch/timetable"},
-    "inspection": {"link": "/inspection/checklist"},
     "calendar":   {"link": "/calendar"},
-    "documents":  {"link": "/documents"},
     "pm": {
         "submenus": [
             {"title": "대시보드", "icon": "fa-solid fa-gauge",            "link": "/pm/dashboard"},
@@ -414,14 +401,6 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "요약",      "icon": "fa-solid fa-table-list",   "link": "/inspection/health-summary"},
             {"title": "서버리스트", "icon": "fa-solid fa-server",       "link": "/inspection/health-servers"},
             {"title": "월별 비교", "icon": "fa-solid fa-code-compare", "link": "/inspection/health-compare"},
-        ],
-    },
-    "isms-p": {
-        "submenus": [
-            {"title": "단계별 산출물", "icon": "fa-solid fa-folder-open", "link": "/isms-p/01. ISMS-P_단계별산출물"},
-            {"title": "취약점 대시보드", "icon": "fa-solid fa-chart-pie", "link": "/isms-p/vulnerabilities/dashboard"},
-            {"title": "취약점 목록", "icon": "fa-solid fa-bug", "link": "/isms-p/vulnerabilities"},
-            {"title": "가져오기 이력", "icon": "fa-solid fa-clock-rotate-left", "link": "/isms-p/vulnerabilities/import-history"},
         ],
     },
     "admin": {

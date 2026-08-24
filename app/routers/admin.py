@@ -338,7 +338,6 @@ async def get_audit_log(
         "작업계획서": MongoClientManager.JOB_PLANS_HISTORY,
         "작업계획서(서비스외)": MongoClientManager.JOB_NON_SERVICE_PLANS_HISTORY,
         "작업결과서": MongoClientManager.JOB_RESULTS_HISTORY,
-        "서버실 점검": MongoClientManager.INSPECTION_HISTORY,
         "당직": MongoClientManager.WATCH_HISTORY,
         "로그인": MongoClientManager.AUTH_LOGS,
         "활동": MongoClientManager.ACTIVITY_LOGS,
