@@ -7,7 +7,7 @@ RUN if [ "$SKIP_SYS_DEPS" = "false" ]; then \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential libxml2-dev libxslt-dev libxml2-utils \
-        nodejs npm libreoffice-writer libreoffice-calc fonts-noto-cjk && \
+        nodejs npm libreoffice-writer libreoffice-calc libreoffice-impress fonts-noto-cjk && \
     rm -rf /var/lib/apt/lists/* && \
     printf '#!/bin/sh\ncat\n' > /usr/bin/xmllint && \
     chmod +x /usr/bin/xmllint && \

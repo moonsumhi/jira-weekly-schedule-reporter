@@ -15,7 +15,7 @@
         <div v-if="loading" class="text-center q-pa-xl text-grey">
           <q-spinner size="40px" color="primary" /><br />불러오는 중...
         </div>
-        <iframe v-else-if="iframeUrl" :src="iframeUrl" class="preview-iframe" />
+        <iframe v-else-if="iframeUrl" :src="iframeUrl" :sandbox="iframeSandbox" class="preview-iframe" />
         <div v-else-if="excelHtml" class="q-pa-md" v-html="excelHtml" />
         <div v-else class="text-center q-pa-xl text-grey">
           <q-icon name="insert_drive_file" size="48px" class="q-mb-sm" /><br />
@@ -64,8 +64,15 @@ const fileIcon = computed(() => {
   if (props.attachment?.contentType?.startsWith('image/')) return 'image'
   if (e === 'pdf') return 'picture_as_pdf'
   if (e === 'xlsx' || e === 'xls') return 'table_chart'
+  if (e === 'pptx' || e === 'ppt') return 'slideshow'
+  if (e === 'html' || e === 'htm') return 'code'
   if (e === 'zip') return 'folder_zip'
   return 'insert_drive_file'
+})
+
+const iframeSandbox = computed(() => {
+  // 업로드된 원본 HTML은 스크립트 실행을 차단해 XSS를 방지 (다른 형식은 백엔드에서 변환된 안전한 HTML)
+  return ext.value === 'html' || ext.value === 'htm' ? 'allow-same-origin' : undefined
 })
 
 function apiBase(): string {
@@ -88,6 +95,14 @@ async function load() {
   }
   if (ext.value === 'docx') {
     iframeUrl.value = `${apiBase()}/attachments/docx-preview?path=${encodeURIComponent(attachmentRelPath(att.url))}`
+    return
+  }
+  if (ext.value === 'pptx' || ext.value === 'ppt') {
+    iframeUrl.value = `${apiBase()}/attachments/pptx-preview?path=${encodeURIComponent(attachmentRelPath(att.url))}`
+    return
+  }
+  if (ext.value === 'html' || ext.value === 'htm') {
+    iframeUrl.value = att.url
     return
   }
   if (ext.value === 'xlsx' || ext.value === 'xls') {

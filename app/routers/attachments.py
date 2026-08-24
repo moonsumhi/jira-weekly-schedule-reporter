@@ -5,13 +5,14 @@ document_files 컬렉션에 등록된 파일이 아닌, /app/uploads 아래 임�
 /app/uploads 기준 상대경로(path)로 대상을 지정한다.
 """
 import logging
+import os
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from app.utils.html_preview import HWP_BASE_CSS, make_self_contained
 
@@ -73,3 +74,31 @@ async def docx_preview(path: str = Query(...)):
 
     html = f"<html><head><meta charset='utf-8'>{HWP_BASE_CSS}</head><body>{result.value}</body></html>"
     return HTMLResponse(content=html)
+
+
+@router.get("/pptx-preview")
+async def pptx_preview(path: str = Query(...)):
+    """PPTX 파일을 LibreOffice headless로 PDF 변환해 반환 (iframe에서 PDF 뷰어로 렌더링)."""
+    file_path = _resolve_safe_path(path)
+    if file_path.suffix.lower() not in (".pptx", ".ppt"):
+        raise HTTPException(status_code=400, detail="PPTX 파일이 아닙니다.")
+
+    out_dir = tempfile.mkdtemp()
+    lo_home = tempfile.mkdtemp(prefix="lo_home_")
+    try:
+        result = subprocess.run(
+            ["libreoffice", "--headless", "--convert-to", "pdf",
+             "--outdir", out_dir, str(file_path)],
+            capture_output=True, text=True, timeout=120,
+            env={**os.environ, "HOME": lo_home},
+        )
+        out_file = Path(out_dir) / f"{file_path.stem}.pdf"
+        if result.returncode != 0 or not out_file.exists():
+            raise RuntimeError(result.stderr or result.stdout)
+        return Response(content=out_file.read_bytes(), media_type="application/pdf")
+    except Exception as e:
+        logger.warning("pptx → pdf 변환 실패: %s", e)
+        raise HTTPException(status_code=422, detail="프레젠테이션을 변환할 수 없습니다.")
+    finally:
+        shutil.rmtree(out_dir, ignore_errors=True)
+        shutil.rmtree(lo_home, ignore_errors=True)
