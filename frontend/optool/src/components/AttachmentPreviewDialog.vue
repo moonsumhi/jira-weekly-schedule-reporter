@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import * as XLSX from 'xlsx'
 import { api } from 'src/boot/axios'
@@ -50,6 +50,13 @@ const $q = useQuasar()
 const loading = ref(false)
 const iframeUrl = ref<string | null>(null)
 const excelHtml = ref<string | null>(null)
+let objectUrl: string | null = null
+
+function setIframeObjectUrl(blob: Blob) {
+  if (objectUrl) URL.revokeObjectURL(objectUrl)
+  objectUrl = URL.createObjectURL(blob)
+  iframeUrl.value = objectUrl
+}
 
 function extOf(name: string | undefined): string {
   if (!name) return ''
@@ -80,6 +87,10 @@ function apiBase(): string {
 }
 
 async function load() {
+  if (objectUrl) {
+    URL.revokeObjectURL(objectUrl)
+    objectUrl = null
+  }
   iframeUrl.value = null
   excelHtml.value = null
   const att = props.attachment
@@ -98,7 +109,19 @@ async function load() {
     return
   }
   if (ext.value === 'pptx' || ext.value === 'ppt') {
-    iframeUrl.value = `${apiBase()}/attachments/pptx-preview?path=${encodeURIComponent(attachmentRelPath(att.url))}`
+    loading.value = true
+    try {
+      const resp = await fetch(`${apiBase()}/attachments/pptx-preview?path=${encodeURIComponent(attachmentRelPath(att.url))}`)
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => null)
+        throw new Error(body?.detail || `HTTP ${resp.status}`)
+      }
+      setIframeObjectUrl(await resp.blob())
+    } catch (e) {
+      $q.notify({ type: 'negative', message: e instanceof Error ? e.message : '프레젠테이션 미리보기를 불러오지 못했습니다.' })
+    } finally {
+      loading.value = false
+    }
     return
   }
   if (ext.value === 'html' || ext.value === 'htm') {
@@ -141,6 +164,10 @@ async function onDownload() {
 watch(() => [props.modelValue, props.attachment], ([open]) => {
   if (open) void load()
 }, { immediate: true })
+
+onUnmounted(() => {
+  if (objectUrl) URL.revokeObjectURL(objectUrl)
+})
 </script>
 
 <style scoped>
