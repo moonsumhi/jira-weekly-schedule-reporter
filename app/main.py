@@ -32,6 +32,7 @@ from app.db.mongo import MongoClientManager
 from app.db.startup import run_startup
 from app.services.jira_poller import JiraPollerService
 from app.services.delayed_digest_service import DelayedDigestService
+from app.services.recurring_issue_scheduler import RecurringIssueScheduler
 from app.middleware.activity_logger import ActivityLoggerMiddleware
 
 
@@ -53,6 +54,9 @@ async def lifespan(app: FastAPI):
         digest_service.start()
         logging.getLogger(__name__).info("DelayedDigestService started")
 
+    recurring_scheduler = RecurringIssueScheduler()
+    recurring_scheduler.start()
+
     yield
 
     # ---- shutdown ----
@@ -60,6 +64,7 @@ async def lifespan(app: FastAPI):
         poller.stop()
     if digest_service:
         digest_service.stop()
+    recurring_scheduler.stop()
     await MongoClientManager.close_client()
 
 
