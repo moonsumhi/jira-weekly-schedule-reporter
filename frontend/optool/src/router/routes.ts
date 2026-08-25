@@ -29,17 +29,6 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
-        path: 'jira',
-        meta: { requiresAuth: true },
-        children: [
-          {
-            path: 'search',
-            meta: { requiresPermission: 'jira' },
-            component: () => import('pages/jira/TaskViewer.vue')
-          },
-        ]
-      },
-      {
         path: 'asset',
         meta: { requiresAuth: true },
         children: [
@@ -79,17 +68,6 @@ const routes: RouteRecordRaw[] = [
             path: 'health-compare',
             meta: { requiresPermission: 'server_check' },
             component: () => import('pages/inspection/HealthComparePage.vue')
-          }
-        ]
-      },
-      {
-        path: 'report',
-        meta: { requiresAuth: true },
-        children: [
-          {
-            path: 'weekly',
-            meta: { requiresPermission: 'jira' },
-            component: () => import('pages/report/WeeklyReportPage.vue')
           }
         ]
       },
