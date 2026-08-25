@@ -39,6 +39,76 @@ STATIC_FALLBACK: Dict[str, str] = {
     "Oracle|23c":    "2030-04",
     "SAP HANA|1.0":  "2023-12",
     "SAP HANA|2.0":  "2030-12",
+    # Windows Server (endoflife.date 외부 API 호출 실패 시 폴백 — 내부망 등 인터넷 접근이
+    # 막힌 환경에서도 EoS 표시가 "확인 불가"로 비지 않도록 함)
+    "Windows Server|2000":       "2010-07",
+    "Windows Server|2003":       "2007-04",
+    "Windows Server|2003-sp1":   "2009-04",
+    "Windows Server|2003-sp2":   "2015-07",
+    "Windows Server|2008-sp2":   "2020-01",
+    "Windows Server|2008-r2-sp1": "2020-01",
+    "Windows Server|2012":       "2023-10",
+    "Windows Server|2012 R2":    "2023-10",
+    "Windows Server|1709-sac":   "2019-04",
+    "Windows Server|1803-sac":   "2019-11",
+    "Windows Server|1809-sac":   "2020-11",
+    "Windows Server|1903-sac":   "2020-12",
+    "Windows Server|1909-sac":   "2021-05",
+    "Windows Server|2004-sac":   "2021-12",
+    "Windows Server|20h2-sac":   "2022-08",
+    "Windows Server|2016":       "2027-01",
+    "Windows Server|2019":       "2029-01",
+    "Windows Server|2022":       "2031-10",
+    "Windows Server|23h2-ac":    "2026-05",
+    "Windows Server|2025":       "2034-11",
+    # Windows Server: OS_TREE 드롭다운은 "-sac" 접미사 없이 저장되므로 그 형식으로도 조회 가능하게 별칭 추가
+    "Windows Server|1909": "2021-05",
+    "Windows Server|2004": "2021-12",
+    "Windows Server|20H2": "2022-08",
+    # Windows 10 / 11 (endoflife.date 폴백)
+    "Windows 10|22H2": "2025-10",
+    "Windows 11|21H2": "2024-10",
+    "Windows 11|22H2": "2025-10",
+    "Windows 11|23H2": "2026-11",
+    # Ubuntu (Standard Support 종료 기준)
+    "Ubuntu|18.04": "2023-04",
+    "Ubuntu|20.04": "2025-04",
+    "Ubuntu|22.04": "2027-04",
+    "Ubuntu|24.04": "2029-04",
+    # Debian (LTS 종료 기준)
+    "Debian|10": "2024-06",
+    "Debian|11": "2026-06",
+    "Debian|12": "2028-06",
+    # Amazon Linux
+    "Amazon Linux|2":    "2025-06",
+    "Amazon Linux|2023": "2028-03",
+    # MariaDB
+    "MariaDB|10.2":  "2022-05",
+    "MariaDB|10.3":  "2023-05",
+    "MariaDB|10.4":  "2024-06",
+    "MariaDB|10.5":  "2025-06",
+    "MariaDB|10.6":  "2026-07",
+    "MariaDB|10.11": "2028-02",
+    "MariaDB|11.0":  "2024-06",
+    "MariaDB|11.1":  "2024-08",
+    "MariaDB|11.2":  "2024-11",
+    "MariaDB|11.3":  "2025-02",
+    "MariaDB|11.4":  "2029-05",
+    # PostgreSQL
+    "PostgreSQL|12": "2024-11",
+    "PostgreSQL|13": "2025-11",
+    "PostgreSQL|14": "2026-11",
+    "PostgreSQL|15": "2027-11",
+    "PostgreSQL|16": "2028-11",
+    "PostgreSQL|17": "2029-11",
+    # MySQL (Extended Support 종료 기준)
+    "MySQL|5.7": "2023-10",
+    "MySQL|8.0": "2026-04",
+    "MySQL|8.4": "2032-04",
+    # MS SQL Server (Extended Support 종료 기준)
+    "MS SQL Server|2017": "2027-10",
+    "MS SQL Server|2019": "2030-01",
+    "MS SQL Server|2022": "2033-01",
 }
 
 # endoflife.date 슬러그 → 표시명
