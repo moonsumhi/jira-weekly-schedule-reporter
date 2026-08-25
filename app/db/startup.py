@@ -525,6 +525,15 @@ async def seed_env_categories() -> None:
             "created_at": datetime.now(timezone.utc),
         })
         logger.info("env_categories 초기값 삽입: firewall_notify_emails")
+    if not await col.find_one({"key": "incident_notify_emails"}):
+        await col.insert_one({
+            "key": "incident_notify_emails",
+            "label": "장애 알림 서비스 메일 대상자",
+            "is_system": True,
+            "items": [],
+            "created_at": datetime.now(timezone.utc),
+        })
+        logger.info("env_categories 초기값 삽입: incident_notify_emails")
     if not await col.find_one({"key": "board_post_categories"}):
         await col.insert_one({
             "key": "board_post_categories",

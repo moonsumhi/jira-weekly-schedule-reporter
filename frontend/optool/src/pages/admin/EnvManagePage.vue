@@ -119,10 +119,10 @@
         <q-card-section class="text-h6">{{ itemEditTarget ? '항목 수정' : '항목 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">
           <q-select
-            v-if="selected?.key === 'firewall_notify_emails'"
+            v-if="isMemberPickerCategory(selected?.key)"
             ref="firewallPickRef"
             v-model="firewallPick"
-            label="회원 선택 *"
+            label="담당자 선택 *"
             outlined dense
             use-input fill-input hide-selected
             input-debounce="0"
@@ -156,9 +156,14 @@ const categories = ref<EnvCategoryOut[]>([])
 const selected = ref<EnvCategoryOut | null>(null)
 const loading = ref(false)
 
-// ── 방화벽 담당자 메일 카테고리 전용: 회원 목록에서 선택 ──
+// ── 회원 목록에서 선택하는 방식을 쓰는 카테고리 전용(방화벽/장애 알림 담당자 메일 등) ──
 // label은 드롭다운에 보여줄 "이름 (이메일)" 표시 텍스트, name은 항목의 표시 이름으로
 // 저장할 순수 이름, value는 실제 메일 발송에 쓰일 이메일.
+const MEMBER_PICKER_CATEGORY_KEYS = ['firewall_notify_emails', 'incident_notify_emails']
+function isMemberPickerCategory(key: string | undefined): boolean {
+  return !!key && MEMBER_PICKER_CATEGORY_KEYS.includes(key)
+}
+
 interface UserOption { label: string; value: string; name: string }
 const userOptionsAll = ref<UserOption[]>([])
 const userOptionsFiltered = ref<UserOption[]>([])
@@ -288,7 +293,7 @@ function openCreateItem() {
   itemForm.value = { label: '', value: '' }
   firewallPick.value = null
   itemDialog.value = true
-  if (selected.value?.key === 'firewall_notify_emails') void loadUserOptions()
+  if (isMemberPickerCategory(selected.value?.key)) void loadUserOptions()
 }
 
 function openEditItem(item: EnvItem) {
@@ -296,7 +301,7 @@ function openEditItem(item: EnvItem) {
   itemForm.value = { label: item.label, value: item.value ?? '' }
   firewallPick.value = null
   itemDialog.value = true
-  if (selected.value?.key === 'firewall_notify_emails') void loadUserOptions()
+  if (isMemberPickerCategory(selected.value?.key)) void loadUserOptions()
 }
 
 async function submitItem() {
@@ -305,9 +310,9 @@ async function submitItem() {
     $q.notify({ type: 'warning', message: '이름을 입력해주세요.', position: 'top' })
     return
   }
-  const isFirewall = selected.value.key === 'firewall_notify_emails'
+  const isFirewall = isMemberPickerCategory(selected.value.key)
   if (isFirewall && !itemForm.value.value.trim()) {
-    $q.notify({ type: 'warning', message: '목록에서 회원을 선택해주세요.', position: 'top' })
+    $q.notify({ type: 'warning', message: '목록에서 담당자를 선택해주세요.', position: 'top' })
     return
   }
   itemSaving.value = true
