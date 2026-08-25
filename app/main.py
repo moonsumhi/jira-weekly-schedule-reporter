@@ -20,7 +20,7 @@ from starlette.requests import Request
 # 서버 시작 시각을 Build ID로 사용 (rebuild 감지용)
 BUILD_ID = str(int(time.time()))
 
-from app.routers import health, issues, jira_ui, auth, admin, assets, watch, pilot, job, job_result, job_non_service, test, form_templates, form_entries, menus, boards, notices, health_reports, health_actions, links, ddays, calendar as calendar_router, env_categories, attachments
+from app.routers import health, auth, admin, assets, watch, pilot, job, job_result, job_non_service, test, form_templates, form_entries, menus, boards, notices, health_reports, health_actions, links, ddays, calendar as calendar_router, env_categories, attachments
 from app.routers import settings as settings_router
 from app.routers import branding as branding_router
 from app.routers import pm as pm_router
@@ -149,9 +149,7 @@ app.add_middleware(
 )
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
-app.include_router(issues.router, prefix="/issues", tags=["issues"])
 app.include_router(health.router, prefix="/health", tags=["health"])
-app.include_router(jira_ui.router, prefix="/jira", tags=["jira"])
 app.include_router(assets.router, prefix="/assets", tags=["assets"])
 app.include_router(watch.router, prefix="/watch", tags=["watch"])
 app.include_router(pilot.router, prefix="/pilot", tags=["pilot"])

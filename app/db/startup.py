@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 # 시스템 메뉴 초기값 (slug가 없으면 자동 생성)
 # ──────────────────────────────────────────────
 _SYSTEM_MENUS = [
-    {"slug": "jira",     "title": "Jira",       "icon": "fa-brands fa-jira",      "sort_order": 1},
     {"slug": "job",      "title": "작업 관리",   "icon": "fa-solid fa-briefcase",  "sort_order": 2},
     {"slug": "asset",    "title": "자산",        "icon": "fa-solid fa-computer",   "sort_order": 3},
     {"slug": "watch",    "title": "당직 시간표", "icon": "fa-solid fa-clock",      "sort_order": 4},
@@ -359,12 +358,6 @@ _JOB_FORM_TEMPLATES = [
 # job: form templates에서 동적으로 로드 → 여기서 정의 안 함
 # account: 하단 유저 카드 표시 → 여기서 정의 안 함
 _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
-    "jira": {
-        "submenus": [
-            {"title": "검색",    "icon": "fa-solid fa-list",          "link": "/jira/search"},
-            {"title": "주간보고", "icon": "fa-solid fa-calendar-week", "link": "/report/weekly"},
-        ],
-    },
     "asset": {
         "submenus": [
             {"title": "전체",          "icon": "fa-solid fa-layer-group",   "link": "/asset/list"},
@@ -485,15 +478,15 @@ async def migrate_recurring_issue_submenu() -> None:
 
 
 async def migrate_remove_deprecated_features() -> None:
-    """제거된 기능(ISMS-P·서버실 점검·문서 관리)의 메뉴·데이터를 정리한다 (멱등).
+    """제거된 기능(ISMS-P·서버실 점검·문서 관리·Jira)의 메뉴·데이터를 정리한다 (멱등).
 
-    BACKOFFICE-78에서 코드가 삭제된 기능들. 기존 배포 DB에 남아있는 메뉴 문서와
-    고아 컬렉션·죽은 권한을 제거한다. server_check(서버 점검)는 유지 대상이라 제외.
+    코드가 삭제된 기능들. 기존 배포 DB에 남아있는 메뉴 문서와 고아 컬렉션·죽은 권한을
+    제거한다. server_check(서버 점검)는 유지 대상이라 제외.
     """
     db = MongoClientManager.get_db()
 
     # 1) 삭제된 메뉴 문서 (server_check는 건드리지 않음)
-    dead_slugs = ["isms-p", "inspection", "documents"]
+    dead_slugs = ["isms-p", "inspection", "documents", "jira"]
     r = await MongoClientManager.get_menus_collection().delete_many({"slug": {"$in": dead_slugs}})
     if r.deleted_count:
         logger.info("제거된 기능 메뉴 %d개 삭제: %s", r.deleted_count, dead_slugs)
@@ -511,7 +504,7 @@ async def migrate_remove_deprecated_features() -> None:
             logger.info("고아 컬렉션 drop: %s", c)
 
     # 3) 유저 권한에서 죽은 문자열 제거
-    dead_perms = ["isms-p", "inspection", "documents", "document_manage"]
+    dead_perms = ["isms-p", "inspection", "documents", "document_manage", "jira"]
     r2 = await MongoClientManager.get_users_collection().update_many(
         {"permissions": {"$in": dead_perms}},
         {"$pull": {"permissions": {"$in": dead_perms}}},
