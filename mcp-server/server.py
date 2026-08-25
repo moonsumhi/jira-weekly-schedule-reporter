@@ -93,17 +93,30 @@ def _dump(docs) -> str:
 # ── 자산 ──────────────────────────────────────────────────────────────────────
 
 @mcp.tool()
-def list_assets(category: str = "서버", limit: int = 50) -> str:
+def list_assets(category: str = "서버", limit: int = 100, skip: int = 0) -> str:
     """
     자산 목록을 조회합니다.
     category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware
+
+    total(전체 개수)과 items(이번 페이지)를 함께 반환합니다. has_more 가 true면
+    아직 더 있는 것이므로 skip 을 늘려(예: skip=100) 다음 페이지를 이어서 조회하세요.
+    사용자에게 답할 때는 total 기준으로 "전체 N건 중 …"임을 밝히세요.
     """
     col = ASSET_COLLECTIONS.get(category, "assets_servers")
+    q = {"is_deleted": {"$ne": True}}
+    total = db[col].count_documents(q)
     docs = list(db[col].find(
-        {"is_deleted": {"$ne": True}},
+        q,
         {"_id": 1, "name": 1, "ip": 1, "asset_id": 1, "asset_no": 1, "fields": 1, "updated_at": 1}
-    ).limit(limit))
-    return _dump(docs)
+    ).skip(skip).limit(limit))
+    return _dump({
+        "category": category,
+        "total": total,
+        "returned": len(docs),
+        "skip": skip,
+        "has_more": skip + len(docs) < total,
+        "items": docs,
+    })
 
 
 def _asset_field_keys(category: str, sample: int = 200) -> list[str]:
@@ -229,10 +242,13 @@ def create_asset(
 
 
 @mcp.tool()
-def search_assets(query: str, category: str = "서버") -> str:
+def search_assets(query: str, category: str = "서버", limit: int = 100, skip: int = 0) -> str:
     """
     자산을 이름·IP·자산ID로 검색합니다.
     category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware
+
+    total(조건에 맞는 전체 개수)과 items(이번 페이지)를 함께 반환합니다.
+    has_more 가 true면 skip 을 늘려 다음 페이지를 이어서 조회하세요.
     """
     col = ASSET_COLLECTIONS.get(category, "assets_servers")
     flt = {
@@ -243,8 +259,17 @@ def search_assets(query: str, category: str = "서버") -> str:
             {"asset_id": {"$regex": query, "$options": "i"}},
         ],
     }
-    docs = list(db[col].find(flt).limit(20))
-    return _dump(docs)
+    total = db[col].count_documents(flt)
+    docs = list(db[col].find(flt).skip(skip).limit(limit))
+    return _dump({
+        "category": category,
+        "query": query,
+        "total": total,
+        "returned": len(docs),
+        "skip": skip,
+        "has_more": skip + len(docs) < total,
+        "items": docs,
+    })
 
 
 @mcp.tool()
@@ -351,19 +376,23 @@ def get_weekly_report(report_id: str) -> str:
 # ── SR ───────────────────────────────────────────────────────────────────────
 
 @mcp.tool()
-def list_service_requests(status: str = None, assignee: str = None, limit: int = 30) -> str:
+def list_service_requests(status: str = None, assignee: str = None, requester: str = None, limit: int = 30) -> str:
     """
     서비스 요청(SR) 목록을 조회합니다.
-    status: OPEN | IN_PROGRESS | DONE | CLOSED 등
+    status: SUBMITTED | REVIEWING | APPROVED | IN_PROGRESS | ON_HOLD | COMPLETED | CONFIRMING | CLOSED | REJECTED | CANCELLED
+    assignee: 담당자 이름 (부분일치)
+    requester: 요청자 이름 (부분일치)
     """
-    flt: dict = {}
+    flt: dict = {"deleted_at": None}
     if status:
         flt["status"] = status
     if assignee:
-        flt["assignee"] = {"$regex": assignee, "$options": "i"}
+        flt["assignee_name"] = {"$regex": assignee, "$options": "i"}
+    if requester:
+        flt["requester_name"] = {"$regex": requester, "$options": "i"}
     docs = list(db["service_requests"].find(flt, {
-        "_id": 1, "sr_id": 1, "title": 1, "status": 1,
-        "requester": 1, "assignee": 1, "type": 1, "created_at": 1,
+        "_id": 1, "sr_no": 1, "title": 1, "status": 1,
+        "requester_name": 1, "assignee_name": 1, "request_type": 1, "created_at": 1,
     }).sort("created_at", -1).limit(limit))
     return _dump(docs)
 
@@ -374,36 +403,8 @@ def get_service_request(sr_id: str) -> str:
     if len(sr_id) == 24:
         doc = db["service_requests"].find_one({"_id": ObjectId(sr_id)})
     else:
-        doc = db["service_requests"].find_one({"sr_id": sr_id})
+        doc = db["service_requests"].find_one({"sr_no": sr_id})
     return _dump(doc)
-
-
-# ── ISMS-P ───────────────────────────────────────────────────────────────────
-
-@mcp.tool()
-def list_vulnerabilities(
-    risk_level: str = None,
-    action_status: str = None,
-    assignee: str = None,
-    limit: int = 30,
-) -> str:
-    """
-    ISMS-P 취약점 목록을 조회합니다.
-    risk_level: 상 | 중 | 하
-    action_status: 미조치 | 조치완료 | 접속불가 등
-    """
-    flt: dict = {}
-    if risk_level:
-        flt["risk_level"] = risk_level
-    if action_status:
-        flt["action_status"] = action_status
-    if assignee:
-        flt["assignee"] = {"$regex": assignee, "$options": "i"}
-    docs = list(db["isms_vulnerabilities"].find(flt, {
-        "_id": 1, "asset_name": 1, "ip_address": 1, "check_item": 1,
-        "risk_level": 1, "action_status": 1, "assignee": 1, "planned_date": 1,
-    }).limit(limit))
-    return _dump(docs)
 
 
 # ── Watch ─────────────────────────────────────────────────────────────────────
