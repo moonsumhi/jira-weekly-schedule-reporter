@@ -359,8 +359,8 @@ function filterUsersFn(val: string, update: (fn: () => void) => void) {
     const q = val.toLowerCase()
     filteredUsers.value = q
       ? props.pmUsers.filter(u =>
-          u.name.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q),
+          (u.name || '').toLowerCase().includes(q) ||
+          (u.email || '').toLowerCase().includes(q),
         )
       : props.pmUsers
   })
