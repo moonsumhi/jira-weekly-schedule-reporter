@@ -169,6 +169,28 @@
             <div class="section-label q-mb-md">
               {{ selectedTypeCard?.label }} — 유형별 필수 정보를 입력해주세요.
             </div>
+            <q-banner v-if="form.requestType === 'FIREWALL'" dense rounded class="bg-blue-1 text-blue-9 q-mb-md">
+              <template #avatar><q-icon name="description" color="primary" /></template>
+              방화벽 정책이 여러 건이면 엑셀 양식을 내려받아 작성 후 업로드하면 방화벽 정책 목록에 자동으로 채워집니다.
+              <template #action>
+                <q-btn
+                  flat dense no-caps color="primary" icon="download" label="템플릿 다운로드"
+                  href="/templates/firewall-policy-template.xlsx"
+                  download="서비스포트(방화벽정책)작성표.xlsx"
+                />
+                <q-btn
+                  flat dense no-caps color="primary" icon="upload_file" label="엑셀 업로드"
+                  @click="firewallExcelInput?.click()"
+                />
+                <input
+                  ref="firewallExcelInput"
+                  type="file"
+                  accept=".xlsx,.xls"
+                  class="hidden"
+                  @change="onFirewallExcelSelected"
+                />
+              </template>
+            </q-banner>
             <div class="row q-col-gutter-md">
               <div
                 v-for="field in currentTypeFields" :key="field.key"
@@ -357,6 +379,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import * as XLSX from 'xlsx'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
@@ -368,6 +391,8 @@ import {
 } from 'src/services/sr'
 import { SR_TYPE_FIELDS, TYPE_CARDS, type SRTypeField } from 'src/services/sr-type-fields'
 import { envCategoryService } from 'src/services/envCategory'
+import { api } from 'src/boot/axios'
+import { listServers } from 'src/services/assets'
 import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
 
 const $q        = useQuasar()
@@ -516,6 +541,99 @@ function removeTableRow(field: SRTypeField, index: number) {
 function updateTableCell(field: SRTypeField, index: number, colKey: string, value: string) {
   const rows = tableRows(field).map((r, i) => (i === index ? { ...r, [colKey]: value } : r))
   typeDetail.value[field.key] = rows
+}
+
+// ── 방화벽 정책 엑셀 업로드 (템플릿 다운로드 파일 구조 기준: B=번호, C=출발지 IP, D=목적지 IP, E=포트번호, F=용도, G=허용/차단) ──
+const firewallExcelInput = ref<HTMLInputElement | null>(null)
+const FIREWALL_EXCEL_SKIP_LABELS = new Set(['번호', '분류', '예시'])
+
+function cellStr(v: unknown): string {
+  if (typeof v === 'string') return v.trim()
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v).trim()
+  return ''
+}
+
+// "172.20.20.20(양초원)" → "172.20.20.20" (괄호와 그 안 텍스트는 제외)
+function stripParenNote(raw: string): string {
+  return raw.replace(/\([^)]*\)/g, '').trim()
+}
+// 자산 조회용 순수 IP만 추출 (CIDR "/24" 등은 자산 매칭에 안 쓰므로 제외)
+function extractLookupIp(raw: string): string {
+  const noParen = stripParenNote(raw)
+  const m = noParen.match(/[\d.]+/)
+  return m ? m[0].replace(/\.+$/, '') : ''
+}
+
+async function onFirewallExcelSelected(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  try {
+    const buf = await file.arrayBuffer()
+    const wb = XLSX.read(buf, { type: 'array' })
+    const ws = wb.Sheets[wb.SheetNames[0]!]
+    // header: 'A' → 시트의 실사용 범위 시작 컬럼과 무관하게 실제 셀 주소(컬럼 문자)로 읽는다.
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws!, { header: 'A', defval: '' })
+
+    // IP → 자산명 매핑 (목적지/출발지 PC 이름이 비어있으면 자산에서 채워넣기 위함)
+    // 자산 쪽 IP도 엑셀 쪽과 동일한 방식(괄호 제거 후 숫자·점만)으로 정규화해서 비교해야
+    // 자산 IP에 여백/부가 텍스트가 섞여 있어도 매칭이 깨지지 않는다.
+    const ipToName = new Map<string, string>()
+    let assetsLoaded = false
+    try {
+      const assets = await listServers(false)
+      assetsLoaded = true
+      for (const a of assets) {
+        const key = extractLookupIp(a.ip)
+        if (key) ipToName.set(key, a.name)
+      }
+    } catch {
+      $q.notify({ type: 'warning', message: '자산 목록을 불러오지 못해 PC 이름 자동 매칭 없이 진행합니다.', position: 'top' })
+    }
+
+    const parsed: Record<string, string>[] = []
+    let matchedCount = 0
+    for (const r of rows) {
+      const label          = cellStr(r.B)
+      if (FIREWALL_EXCEL_SKIP_LABELS.has(label)) continue
+      const sourceIp        = stripParenNote(cellStr(r.C))
+      const destinationIp   = stripParenNote(cellStr(r.D))
+      const portProtocol    = cellStr(r.E)
+      const purpose         = cellStr(r.F)
+      const policy           = cellStr(r.G)
+      if (!sourceIp && !destinationIp && !portProtocol) continue
+      const sourceHost      = ipToName.get(extractLookupIp(sourceIp)) ?? ''
+      const destinationHost = ipToName.get(extractLookupIp(destinationIp)) ?? ''
+      if (sourceHost) matchedCount++
+      if (destinationHost) matchedCount++
+      parsed.push({
+        sourceIp, sourceHost, destinationIp, destinationHost,
+        portProtocol, portPurpose: policy ? `${purpose} (${policy})` : purpose,
+      })
+    }
+
+    if (!parsed.length) {
+      $q.notify({ type: 'warning', message: '엑셀에서 인식된 방화벽 정책이 없습니다. 템플릿 양식을 확인해주세요.', position: 'top' })
+      return
+    }
+    typeDetail.value.firewallRules = parsed
+    const matchMsg = assetsLoaded ? ` (자산에서 PC 이름 ${matchedCount}건 자동 매칭)` : ''
+    $q.notify({ type: 'positive', message: `방화벽 정책 ${parsed.length}건을 불러왔습니다.${matchMsg}`, position: 'top' })
+
+    // 업로드한 원본 엑셀도 첨부파일로 남겨 나중에 다운로드할 수 있게 한다.
+    const form2 = new FormData()
+    form2.append('file', file)
+    const res = await api.post('/pm/uploads', form2)
+    extraAttachments.value.push({
+      fileId: res.data.file_id || res.data.fileId || '',
+      originalName: res.data.original_name || res.data.originalName || file.name,
+      url: res.data.url, size: res.data.size,
+      contentType: res.data.content_type || res.data.contentType || file.type,
+    })
+  } catch {
+    $q.notify({ type: 'negative', message: '엑셀 파일을 읽는 중 오류가 발생했습니다.', position: 'top' })
+  }
 }
 
 // ── Step 4 업로더 ────────────────────────────────────────────────────
