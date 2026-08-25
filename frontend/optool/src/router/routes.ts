@@ -187,6 +187,10 @@ const routes: RouteRecordRaw[] = [
             component: () => import('pages/pm/WorkStatusPage.vue')
           },
           {
+            path: 'recurring-issues',
+            component: () => import('pages/pm/RecurringIssuePage.vue')
+          },
+          {
             path: 'weekly-report',
             component: () => import('pages/pm/WeeklyReportPage.vue')
           },

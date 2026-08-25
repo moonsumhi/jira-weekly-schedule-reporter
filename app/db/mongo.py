@@ -40,6 +40,7 @@ class MongoClientManager:
     JOB_RESULTS_HISTORY = "job_results_history"
     FORM_TEMPLATES = "form_templates"
     FORM_ENTRIES = "form_entries"
+    RECURRING_ISSUE_TEMPLATES = "recurring_issue_templates"
     MENUS = "menus"
     BOARDS = "boards"
     BOARD_POSTS = "board_posts"
@@ -245,6 +246,10 @@ class MongoClientManager:
     @classmethod
     def get_pm_issues_collection(cls):
         return cls.get_db()[cls.PM_ISSUES]
+
+    @classmethod
+    def get_recurring_issue_templates_collection(cls):
+        return cls.get_db()[cls.RECURRING_ISSUE_TEMPLATES]
 
     @classmethod
     def get_pm_sprints_collection(cls):

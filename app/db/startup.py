@@ -385,6 +385,7 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "조직",    "icon": "fa-solid fa-building",         "link": "/pm/organizations"},
             {"title": "주간 보고","icon": "fa-solid fa-calendar-week",    "link": "/pm/weekly-report"},
             {"title": "월간 보고","icon": "fa-solid fa-calendar-days",    "link": "/pm/monthly-report"},
+            {"title": "반복 업무","icon": "fa-solid fa-repeat",           "link": "/pm/recurring-issues"},
             {"title": "사용 가이드","icon": "fa-solid fa-circle-question","link": "/pm/schedule/guide"},
         ],
     },
@@ -468,6 +469,19 @@ async def migrate_guide_submenus() -> None:
         if item["link"] not in existing_links:
             await menus_col.update_one({"slug": slug}, {"$push": {"submenus": item}})
             logger.info("가이드 서브메뉴 추가: %s → %s", slug, item["link"])
+
+
+async def migrate_recurring_issue_submenu() -> None:
+    """pm 메뉴에 반복 업무 서브메뉴가 없으면 추가한다 (멱등)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    item = {"title": "반복 업무", "icon": "fa-solid fa-repeat", "link": "/pm/recurring-issues"}
+    doc = await menus_col.find_one({"slug": "pm"})
+    if not doc:
+        return
+    existing_links = [s.get("link") for s in doc.get("submenus", [])]
+    if item["link"] not in existing_links:
+        await menus_col.update_one({"slug": "pm"}, {"$push": {"submenus": item}})
+        logger.info("반복 업무 서브메뉴 추가")
 
 
 async def migrate_remove_deprecated_features() -> None:
@@ -656,6 +670,7 @@ async def run_startup() -> None:
     await seed_system_menu_extras()
     await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
+    await migrate_recurring_issue_submenu()
     await migrate_notice_submenu()
     await migrate_remove_deprecated_features()
     await seed_env_categories()
