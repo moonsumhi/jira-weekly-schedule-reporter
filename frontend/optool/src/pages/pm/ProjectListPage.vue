@@ -11,11 +11,14 @@
     <div class="row items-center q-gutter-sm q-mb-md">
       <q-input
         v-model="search"
-        dense outlined clearable
+        dense outlined
         placeholder="프로젝트명 · 키 · 설명 검색"
         style="flex: 1; min-width: 0"
       >
         <template #prepend><q-icon name="search" color="grey-5" /></template>
+        <template v-if="search" #append>
+          <q-icon name="close" color="grey-5" class="cursor-pointer" @click="search = ''" />
+        </template>
       </q-input>
       <q-select
         v-model="sortKey"
