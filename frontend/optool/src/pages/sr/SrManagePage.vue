@@ -718,7 +718,7 @@ function filterUsers(val: string, update: (fn: () => void) => void) {
     const q = val.toLowerCase()
     filteredPmUsers.value = q
       ? pmUsers.value.filter(u =>
-          u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+          (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q),
         )
       : pmUsers.value
   })

@@ -338,9 +338,9 @@ async function openAddMember() {
 
 function filterUsers(val: string, update: (fn: () => void) => void) {
   update(() => {
-    const q = val.toLowerCase()
+    const q = (val || '').toLowerCase()
     pmUsersFiltered.value = pmUsers.value.filter(
-      u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+      u => (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)
     )
   })
 }

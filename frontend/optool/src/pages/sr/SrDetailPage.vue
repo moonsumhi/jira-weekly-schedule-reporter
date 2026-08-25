@@ -1555,7 +1555,7 @@ function filterUserOptions(val: string, update: (fn: () => void) => void) {
     } else {
       const q = val.toLowerCase()
       userOptions.value = allUsers.value.filter(u =>
-        u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+        (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)
       )
     }
   })
