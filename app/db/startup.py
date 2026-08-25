@@ -19,10 +19,7 @@ _SYSTEM_MENUS = [
     {"slug": "calendar", "title": "팀캘린더",    "icon": "fa-solid fa-calendar",   "sort_order": 6},
     {"slug": "pm",           "title": "스케줄 관리",  "icon": "fa-solid fa-diagram-project",  "sort_order": 7},
     {"slug": "sr",           "title": "SR",           "icon": "fa-solid fa-paper-plane",      "sort_order": 8},
-    {"slug": "inspection",   "title": "점검",         "icon": "fa-solid fa-clipboard-check",  "sort_order": 9},
     {"slug": "server_check", "title": "서버 점검",    "icon": "fa-solid fa-server",           "sort_order": 10},
-    {"slug": "documents",    "title": "문서 관리",    "icon": "fa-solid fa-folder-open",      "sort_order": 11},
-    {"slug": "isms-p",       "title": "ISMS-P",       "icon": "fa-solid fa-shield-halved",    "sort_order": 12},
     {"slug": "admin",        "title": "관리자",       "icon": "fa-solid fa-user-shield",      "sort_order": 99},
 ]
 
@@ -55,14 +52,6 @@ async def create_indexes() -> None:
         hist = db[hist_name]
         await hist.create_index("asset_id")
         await hist.create_index("changed_at")
-
-    inspection_checklists = MongoClientManager.get_inspection_checklists_collection()
-    await inspection_checklists.create_index("inspection_month", unique=True)
-    await inspection_checklists.create_index("person_in_charge")
-
-    inspection_history = MongoClientManager.get_inspection_history_collection()
-    await inspection_history.create_index("checklist_id")
-    await inspection_history.create_index("changed_at")
 
     job_plans = MongoClientManager.get_job_plans_collection()
     await job_plans.create_index("work_date")
@@ -387,9 +376,7 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
         ],
     },
     "watch":      {"link": "/watch/timetable"},
-    "inspection": {"link": "/inspection/checklist"},
     "calendar":   {"link": "/calendar"},
-    "documents":  {"link": "/documents"},
     "pm": {
         "submenus": [
             {"title": "대시보드", "icon": "fa-solid fa-gauge",            "link": "/pm/dashboard"},
@@ -414,14 +401,6 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "요약",      "icon": "fa-solid fa-table-list",   "link": "/inspection/health-summary"},
             {"title": "서버리스트", "icon": "fa-solid fa-server",       "link": "/inspection/health-servers"},
             {"title": "월별 비교", "icon": "fa-solid fa-code-compare", "link": "/inspection/health-compare"},
-        ],
-    },
-    "isms-p": {
-        "submenus": [
-            {"title": "단계별 산출물", "icon": "fa-solid fa-folder-open", "link": "/isms-p/01. ISMS-P_단계별산출물"},
-            {"title": "취약점 대시보드", "icon": "fa-solid fa-chart-pie", "link": "/isms-p/vulnerabilities/dashboard"},
-            {"title": "취약점 목록", "icon": "fa-solid fa-bug", "link": "/isms-p/vulnerabilities"},
-            {"title": "가져오기 이력", "icon": "fa-solid fa-clock-rotate-left", "link": "/isms-p/vulnerabilities/import-history"},
         ],
     },
     "admin": {
@@ -489,6 +468,42 @@ async def migrate_guide_submenus() -> None:
         if item["link"] not in existing_links:
             await menus_col.update_one({"slug": slug}, {"$push": {"submenus": item}})
             logger.info("가이드 서브메뉴 추가: %s → %s", slug, item["link"])
+
+
+async def migrate_remove_deprecated_features() -> None:
+    """제거된 기능(ISMS-P·서버실 점검·문서 관리)의 메뉴·데이터를 정리한다 (멱등).
+
+    BACKOFFICE-78에서 코드가 삭제된 기능들. 기존 배포 DB에 남아있는 메뉴 문서와
+    고아 컬렉션·죽은 권한을 제거한다. server_check(서버 점검)는 유지 대상이라 제외.
+    """
+    db = MongoClientManager.get_db()
+
+    # 1) 삭제된 메뉴 문서 (server_check는 건드리지 않음)
+    dead_slugs = ["isms-p", "inspection", "documents"]
+    r = await MongoClientManager.get_menus_collection().delete_many({"slug": {"$in": dead_slugs}})
+    if r.deleted_count:
+        logger.info("제거된 기능 메뉴 %d개 삭제: %s", r.deleted_count, dead_slugs)
+
+    # 2) 고아 컬렉션 drop
+    dead_collections = [
+        "isms_vulnerabilities", "isms_import_logs",
+        "inspection_checklists", "inspection_history",
+        "document_folders", "document_files",
+    ]
+    existing = set(await db.list_collection_names())
+    for c in dead_collections:
+        if c in existing:
+            await db.drop_collection(c)
+            logger.info("고아 컬렉션 drop: %s", c)
+
+    # 3) 유저 권한에서 죽은 문자열 제거
+    dead_perms = ["isms-p", "inspection", "documents", "document_manage"]
+    r2 = await MongoClientManager.get_users_collection().update_many(
+        {"permissions": {"$in": dead_perms}},
+        {"$pull": {"permissions": {"$in": dead_perms}}},
+    )
+    if r2.modified_count:
+        logger.info("제거된 기능 권한 정리: %d명", r2.modified_count)
 
 
 async def migrate_notice_submenu() -> None:
@@ -642,6 +657,7 @@ async def run_startup() -> None:
     await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
     await migrate_notice_submenu()
+    await migrate_remove_deprecated_features()
     await seed_env_categories()
     await migrate_firewall_contact_names()
     await migrate_env_submenu()
