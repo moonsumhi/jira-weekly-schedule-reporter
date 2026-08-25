@@ -470,6 +470,42 @@ async def migrate_guide_submenus() -> None:
             logger.info("가이드 서브메뉴 추가: %s → %s", slug, item["link"])
 
 
+async def migrate_remove_deprecated_features() -> None:
+    """제거된 기능(ISMS-P·서버실 점검·문서 관리)의 메뉴·데이터를 정리한다 (멱등).
+
+    BACKOFFICE-78에서 코드가 삭제된 기능들. 기존 배포 DB에 남아있는 메뉴 문서와
+    고아 컬렉션·죽은 권한을 제거한다. server_check(서버 점검)는 유지 대상이라 제외.
+    """
+    db = MongoClientManager.get_db()
+
+    # 1) 삭제된 메뉴 문서 (server_check는 건드리지 않음)
+    dead_slugs = ["isms-p", "inspection", "documents"]
+    r = await MongoClientManager.get_menus_collection().delete_many({"slug": {"$in": dead_slugs}})
+    if r.deleted_count:
+        logger.info("제거된 기능 메뉴 %d개 삭제: %s", r.deleted_count, dead_slugs)
+
+    # 2) 고아 컬렉션 drop
+    dead_collections = [
+        "isms_vulnerabilities", "isms_import_logs",
+        "inspection_checklists", "inspection_history",
+        "document_folders", "document_files",
+    ]
+    existing = set(await db.list_collection_names())
+    for c in dead_collections:
+        if c in existing:
+            await db.drop_collection(c)
+            logger.info("고아 컬렉션 drop: %s", c)
+
+    # 3) 유저 권한에서 죽은 문자열 제거
+    dead_perms = ["isms-p", "inspection", "documents", "document_manage"]
+    r2 = await MongoClientManager.get_users_collection().update_many(
+        {"permissions": {"$in": dead_perms}},
+        {"$pull": {"permissions": {"$in": dead_perms}}},
+    )
+    if r2.modified_count:
+        logger.info("제거된 기능 권한 정리: %d명", r2.modified_count)
+
+
 async def migrate_notice_submenu() -> None:
     """admin 메뉴에 공지사항 서브메뉴가 없으면 추가한다 (멱등)."""
     menus_col = MongoClientManager.get_menus_collection()
@@ -612,6 +648,7 @@ async def run_startup() -> None:
     await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
     await migrate_notice_submenu()
+    await migrate_remove_deprecated_features()
     await seed_env_categories()
     await migrate_firewall_contact_names()
     await migrate_env_submenu()
