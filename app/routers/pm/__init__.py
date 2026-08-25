@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from app.routers.pm import (
     organizations, projects, issues, sprints, board,
     dashboard, users, uploads, work_status,
-    weekly_reports, monthly_reports,
+    weekly_reports, monthly_reports, recurring_issues,
 )
 
 router = APIRouter()
@@ -18,3 +18,4 @@ router.include_router(uploads.router,                                      tags=
 router.include_router(work_status.router,                                  tags=["pm-work-status"])
 router.include_router(weekly_reports.router,  prefix="/weekly-reports",    tags=["pm-weekly-reports"])
 router.include_router(monthly_reports.router, prefix="/monthly-reports",   tags=["pm-monthly-reports"])
+router.include_router(recurring_issues.router, prefix="/recurring-issue-templates", tags=["pm-recurring-issues"])
