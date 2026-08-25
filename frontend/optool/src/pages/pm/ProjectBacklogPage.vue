@@ -20,7 +20,6 @@
           v-model="filterSearch"
           dense
           outlined
-          clearable
           placeholder="이슈 제목으로 검색..."
           class="filter-search-input"
         >
@@ -28,6 +27,7 @@
             <q-icon name="search" color="grey-5" />
           </template>
           <template #append>
+            <q-icon v-if="filterSearch" name="close" color="grey-5" class="cursor-pointer" @click="filterSearch = ''" />
             <q-btn flat dense round icon="refresh" color="grey-5" size="sm" @click="loadIssues">
               <q-tooltip>새로고침</q-tooltip>
             </q-btn>
@@ -755,8 +755,8 @@ watch(allIssues, (issues) => applyOrder(issues))
 
 // ── 필터 적용 ─────────────────────────────────────────────────────────
 function matches(issue: Issue): boolean {
-  const q = filterSearch.value.toLowerCase()
-  if (q && !issue.title.toLowerCase().includes(q)) return false
+  const q = (filterSearch.value ?? '').toLowerCase()
+  if (q && !(issue.title ?? '').toLowerCase().includes(q)) return false
   const includeStatuses = filterStatusTabs.value.filter(s => !s.startsWith('!'))
   const excludeStatuses = filterStatusTabs.value.filter(s => s.startsWith('!')).map(s => s.slice(1))
   if (includeStatuses.length && !includeStatuses.includes(issue.status)) return false
