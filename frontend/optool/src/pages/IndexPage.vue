@@ -258,12 +258,12 @@
         </div>
       </div>
 
-      <!-- 이번 달 당직 일정 -->
+      <!-- 다가오는 당직 일정 (D-30 이내) -->
       <div v-else-if="cardId === 'watch'" class="dash-card watch-card" :class="cardSizeClasses(cardId)">
         <div class="card-header">
           <q-icon name="drag_indicator" class="card-drag-handle cursor-grab" color="grey-4" size="16px" />
           <q-icon name="schedule" size="18px" color="orange-7" />
-          <span class="card-title">이번 달 당직 일정</span>
+          <span class="card-title">다가오는 당직 일정</span>
           <q-space />
           <span class="text-caption text-grey-6">{{ currentMonthLabel }}</span>
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
@@ -280,7 +280,7 @@
 
         <div class="dash-card-body">
           <div v-if="watchLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-          <div v-else-if="myWatchList.length === 0" class="text-center text-grey text-caption q-pa-md">이번 달 당직 일정이 없습니다.</div>
+          <div v-else-if="myWatchList.length === 0" class="text-center text-grey text-caption q-pa-md">{{ WATCH_DDAY_RANGE }}일 이내 당직 일정이 없습니다.</div>
           <div v-else class="watch-cards">
             <div v-for="w in myWatchList" :key="w.id" class="watch-card-item">
               <div class="watch-card-date" :style="{ background: watchShiftColor(w.start) }">
@@ -362,7 +362,8 @@ const watchLoading = ref(false)
 const watchList = ref<WatchItem[]>([])
 
 const now = new Date()
-const currentMonthLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월`
+const WATCH_DDAY_RANGE = 30
+const currentMonthLabel = `D-${WATCH_DDAY_RANGE} 이내`
 
 function isMyWatchAssignee(assignee: string): boolean {
   const fullName = (auth.me?.fullName || '').trim()
@@ -429,11 +430,9 @@ function watchTime(startIso: string, endIso: string): string {
 async function loadWatch() {
   watchLoading.value = true
   try {
-    const y = now.getFullYear()
-    const m = now.getMonth()
-    const start = new Date(y, m, 1).toISOString()
-    const end = new Date(y, m + 1, 0, 23, 59, 59).toISOString()
-    const { data } = await api.get<WatchItem[]>('/watch', { params: { start, end } })
+    const start = new Date(); start.setHours(0, 0, 0, 0)
+    const end = new Date(start); end.setDate(end.getDate() + WATCH_DDAY_RANGE); end.setHours(23, 59, 59, 999)
+    const { data } = await api.get<WatchItem[]>('/watch', { params: { start: start.toISOString(), end: end.toISOString() } })
     watchList.value = data
   } catch {
     watchList.value = []
