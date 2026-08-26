@@ -97,6 +97,16 @@
               >
                 <q-tooltip>{{ props.row.isBlocked ? '차단 해제' : '차단' }}</q-tooltip>
               </q-btn>
+              <q-btn
+                v-if="!props.row.isAdmin"
+                dense flat
+                icon="person_remove"
+                color="negative"
+                :loading="deletingId === props.row.id"
+                @click="confirmDelete(props.row)"
+              >
+                <q-tooltip>회원 삭제 (퇴사)</q-tooltip>
+              </q-btn>
             </q-td>
           </template>
         </q-table>
@@ -338,6 +348,32 @@ async function toggleBlock(user: User) {
     $q.notify({ type: 'negative', message: getErrorMessage(e, '처리 실패') })
   } finally {
     blockingId.value = null
+  }
+}
+
+const deletingId = ref<string | null>(null)
+
+function confirmDelete(user: User) {
+  $q.dialog({
+    title: '회원 삭제',
+    message: `"${user.fullName || user.email}" 회원을 삭제할까요?<br>계정과 조직·프로젝트 멤버십이 제거됩니다. (되돌릴 수 없음)`,
+    html: true,
+    cancel: '취소',
+    ok: { label: '삭제', color: 'negative' },
+    persistent: true,
+  }).onOk(() => { void doDelete(user) })
+}
+
+async function doDelete(user: User) {
+  deletingId.value = user.id
+  try {
+    await api.delete(`/admin/users/${user.id}`)
+    rows.value = rows.value.filter(r => r.id !== user.id)
+    $q.notify({ type: 'positive', message: '회원이 삭제되었습니다.' })
+  } catch (e) {
+    $q.notify({ type: 'negative', message: getErrorMessage(e, '삭제 실패') })
+  } finally {
+    deletingId.value = null
   }
 }
 
