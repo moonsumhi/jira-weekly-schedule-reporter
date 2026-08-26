@@ -259,6 +259,29 @@ async def unblock_user(user_id: str, admin: UserPublic = Depends(require_admin))
     )
 
 
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(user_id: str, admin: UserPublic = Depends(require_admin)):
+    """회원 삭제 (퇴사 등). 사용자 계정과 PM 조직·프로젝트 멤버십을 제거한다.
+
+    SR·이슈 등 과거 기록은 이름 스냅샷(requester_name/assignee_name)으로 남으므로 보존된다.
+    """
+    users = MongoClientManager.get_users_collection()
+    _id = parse_oid(user_id, "잘못된 사용자 ID입니다.")
+    doc = await users.find_one({"_id": _id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    if str(_id) == admin.id:
+        raise HTTPException(status_code=400, detail="본인 계정은 삭제할 수 없습니다.")
+    if bool(doc.get("is_admin", False)):
+        raise HTTPException(status_code=400, detail="관리자 계정은 삭제할 수 없습니다.")
+
+    # PM 조직·프로젝트 멤버십 정리
+    await MongoClientManager.get_pm_org_members_collection().delete_many({"user_id": _id})
+    await MongoClientManager.get_pm_project_members_collection().delete_many({"user_id": _id})
+    # 계정 삭제
+    await users.delete_one({"_id": _id})
+
+
 class AuditLogItem(BaseModel):
     id: str
     category: str
