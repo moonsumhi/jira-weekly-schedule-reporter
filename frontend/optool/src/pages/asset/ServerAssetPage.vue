@@ -2475,6 +2475,10 @@ function getSortVal(row: ServerAsset, key: string): string {
   if (key === 'createdAt') return row.createdAt ?? ''
   const v = row.fields?.[key]
   if (Array.isArray(v)) return (v as string[]).join(',')
+  // displayValue()는 빈 값을 화면 표시용 '-'로 바꾸는데, 정렬에 그대로 쓰면 빈 값들이
+  // 로케일 정렬 규칙상 '-' 문자 위치(항상 맨 앞/뒤가 아님)에 끼어들어 순서가 뒤섞인다.
+  // 정렬용으로는 빈 값을 빈 문자열로 둬서 항상 한쪽 끝에 모이게 한다.
+  if (v === null || v === undefined || v === '') return ''
   return displayValue(v)
 }
 
