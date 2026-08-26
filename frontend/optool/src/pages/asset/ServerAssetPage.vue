@@ -1868,7 +1868,15 @@
 
         <q-card-section style="max-height:360px; overflow-y:auto">
           <div class="text-caption text-grey-7 q-mb-xs">드래그로 순서 변경 / 체크로 표시 여부 설정</div>
-          <draggable v-model="tempColItems" item-key="key" handle=".drag-handle">
+          <draggable
+            v-model="tempColItems"
+            item-key="key"
+            handle=".drag-handle"
+            ghost-class="col-item-ghost"
+            :force-fallback="true"
+            :scroll-sensitivity="80"
+            :scroll-speed="10"
+          >
             <template #item="{ element }">
               <div class="row items-center q-py-xs col-item">
                 <q-icon name="drag_indicator" class="drag-handle cursor-grab text-grey-5 q-mr-xs" size="18px" />
@@ -2475,6 +2483,10 @@ function getSortVal(row: ServerAsset, key: string): string {
   if (key === 'createdAt') return row.createdAt ?? ''
   const v = row.fields?.[key]
   if (Array.isArray(v)) return (v as string[]).join(',')
+  // displayValue()는 빈 값을 화면 표시용 '-'로 바꾸는데, 정렬에 그대로 쓰면 빈 값들이
+  // 로케일 정렬 규칙상 '-' 문자 위치(항상 맨 앞/뒤가 아님)에 끼어들어 순서가 뒤섞인다.
+  // 정렬용으로는 빈 값을 빈 문자열로 둬서 항상 한쪽 끝에 모이게 한다.
+  if (v === null || v === undefined || v === '') return ''
   return displayValue(v)
 }
 
@@ -4823,6 +4835,10 @@ tbody .sticky-actions-col {
 .col-item:hover {
   background: #f5f5f5;
   border-radius: 4px;
+}
+.col-item-ghost {
+  opacity: 0.4;
+  background: #c8ebfb;
 }
 .cursor-grab {
   cursor: grab;

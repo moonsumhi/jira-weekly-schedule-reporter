@@ -32,7 +32,7 @@ const EOL_MAP: Record<string, string> = {
 
   // Windows Server (Extended Support 종료 기준)
   'Windows Server|2012':    '2023-10',
-  'Windows Server|2012 R2': '2023-10',
+  'Windows Server|2012 R2': '2026-10',
   'Windows Server|2016':    '2027-01',
   'Windows Server|2019':    '2029-01',
   'Windows Server|2022':    '2031-10',
