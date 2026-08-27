@@ -36,7 +36,7 @@ NEW_SECTION = {
     "fields": [
         {"label": "제목", "type": "text", "required": False},
         {"label": "리스크", "type": "select", "required": False, "options": ["상", "중", "하"]},
-        {"label": "세부 작업 내용", "type": "textarea", "required": False},
+        {"label": "세부 작업 내용", "type": "textarea", "required": False, "paired_image": "개발이미지"},
         {"label": "개발이미지", "type": "image", "required": False},
     ],
 }
