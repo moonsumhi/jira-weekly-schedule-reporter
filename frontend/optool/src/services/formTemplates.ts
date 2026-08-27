@@ -10,6 +10,9 @@ export type FormField = {
   // axios 인터셉터가 camelCase로 변환 (백엔드는 full_width)
   // textarea가 아니어도 값 칸을 한 줄 전체 폭으로 표시 (추출 파싱 경계는 type 그대로 유지하기 위함)
   fullWidth?: boolean
+  // axios 인터셉터가 camelCase로 변환 (백엔드는 paired_image)
+  // 이 필드(주로 textarea)와 같은 셀 안에 표시할 같은 섹션 내 image 필드의 label
+  pairedImage?: string
 }
 
 export type FormSection = {

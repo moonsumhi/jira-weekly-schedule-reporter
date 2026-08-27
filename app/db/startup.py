@@ -160,13 +160,23 @@ _PLAN_REVIEW = {
         {"label": "서명",     "type": "image",    "required": False},
     ],
 }
+_PLAN_DEV_CONTENT = {
+    "title": "개발 내용",
+    "multiple": True,
+    "fields": [
+        {"label": "제목",        "type": "text",     "required": False},
+        {"label": "리스크",      "type": "select",   "required": False, "options": ["상", "중", "하"]},
+        {"label": "세부 작업 내용", "type": "textarea", "required": False, "paired_image": "개발이미지"},
+        {"label": "개발이미지",  "type": "image",    "required": False},
+    ],
+}
 _PLAN_STEPS = {
     "title": "세부 작업 내용",
     "multiple": True,
     "fields": [
         {"label": "제목",        "type": "text",     "required": False},
         {"label": "리스크",      "type": "select",   "required": False, "options": ["상", "중", "하"]},
-        {"label": "세부 작업 내용", "type": "textarea", "required": False},
+        {"label": "세부 작업 내용", "type": "textarea", "required": False, "paired_image": "작업 이미지"},
         {"label": "작업 이미지", "type": "image",    "required": False},
     ],
 }
@@ -225,11 +235,9 @@ _RESULT_WORK_CONTENT = {
 _RESULT_BEFORE_AFTER = {
     "title": "작업 결과",
     "multiple": True,
-    # 이 섹션만 이미지 필드를 행 아래 별도 줄(좌우 분할)로 표시
-    "images_below": True,
     "fields": [
-        {"label": "작업 전",     "type": "textarea", "required": False},
-        {"label": "작업 후",     "type": "textarea", "required": False},
+        {"label": "작업 전",     "type": "textarea", "required": False, "paired_image": "작업 전 사진"},
+        {"label": "작업 후",     "type": "textarea", "required": False, "paired_image": "작업 후 사진"},
         {"label": "작업 전 사진", "type": "image",    "required": False},
         {"label": "작업 후 사진", "type": "image",    "required": False},
     ],
@@ -301,6 +309,7 @@ _JOB_FORM_TEMPLATES = [
             _PLAN_BACKUP,
             _PLAN_WORKERS,
             _PLAN_REVIEW,
+            _PLAN_DEV_CONTENT,
             _PLAN_STEPS,
             _PLAN_SCHEDULE,
             _PLAN_PRECHECK,
