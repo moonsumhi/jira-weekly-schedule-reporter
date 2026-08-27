@@ -98,7 +98,11 @@
     </template>
 
     <!-- Create / Edit Dialog -->
-    <q-dialog v-model="formDialog" persistent @hide="importedImages = []; selectedPanelImage = ''; activePasteCell = null">
+    <q-dialog
+      :model-value="formDialog"
+      @update:model-value="onFormDialogModelUpdate"
+      @hide="importedImages = []; selectedPanelImage = ''; activePasteCell = null"
+    >
       <q-card style="width: 920px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">{{ isEdit ? `${template?.title} 수정` : `${template?.title} 추가` }}</div>
@@ -183,15 +187,67 @@
                             </div>
                           </div>
                         </template>
-                        <q-input
-                          v-else-if="field.type !== 'boolean' && field.type !== 'select'"
-                          :model-value="getRowVal(section.title, rowIdx, field.label)"
-                          @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
-                          :placeholder="field.placeholder"
-                          :type="tableInputType(field.type)"
-                          borderless dense autogrow
-                          class="table-input"
-                        />
+                        <template v-else-if="field.type !== 'boolean' && field.type !== 'select'">
+                          <q-input
+                            :model-value="getRowVal(section.title, rowIdx, field.label)"
+                            @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
+                            :placeholder="field.placeholder"
+                            :type="tableInputType(field.type)"
+                            borderless dense autogrow
+                            class="table-input"
+                          />
+                          <!-- pairedImage로 짝지어진 필드면 같은 셀 안에 이미지도 함께 표시 -->
+                          <div
+                            v-if="pairedImageField(section, field)"
+                            class="image-drop-zone"
+                            :class="{
+                              'has-image': getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label).length > 0,
+                              'drag-over': dragOverCell === `${section.title}__${rowIdx}__${pairedImageField(section, field)!.label}`,
+                              'paste-ready': activePasteCell?.sectionTitle === section.title && activePasteCell?.rowIdx === rowIdx && activePasteCell?.fieldLabel === pairedImageField(section, field)!.label
+                            }"
+                            style="margin-top:4px;"
+                            @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${pairedImageField(section, field)!.label}`"
+                            @dragleave="dragOverCell = ''"
+                            @drop.prevent.stop="onDropImage(section.title, rowIdx, pairedImageField(section, field)!.label, $event)"
+                            @paste.stop="onPasteImage(section.title, rowIdx, pairedImageField(section, field)!.label, $event)"
+                          >
+                            <div v-if="getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label).length > 0" style="display:flex;flex-wrap:wrap;gap:4px;padding:4px;">
+                              <div
+                                v-for="(imgSrc, imgIdx) in getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label)"
+                                :key="imgIdx"
+                                style="position:relative;display:inline-block;"
+                              >
+                                <img
+                                  :src="imgSrc"
+                                  style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                  @click.stop="previewImage(imgSrc)"
+                                />
+                                <q-btn
+                                  flat dense round icon="close" size="xs"
+                                  style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.45);color:white;padding:0;min-width:16px;min-height:16px;"
+                                  @click.stop="removeRowImage(section.title, rowIdx, pairedImageField(section, field)!.label, imgIdx)"
+                                />
+                              </div>
+                            </div>
+                            <div
+                              style="display:flex;align-items:center;justify-content:center;min-height:36px;cursor:pointer;padding:2px;"
+                              @click.stop="onImageCellClick(section.title, rowIdx, pairedImageField(section, field)!.label)"
+                              @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${pairedImageField(section, field)!.label}`"
+                              @drop.prevent.stop="onDropImage(section.title, rowIdx, pairedImageField(section, field)!.label, $event)"
+                            >
+                              <div v-if="importedImages.length > 0 && !selectedPanelImage" style="display:flex;flex-wrap:wrap;gap:2px;">
+                                <img
+                                  v-for="(img, imgIdx) in importedImages"
+                                  :key="imgIdx"
+                                  :src="img"
+                                  draggable="false"
+                                  style="width:36px;height:28px;object-fit:cover;border:1px solid #ccc;border-radius:2px;opacity:0.6;pointer-events:none;"
+                                />
+                              </div>
+                              <div v-else class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label).length > 0 ? '+ 추가' : '이미지 선택 후 클릭 또는 드래그') }}</div>
+                            </div>
+                          </div>
+                        </template>
                         <q-select
                           v-else-if="field.type === 'select'"
                           :model-value="getRowVal(section.title, rowIdx, field.label)"
@@ -540,13 +596,26 @@
                             </div>
                             <span v-else class="text-grey-5 text-caption" style="padding: 4px;">-</span>
                           </template>
-                          <q-input
-                            v-else
-                            :model-value="(rowData[field.label] as string) || ''"
-                            :type="field.type !== 'boolean' && field.type !== 'select' ? tableInputType(field.type) : 'text'"
-                            borderless dense readonly autogrow
-                            class="table-input"
-                          />
+                          <template v-else>
+                            <q-input
+                              :model-value="(rowData[field.label] as string) || ''"
+                              :type="field.type !== 'boolean' && field.type !== 'select' ? tableInputType(field.type) : 'text'"
+                              borderless dense readonly autogrow
+                              class="table-input"
+                            />
+                            <!-- pairedImage로 짝지어진 필드면 같은 셀 안에 이미지도 함께 표시 -->
+                            <div v-if="pairedImageField(section, field)">
+                              <div v-if="toImageArray(rowData[pairedImageField(section, field)!.label]).length > 0" style="padding:4px;display:flex;flex-wrap:wrap;gap:4px;">
+                                <img
+                                  v-for="(imgSrc, imgIdx) in toImageArray(rowData[pairedImageField(section, field)!.label])"
+                                  :key="imgIdx"
+                                  :src="imgSrc"
+                                  style="max-width:120px;max-height:100px;cursor:pointer;border:1px solid #eee;border-radius:4px;"
+                                  @click="previewImage(imgSrc)"
+                                />
+                              </div>
+                            </div>
+                          </template>
                         </td>
                       </tr>
                       <!-- imagesBelow 섹션만: 이미지 필드를 행 아래 전체 폭을 차지하는 별도 줄로 표시.
@@ -734,6 +803,31 @@ const editingVersion = ref(1)
 type RowData = Record<string, string | string[]>
 type SectionValue = RowData | RowData[]
 const formValues = ref<Record<string, SectionValue>>({})
+
+// 다이얼로그를 열 때(생성/수정 진입 시)의 스냅샷과 비교해 변경 여부를 판단.
+// 변경이 없으면 ESC/바깥 클릭 시 바로 닫고, 변경이 있으면 확인을 받는다.
+const formValuesSnapshot = ref('')
+function snapshotFormValues(): void {
+  formValuesSnapshot.value = JSON.stringify(formValues.value)
+}
+const isFormDirty = computed(() => JSON.stringify(formValues.value) !== formValuesSnapshot.value)
+
+function onFormDialogModelUpdate(val: boolean): void {
+  if (val) {
+    formDialog.value = true
+    return
+  }
+  if (!isFormDirty.value) {
+    formDialog.value = false
+    return
+  }
+  $q.dialog({
+    title: '저장하지 않은 변경사항이 있습니다',
+    message: '저장하지 않고 닫으시겠습니까?',
+    cancel: { label: '취소', flat: true },
+    ok: { label: '닫기', color: 'negative' },
+  }).onOk(() => { formDialog.value = false })
+}
 
 const sections = computed<FormSection[]>(() =>
   template.value ? (template.value.sections) : []
@@ -989,9 +1083,22 @@ function imageFields(section: FormSection): FormField[] {
   return section.fields.filter((f) => f.type === 'image')
 }
 
-// 같은 행의 열로 렌더링할 필드 목록 (imagesBelow면 이미지 필드 제외, 아니면 전체)
+// 다른 필드의 pairedImage로 지정되어 자기 칸 없이 짝지어진 필드 안에 같이 그려지는 image 필드들
+function pairedAwayImageLabels(section: FormSection): Set<string> {
+  return new Set(section.fields.map((f) => f.pairedImage).filter((v): v is string => !!v))
+}
+
+// 같은 행의 열로 렌더링할 필드 목록 (imagesBelow면, 또는 다른 필드에 짝지어진 이미지 필드면 제외)
 function cellFields(section: FormSection): FormField[] {
-  return section.imagesBelow ? nonImageFields(section) : section.fields
+  if (section.imagesBelow) return nonImageFields(section)
+  const paired = pairedAwayImageLabels(section)
+  return section.fields.filter((f) => !paired.has(f.label))
+}
+
+// field.pairedImage로 지정된, 같은 셀 안에 같이 그릴 image 필드를 같은 섹션에서 찾는다
+function pairedImageField(section: FormSection, field: FormField): FormField | undefined {
+  if (!field.pairedImage) return undefined
+  return section.fields.find((f) => f.type === 'image' && f.label === field.pairedImage)
 }
 
 // 테이블 셀용: 일반 텍스트도 autogrow textarea로 렌더링해 잘림 방지
@@ -1064,6 +1171,7 @@ function openCreate() {
   isEdit.value = false
   editingId.value = null
   resetForm()
+  snapshotFormValues()
   formDialog.value = true
 }
 
@@ -1085,6 +1193,7 @@ function openEdit(row: FormEntry) {
     }
   }
   formValues.value = copy
+  snapshotFormValues()
   formDialog.value = true
 }
 
