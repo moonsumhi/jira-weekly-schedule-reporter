@@ -1,12 +1,17 @@
 """
-작업결과서 템플릿의 '작업 결과', '작업 내용' 섹션에 '작업 이미지' (image 타입) 필드 추가.
+작업결과서 템플릿의 '작업 내용' 섹션에 '작업 이미지' (image 타입) 필드 추가.
+
+'작업 결과' 섹션은 대상에서 제외한다 — 이후 paired_image 마이그레이션
+(add_paired_image_fields.py)에서 '작업 전 사진'/'작업 후 사진'으로 이미
+이미지 첨부를 지원하므로, 여기서 같은 목적의 '작업 이미지' 컬럼을 또
+추가하면 중복된 빈 컬럼이 생긴다.
 """
 import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 
 IMAGE_FIELD = {"label": "작업 이미지", "type": "image", "required": False}
 TARGET_TEMPLATE = "작업결과서"
-TARGET_SECTIONS = ["작업 결과", "작업 내용"]
+TARGET_SECTIONS = ["작업 내용"]
 
 
 async def main():
