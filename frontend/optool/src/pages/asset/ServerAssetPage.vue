@@ -4806,6 +4806,8 @@ tbody .sticky-actions-col {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   padding: 4px 2px;
   min-height: 28px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* 생성/저장 버튼 */
