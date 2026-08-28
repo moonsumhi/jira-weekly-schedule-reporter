@@ -43,7 +43,9 @@ async def create_recurring_template(
     current_user: UserPublic = Depends(get_current_user),
 ):
     await require_pm_member(current_user, body.project_id)
-    return await svc.create_template(body.model_dump(), actor_email=current_user.email)
+    return await svc.create_template(
+        body.model_dump(), actor_email=current_user.email, actor_id=current_user.id,
+    )
 
 
 async def _load_or_404(template_id: str) -> dict:
@@ -124,7 +126,7 @@ async def generate_occurrences(
     tpl = await _load_or_404(template_id)
     await require_pm_member(current_user, str(tpl["project_id"]))
     y, m = _default_year_month(year, month)
-    result = await svc.generate_month(tpl, y, m, actor_id=current_user.id)
+    result = await svc.generate_month(tpl, y, m)
     return GenerateResult(
         created=[OccurrenceOut(**x) for x in result["created"]],
         skipped=[OccurrenceOut(**x) for x in result["skipped"]],

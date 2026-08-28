@@ -101,10 +101,27 @@ async def _existing_issue(template_id: ObjectId, occurrence_date: str) -> Option
     })
 
 
+async def _resolve_reporter_id(template: dict) -> Optional[ObjectId]:
+    """반복업무 생성자(템플릿 creator)를 회차 이슈의 보고자로 사용한다.
+
+    신규 템플릿은 created_by_id 를 그대로 쓰고, 그 값이 없는 구 템플릿은
+    created_by(이메일)로 users 를 조회해 폴백한다.
+    """
+    rid = template.get("created_by_id")
+    if rid:
+        return rid if isinstance(rid, ObjectId) else ObjectId(rid)
+    email = template.get("created_by")
+    if email:
+        u = await MongoClientManager.get_users_collection().find_one({"email": email}, {"_id": 1})
+        if u:
+            return u["_id"]
+    return None
+
+
 async def _create_issue_from_occurrence(
-    template: dict, occ: Dict[str, Any], actor_id: Optional[str],
+    template: dict, occ: Dict[str, Any],
 ) -> dict:
-    """회차 하나를 실제 이슈로 생성한다."""
+    """회차 하나를 실제 이슈로 생성한다. 보고자는 반복업무 생성자."""
     bp = template.get("blueprint", {})
     project_id = template["project_id"]
     pid = project_id if isinstance(project_id, ObjectId) else ObjectId(project_id)
@@ -121,7 +138,7 @@ async def _create_issue_from_occurrence(
         "status": "BACKLOG",
         "priority": bp.get("priority", "MEDIUM"),
         "assignee_id": ObjectId(assignee_id) if assignee_id else None,
-        "reporter_id": ObjectId(actor_id) if actor_id else None,
+        "reporter_id": await _resolve_reporter_id(template),
         "sprint_id": None,
         "epic_id": None,
         "parent_issue_id": None,
@@ -145,7 +162,7 @@ async def _create_issue_from_occurrence(
 
 
 async def generate_month(
-    template: dict, year: int, month: int, actor_id: Optional[str],
+    template: dict, year: int, month: int,
 ) -> Dict[str, List[dict]]:
     """해당 월의 모든 회차를 생성한다. 이미 있으면 건너뜀. (수동 버튼용)"""
     created: List[dict] = []
@@ -155,7 +172,7 @@ async def generate_month(
         if existing:
             skipped.append({**_occ_summary(occ), "issue_id": str(existing["_id"]), "already_exists": True})
             continue
-        issue = await _create_issue_from_occurrence(template, occ, actor_id)
+        issue = await _create_issue_from_occurrence(template, occ)
         created.append({**_occ_summary(occ), "issue_id": str(issue["_id"])})
     return {"created": created, "skipped": skipped}
 
@@ -181,7 +198,7 @@ async def generate_due(template: dict, today: datetime) -> List[dict]:
             if create_from <= today_d <= occ_d:  # lead 창 안
                 if await _existing_issue(template["_id"], occ["occurrence_date"]):
                     continue
-                issue = await _create_issue_from_occurrence(template, occ, actor_id=None)
+                issue = await _create_issue_from_occurrence(template, occ)
                 created.append({**_occ_summary(occ), "issue_id": str(issue["_id"])})
     return created
 
@@ -209,13 +226,14 @@ async def get_template(template_id: str) -> Optional[dict]:
     return doc
 
 
-async def create_template(data: dict, actor_email: str) -> dict:
+async def create_template(data: dict, actor_email: str, actor_id: Optional[str] = None) -> dict:
     now = datetime.now(timezone.utc)
     doc = {
         **data,
         "project_id": ObjectId(data["project_id"]),
         "created_at": now,
         "created_by": actor_email,
+        "created_by_id": ObjectId(actor_id) if actor_id else None,
         "updated_at": now,
         "updated_by": actor_email,
     }
