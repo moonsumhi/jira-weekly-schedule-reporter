@@ -459,13 +459,17 @@
                       </div>
 
                       <div>
-                        <div class="content-label q-mb-xs">방화벽 정책 목록</div>
+                        <div class="row items-center q-mb-xs">
+                          <div class="content-label">방화벽 정책 목록</div>
+                          <q-space />
+                          <q-btn
+                            v-if="firewallRules.length"
+                            flat dense icon="content_copy" label="복사" no-caps size="sm" color="grey-7"
+                            @click="copyFirewallTable"
+                          />
+                        </div>
                         <div v-if="!firewallRules.length" class="text-caption text-grey-5">등록된 정책이 없습니다.</div>
-                        <div v-else class="firewall-table-wrap" ref="firewallWrapRef" tabindex="0"
-                          @mousedown="onFirewallDragStart"
-                          @mousemove="onFirewallDragMove"
-                          @mouseup="onFirewallDragEnd"
-                          @mouseleave="onFirewallDragEnd">
+                        <div v-else class="firewall-table-wrap">
                           <table class="firewall-table">
                             <thead>
                               <tr>
@@ -530,13 +534,17 @@
                       </div>
 
                       <div>
-                        <div class="content-label q-mb-xs">사용자 정보</div>
+                        <div class="row items-center q-mb-xs">
+                          <div class="content-label">사용자 정보</div>
+                          <q-space />
+                          <q-btn
+                            v-if="backofficeUserList.length"
+                            flat dense icon="content_copy" label="복사" no-caps size="sm" color="grey-7"
+                            @click="copyBackofficeUserList"
+                          />
+                        </div>
                         <div v-if="!backofficeUserList.length" class="text-caption text-grey-5">등록된 사용자가 없습니다.</div>
-                        <div v-else class="firewall-table-wrap" ref="firewallWrapRef"
-                          @mousedown="onFirewallDragStart"
-                          @mousemove="onFirewallDragMove"
-                          @mouseup="onFirewallDragEnd"
-                          @mouseleave="onFirewallDragEnd">
+                        <div v-else class="firewall-table-wrap">
                           <table class="firewall-table">
                             <thead>
                               <tr>
@@ -1540,6 +1548,39 @@ const backofficeUserList = computed((): Record<string, string>[] => {
   return Array.isArray(v) ? v : []
 })
 
+// firewall-table-wrap이 가로 드래그 스크롤 때문에 user-select:none이라 텍스트
+// 드래그 선택으로는 복사가 안 됨 — 버튼으로 표 전체를 탭 구분 텍스트(엑셀에 바로
+// 붙여넣기 가능)로 클립보드에 복사한다.
+async function copyTableToClipboard(headers: string[], rows: Record<string, string>[], keys: string[]) {
+  if (!rows.length) return
+  const lines = [headers.join('\t')]
+  for (const row of rows) {
+    lines.push(keys.map((k) => row[k] || '').join('\t'))
+  }
+  try {
+    await navigator.clipboard.writeText(lines.join('\n'))
+    $q.notify({ type: 'positive', message: '표 내용을 클립보드에 복사했습니다.' })
+  } catch {
+    $q.notify({ type: 'negative', message: '복사에 실패했습니다.' })
+  }
+}
+
+function copyFirewallTable() {
+  void copyTableToClipboard(
+    ['출발지 IP / 대역', '출발지 PC / 서버 이름', '목적지 IP / 대역', '목적지 PC / 서버 이름', '포트 / 프로토콜', '포트 용도'],
+    firewallRules.value,
+    ['sourceIp', 'sourceHost', 'destinationIp', 'destinationHost', 'portProtocol', 'portPurpose'],
+  )
+}
+
+function copyBackofficeUserList() {
+  void copyTableToClipboard(
+    ['이름(소속)', '이메일 주소', '비고'],
+    backofficeUserList.value,
+    ['name', 'email', 'note'],
+  )
+}
+
 const extraAttachments = computed(() => {
   if (!sr.value) return []
   const desc = sr.value.description || ''
@@ -1750,26 +1791,6 @@ async function openLinkedIssue() {
   }
 }
 
-// 방화벽 정책 목록 테이블: 스크롤바를 정확히 잡지 않아도 테이블 아무 곳이나
-// 클릭 후 드래그하면 가로로 밀리도록 지원 (네이티브 스크롤바가 얇아 잡기 어려움).
-const firewallWrapRef = ref<HTMLElement | null>(null)
-const firewallDrag = ref<{ startX: number; startScrollLeft: number } | null>(null)
-
-function onFirewallDragStart(e: MouseEvent) {
-  const el = firewallWrapRef.value
-  if (!el) return
-  firewallDrag.value = { startX: e.pageX, startScrollLeft: el.scrollLeft }
-}
-function onFirewallDragMove(e: MouseEvent) {
-  const el = firewallWrapRef.value
-  if (!el || !firewallDrag.value) return
-  e.preventDefault()
-  const delta = e.pageX - firewallDrag.value.startX
-  el.scrollLeft = firewallDrag.value.startScrollLeft - delta
-}
-function onFirewallDragEnd() {
-  firewallDrag.value = null
-}
 
 async function downloadFile(url: string, filename: string) {
   try {
@@ -1945,10 +1966,7 @@ watch(() => route.params.id, (newId) => {
   border: 1px solid #eee;
   border-radius: 6px;
   scrollbar-width: auto; /* Firefox: 얇은 기본값(thin) 대신 잡기 쉬운 기본 두께 */
-  cursor: grab;
-  user-select: none;
 }
-.firewall-table-wrap:active { cursor: grabbing; }
 .firewall-table-wrap::-webkit-scrollbar { height: 12px; }
 .firewall-table-wrap::-webkit-scrollbar-track { background: #f5f5f5; border-radius: 6px; }
 .firewall-table-wrap::-webkit-scrollbar-thumb { background: #bdbdbd; border-radius: 6px; }
