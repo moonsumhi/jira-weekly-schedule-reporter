@@ -111,7 +111,7 @@
     <!-- 상태 요약 (클릭 시 필터) -->
     <div class="asset-summary row items-center q-gutter-xs q-mb-md">
       <q-chip
-        dense clickable :outline="statusFilter !== null"
+        dense clickable
         color="blue-grey-1" text-color="blue-grey-9"
         @click="statusFilter = null"
       >총 {{ visibleTotal }}</q-chip>
@@ -4586,7 +4586,6 @@ onMounted(() => {
   min-height: 40px;
 }
 .asset-summary {
-  margin-left: 12px;
   min-height: 32px;
 }
 .asset-summary :deep(.q-chip) {
