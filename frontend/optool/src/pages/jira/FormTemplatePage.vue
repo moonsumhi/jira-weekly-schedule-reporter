@@ -101,7 +101,7 @@
     <q-dialog
       :model-value="formDialog"
       @update:model-value="onFormDialogModelUpdate"
-      @hide="importedImages = []; selectedPanelImage = ''; activePasteCell = null"
+      @hide="importedImages = []; importedImageGroups = []; placedImportedIndices = new Set(); selectedPanelImage = ''; activePasteCell = null"
     >
       <q-card style="width: 920px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column">
         <q-card-section class="row items-center q-pb-none">
@@ -158,8 +158,10 @@
                               >
                                 <img
                                   :src="imgSrc"
-                                  style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                  draggable="true"
+                                  style="width:72px;height:56px;object-fit:cover;cursor:grab;border:1px solid #ccc;border-radius:2px;"
                                   @click.stop="previewImage(imgSrc)"
+                                  @dragstart="onCellImageDragStart(section.title, rowIdx, field.label, imgIdx, $event)"
                                 />
                                 <q-btn
                                   flat dense round icon="close" size="xs"
@@ -174,16 +176,7 @@
                               @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
                               @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
                             >
-                              <div v-if="importedImages.length > 0 && !selectedPanelImage" style="display:flex;flex-wrap:wrap;gap:2px;">
-                                <img
-                                  v-for="(img, imgIdx) in importedImages"
-                                  :key="imgIdx"
-                                  :src="img"
-                                  draggable="false"
-                                  style="width:36px;height:28px;object-fit:cover;border:1px solid #ccc;border-radius:2px;opacity:0.6;pointer-events:none;"
-                                />
-                              </div>
-                              <div v-else class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, field.label).length > 0 ? '+ 추가' : '이미지 선택 후 클릭 또는 드래그') }}</div>
+                              <div class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, field.label).length > 0 ? '+ 추가' : (visibleImportedImages.length > 0 ? '이미지를 맞게 넣어주세요' : '이미지 선택 후 클릭 또는 드래그')) }}</div>
                             </div>
                           </div>
                         </template>
@@ -219,8 +212,10 @@
                               >
                                 <img
                                   :src="imgSrc"
-                                  style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                  draggable="true"
+                                  style="width:72px;height:56px;object-fit:cover;cursor:grab;border:1px solid #ccc;border-radius:2px;"
                                   @click.stop="previewImage(imgSrc)"
+                                  @dragstart="onCellImageDragStart(section.title, rowIdx, pairedImageField(section, field)!.label, imgIdx, $event)"
                                 />
                                 <q-btn
                                   flat dense round icon="close" size="xs"
@@ -235,16 +230,7 @@
                               @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${pairedImageField(section, field)!.label}`"
                               @drop.prevent.stop="onDropImage(section.title, rowIdx, pairedImageField(section, field)!.label, $event)"
                             >
-                              <div v-if="importedImages.length > 0 && !selectedPanelImage" style="display:flex;flex-wrap:wrap;gap:2px;">
-                                <img
-                                  v-for="(img, imgIdx) in importedImages"
-                                  :key="imgIdx"
-                                  :src="img"
-                                  draggable="false"
-                                  style="width:36px;height:28px;object-fit:cover;border:1px solid #ccc;border-radius:2px;opacity:0.6;pointer-events:none;"
-                                />
-                              </div>
-                              <div v-else class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label).length > 0 ? '+ 추가' : '이미지 선택 후 클릭 또는 드래그') }}</div>
+                              <div class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label).length > 0 ? '+ 추가' : (visibleImportedImages.length > 0 ? '이미지를 맞게 넣어주세요' : '이미지 선택 후 클릭 또는 드래그')) }}</div>
                             </div>
                           </div>
                         </template>
@@ -305,8 +291,10 @@
                                 >
                                   <img
                                     :src="imgSrc"
-                                    style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                    draggable="true"
+                                    style="width:72px;height:56px;object-fit:cover;cursor:grab;border:1px solid #ccc;border-radius:2px;"
                                     @click.stop="previewImage(imgSrc)"
+                                    @dragstart="onCellImageDragStart(section.title, rowIdx, field.label, imgIdx, $event)"
                                   />
                                   <q-btn
                                     flat dense round icon="close" size="xs"
@@ -322,16 +310,7 @@
                                 @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
                                 @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
                               >
-                                <div v-if="importedImages.length > 0 && !selectedPanelImage" style="display:flex;flex-wrap:wrap;gap:2px;">
-                                  <img
-                                    v-for="(img, imgIdx) in importedImages"
-                                    :key="imgIdx"
-                                    :src="img"
-                                    draggable="false"
-                                    style="width:36px;height:28px;object-fit:cover;border:1px solid #ccc;border-radius:2px;opacity:0.6;pointer-events:none;"
-                                  />
-                                </div>
-                                <div v-else class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, field.label).length > 0 ? '+ 추가' : '이미지 선택 후 클릭 또는 드래그') }}</div>
+                                <div class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, field.label).length > 0 ? '+ 추가' : (visibleImportedImages.length > 0 ? '이미지를 맞게 넣어주세요' : '이미지 선택 후 클릭 또는 드래그')) }}</div>
                               </div>
                             </div>
                           </div>
@@ -455,32 +434,64 @@
           </div>
         </q-card-section>
 
-        <!-- 추출된 이미지 패널 -->
-        <template v-if="importedImages.length > 0">
+        <!-- 추출된 이미지 패널 — 자동 배치는 하지 않고(문서마다 사진-본문 연관 관습이
+             달라 신뢰할 수 없음) 원본 문서에서 감지된 캡션과 함께 보여줘서 사용자가
+             직접 드래그/클릭으로 배치하게 한다. -->
+        <template v-if="visibleImportedImages.length > 0">
           <q-separator />
           <q-card-section class="image-panel q-py-sm">
             <div class="row items-center q-mb-xs">
               <span class="text-subtitle2">
-                추출된 이미지 ({{ importedImages.length }}장)
+                추출된 이미지 ({{ visibleImportedImages.length }}장) — 직접 배치해주세요
                 <span v-if="selectedPanelImage" class="text-positive q-ml-sm">— 이미지 선택됨. 배치할 셀을 클릭하세요</span>
-                <span v-else class="text-grey q-ml-sm">— 이미지를 클릭해 선택 후 배치할 셀을 클릭하세요</span>
+                <span v-else class="text-grey q-ml-sm">— 이미지를 클릭해 선택 후 배치할 셀을 클릭하거나, 칸으로 직접 드래그하세요</span>
               </span>
               <q-space />
-              <q-btn flat dense icon="close" size="sm" @click="importedImages = []; selectedPanelImage = ''" />
+              <q-btn flat dense icon="close" size="sm" @click="importedImages = []; importedImageGroups = []; placedImportedIndices = new Set(); selectedPanelImage = ''" />
             </div>
-            <div class="image-panel-scroll row q-gutter-sm">
+
+            <!-- HWP: 문서에서 감지된 캡션별로 그룹 표시. 이미 칸에 배치된 이미지는 여기서 빠진다 -->
+            <template v-if="importedImageGroupsWithOffset.length > 0">
               <div
-                v-for="(img, idx) in importedImages"
-                :key="idx"
+                v-for="(group, gIdx) in importedImageGroupsWithOffset"
+                :key="gIdx"
+                class="q-mb-sm"
+              >
+                <div class="text-caption text-grey-7 q-mb-xs">
+                  {{ group.caption || '(원본 문서에서 캡션을 찾지 못함)' }}
+                </div>
+                <div class="image-panel-scroll row q-gutter-sm">
+                  <div
+                    v-for="item in group.images"
+                    :key="item.idx"
+                    class="image-thumb"
+                    :class="{ 'image-thumb--selected': selectedPanelImage === item.img }"
+                    draggable="true"
+                    @click="selectedPanelImage = selectedPanelImage === item.img ? '' : item.img"
+                    @dragstart="selectedPanelImage = item.img; $event.dataTransfer?.setData('text/plain', String(item.idx))"
+                    @dragend="dragOverCell = ''"
+                  >
+                    <img :src="item.img" draggable="false" style="width: 72px; height: 56px; object-fit: cover; cursor: grab; pointer-events: none;" />
+                    <div class="text-caption text-center">{{ item.idx + 1 }}</div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- PDF 등 캡션 그룹 정보가 없는 경우: 기존처럼 flat하게 표시. 이미 칸에 배치된 이미지는 빠진다 -->
+            <div v-else class="image-panel-scroll row q-gutter-sm">
+              <div
+                v-for="item in visibleImportedImages"
+                :key="item.idx"
                 class="image-thumb"
-                :class="{ 'image-thumb--selected': selectedPanelImage === img }"
+                :class="{ 'image-thumb--selected': selectedPanelImage === item.img }"
                 draggable="true"
-                @click="selectedPanelImage = selectedPanelImage === img ? '' : img"
-                @dragstart="selectedPanelImage = img; $event.dataTransfer?.setData('text/plain', String(idx))"
+                @click="selectedPanelImage = selectedPanelImage === item.img ? '' : item.img"
+                @dragstart="selectedPanelImage = item.img; $event.dataTransfer?.setData('text/plain', String(item.idx))"
                 @dragend="dragOverCell = ''"
               >
-                <img :src="img" draggable="false" style="width: 100px; height: 80px; object-fit: cover; cursor: grab; pointer-events: none;" />
-                <div class="text-caption text-center">{{ idx + 1 }}</div>
+                <img :src="item.img" draggable="false" style="width: 72px; height: 56px; object-fit: cover; cursor: grab; pointer-events: none;" />
+                <div class="text-caption text-center">{{ item.idx + 1 }}</div>
               </div>
             </div>
           </q-card-section>
@@ -537,10 +548,8 @@
 
     <!-- Image Preview Dialog -->
     <q-dialog v-model="imagePreviewOpen">
-      <q-card>
-        <q-card-section>
-          <img :src="imagePreviewSrc" style="max-width: 80vw; max-height: 80vh" />
-        </q-card-section>
+      <q-card flat style="width: auto; max-width: 90vw; max-height: 90vh; overflow: hidden;">
+        <img :src="imagePreviewSrc" style="display: block; max-width: 90vw; max-height: 90vh; width: auto; height: auto;" />
       </q-card>
     </q-dialog>
 
@@ -722,7 +731,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { formTemplateService, type FormTemplate, type FormField, type FormSection } from 'src/services/formTemplates'
-import { formEntryService, type FormEntry, type ImportSkipped } from 'src/services/formEntries'
+import { formEntryService, type FormEntry, type ImportSkipped, type ImportImageGroup } from 'src/services/formEntries'
 
 const route = useRoute()
 const $q = useQuasar()
@@ -783,9 +792,46 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const skippedDialog = ref(false)
 const skippedItems = ref<ImportSkipped[]>([])
 const importedImages = ref<string[]>([])
+// PDF는 캡션 개념이 없어 그룹 없이 flat하게만 옴 — HWP만 캡션과 함께 그룹으로 옴.
+// importedImages와 순서가 정확히 일치해야(그룹 펼친 게 flat 리스트) 아래 오프셋 계산이 맞는다.
+const importedImageGroups = ref<ImportImageGroup[]>([])
+// 이미 칸에 배치된 importedImages 원본 인덱스 — 패널에서는 숨기고, 칸에서 빼면 다시 보이게 함
+const placedImportedIndices = ref<Set<number>>(new Set())
+
+function markImportedIndex(idx: number): void {
+  if (idx >= 0) placedImportedIndices.value.add(idx)
+}
+
+// 칸에서 이미지를 제거했을 때, 그게 추출된 이미지 패널에서 온 것이면 패널에 다시 보이게 한다
+function unmarkImportedImage(src: string): void {
+  const idx = importedImages.value.indexOf(src)
+  if (idx !== -1) placedImportedIndices.value.delete(idx)
+}
 const dragOverCell = ref('')
 const imagePreviewSrc = ref('')
 const imagePreviewOpen = ref(false)
+
+// 캡션 그룹 각각에 importedImages(flat) 안에서의 인덱스를 붙이고, 이미 칸에
+// 배치된 이미지는 패널에서 숨긴다(드래그/클릭 배치는 이 flat 인덱스 기반으로 동작).
+const importedImageGroupsWithOffset = computed(() => {
+  let offset = 0
+  return importedImageGroups.value
+    .map((g) => {
+      const images = g.images
+        .map((img, i) => ({ img, idx: offset + i }))
+        .filter((x) => !placedImportedIndices.value.has(x.idx))
+      offset += g.images.length
+      return { caption: g.caption, images }
+    })
+    .filter((g) => g.images.length > 0)
+})
+
+// 캡션 그룹 정보가 없는 경우(PDF)의 flat 패널 목록 — 이미 배치된 이미지는 숨긴다.
+const visibleImportedImages = computed(() =>
+  importedImages.value
+    .map((img, idx) => ({ img, idx }))
+    .filter((x) => !placedImportedIndices.value.has(x.idx))
+)
 
 const activePasteCell = ref<{ sectionTitle: string; rowIdx: number; fieldLabel: string } | null>(null)
 const selectedPanelImage = ref<string>('')  // 패널에서 선택된 이미지 src
@@ -927,8 +973,9 @@ function removeRowImage(sectionTitle: string, rowIdx: number, fieldLabel: string
   if (!rowsArr[rowIdx]) return
   const current = rowsArr[rowIdx][fieldLabel]
   const arr: string[] = Array.isArray(current) ? [...current] : (current ? [current] : [])
-  arr.splice(imgIdx, 1)
+  const [removed] = arr.splice(imgIdx, 1)
   rowsArr[rowIdx][fieldLabel] = arr
+  if (removed) unmarkImportedImage(removed)
 }
 
 function emptyRow(section: FormSection): RowData {
@@ -952,13 +999,52 @@ function removeRow(sectionTitle: string, rowIdx: number): void {
 // ── Image drag & drop helpers ───────────────────────────────────────────────
 
 
+interface CellImageDragPayload {
+  source: 'cell'
+  sectionTitle: string
+  rowIdx: number
+  fieldLabel: string
+  imgIdx: number
+}
+
+function onCellImageDragStart(sectionTitle: string, rowIdx: number, fieldLabel: string, imgIdx: number, e: DragEvent) {
+  const payload: CellImageDragPayload = { source: 'cell', sectionTitle, rowIdx, fieldLabel, imgIdx }
+  e.dataTransfer?.setData('text/plain', JSON.stringify(payload))
+  selectedPanelImage.value = ''
+}
+
 function onDropImage(sectionTitle: string, rowIdx: number, fieldLabel: string, e: DragEvent) {
   dragOverCell.value = ''
-  const idxStr = e.dataTransfer?.getData('text/plain') ?? ''
-  const idx = idxStr !== '' ? Number(idxStr) : -1
+  const raw = e.dataTransfer?.getData('text/plain') ?? ''
+
+  // 셀 → 셀 이동 (다른 칸에 이미 배치된 이미지를 드래그해온 경우)
+  if (raw.startsWith('{')) {
+    try {
+      const payload = JSON.parse(raw) as Partial<CellImageDragPayload>
+      if (payload.source === 'cell' && payload.sectionTitle && payload.fieldLabel && payload.rowIdx !== undefined && payload.imgIdx !== undefined) {
+        const isSameCell = payload.sectionTitle === sectionTitle && payload.rowIdx === rowIdx && payload.fieldLabel === fieldLabel
+        if (!isSameCell) {
+          const src = getRowImages(payload.sectionTitle, payload.rowIdx, payload.fieldLabel)[payload.imgIdx]
+          if (src) {
+            removeRowImage(payload.sectionTitle, payload.rowIdx, payload.fieldLabel, payload.imgIdx)
+            addRowImage(sectionTitle, rowIdx, fieldLabel, src)
+            // 칸→칸 이동일 뿐 패널로 돌아간 게 아니므로, removeRowImage가 풀어준 표시를 다시 건다
+            markImportedIndex(importedImages.value.indexOf(src))
+          }
+        }
+        return
+      }
+    } catch {
+      // JSON 파싱 실패 시 패널 드래그(숫자 인덱스)로 폴백
+    }
+  }
+
+  // 패널 → 셀 배치(기존 동작)
+  const idx = raw !== '' ? Number(raw) : -1
   const src = (idx >= 0 && importedImages.value[idx]) ? importedImages.value[idx] : selectedPanelImage.value
   if (src) {
     addRowImage(sectionTitle, rowIdx, fieldLabel, src)
+    markImportedIndex(idx >= 0 ? idx : importedImages.value.indexOf(src))
     selectedPanelImage.value = ''
   }
 }
@@ -1004,6 +1090,7 @@ function setActivePasteCell(sectionTitle: string, rowIdx: number, fieldLabel: st
 function onImageCellClick(sectionTitle: string, rowIdx: number, fieldLabel: string) {
   if (selectedPanelImage.value) {
     addRowImage(sectionTitle, rowIdx, fieldLabel, selectedPanelImage.value)
+    markImportedIndex(importedImages.value.indexOf(selectedPanelImage.value))
     selectedPanelImage.value = ''
   } else {
     setActivePasteCell(sectionTitle, rowIdx, fieldLabel)
@@ -1150,6 +1237,8 @@ async function handleFileImport(event: Event) {
     }
     formValues.value = init
     importedImages.value = result.images ?? []
+    importedImageGroups.value = result.imageGroups ?? []
+    placedImportedIndices.value = new Set()
     isEdit.value = false
     editingId.value = null
     formDialog.value = true
@@ -1418,7 +1507,10 @@ watch(() => route.params['id'], (id) => {
 .image-drop-zone.has-image { border-style: solid; }
 .drop-hint { font-size: 11px; color: #aaa; text-align: center; }
 .remove-img-btn { position: absolute; top: 2px; right: 2px; }
-.image-panel { background: #f5f5f5; }
+/* 캡션 그룹이 많으면 패널이 다이얼로그 전체를 밀어내 배치할 셀이 화면 밖으로
+   나가버려 드래그가 사실상 불가능해지므로, 패널 자체를 독립적으로 스크롤되는
+   고정 높이 영역으로 제한한다 — 항상 배치 대상 표와 같이 보이게 하기 위함. */
+.image-panel { background: #f5f5f5; max-height: 260px; overflow-y: auto; }
 .image-panel-scroll { overflow-x: auto; flex-wrap: nowrap; }
 .image-thumb { border: 1px solid #ddd; border-radius: 4px; padding: 4px; background: white; cursor: pointer; }
 .image-thumb--selected { border: 2px solid #43a047; background: #f1f8e9; box-shadow: 0 0 0 2px #43a04766; }

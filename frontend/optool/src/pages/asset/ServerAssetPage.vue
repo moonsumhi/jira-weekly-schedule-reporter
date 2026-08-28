@@ -1,83 +1,132 @@
 <template>
   <q-page class="q-pa-md">
+    <!-- 카테고리 탭 (항상 표시, 랙 포함) -->
+    <q-tabs
+      :model-value="category || '전체'"
+      dense no-caps align="left"
+      active-color="primary" indicator-color="primary"
+      class="asset-cat-tabs q-mb-md"
+      @update:model-value="v => selectCategoryTab(String(v))"
+    >
+      <q-tab v-for="c in ASSET_CATEGORY_TABS" :key="c" :name="c" :label="c" />
+    </q-tabs>
+
+    <!-- 랙 카테고리는 전용 배치 관리 화면으로 분기 -->
+    <RackManagementPage v-if="category === '랙'" />
+
+    <template v-else>
     <!-- Header -->
-    <div class="row items-center q-gutter-sm q-mb-md">
+    <div class="asset-toolbar row items-center q-gutter-sm q-mb-sm">
       <div class="text-h6">{{ pageTitle }}</div>
       <q-space />
 
-      <q-toggle
-        v-model="includeDeleted"
-        label="삭제 포함"
-        dense
-      />
-
-      <q-toggle
-        v-model="includeDisposed"
-        label="폐기 포함"
-        dense
-      />
-
+      <!-- 대량 작업 (삭제 포함 모드일 때만) -->
       <q-btn
-        v-if="includeDeleted"
-        outline
-        :color="bulkDeleteMode ? 'primary' : undefined"
+        v-if="includeDeleted" outline dense no-caps
+        :color="bulkDeleteMode ? 'primary' : 'grey-7'"
         icon="checklist"
         :label="bulkDeleteMode ? '선택 취소' : '선택 삭제'"
         @click="toggleBulkDeleteMode"
       />
       <q-btn
         v-if="bulkDeleteMode && selectedIds.size > 0"
-        color="negative"
+        color="negative" dense unelevated no-caps
         icon="delete_forever"
         :label="`영구삭제 (${selectedIds.size})`"
         :loading="bulkPurging"
         @click="confirmBulkPurge"
       />
 
-      <q-btn
-        outline
-        icon="refresh"
-        label="새로고침"
-        :loading="loading"
-        @click="load"
-      />
-
-
-      <q-btn outline icon="view_column" label="컬럼 상세보기" @click="openColVisDialog" />
-      <q-btn outline icon="file_download" label="템플릿 다운로드" @click="downloadTemplate" />
-      <q-btn outline icon="upload_file" label="Import" @click="triggerImport" />
+      <!-- Import 결과 알림 (있을 때만) -->
       <q-btn
         v-if="importFailedRows.filter(r => !r.retrySuccess).length > 0"
-        outline icon="error_outline" color="negative"
-        :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}건`"
+        flat dense no-caps icon="error_outline" color="negative"
+        :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}`"
         @click="importResultTab = 'failed'; importFailDialog = true"
       />
       <q-btn
         v-if="importSkippedRows.length > 0"
-        outline icon="skip_next" color="warning"
-        :label="`건너뜀 ${importSkippedRows.length}건`"
+        flat dense no-caps icon="skip_next" color="warning"
+        :label="`건너뜀 ${importSkippedRows.length}`"
         @click="importResultTab = 'skipped'; importFailDialog = true"
       />
       <q-btn
         v-if="duplicateSkippedRows.filter(r => !r.separateSaved).length > 0"
-        outline icon="add_circle_outline" color="teal"
-        :label="`별도 저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}건`"
+        flat dense no-caps icon="add_circle_outline" color="teal"
+        :label="`별도저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}`"
         @click="importResultTab = 'separate'; importFailDialog = true"
       />
-      <q-btn outline icon="download" label="Export" :loading="exportLoading" @click="doExport" />
+
+      <q-btn round flat dense icon="refresh" color="grey-7" :loading="loading" @click="load">
+        <q-tooltip>새로고침</q-tooltip>
+      </q-btn>
+
+      <!-- 더보기: 유틸리티 모음 -->
+      <q-btn outline dense no-caps icon="more_horiz" label="더보기" color="grey-7">
+        <q-menu anchor="bottom right" self="top right">
+          <q-list style="min-width: 200px">
+            <q-item clickable v-close-popup @click="openColVisDialog">
+              <q-item-section avatar><q-icon name="view_column" /></q-item-section>
+              <q-item-section>컬럼 상세보기</q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item clickable v-close-popup @click="downloadTemplate">
+              <q-item-section avatar><q-icon name="file_download" /></q-item-section>
+              <q-item-section>템플릿 다운로드</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="triggerImport">
+              <q-item-section avatar><q-icon name="upload_file" /></q-item-section>
+              <q-item-section>Import (엑셀)</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup :disable="exportLoading" @click="doExport">
+              <q-item-section avatar>
+                <q-spinner v-if="exportLoading" size="20px" />
+                <q-icon v-else name="download" />
+              </q-item-section>
+              <q-item-section>Export (엑셀)</q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item tag="label">
+              <q-item-section>삭제 포함</q-item-section>
+              <q-item-section side><q-toggle v-model="includeDeleted" dense /></q-item-section>
+            </q-item>
+            <q-item tag="label">
+              <q-item-section>폐기 포함</q-item-section>
+              <q-item-section side><q-toggle v-model="includeDisposed" dense /></q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-btn>
+
       <input ref="importFileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onImportFile" />
 
       <q-btn
-        color="primary"
+        color="primary" unelevated no-caps
         icon="add"
-        :label="category ? `${category} 추가` : '자산 추가'"
+        :label="category ? `${category} 등록` : '자산 등록'"
         @click="category ? openCreate() : (assetTypeDialog = true)"
       />
     </div>
 
+    <!-- 상태 요약 (클릭 시 필터) -->
+    <div class="asset-summary row items-center q-gutter-xs q-mb-md">
+      <q-chip
+        dense clickable
+        color="blue-grey-1" text-color="blue-grey-9"
+        @click="statusFilter = null"
+      >총 {{ visibleTotal }}</q-chip>
+      <q-chip
+        v-for="s in ['운영', '점검', '미사용', '폐기예정']" :key="s"
+        dense clickable
+        :color="statusFilter === s ? statusColor(s) : 'grey-2'"
+        :text-color="statusFilter === s ? 'white' : 'grey-8'"
+        @click="toggleStatusFilter(s)"
+      >{{ s }} {{ statusSummary[s] }}</q-chip>
+    </div>
+
     <q-card bordered>
       <!-- Filters -->
-      <q-card-section class="row items-center q-gutter-sm">
+      <q-card-section class="asset-filter-bar row items-center q-gutter-sm">
         <q-select
           v-model="filterCol"
           :options="filterColOptions"
@@ -117,6 +166,19 @@
           class="col"
           @clear="filter = ''"
         />
+      </q-card-section>
+
+      <!-- 적용된 필터 태그 -->
+      <q-card-section v-if="hasActiveFilters" class="q-pt-none q-pb-sm row items-center q-gutter-xs">
+        <span class="text-caption text-grey-6 q-mr-xs">적용 필터</span>
+        <q-chip v-if="filter" dense removable color="blue-grey-1" text-color="blue-grey-9" @remove="filter = ''">
+          검색: {{ filter }}
+        </q-chip>
+        <q-chip v-if="statusFilter" dense removable :color="statusColor(statusFilter)" text-color="white" @remove="statusFilter = null">
+          상태: {{ statusFilter }}
+        </q-chip>
+        <q-space />
+        <q-btn flat dense no-caps size="sm" color="grey-7" label="전체 초기화" @click="clearAllFilters" />
       </q-card-section>
 
       <q-separator />
@@ -241,6 +303,14 @@
                 />
               </template>
 
+              <!-- 상태: 색상 배지 -->
+              <template v-else-if="colKey(props.col) === '상태'">
+                <q-badge v-if="getField(props.row, '상태')" :color="statusColor(getField(props.row, '상태') as string)">
+                  {{ getField(props.row, '상태') }}
+                </q-badge>
+                <span v-else>-</span>
+              </template>
+
               <!-- 운영체제: OS + version 함께 표시 -->
               <template v-else-if="colKey(props.col) === '운영체제'">
                 <span>{{ displayValue(getField(props.row, '운영체제')) }}</span>
@@ -294,41 +364,7 @@
                   label="상세 보기"
                   @click="openDetailView(props.row)"
                 />
-                <template v-if="!props.row.isDeleted">
-                  <q-btn
-                    dense
-                    outline
-                    size="12px"
-                    icon="edit"
-                    label="편집"
-                    @click="openRowEdit(props.row)"
-                  />
-                  <q-btn
-                    dense
-                    outline
-                    size="12px"
-                    icon="history"
-                    label="이력"
-                    @click="openHistory(props.row)"
-                  />
-                  <q-btn
-                    dense
-                    outline
-                    size="12px"
-                    icon="delete"
-                    color="negative"
-                    @click="confirmDelete(props.row)"
-                  />
-                </template>
-                <template v-else>
-                  <q-btn
-                    dense
-                    outline
-                    size="12px"
-                    icon="history"
-                    label="이력"
-                    @click="openHistory(props.row)"
-                  />
+                <template v-if="props.row.isDeleted">
                   <q-btn
                     dense
                     outline
@@ -399,16 +435,20 @@
               <q-input v-model="createFields['구분']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
+              <div class="field-label">상태</div>
+              <q-select v-model="createFields['상태']" :options="STATUS_OPTIONS" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
               <div class="field-label">자산번호 <span class="req-star">*</span></div>
               <q-input v-model="createFields['자산번호']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
-              <div class="field-label">RackNo. <span class="req-star">*</span></div>
-              <q-input v-model="createFields['rack_no']" borderless dense class="field-input" />
+              <div class="field-label">RackNo.</div>
+              <q-input v-model="createFields['rack_no']" borderless dense readonly class="field-input" placeholder="랙 배치 시 자동" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">Rack Unit No.</div>
-              <q-input v-model="createFields['rack_unit_no']" borderless dense class="field-input" />
+              <q-input v-model="createFields['rack_unit_no']" borderless dense readonly class="field-input" placeholder="랙 배치 시 자동" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">자산관리번호</div>
@@ -419,18 +459,25 @@
               <q-input v-model="createFields['SN']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
-              <div class="field-label">위치 <span class="req-star">*</span></div>
-              <q-select
-                v-model="createLocationSelect"
-                :options="activeCreateCategory === 'DBMS' ? DBMS_LOCATION_OPTIONS : LOCATION_OPTIONS"
-                borderless dense clearable class="field-input"
-                @update:model-value="val => { if (val && val !== '기타') createFields['위치'] = val; else createFields['위치'] = '' }"
-              />
+              <div class="field-label">위치 <span v-if="!isCreateLocationLocked" class="req-star">*</span></div>
               <q-input
-                v-if="createLocationSelect === '기타'"
-                v-model="createFields['위치']"
-                borderless dense placeholder="위치 직접 입력" class="field-input q-mt-xs"
+                v-if="isCreateLocationLocked"
+                :model-value="createFields['위치']"
+                borderless dense readonly class="field-input" placeholder="랙 배치로 관리"
               />
+              <template v-else>
+                <q-select
+                  v-model="createLocationSelect"
+                  :options="activeCreateCategory === 'DBMS' ? DBMS_LOCATION_OPTIONS : LOCATION_OPTIONS"
+                  borderless dense clearable class="field-input"
+                  @update:model-value="val => { if (val && val !== '기타') createFields['위치'] = val; else createFields['위치'] = '' }"
+                />
+                <q-input
+                  v-if="createLocationSelect === '기타'"
+                  v-model="createFields['위치']"
+                  borderless dense placeholder="위치 직접 입력" class="field-input q-mt-xs"
+                />
+              </template>
             </div>
             <div class="col-6 form-field">
               <div class="field-label">설명 <span class="req-star">*</span></div>
@@ -980,82 +1027,9 @@
 
     <!-- Export 컬럼 선택 다이얼로그 -->
 
-    <!-- History drawer -->
-    <q-drawer
-      v-model="historyOpen"
-      side="right"
-      bordered
-      overlay
-      :width="420"
-    >
-      <div class="q-pa-md">
-        <div class="row items-center q-gutter-sm">
-          <div class="text-h6">변경 이력</div>
-          <q-space />
-          <q-btn flat dense icon="close" @click="historyOpen = false" />
-        </div>
-
-        <div v-if="historyTarget" class="q-mt-sm text-caption text-grey-7">
-          <div><b>IP</b>: {{ historyTarget.ip }}</div>
-          <div><b>Name</b>: {{ historyTarget.name }}</div>
-          <div><b>ID</b>: {{ historyTarget.id }}</div>
-        </div>
-
-        <q-separator class="q-my-md" />
-
-        <q-inner-loading :showing="historyLoading">
-          <q-spinner size="32px" />
-        </q-inner-loading>
-
-        <q-list v-if="!historyLoading">
-          <q-item v-for="h in historyItems" :key="h.id" clickable>
-            <q-item-section>
-              <q-item-label>
-                <q-badge
-                  :color="historyBadgeColor(h.action)"
-                  outline
-                  class="q-mr-sm"
-                >
-                  {{ h.action }}
-                </q-badge>
-                <span class="text-caption">
-                  {{ formatKst(h.changedAt) }}
-                </span>
-              </q-item-label>
-              <q-item-label caption>
-                by {{ h.changedBy }}
-              </q-item-label>
-
-              <div v-if="h.diff?.length" class="q-mt-sm">
-                <div class="text-caption text-grey-7 q-mb-xs">Changes</div>
-                <div
-                  v-for="d in h.diff.slice(0, 6)"
-                  :key="d.path"
-                  class="text-body2"
-                >
-                  <span class="text-grey-8">{{ d.path }}</span>
-                  <span class="text-grey-6">: </span>
-                  <span class="text-grey-9">{{ displayValue(d.before) }}</span>
-                  <span class="text-grey-6"> → </span>
-                  <span class="text-grey-9">{{ displayValue(d.after) }}</span>
-                </div>
-                <div v-if="h.diff.length > 6" class="text-caption text-grey-6 q-mt-xs">
-                  +{{ h.diff.length - 6 }} more…
-                </div>
-              </div>
-            </q-item-section>
-          </q-item>
-
-          <div v-if="historyItems.length === 0" class="text-grey-6 q-pa-md">
-            이력이 없습니다.
-          </div>
-        </q-list>
-      </div>
-    </q-drawer>
-
-    <!-- Row edit dialog -->
+    <!-- Row edit dialog (목록에서 직접 편집할 때 사용) -->
     <q-dialog v-model="rowEditDialog">
-      <q-card class="server-form-card" v-if="rowEditTarget">
+      <q-card v-if="rowEditTarget" class="server-form-card">
         <!-- 상단: 호스트명 & IP -->
         <q-card-section class="q-pb-sm row items-center">
           <div class="col">
@@ -1089,16 +1063,20 @@
               <q-input v-model="rowEditValues['구분']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
+              <div class="field-label">상태</div>
+              <q-select v-model="rowEditValues['상태']" :options="STATUS_OPTIONS" borderless dense clearable class="field-input" />
+            </div>
+            <div class="col-6 form-field">
               <div class="field-label">자산번호</div>
               <q-input v-model="rowEditValues['자산번호']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">RackNo.</div>
-              <q-input v-model="rowEditValues['rack_no']" borderless dense class="field-input" />
+              <q-input v-model="rowEditValues['rack_no']" borderless dense readonly class="field-input" placeholder="랙 배치로 관리" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">Rack Unit No.</div>
-              <q-input v-model="rowEditValues['rack_unit_no']" borderless dense class="field-input" />
+              <q-input v-model="rowEditValues['rack_unit_no']" borderless dense readonly class="field-input" placeholder="랙 배치로 관리" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">자산관리번호</div>
@@ -1110,17 +1088,24 @@
             </div>
             <div class="col-6 form-field">
               <div class="field-label">위치</div>
-              <q-select
-                v-model="rowEditLocationSelect"
-                :options="LOCATION_OPTIONS"
-                dense borderless clearable class="field-input"
-                @update:model-value="val => { if (val && val !== '기타') rowEditValues['위치'] = val; else rowEditValues['위치'] = '' }"
-              />
               <q-input
-                v-if="rowEditLocationSelect === '기타'"
-                v-model="rowEditValues['위치']"
-                dense borderless placeholder="위치 직접 입력" class="field-input q-mt-xs"
+                v-if="isRowEditLocationLocked"
+                :model-value="rowEditValues['위치']"
+                dense borderless readonly class="field-input" placeholder="랙 배치로 관리"
               />
+              <template v-else>
+                <q-select
+                  v-model="rowEditLocationSelect"
+                  :options="LOCATION_OPTIONS"
+                  dense borderless clearable class="field-input"
+                  @update:model-value="val => { if (val && val !== '기타') rowEditValues['위치'] = val; else rowEditValues['위치'] = '' }"
+                />
+                <q-input
+                  v-if="rowEditLocationSelect === '기타'"
+                  v-model="rowEditValues['위치']"
+                  dense borderless placeholder="위치 직접 입력" class="field-input q-mt-xs"
+                />
+              </template>
             </div>
             <div class="col-6 form-field">
               <div class="field-label">설명</div>
@@ -1479,24 +1464,39 @@
     </q-dialog>
 
     <!-- Detail view dialog -->
-    <q-dialog v-model="detailDialog">
-      <q-card class="server-form-card" v-if="detailTarget" style="max-height: 90vh; display: flex; flex-direction: column;">
+    <q-drawer v-model="detailDialog" side="right" overlay bordered :width="600" class="asset-detail-drawer">
+      <div v-if="detailTarget" class="column no-wrap" style="height: 100%;">
         <!-- 상단: 호스트명 & IP -->
         <q-card-section class="q-pb-sm row items-center" style="flex-shrink: 0;">
           <div class="col">
             <div class="top-field-row">
               <span class="top-field-label">호스트명:</span>
-              <span class="top-field-value">{{ detailTarget.name }}</span>
+              <q-input v-if="detailEditing" v-model="rowEditValues['__name__']" borderless dense class="top-field-input" />
+              <span v-else class="top-field-value">{{ detailTarget.name }}</span>
             </div>
             <div class="top-field-row q-mt-sm">
               <span class="top-field-label">IP:</span>
-              <span class="top-field-value">{{ detailTarget.ip }}</span>
+              <q-input v-if="detailEditing" v-model="rowEditValues['__ip__']" borderless dense class="top-field-input" />
+              <span v-else class="top-field-value">{{ detailTarget.ip }}</span>
             </div>
           </div>
-          <q-btn flat dense round icon="close" v-close-popup class="q-ml-md self-start" />
+          <q-btn flat dense round icon="close" class="q-ml-md self-start" @click="closeDetail" />
         </q-card-section>
 
-        <div class="col scroll" style="min-height: 0; overflow-y: auto;">
+        <q-tabs
+          v-model="detailTab"
+          dense no-caps align="left"
+          active-color="primary" indicator-color="primary"
+          class="asset-detail-tabs" style="flex-shrink: 0;"
+        >
+          <q-tab name="basic" label="기본정보" />
+          <q-tab name="config" label="구성정보" />
+          <q-tab name="location" label="위치·연결" />
+          <q-tab name="history" label="변경이력" @click="loadDetailHistory" />
+        </q-tabs>
+
+        <q-tab-panels v-model="detailTab" animated class="col scroll" style="min-height: 0; overflow-y: auto;">
+        <q-tab-panel name="basic" class="q-pa-none">
           <!-- 기본 정보 -->
           <q-card-section class="q-py-sm">
             <div class="section-title-row">
@@ -1508,43 +1508,68 @@
             <div class="row q-col-gutter-x-lg q-col-gutter-y-md">
               <div class="col-6 form-field">
                 <div class="field-label">자산명</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['서버명']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['서버명']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['서버명']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">구분</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['구분']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['구분']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['구분']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">상태</div>
+                <q-select v-if="detailEditing" v-model="rowEditValues['상태']" :options="STATUS_OPTIONS" borderless dense clearable class="field-input" />
+                <div v-else class="detail-value">
+                  <q-badge v-if="detailTarget.fields?.['상태']" :color="statusColor(detailTarget.fields['상태'] as string)">
+                    {{ detailTarget.fields['상태'] }}
+                  </q-badge>
+                  <span v-else>-</span>
+                </div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">자산번호</div>
-                <div class="detail-value">{{ displayValue(detailTarget.assetNo ?? detailTarget.fields?.['자산번호']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['자산번호']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.assetNo ?? detailTarget.fields?.['자산번호']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">RackNo.</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['rack_no']) }}</div>
+                <div class="detail-value">
+                  <template v-if="detailTarget.fields?.['rack_no']">{{ displayValue(detailTarget.fields?.['rack_no']) }}</template>
+                  <span v-else class="text-grey-5">랙 배치로 관리 (미배치)</span>
+                </div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">Rack Unit No.</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['rack_unit_no']) }}</div>
+                <div class="detail-value">
+                  <template v-if="detailTarget.fields?.['rack_unit_no']">{{ displayValue(detailTarget.fields?.['rack_unit_no']) }}</template>
+                  <span v-else class="text-grey-5">랙 배치로 관리</span>
+                </div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">자산관리번호</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['자산관리번호']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['자산관리번호']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['자산관리번호']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">SN</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['SN']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['SN']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['SN']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">위치</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['위치']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['위치']" :readonly="isRowEditLocationLocked" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['위치']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">설명</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['설명']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['설명']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['설명']) }}</div>
               </div>
             </div>
           </q-card-section>
+        </q-tab-panel>
 
+        <q-tab-panel name="config" class="q-pa-none">
           <!-- 운영체제 / 기종 -->
           <q-card-section class="q-py-sm">
             <div class="section-title-row">
@@ -1555,7 +1580,8 @@
             <div v-if="['네트워크', '정보보호시스템'].includes(detailTarget.fields?.['자산유형'] as string)" class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
               <div class="col-12 form-field">
                 <div class="field-label">기종</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['운영체제']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
               </div>
             </div>
             <!-- DBMS: DB 종류 + 버전 + EoS -->
@@ -1563,11 +1589,13 @@
               <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
                 <div class="col-4 form-field">
                   <div class="field-label">DB 종류</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                  <q-select v-if="detailEditing" v-model="rowEditValues['운영체제']" :options="Object.keys(DBMS_TREE)" borderless dense clearable class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">버전</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['version']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
@@ -1593,11 +1621,13 @@
               <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
                 <div class="col-4 form-field">
                   <div class="field-label">배포판</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['운영체제']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">버전</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['version']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
@@ -1630,7 +1660,8 @@
               </div>
               <div class="col form-field">
                 <div class="field-label">EoL 종료 일자</div>
-                <div class="detail-value">{{ detailTarget.fields?.[EOL_DATE_KEY] || '-' }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues[EOL_DATE_KEY]" borderless dense placeholder="YYYY-MM" class="field-input" />
+                <div v-else class="detail-value">{{ detailTarget.fields?.[EOL_DATE_KEY] || '-' }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1644,39 +1675,48 @@
             <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
               <div class="col-6 form-field">
                 <div class="field-label">용도(상세)</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['용도']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['용도']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['용도']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">소속부서/사업</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['소속부서']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['소속부서']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['소속부서']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">제품명(모델명)</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['제품명']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['제품명']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['제품명']) }}</div>
               </div>
               <div class="col-12 form-field">
                 <div class="field-label">사양</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['사양']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['사양']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['사양']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">도입사업</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['도입사업']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['도입사업']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['도입사업']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">납품회사</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['납품회사']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['납품회사']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['납품회사']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">담당자</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['담당자']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['담당자']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['담당자']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">도입가격</div>
-                <div class="detail-value">{{ displayPrice(detailTarget.fields?.['도입가격']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['도입가격']" type="number" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayPrice(detailTarget.fields?.['도입가격']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">도입일자(취득일자)</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['도입일자']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['도입일자']" type="date" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['도입일자']) }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1690,53 +1730,63 @@
             <div class="row q-col-gutter-x-md q-mt-xs">
               <div class="col-4 form-field">
                 <div class="field-label">ISMS-P 대상 여부</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.[ISMS_P_KEY]) }}</div>
+                <q-select v-if="detailEditing" v-model="rowEditValues[ISMS_P_KEY]" :options="ismsPOptions" emit-value map-options clearable borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[ISMS_P_KEY]) }}</div>
               </div>
               <div class="col form-field">
                 <div class="field-label">ISMS-P 비고</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['ISMS-P비고']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['ISMS-P비고']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['ISMS-P비고']) }}</div>
               </div>
             </div>
             <template v-if="!detailTarget.fields?.['자산유형'] || detailTarget.fields?.['자산유형'] === '서버'">
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">백신 여부</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.[ANTIVIRUS_KEY]) }}</div>
+                  <q-select v-if="detailEditing" v-model="rowEditValues[ANTIVIRUS_KEY]" :options="antivirusOptions" emit-value map-options clearable borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[ANTIVIRUS_KEY]) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">백신 비고</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['백신비고']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['백신비고']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['백신비고']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">VADA 설치여부</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.[VADA_KEY]) }}</div>
+                  <q-select v-if="detailEditing" v-model="rowEditValues[VADA_KEY]" :options="vadaOptions" emit-value map-options clearable borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[VADA_KEY]) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">VADA 비고</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['VADA비고']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['VADA비고']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['VADA비고']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">폐기 여부</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.[DISPOSAL_KEY]) }}</div>
+                  <q-select v-if="detailEditing" v-model="rowEditValues[DISPOSAL_KEY]" :options="disposalOptions" emit-value map-options clearable borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[DISPOSAL_KEY]) }}</div>
                 </div>
                 <div class="col-4 form-field">
                   <div class="field-label">폐기 일정</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['폐기일정']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['폐기일정']" type="date" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['폐기일정']) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">폐기 관련 비고</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['폐기비고']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['폐기비고']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['폐기비고']) }}</div>
                 </div>
               </div>
             </template>
             <div class="row q-col-gutter-x-md q-mt-sm">
               <div class="col-12 form-field">
                 <div class="field-label">비고</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['비고']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['비고']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['비고']) }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1753,38 +1803,92 @@
             <div class="row q-col-gutter-x-md q-mt-xs">
               <div class="col-6 form-field">
                 <div class="field-label">유지보수 계약구분</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수계약구분']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수계약구분']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수계약구분']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">현 유지보수 종료일자</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수종료일자']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수종료일자']" type="date" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수종료일자']) }}</div>
               </div>
             </div>
             <div class="row q-col-gutter-x-md q-mt-sm">
               <div class="col-6 form-field">
                 <div class="field-label">유지보수 업체</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수업체']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수업체']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수업체']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">유지보수 연락처</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수연락처']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수연락처']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수연락처']) }}</div>
               </div>
             </div>
             <div class="row q-col-gutter-x-md q-mt-sm">
               <div class="col-12 form-field">
                 <div class="field-label">유지보수 특이사항</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수특이사항']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수특이사항']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수특이사항']) }}</div>
               </div>
             </div>
           </q-card-section>
+        </q-tab-panel>
 
-        </div>
+        <q-tab-panel name="location" class="q-pa-md">
+          <div class="row q-col-gutter-x-lg q-col-gutter-y-md">
+            <div class="col-6 form-field">
+              <div class="field-label">위치(서버실)</div>
+              <div class="detail-value">{{ displayValue(detailTarget.fields?.['위치']) || '-' }}</div>
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">랙</div>
+              <div class="detail-value">
+                <template v-if="detailTarget.fields?.['rack_no']">{{ displayValue(detailTarget.fields?.['rack_no']) }}</template>
+                <span v-else class="text-grey-5">미배치</span>
+              </div>
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">U 위치</div>
+              <div class="detail-value">
+                <template v-if="detailTarget.fields?.['rack_unit_no']">U{{ displayValue(detailTarget.fields?.['rack_unit_no']) }}</template>
+                <span v-else>-</span>
+              </div>
+            </div>
+          </div>
+          <q-btn v-if="detailTarget.fields?.['rack_no']" flat dense no-caps color="primary" icon="grid_view"
+            label="랙 배치도에서 보기" class="q-mt-md" @click="goToRack()" />
+        </q-tab-panel>
+
+        <q-tab-panel name="history" class="q-pa-md">
+          <div v-if="loadingDetailHistory" class="text-grey text-center q-pa-md">불러오는 중…</div>
+          <q-timeline v-else-if="detailHistory.length" color="blue-grey-4">
+            <q-timeline-entry
+              v-for="h in detailHistory" :key="h.id"
+              :title="h.action" :subtitle="fmtHistoryDate(h.changedAt)"
+            >
+              <div v-if="h.diff && h.diff.length" class="text-caption">
+                <div v-for="(d, i) in h.diff" :key="i">{{ d.path }}: {{ displayValue(d.before) }} → {{ displayValue(d.after) }}</div>
+              </div>
+            </q-timeline-entry>
+          </q-timeline>
+          <div v-else class="text-grey text-center q-pa-md">변경 이력이 없습니다.</div>
+        </q-tab-panel>
+        </q-tab-panels>
 
         <q-separator style="flex-shrink: 0;" />
         <!-- 하단: 태그(왼쪽) + 버튼(오른쪽) -->
         <div class="row items-center q-px-md q-py-sm" style="flex-shrink: 0;">
           <div class="row q-gutter-xs flex-wrap col">
+            <q-select
+              v-if="detailEditing"
+              v-model="rowEditTags"
+              use-input use-chips multiple hide-dropdown-icon
+              input-debounce="0" new-value-mode="add-unique"
+              borderless dense class="field-input full-width"
+              placeholder="#태그 입력 후 Enter"
+            />
             <q-chip
+              v-else
               v-for="tag in (detailTarget.fields?.[TAGS_KEY] as string[] ?? [])"
               :key="tag"
               square dense
@@ -1794,12 +1898,23 @@
             >#{{ tag }}</q-chip>
           </div>
           <div class="row q-gutter-xs" style="flex-shrink:0">
-            <q-btn flat label="닫기" v-close-popup />
-            <q-btn v-if="!detailTarget?.isDeleted" class="create-btn" icon="edit" label="편집" @click="detailDialog = false; openRowEdit(detailTarget!)" />
+            <template v-if="detailEditing">
+              <q-btn flat label="취소" @click="cancelDetailEdit" />
+              <q-btn class="create-btn" label="저장" :loading="rowEditSaving" @click="doRowEdit" />
+            </template>
+            <template v-else>
+              <q-btn flat label="닫기" @click="detailDialog = false" />
+              <q-btn
+                v-if="!detailTarget?.isDeleted"
+                flat icon="delete" label="삭제" color="negative"
+                @click="confirmDelete(detailTarget)"
+              />
+              <q-btn v-if="!detailTarget?.isDeleted" class="create-btn" icon="edit" label="편집" @click="openDetailEdit" />
+            </template>
           </div>
         </div>
-      </q-card>
-    </q-dialog>
+      </div>
+    </q-drawer>
 
     <!-- 삭제 확인 다이얼로그 -->
     <q-dialog v-model="deleteDialog" persistent>
@@ -2259,16 +2374,18 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    </template>
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
 import draggable from 'vuedraggable'
 import { api } from 'boot/axios'
+import RackManagementPage from 'src/components/rack/RackManagementPage.vue'
 
 import type { ServerAsset, AssetHistory, FieldsMap, FieldValue, EosActionStatus } from 'src/types/assets'
 import { EOS_STATUS_KEY, EOS_DATE_KEY } from 'src/types/assets'
@@ -2281,15 +2398,13 @@ import {
 } from 'src/services/eosDetection'
 
 import { listServers, createServer, patchServer, deleteServer, restoreServer, purgeServer, getServerHistory } from 'src/services/assets'
+import { envCategoryService } from 'src/services/envCategory'
 import { eolStatusColor, eolStatusLabel, getAutoEol } from 'src/services/eolData'
+import {
+  ANTIVIRUS_KEY, DISPOSAL_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
+} from './assetKeys'
+import { CATEGORY_TEMPLATE_COLS, type TemplateCol } from './assetTemplateColumns'
 
-const VADA_KEY = 'vada_installed' as const
-const ANTIVIRUS_KEY = 'antivirus_installed' as const
-const ISMS_P_KEY = 'isms_p_target' as const
-const DISPOSAL_KEY = 'disposal_status' as const
-const TAGS_KEY = 'tags' as const
-const EOL_STATUS_KEY = 'eol_status' as const
-const EOL_DATE_KEY = 'eol_date' as const
 const vadaOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
@@ -2325,10 +2440,20 @@ function formatCell(col: unknown, value: unknown): string {
 import { parseSmartValue } from 'src/utils/parse/smartValue'
 import { formatKst, isDateSoon } from 'src/utils/time/kst'
 import { eosStatusColor, eosStatusLabel, normalizeEosStatus } from 'src/utils/rules/eos'
-import { historyBadgeColor } from 'src/utils/ui/badges'
 
 const $q = useQuasar()
 const route = useRoute()
+const router = useRouter()
+
+// 카테고리 탭 (전체 = category 없음)
+const ASSET_CATEGORY_TABS = ['전체', '서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙']
+function selectCategoryTab(v: string) {
+  const query = { ...route.query }
+  if (v === '전체') delete query.category
+  else query.category = v
+  statusFilter.value = null
+  void router.push({ query })
+}
 
 const category = computed(() => (route.query.category as string) || '')
 const pageTitle = computed(() => category.value ? `${category.value} 자산 관리` : '전체 자산 관리')
@@ -2339,6 +2464,7 @@ const eosSoonDays = 90
 
 // 표준 필드 키 순서 정의 (데이터에 없어도 표시 순서 보장)
 const PREFERRED_FIELD_KEYS = [
+  '상태',
   'rack_no',
   'rack_unit_no',
   '구분',
@@ -2392,6 +2518,7 @@ function fieldLabel(key: string): string {
 }
 
 const FIELD_LABEL_MAP: Record<string, string> = {
+  '상태': '상태',
   rack_no: 'RackNo.',
   rack_unit_no: 'Rack Unit No.',
   '구분': '중분류(구분)',
@@ -2455,7 +2582,34 @@ watch(includeDeleted, () => { void load() })
 
 const filter = ref('')
 const filterCol = ref<string | null>(null)
+const statusFilter = ref<string | null>(null)
 const tableSortKey = ref('ip')
+
+// 상태 요약 (현재 로드된 자산 기준)
+const statusSummary = computed(() => {
+  const c: Record<string, number> = { 운영: 0, 점검: 0, 미사용: 0, 폐기예정: 0 }
+  for (const r of rows.value) {
+    if (!includeDeleted.value && r.isDeleted) continue
+    const s = (r.fields?.['상태'] as string) ?? ''
+    if (s in c) c[s]!++
+  }
+  return c
+})
+const visibleTotal = computed(
+  () => rows.value.filter((r) => includeDeleted.value || !r.isDeleted).length,
+)
+function toggleStatusFilter(s: string) {
+  statusFilter.value = statusFilter.value === s ? null : s
+}
+
+const hasActiveFilters = computed(
+  () => !!(statusFilter.value || filter.value),
+)
+function clearAllFilters() {
+  statusFilter.value = null
+  filter.value = ''
+  filterCol.value = null
+}
 const tableSortDesc = ref(false)
 
 function getSortKey(col: { name: string; [k: string]: unknown }): string {
@@ -2570,7 +2724,7 @@ function colKey(col: unknown): string {
 
 // 컬럼 표시 순서 — '__ip__'/'__name__'은 IP/HostName 고정 컬럼 위치 마커
 const COLUMN_DISPLAY_ORDER = [
-  'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
+  '상태', 'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
   EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항', TAGS_KEY, '비고',
 ] as const
 
@@ -2784,6 +2938,9 @@ const filteredRows = computed(() => {
     // 폐기된 항목 필터 (기본 숨김, "폐기 포함" 토글로만 표시)
     if (!includeDisposed.value && r.fields?.[DISPOSAL_KEY] === 'O') return false
 
+    // 상태 필터 (요약 카운트 클릭)
+    if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
+
     // 카테고리 필터 (서버 사이드에서 이미 필터링됨 — 클라이언트 측은 생략)
 
     // 텍스트 검색
@@ -2886,7 +3043,7 @@ function onAssetTypeConfirm() {
   openCreate()
 }
 
-const CREATE_REQUIRED_KEYS = ['구분', '자산번호', '서버명', 'rack_no', '위치', '설명'] as const
+const CREATE_REQUIRED_KEYS = ['구분', '자산번호', '서버명', '설명'] as const
 const createOsFamily = ref('')
 const createOsMajor = ref('')
 const createDbSeries = ref('')
@@ -2913,9 +3070,30 @@ const createFields = ref<Record<string, string>>({})
 const createTags = ref<string[]>([])
 
 
-const LOCATION_OPTIONS = ['암빅데이터센터', '정보화팀', '정보보호팀', '기타']
-const LOCATION_PRESETS = ['암빅데이터센터', '정보화팀', '정보보호팀']
+// 자산 상태 옵션 (fields['상태'])
+const STATUS_OPTIONS = ['운영', '점검', '미사용', '폐기예정']
+function statusColor(s?: string | null): string {
+  return s === '운영' ? 'positive' : s === '점검' ? 'orange' : s === '폐기예정' ? 'negative' : 'grey'
+}
+
+// 위치 옵션은 Admin > 환경설정(env_categories: asset_location)에서 관리한다. 아래는 폴백.
+const LOCATION_PRESETS = ref<string[]>(['암빅데이터센터', '정보화팀', '정보보호팀'])
+const LOCATION_OPTIONS = computed(() => [...LOCATION_PRESETS.value, '기타'])
 const DBMS_LOCATION_OPTIONS = ['암빅데이터센터', 'Closed DMZ', '기타']
+
+// 랙 장착 카테고리는 위치를 랙 배치에서 미러링하므로 서버 폼에선 읽기전용
+const PLACEABLE_CATS = ['서버', '네트워크', '정보보호시스템']
+const isCreateLocationLocked = computed(() => PLACEABLE_CATS.includes(activeCreateCategory.value))
+const isRowEditLocationLocked = computed(() =>
+  PLACEABLE_CATS.includes((rowEditTarget.value?.fields?.['자산유형'] as string) || category.value || '서버'),
+)
+
+async function loadLocationOptions() {
+  try {
+    const items = await envCategoryService.itemsByKey('asset_location')
+    if (items.length) LOCATION_PRESETS.value = items.map((i) => i.value || i.label)
+  } catch { /* 폴백 유지 */ }
+}
 
 const actingId = ref<string | null>(null)
 const actingType = ref<'create' | 'editBase' | 'editField' | 'delete' | null>(null)
@@ -2925,6 +3103,7 @@ function openCreate() {
   createIpError.value = ''
   createName.value = ''
   createFields.value = (activeCreateCategory.value && activeCreateCategory.value !== '서버') ? { '자산유형': activeCreateCategory.value } : {}
+  createFields.value['상태'] = '운영'  // 기본 상태
   createOsFamily.value = ''
   createDbSeries.value = ''
   createTags.value = []
@@ -3004,12 +3183,7 @@ async function doCreate() {
   }
   for (const k of CREATE_REQUIRED_KEYS) {
     if (!(createFields.value[k] ?? '').toString().trim()) {
-      const label = fieldLabel(k)
-      if (k === '위치' && createLocationSelect.value === '기타') {
-        $q.notify({ type: 'warning', message: '위치(기타)를 직접 입력해주세요.' })
-      } else {
-        $q.notify({ type: 'warning', message: `${label}은(는) 필수입니다.` })
-      }
+      $q.notify({ type: 'warning', message: `${fieldLabel(k)}은(는) 필수입니다.` })
       return
     }
   }
@@ -3155,7 +3329,7 @@ function openEditField(row: ServerAsset, key: string) {
       editFieldLocationSelect.value = ''
     } else if (key === '위치') {
       const locVal = editFieldText.value
-      editFieldLocationSelect.value = LOCATION_PRESETS.includes(locVal) ? locVal : (locVal ? '기타' : '')
+      editFieldLocationSelect.value = LOCATION_PRESETS.value.includes(locVal) ? locVal : (locVal ? '기타' : '')
       editFieldOsFamily.value = ''
       editFieldVersionText.value = ''
     } else {
@@ -3229,6 +3403,7 @@ async function doDelete(row: ServerAsset) {
   try {
     const deleted = await deleteServer(row.id, deleteReason.value.trim() || undefined, (row.fields?.['자산유형'] as string) || category.value || '서버')
     rows.value = rows.value.map((r) => (r.id === row.id ? deleted : r))
+    if (detailTarget.value?.id === row.id) detailTarget.value = deleted
     deleteDialog.value = false
     $q.notify({ type: 'info', message: '삭제됨' })
   } catch (err: unknown) {
@@ -3357,10 +3532,41 @@ async function doBulkPurge(targets: ServerAsset[]) {
 /** Detail view */
 const detailDialog = ref(false)
 const detailTarget = ref<ServerAsset | null>(null)
+const detailTab = ref('basic')
+const detailHistory = ref<AssetHistory[]>([])
+const loadingDetailHistory = ref(false)
+const detailEditing = ref(false)
 
 function openDetailView(row: ServerAsset) {
+  detailEditing.value = false
   detailTarget.value = row
+  detailTab.value = 'basic'
+  detailHistory.value = []
   detailDialog.value = true
+}
+
+async function loadDetailHistory() {
+  const t = detailTarget.value
+  if (!t) return
+  loadingDetailHistory.value = true
+  try {
+    const cat = (t.fields?.['자산유형'] as string) || category.value || '서버'
+    detailHistory.value = await getServerHistory(t.id, cat)
+  } catch {
+    detailHistory.value = []
+  } finally {
+    loadingDetailHistory.value = false
+  }
+}
+
+function fmtHistoryDate(s?: string): string {
+  return s ? new Date(s).toLocaleString('ko-KR') : ''
+}
+
+function goToRack() {
+  detailDialog.value = false
+  const query = { ...route.query, category: '랙' }
+  void router.push({ query })
 }
 
 /** Row edit */
@@ -3404,7 +3610,7 @@ const rowEditFields = computed(() => {
 
 // 편집 다이얼로그 템플릿에서 이미 하드코딩된 필드 키 목록
 const EDIT_DIALOG_COVERED_KEYS = new Set([
-  '자산유형', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
+  '자산유형', '상태', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
   '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고',
   '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자',
   '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항',
@@ -3419,7 +3625,7 @@ const rowEditExtraFields = computed(() => {
   )
 })
 
-function openRowEdit(row: ServerAsset) {
+function prepareRowEdit(row: ServerAsset) {
   rowEditTarget.value = row
   const vals: Record<string, string> = {
     __ip__: row.ip,
@@ -3452,8 +3658,22 @@ function openRowEdit(row: ServerAsset) {
   const autoEos = ['네트워크', '정보보호시스템'].includes(category.value) ? getNetworkEos(vals['운영체제'] ?? '') : null
   rowEditManualEosDate.value = (!autoEos && ['네트워크', '정보보호시스템'].includes(category.value)) ? (vals[EOS_DATE_KEY] ?? '') : ''
   const locVal = vals['위치'] ?? ''
-  rowEditLocationSelect.value = LOCATION_PRESETS.includes(locVal) ? locVal : (locVal ? '기타' : '')
-  rowEditDialog.value = true
+  rowEditLocationSelect.value = LOCATION_PRESETS.value.includes(locVal) ? locVal : (locVal ? '기타' : '')
+}
+
+function openDetailEdit() {
+  if (!detailTarget.value) return
+  prepareRowEdit(detailTarget.value)
+  detailEditing.value = true
+}
+
+function cancelDetailEdit() {
+  detailEditing.value = false
+}
+
+function closeDetail() {
+  detailEditing.value = false
+  detailDialog.value = false
 }
 
 watch(
@@ -3529,39 +3749,19 @@ async function doRowEdit() {
     if (newName) updated.name = newName
 
     rows.value = rows.value.map((r) => (r.id === row.id ? updated : r))
-    rowEditDialog.value = false
+    rowEditTarget.value = updated
+    if (detailEditing.value) {
+      detailTarget.value = updated
+      detailEditing.value = false
+    } else {
+      rowEditDialog.value = false
+    }
     $q.notify({ type: 'positive', message: '저장 완료' })
   } catch (err: unknown) {
     $q.notify({ type: 'negative', message: getErrorMessage(err, '저장 실패') })
   } finally {
     rowEditSaving.value = false
   }
-}
-
-/** History */
-const historyOpen = ref(false)
-const historyTarget = ref<ServerAsset | null>(null)
-const historyLoading = ref(false)
-const historyItems = ref<AssetHistory[]>([])
-
-async function loadHistory(assetId: string) {
-  historyLoading.value = true
-  try {
-    const rowCat = historyTarget.value ? ((historyTarget.value.fields?.['자산유형'] as string) || category.value || '서버') : undefined
-    historyItems.value = await getServerHistory(assetId, rowCat)
-  } catch (err: unknown) {
-    historyItems.value = []
-    $q.notify({ type: 'negative', message: getErrorMessage(err, '이력 조회 실패') })
-  } finally {
-    historyLoading.value = false
-  }
-}
-
-function openHistory(row: ServerAsset) {
-  historyTarget.value = row
-  historyItems.value = []
-  historyOpen.value = true
-  void loadHistory(row.id)
 }
 
 /** Export */
@@ -3626,217 +3826,7 @@ async function doExport() {
   }
 }
 
-/** Template Download */
-type TemplateCol = { key: string; label: string; sample?: string }
-
-const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
-  '서버': [
-    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'SRV-0001' },
-    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
-    { key: 'name',          label: 'HostName',                                                        sample: 'web-server-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: '물리' },
-    { key: '자산번호',      label: '자산번호',                                                        sample: 'SV-001' },
-    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
-    { key: 'SN',            label: 'SN',                                                              sample: '' },
-    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: '웹서버' },
-    { key: '설명',          label: '설명',                                                            sample: '메인 웹서버' },
-    { key: '운영체제',      label: '운영체제 / 배포판',                                               sample: 'Rocky Linux' },
-    { key: 'version',       label: '버전',                                                            sample: '8.10' },
-    { key: '제조사',        label: '제조사',                                                          sample: '' },
-    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
-    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
-    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
-    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
-    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
-    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
-    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
-    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
-    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
-    { key: VADA_KEY,        label: 'VADA설치여부',                                                    sample: 'O' },
-    { key: 'VADA비고',      label: 'VADA비고',                                                        sample: '' },
-    { key: ANTIVIRUS_KEY,   label: '백신여부',                                                        sample: 'O' },
-    { key: '백신비고',       label: '백신비고',                                                        sample: '' },
-    { key: DISPOSAL_KEY,    label: '폐기여부',                                                        sample: 'O' },
-    { key: '폐기일정',      label: '폐기일정',                                                        sample: '' },
-    { key: '폐기비고',      label: '폐기 관련 비고',                                                  sample: '' },
-    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
-    { key: '사양',          label: '사양',                                                            sample: '' },
-    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
-    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
-    { key: '담당자',        label: '담당자',                                                          sample: '' },
-    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
-    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
-    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
-    { key: '변경일',        label: '변경일',                                                          sample: '' },
-    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
-    { key: '유지보수계약구분', label: '유지보수 계약구분',                                             sample: '' },
-    { key: '유지보수종료일자', label: '현 유지보수 종료일자',                                          sample: '' },
-    { key: '유지보수업체',  label: '유지보수 업체',                                                   sample: '' },
-    { key: '유지보수연락처', label: '유지보수 연락처',                                                sample: '' },
-    { key: '유지보수특이사항', label: '유지보수 특이사항',                                             sample: '' },
-    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
-    { key: '비고',          label: '비고',                                                            sample: '' },
-  ],
-  '네트워크': [
-    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'NW-0001' },
-    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
-    { key: 'name',          label: 'HostName',                                                        sample: 'sw-core-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: 'Switch' },
-    { key: '자산번호',      label: '자산번호',                                                        sample: 'NW-001' },
-    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
-    { key: 'SN',            label: 'SN',                                                              sample: '' },
-    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: '코어스위치' },
-    { key: '설명',          label: '설명',                                                            sample: '' },
-    { key: '운영체제',      label: '운영체제 / 기종',                                                 sample: 'Cisco Nexus C93180YC-EX' },
-    { key: '제조사',        label: '제조사',                                                          sample: '' },
-    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
-    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
-    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
-    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
-    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
-    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
-    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
-    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
-    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
-    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
-    { key: '사양',          label: '사양',                                                            sample: '' },
-    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
-    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
-    { key: '담당자',        label: '담당자',                                                          sample: '' },
-    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
-    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
-    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
-    { key: '변경일',        label: '변경일',                                                          sample: '' },
-    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
-    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
-    { key: '비고',          label: '비고',                                                            sample: '' },
-  ],
-  'DBMS': [
-    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'DB-0001' },
-    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
-    { key: 'name',          label: 'HostName',                                                        sample: 'db-server-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: 'DB' },
-    { key: '자산번호',      label: '자산번호',                                                        sample: 'DB-001' },
-    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
-    { key: 'SN',            label: 'SN',                                                              sample: '' },
-    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: 'DB서버' },
-    { key: '설명',          label: '설명',                                                            sample: '' },
-    { key: '운영체제',      label: '운영체제 / DB종류',                                               sample: 'MariaDB' },
-    { key: 'version',       label: '버전',                                                            sample: '10.6.18' },
-    { key: '제조사',        label: '제조사',                                                          sample: '' },
-    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
-    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
-    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
-    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
-    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
-    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
-    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
-    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
-    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
-    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
-    { key: '사양',          label: '사양',                                                            sample: '' },
-    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
-    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
-    { key: '담당자',        label: '담당자',                                                          sample: '' },
-    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
-    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
-    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
-    { key: '변경일',        label: '변경일',                                                          sample: '' },
-    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
-    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
-    { key: '비고',          label: '비고',                                                            sample: '' },
-  ],
-  '정보보호시스템': [
-    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'SEC-0001' },
-    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
-    { key: 'name',          label: 'HostName',                                                        sample: 'sec-device-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: 'F/W' },
-    { key: '자산번호',      label: '자산번호',                                                        sample: 'SEC-001' },
-    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
-    { key: 'SN',            label: 'SN',                                                              sample: '' },
-    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: '방화벽' },
-    { key: '설명',          label: '설명',                                                            sample: '' },
-    { key: '운영체제',      label: '운영체제 / 기종',                                                 sample: 'Secure Gate' },
-    { key: '수량',          label: '수량',                                                            sample: '1' },
-    { key: '제조사',        label: '제조사',                                                          sample: '한싹' },
-    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
-    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
-    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
-    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
-    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
-    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
-    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
-    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
-    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
-    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
-    { key: '사양',          label: '사양',                                                            sample: '' },
-    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
-    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
-    { key: '담당자',        label: '담당자',                                                          sample: '' },
-    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
-    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
-    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
-    { key: '변경일',        label: '변경일',                                                          sample: '' },
-    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
-    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
-    { key: '비고',          label: '비고',                                                            sample: '' },
-  ],
-  'VMware': [
-    { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'VM-0001' },
-    { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
-    { key: 'name',          label: 'HostName',                                                        sample: 'vm-host-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: 'ESXi' },
-    { key: '자산번호',      label: '자산번호',                                                        sample: 'VM-001' },
-    { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
-    { key: 'SN',            label: 'SN',                                                              sample: '' },
-    { key: '서버명',        label: '서버명 / 자산명',                                                 sample: 'VM호스트' },
-    { key: '설명',          label: '설명',                                                            sample: '' },
-    { key: '운영체제',      label: '운영체제 / 버전',                                                 sample: 'ESXi 8.0' },
-    { key: 'version',       label: 'Version',                                                         sample: '8.0' },
-    { key: '제조사',        label: '제조사',                                                          sample: '' },
-    { key: '용도',          label: '용도(상세)',                                                      sample: '' },
-    { key: '소속부서',      label: '소속부서/사업',                                                   sample: '' },
-    { key: '위치',          label: '위치',                                                            sample: '암빅데이터센터' },
-    { key: EOS_STATUS_KEY,  label: 'EoS여부',                                                         sample: '' },
-    { key: EOS_DATE_KEY,    label: 'EoS종료일자',                                                     sample: '' },
-    { key: EOL_STATUS_KEY,  label: 'EoL여부',                                                         sample: '' },
-    { key: EOL_DATE_KEY,    label: 'EoL종료일자',                                                     sample: '' },
-    { key: ISMS_P_KEY,      label: 'ISMS-P대상여부',                                                  sample: 'O' },
-    { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
-    { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
-    { key: '사양',          label: '사양',                                                            sample: '' },
-    { key: '도입사업',      label: '도입사업',                                                        sample: '' },
-    { key: '납품회사',      label: '납품회사',                                                        sample: '' },
-    { key: '담당자',        label: '담당자',                                                          sample: '' },
-    { key: '도입가격',      label: '도입가격',                                                        sample: '' },
-    { key: '도입일자',      label: '도입일자(취득일자)',                                              sample: '' },
-    { key: '수령일',        label: '수령일',                                                          sample: '2024-01-01' },
-    { key: '변경일',        label: '변경일',                                                          sample: '' },
-    { key: '변경사항',      label: '변경사항',                                                        sample: '' },
-    { key: '유지보수계약구분', label: '유지보수 계약구분',                                             sample: '' },
-    { key: '유지보수종료일자', label: '현 유지보수 종료일자',                                          sample: '' },
-    { key: '유지보수업체',  label: '유지보수 업체',                                                   sample: '' },
-    { key: '유지보수연락처', label: '유지보수 연락처',                                                sample: '' },
-    { key: '유지보수특이사항', label: '유지보수 특이사항',                                             sample: '' },
-    { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
-    { key: '비고',          label: '비고',                                                            sample: '' },
-  ],
-}
+/** Template Download — CATEGORY_TEMPLATE_COLS 는 ./assetTemplateColumns 로 분리 */
 
 // 전체 탭용 — 모든 컬럼
 const DEFAULT_TEMPLATE_COLS: TemplateCol[] = [
@@ -4335,6 +4325,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
           const fields2Empty: Record<string, string> = {}
           colKeys.forEach((k, i) => {
             if (k === 'ip' || k === 'name' || k === 'asset_id' || k === '__asset_id__') return
+            if (k === 'rack_no' || k === 'rack_unit_no') return  // 랙 위치는 rack_placements 가 원본
             const v = cellStr(row[i], k).trim()
             if (v) fields2Empty[k] = v
           })
@@ -4375,6 +4366,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
         const fields2: Record<string, string> = {}
         colKeys.forEach((k, i) => {
           if (k === 'ip' || k === 'name' || k === 'asset_id' || k === '__asset_id__') return
+          if (k === 'rack_no' || k === 'rack_unit_no') return  // 랙 위치는 rack_placements 가 원본
           let v = cellStr(row[i], k).trim()
           if (k === EOS_DATE_KEY && /^\d{4}-\d{2}-\d{2}/.test(v)) v = v.slice(0, 7)
           if (k === '운영체제') v = normalizeOsName(v)
@@ -4454,6 +4446,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       const fields: Record<string, string> = {}
       colKeys.forEach((k, i) => {
         if (k === 'ip' || k === 'name' || k === 'asset_id' || k === '__asset_id__') return
+        if (k === 'rack_no' || k === 'rack_unit_no') return  // 랙 위치는 rack_placements 가 원본
         let v = cellStr(row[i], k).trim()
         // EoS 종료 일자는 YYYY-MM 형식으로 정규화
         if (k === EOS_DATE_KEY && /^\d{4}-\d{2}-\d{2}/.test(v)) v = v.slice(0, 7)
@@ -4580,11 +4573,34 @@ async function _runImport(buf: ArrayBuffer, password: string) {
 
 onMounted(() => {
   void fetchEosMap()  // endoflife.date 에서 EoS 맵 로드 (백그라운드)
+  void loadLocationOptions()  // 위치 옵션(환경설정) 로드
   void load()
 })
 </script>
 
 <style scoped>
+.asset-cat-tabs {
+  border-bottom: 1px solid #e0e0e0;
+}
+.asset-toolbar {
+  min-height: 40px;
+}
+.asset-summary {
+  min-height: 32px;
+}
+.asset-summary :deep(.q-chip) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.asset-filter-bar {
+  min-height: 64px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.asset-filter-bar :deep(.q-field__control) {
+  min-height: 40px;
+  height: 40px;
+}
 .conflict-diff-table {
   border-collapse: collapse;
   font-size: 12px;
@@ -4622,6 +4638,17 @@ onMounted(() => {
   top: 0;
   z-index: 2;
   background: white;
+  height: 44px;
+  padding: 0 12px;
+  vertical-align: middle;
+}
+.sticky-header-table tbody td {
+  height: 44px;
+  padding: 6px 12px;
+  vertical-align: middle;
+}
+.sticky-header-table :deep(.q-table__bottom) {
+  min-height: 48px;
 }
 
 .sticky-actions-col {
@@ -4737,24 +4764,28 @@ tbody .sticky-actions-col {
 .form-field {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .field-label {
   font-size: 11px;
   color: #999;
-  margin-bottom: 2px;
-  line-height: 1.2;
+  margin-bottom: 4px;
+  min-height: 14px;
+  line-height: 14px;
 }
 .field-input {
   border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  min-height: 32px;
 }
 .field-input :deep(.q-field__control) {
   padding: 0 2px;
-  min-height: 30px;
+  min-height: 32px;
 }
 .field-input :deep(.q-field__native) {
   font-size: 14px;
   color: #333;
   padding: 2px 0;
+  min-height: 32px;
 }
 .field-disabled {
   color: #bbb;
@@ -4798,16 +4829,26 @@ tbody .sticky-actions-col {
   color: #333;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   flex: 1;
-  padding: 2px 0;
+  padding: 4px 0;
+  min-height: 32px;
+  line-height: 24px;
 }
 .detail-value {
   font-size: 14px;
   color: #333;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 4px 2px;
-  min-height: 28px;
+  padding: 5px 2px;
+  min-height: 32px;
+  line-height: 21px;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+.asset-detail-drawer .form-field {
+  justify-content: flex-end;
+}
+.asset-detail-drawer .q-tab-panel > .q-card__section {
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 /* 생성/저장 버튼 */

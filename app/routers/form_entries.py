@@ -84,14 +84,22 @@ def _extract_pdf_images(content: bytes) -> list[str]:
     return images
 
 
-def _extract_hwp_images(content: bytes) -> list[str]:
-    """HWP BinData에서 이미지를 추출해 base64 data URL 리스트로 반환."""
+def _extract_hwp_images(content: bytes) -> tuple[list[str], dict[str, str]]:
+    """HWP BinData에서 이미지를 추출.
+
+    반환: (파일명 정렬 순서 리스트, {bindata_id(10진수 문자열): data URL} 맵).
+    맵의 bindata_id는 ===IMG:{bindata-id}=== 마커(_parse_hwp_xml/collect_cell_text에서
+    삽입)와 매칭하기 위한 것 — BinData 파일명(BIN0003.jpg 등)의 16진수 4자리를
+    10진수로 역산한 값이 XML의 PictureInfo bindata-id 속성과 동일하다.
+    """
     SUPPORTED_EXT = {'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tif', 'tiff'}
+    BIN_NAME_RE = re.compile(r'^BIN([0-9A-Fa-f]{4})$')
     with tempfile.NamedTemporaryFile(suffix=".hwp", delete=False) as f:
         f.write(content)
         tmppath = f.name
     outdir = tempfile.mkdtemp()
     images: list[str] = []
+    id_map: dict[str, str] = {}
     try:
         result = subprocess.run(
             ["hwp5proc", "unpack", tmppath, outdir],
@@ -99,11 +107,11 @@ def _extract_hwp_images(content: bytes) -> list[str]:
         )
         if result.returncode != 0:
             logger.warning("hwp5proc unpack failed: %s", result.stderr.decode(errors="replace")[:200])
-            return images
+            return images, id_map
         bindata_dir = os.path.join(outdir, "BinData")
         if not os.path.isdir(bindata_dir):
             logger.info("HWP: BinData directory not found")
-            return images
+            return images, id_map
         for imgpath in sorted(glob_module.glob(os.path.join(bindata_dir, "*"))):
             ext = os.path.splitext(imgpath)[1].lower().lstrip('.')
             if ext not in SUPPORTED_EXT:
@@ -114,8 +122,15 @@ def _extract_hwp_images(content: bytes) -> list[str]:
                 continue
             mime = 'jpeg' if ext in ('jpg', 'jpeg') else ext
             b64 = base64.b64encode(img_bytes).decode()
-            images.append(f"data:image/{mime};base64,{b64}")
-        logger.info("HWP extracted %d image(s)", len(images))
+            data_url = f"data:image/{mime};base64,{b64}"
+            images.append(data_url)
+
+            stem = os.path.splitext(os.path.basename(imgpath))[0]
+            m = BIN_NAME_RE.match(stem)
+            if m:
+                bindata_id = str(int(m.group(1), 16))
+                id_map[bindata_id] = data_url
+        logger.info("HWP extracted %d image(s), %d matched to bindata-id", len(images), len(id_map))
     except Exception as e:
         logger.warning("HWP image extraction failed: %s", e)
     finally:
@@ -124,7 +139,7 @@ def _extract_hwp_images(content: bytes) -> list[str]:
         except Exception:
             pass
         shutil.rmtree(outdir, ignore_errors=True)
-    return images
+    return images, id_map
 
 
 def _parse_hwp_xml(xml_content: str) -> str:
@@ -156,15 +171,22 @@ def _parse_hwp_xml(xml_content: str) -> str:
         return t.split('}', 1)[1] if '}' in t else t
 
     def collect_cell_text(elem) -> str:
-        """셀 내 텍스트 추출. Paragraph 단위로 줄바꿈 보존."""
+        """셀 내 텍스트 추출. Paragraph 단위로 줄바꿈 보존.
+        셀 안에 그림(ShapePicture)이 있으면 등장 위치에 ===IMG:{bindata-id}=== 마커를
+        인라인 삽입 — 이미지가 어느 셀(= 어느 행/필드)에 속했는지 나중에 정확히 매칭하기 위함."""
         lines = []
         for child in elem:
             if local_tag(child) == 'Paragraph':
-                para_text = ' '.join(
-                    e.text.strip()
-                    for e in child.iter()
-                    if local_tag(e) == 'Text' and e.text and e.text.strip()
-                )
+                tokens = []
+                for e in child.iter():
+                    lt = local_tag(e)
+                    if lt == 'Text' and e.text and e.text.strip():
+                        tokens.append(e.text.strip())
+                    elif lt == 'PictureInfo':
+                        bindata_id = e.get('bindata-id')
+                        if bindata_id:
+                            tokens.append(f'===IMG:{bindata_id}===')
+                para_text = ' '.join(tokens)
                 if para_text:
                     lines.append(para_text)
         return '\n'.join(lines)
@@ -927,6 +949,107 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
     return result, all_skipped
 
 
+_IMG_MARKER_RE = re.compile(r'===IMG:(\d+)===')
+_STRUCTURAL_MARKER_RE = re.compile(r'===(?:ROW_END|TABLE_END|EMPTY|NEWLINE)===')
+
+
+def _extract_hwp_image_groups(text: str) -> list[list[str]]:
+    """추출된 텍스트에서 연속으로 등장하는 ===IMG:N=== 마커들을 그룹으로 묶는다.
+
+    HWP 작업계획서/결과서류는 사진 여러 장을 나란히 배치하려고 표 셀 안에 중첩 표를
+    또 넣는 경우가 흔한데, 이 중첩 표는 outer table의 행/열 구조와 연결되지 않은 채
+    별도 구간으로 추출된다. 그래서 "어느 셀에 속했는지"는 알 수 없지만, 두 이미지
+    마커 사이에 (구조 마커 제외) 실제 텍스트가 전혀 없다면 같은 사진 묶음(같은 행에
+    나란히 배치하려던 것)일 가능성이 높다는 점을 이용해 묶는다.
+    """
+    matches = list(_IMG_MARKER_RE.finditer(text))
+    if not matches:
+        return []
+    groups: list[list[str]] = []
+    current: list[str] = [matches[0].group(1)]
+    for prev, cur in zip(matches, matches[1:]):
+        between = _STRUCTURAL_MARKER_RE.sub('', text[prev.end():cur.start()]).strip()
+        if between:
+            groups.append(current)
+            current = []
+        current.append(cur.group(1))
+    groups.append(current)
+    return groups
+
+
+def _extract_hwp_image_group_captions(text: str, id_groups: list[list[str]]) -> list[str]:
+    """각 이미지 그룹의 캡션 후보 텍스트를 구조 마커를 제거해 반환.
+
+    "사진 첨부" 부록처럼 이미지가 본문 표와 분리된 별도 영역에 있을 때, 실제
+    문서에서 확인한 전형적 구조는:
+        (이미지 행) ===ROW_END=== (캡션 행) ===EMPTY=== ===ROW_END/TABLE_END===
+    즉 캡션은 이미지 그룹 자신의 행이 끝나는 ROW_END 바로 다음 행에 온다 —
+    그래서 "그룹 자신의 ROW_END"를 하나 건너뛴 다음, 그 다음 경계(EMPTY/ROW_END/
+    TABLE_END)까지를 캡션으로 취한다. 뒤에 아무 것도 못 찾으면 대칭적으로 앞쪽도
+    같은 방식으로 시도한다(문서에 따라 캡션이 이미지보다 먼저 나올 수도 있으므로).
+    """
+    start_pos: dict[str, int] = {}
+    end_pos: dict[str, int] = {}
+    for m in _IMG_MARKER_RE.finditer(text):
+        start_pos.setdefault(m.group(1), m.start())
+        end_pos.setdefault(m.group(1), m.end())
+
+    boundary_re = re.compile(r'===(?:ROW_END|TABLE_END|EMPTY)===')
+    leading_junk_re = re.compile(r'^(?:\s*===(?:ROW_END|TABLE_END|EMPTY)===\s*)+')
+    trailing_junk_re = re.compile(r'(?:\s*===(?:ROW_END|TABLE_END|EMPTY)===\s*)+$')
+
+    def take_after(window: str) -> str:
+        """window 맨 앞에 연속된 경계 마커(그룹 자신의 행 끝 + 옆 빈 셀 등)를 전부
+        건너뛰고, 실제 내용이 시작되는 지점부터 다음 경계까지를 반환."""
+        rest = leading_junk_re.sub('', window)
+        nm = boundary_re.search(rest)
+        return rest[:nm.start()] if nm else rest
+
+    def take_before(window: str) -> str:
+        """window 맨 뒤에 연속된 경계 마커(그룹 자신의 행 시작 + 옆 빈 셀 등)를 전부
+        건너뛰고, 그 앞의 마지막 경계 이후(=실제 내용이 끝나는 지점)까지를 반환."""
+        rest = trailing_junk_re.sub('', window)
+        last = None
+        for last in boundary_re.finditer(rest):
+            pass
+        return rest[last.end():] if last else rest
+
+    captions = []
+    for g in id_groups:
+        sp, ep = start_pos.get(g[0]), end_pos.get(g[-1])
+        if sp is None or ep is None:
+            captions.append('')
+            continue
+        chosen = take_after(text[ep:ep + 500])
+        if not chosen.strip():
+            chosen = take_before(text[max(0, sp - 500):sp])
+        cleaned = _STRUCTURAL_MARKER_RE.sub(' ', chosen).replace('\n', ' ')
+        captions.append(re.sub(r'\s+', ' ', cleaned).strip())
+    return captions
+
+
+def _strip_image_markers(extracted: dict) -> dict:
+    """자동 배치를 포기하고 수동 배치만 지원하기로 함에 따라, ===IMG:N=== 마커는
+    어느 필드에도 채워 넣지 않고 텍스트에서 제거만 한다 (사용자에게 마커 원문이
+    노출되지 않도록). 실제 이미지는 image_groups로 캡션과 함께 반환해 수동 배치
+    패널에서 사용자가 직접 배치하게 한다."""
+    def clean(val: Any) -> Any:
+        if isinstance(val, str) and '===IMG:' in val:
+            return re.sub(r'\s*===IMG:\d+===\s*', ' ', val).strip()
+        return val
+
+    for key, val in list(extracted.items()):
+        if isinstance(val, list):
+            for row in val:
+                if isinstance(row, dict):
+                    for k in list(row.keys()):
+                        row[k] = clean(row[k])
+        elif isinstance(val, dict):
+            for k in list(val.keys()):
+                val[k] = clean(val[k])
+    return extracted
+
+
 @router.post("/import")
 async def import_entry_from_file(
     file: UploadFile = File(...),
@@ -950,12 +1073,13 @@ async def import_entry_from_file(
     filename = (file.filename or "").lower()
 
     images: list[str] = []
+    hwp_bindata_map: dict[str, str] = {}
     if filename.endswith(".pdf"):
         text = _extract_pdf_text(content)
         images = _extract_pdf_images(content)
     elif filename.endswith(".hwp"):
         text = await _extract_hwp_text(content)
-        images = _extract_hwp_images(content)
+        images, hwp_bindata_map = _extract_hwp_images(content)
     else:
         raise HTTPException(status_code=415, detail="지원하지 않는 파일 형식입니다. PDF 또는 HWP 파일을 업로드하세요.")
 
@@ -963,7 +1087,23 @@ async def import_entry_from_file(
         raise HTTPException(status_code=422, detail="파일에서 텍스트를 추출할 수 없습니다.")
 
     extracted, skipped = _extract_form_data(text, tmpl.get("sections", []))
-    return {"data": extracted, "skipped": skipped, "images": images}
+
+    # 이미지를 어느 필드/행에 자동 배치할지는 신뢰할 수 있는 방법이 없어(문서마다
+    # 사진-본문 연관 관습이 달라 순서/캡션 매칭 모두 실제 문서에서 어긋남을 확인)
+    # 자동 배치를 하지 않는다. 대신 캡션과 함께 묶어서 반환해 사용자가 수동 배치
+    # 패널에서 직접 드래그해 넣도록 한다.
+    image_groups: list[dict[str, Any]] = []
+    if hwp_bindata_map:
+        extracted = _strip_image_markers(extracted)
+        id_groups = _extract_hwp_image_groups(text)
+        captions = _extract_hwp_image_group_captions(text, id_groups)
+        for g, cap in zip(id_groups, captions):
+            imgs = [hwp_bindata_map[i] for i in g if i in hwp_bindata_map]
+            if imgs:
+                image_groups.append({"caption": cap, "images": imgs})
+        images = [img for grp in image_groups for img in grp["images"]]
+
+    return {"data": extracted, "skipped": skipped, "images": images, "image_groups": image_groups}
 
 
 async def _email_to_name_map() -> dict[str, str]:

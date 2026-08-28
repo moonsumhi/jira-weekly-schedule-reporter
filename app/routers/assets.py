@@ -26,7 +26,7 @@ from app.services.assets_service import AssetsService, list_all_assets
 from app.services.eos_service import EosService
 from app.utils.mongo import oid
 
-VALID_CATEGORIES = {"서버", "네트워크", "정보보호시스템", "DBMS", "VMware"}
+VALID_CATEGORIES = {"서버", "네트워크", "정보보호시스템", "DBMS", "VMware", "랙"}
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +109,19 @@ async def list_servers(
     else:
         items = await list_all_assets(include_deleted=include_deleted)
     return [ServerAssetOut(**x) for x in items]
+
+
+@router.get("/{server_id}", response_model=ServerAssetOut)
+async def get_server(
+    server_id: str,
+    category: Optional[str] = Query(None),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    try:
+        out = await _svc(category).get(_id=oid(server_id))
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return ServerAssetOut(**out)
 
 
 @router.post("", response_model=ServerAssetOut, status_code=status.HTTP_201_CREATED)

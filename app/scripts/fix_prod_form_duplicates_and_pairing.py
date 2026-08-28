@@ -33,7 +33,6 @@ except Exception as exc:
 
 
 DEV_CONTENT_FIELDS = [
-    {"label": "No.", "type": "text", "required": False},
     {"label": "제목", "type": "text", "required": False},
     {"label": "리스크", "type": "select", "required": False, "options": ["상", "중", "하"]},
     {"label": "세부 작업 내용", "type": "textarea", "required": False, "paired_image": "개발이미지"},

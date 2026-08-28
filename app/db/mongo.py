@@ -19,8 +19,15 @@ class MongoClientManager:
     ASSETS_DBMS_HISTORY = "assets_dbms_history"
     ASSETS_VMWARE = "assets_vmware"
     ASSETS_VMWARE_HISTORY = "assets_vmware_history"
+    ASSETS_RACKS = "assets_racks"
+    ASSETS_RACKS_HISTORY = "assets_racks_history"
     WATCH_ASSIGNMENTS = "watch_assignments"
     WATCH_HISTORY = "watch_history"
+
+    # 랙 물리 배치(어느 자산이 어느 랙의 몇 U에 있는지)의 단일 원본과 이력.
+    # 자산 문서에 rack_id/U를 중복 저장하지 않고 여기서만 관리한다.
+    RACK_PLACEMENTS = "rack_placements"
+    RACK_PLACEMENTS_HISTORY = "rack_placements_history"
 
     # 카테고리 → (자산 컬렉션, 이력 컬렉션) 매핑
     CATEGORY_COLLECTIONS: dict = {
@@ -29,6 +36,20 @@ class MongoClientManager:
         "정보보호시스템": (ASSETS_SECURITY, ASSETS_SECURITY_HISTORY),
         "DBMS":        (ASSETS_DBMS,     ASSETS_DBMS_HISTORY),
         "VMware":      (ASSETS_VMWARE,   ASSETS_VMWARE_HISTORY),
+        "랙":          (ASSETS_RACKS,    ASSETS_RACKS_HISTORY),
+    }
+
+    # 카테고리별 랙 배치 성격. placement_mode:
+    #   RACK_U   — 물리적으로 랙 U를 직접 점유(서버·네트워크·정보보호시스템)
+    #   ROOM     — 서버실 단위 배치(랙 자신)
+    #   VIA_HOST — 논리 자산이라 호스트 물리서버 위치를 따름(DBMS·VMware)
+    ASSET_CATEGORY_CONFIG: dict = {
+        "서버":         {"placement_mode": "RACK_U",   "default_u_height": 2},
+        "네트워크":     {"placement_mode": "RACK_U",   "default_u_height": 1},
+        "정보보호시스템": {"placement_mode": "RACK_U",   "default_u_height": 1},
+        "DBMS":        {"placement_mode": "VIA_HOST"},
+        "VMware":      {"placement_mode": "VIA_HOST"},
+        "랙":          {"placement_mode": "ROOM"},
     }
     PILOT_POLL_STATE = "pilot_poll_state"
     DELAYED_DIGEST_STATE = "delayed_digest_state"
@@ -133,6 +154,14 @@ class MongoClientManager:
     def get_asset_history_collection(cls, category: str):
         _, hist_name = cls.CATEGORY_COLLECTIONS.get(category, (cls.ASSETS_SERVERS, cls.ASSETS_SERVER_HISTORY))
         return cls.get_db()[hist_name]
+
+    @classmethod
+    def get_rack_placements_collection(cls):
+        return cls.get_db()[cls.RACK_PLACEMENTS]
+
+    @classmethod
+    def get_rack_placements_history_collection(cls):
+        return cls.get_db()[cls.RACK_PLACEMENTS_HISTORY]
 
     @classmethod
     def get_watch_assignments_collection(cls):
