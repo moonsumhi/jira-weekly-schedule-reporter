@@ -137,6 +137,9 @@
                 <div class="rk-detail-name">{{ selectedAsset.name }}</div>
                 <div class="rk-detail-cat">{{ selectedAsset.assetCategory }}</div>
               </div>
+              <q-btn flat round dense size="sm" icon="info" :loading="loadingAssetInfo" @click="openAssetInfo">
+                <q-tooltip>자산 상세 정보</q-tooltip>
+              </q-btn>
               <q-btn flat round dense size="sm" icon="close" @click="selectedAsset = null; highlightAssetId = null" />
             </div>
             <q-separator />
@@ -227,6 +230,34 @@
         : null"
       @saved="onSaved"
     />
+
+    <!-- 자산 상세 정보 -->
+    <q-dialog v-model="assetInfoDialog">
+      <q-card style="width: 520px; max-width: 95vw">
+        <q-card-section class="row items-center q-pb-sm" :style="{ borderTop: `3px solid ${catColor(assetInfo?.fields?.['자산유형'] as string || selectedAsset?.assetCategory || '')}` }">
+          <q-avatar size="34px" square rounded :style="{ background: catColor(selectedAsset?.assetCategory || '') }" text-color="white">
+            <q-icon :name="catIcon(selectedAsset?.assetCategory || '')" size="18px" />
+          </q-avatar>
+          <div class="col q-ml-sm ellipsis">
+            <div class="text-h6 ellipsis">{{ assetInfo?.name }}</div>
+            <div class="text-caption text-grey-6">{{ selectedAsset?.assetCategory }}</div>
+          </div>
+          <q-btn flat round dense icon="close" v-close-popup />
+        </q-card-section>
+        <q-separator />
+        <q-card-section style="max-height: 60vh; overflow-y: auto">
+          <div class="rk-info-grid">
+            <template v-if="assetInfo">
+              <div class="rk-info-row"><span>자산번호</span><b>{{ assetInfo.assetNo || '—' }}</b></div>
+              <div class="rk-info-row"><span>Asset ID</span><b>{{ assetInfo.assetId || '—' }}</b></div>
+              <div class="rk-info-row"><span>IP</span><b>{{ assetInfo.ip || '—' }}</b></div>
+              <div v-for="e in assetInfoEntries" :key="e.label" class="rk-info-row"><span>{{ e.label }}</span><b>{{ e.value }}</b></div>
+            </template>
+          </div>
+        </q-card-section>
+        <q-card-actions align="right"><q-btn flat label="닫기" v-close-popup /></q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- 랙 추가 -->
     <q-dialog v-model="rackDialog">
@@ -340,7 +371,8 @@ import {
   getRackHistory, getRackLayout, integrityCheck, listRacks, listUnplacedAssets,
   migrateRackFromFields, movePlacement, removePlacement, searchRackAssets,
 } from 'src/services/racks'
-import { createServer, deleteServer } from 'src/services/assets'
+import { createServer, deleteServer, getServer } from 'src/services/assets'
+import type { ServerAsset } from 'src/types/assets'
 import type {
   AssetSearchResult, IntegrityReport, MountSide, PlacementHistory, PlacementHistoryPos,
   RackLayout, RackPlacementAsset, RackSummary, UnplacedAsset,
@@ -381,6 +413,10 @@ const rackForm = reactive({
   maxLoadKg: null as number | null, maxPowerW: null as number | null,
 })
 
+const assetInfoDialog = ref(false)
+const assetInfo = ref<ServerAsset | null>(null)
+const loadingAssetInfo = ref(false)
+
 const historyDialog = ref(false)
 const history = ref<PlacementHistory[]>([])
 const integrityDialog = ref(false)
@@ -401,6 +437,32 @@ function catIcon(c: string): string { return CAT_ICON[c] || 'memory' }
 function usageColor(r: number): string { return r >= 90 ? 'negative' : r >= 70 ? 'orange' : 'primary' }
 function statusColor(s?: string | null): string { return s === '폐기' ? 'negative' : s === '점검' ? 'orange' : 'positive' }
 function mountLabel(s: MountSide): string { return s === 'FULL' ? '전체(전·후면)' : s === 'FRONT' ? '전면' : '후면' }
+
+const FIELD_LABELS: Record<string, string> = {
+  rack_no: 'RackNo.', rack_unit_no: 'Rack Unit No.', asset_id: 'Asset ID',
+}
+const assetInfoEntries = computed(() => {
+  const f = assetInfo.value?.fields ?? {}
+  return Object.entries(f)
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => ({
+      label: FIELD_LABELS[k] ?? k,
+      value: Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v),
+    }))
+})
+
+async function openAssetInfo() {
+  if (!selectedAsset.value) return
+  loadingAssetInfo.value = true
+  try {
+    assetInfo.value = await getServer(selectedAsset.value.assetId, selectedAsset.value.assetCategory)
+    assetInfoDialog.value = true
+  } catch (e) {
+    $q.notify({ type: 'negative', message: apiErr(e, '자산 정보를 불러오지 못했습니다.') })
+  } finally {
+    loadingAssetInfo.value = false
+  }
+}
 
 const SELECTED_RACK_KEY = 'rackMgmt:selectedRackId'
 
@@ -767,6 +829,24 @@ onMounted(() => { void loadRacks(); void loadUnplaced(); void checkIntegrity() }
 }
 .rk-pending-active { background: #e8f2fe; }
 .rk-unplaced-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* 자산 상세 정보 */
+.rk-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 20px;
+}
+.rk-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 2px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 12px;
+  min-width: 0;
+}
+.rk-info-row span { color: #9e9e9e; flex: 0 0 auto; }
+.rk-info-row b { color: #37474f; font-weight: 600; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 빈 상태 */
 .rk-empty {

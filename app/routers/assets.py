@@ -111,6 +111,19 @@ async def list_servers(
     return [ServerAssetOut(**x) for x in items]
 
 
+@router.get("/{server_id}", response_model=ServerAssetOut)
+async def get_server(
+    server_id: str,
+    category: Optional[str] = Query(None),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    try:
+        out = await _svc(category).get(_id=oid(server_id))
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return ServerAssetOut(**out)
+
+
 @router.post("", response_model=ServerAssetOut, status_code=status.HTTP_201_CREATED)
 async def create_server(
     body: ServerAssetCreate,

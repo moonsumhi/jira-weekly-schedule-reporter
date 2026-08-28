@@ -121,6 +121,12 @@ class AssetsService:
             items.append(to_out(doc))
         return items
 
+    async def get(self, *, _id: ObjectId) -> Dict[str, Any]:
+        doc = await self._col().find_one({"_id": _id})
+        if not doc:
+            raise KeyError("찾을 수 없습니다.")
+        return to_out(doc)
+
     async def create(
         self,
         *,
