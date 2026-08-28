@@ -94,4 +94,10 @@ async def enrich_issue(doc: dict) -> dict:
     # linked_sr_id (SR 연동 이슈인 경우)
     d["linked_sr_id"] = d.get("linked_sr_id") or None
 
+    # 남은 ObjectId 정리 — 반복업무 이슈의 recurring_template_id 등 메타 필드가
+    # response_model 없는 엔드포인트(대시보드)에서 그대로 인코딩돼 500 나는 것 방지
+    for _k, _v in list(d.items()):
+        if isinstance(_v, ObjectId):
+            d[_k] = str(_v)
+
     return d
