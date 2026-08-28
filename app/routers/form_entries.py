@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -17,6 +18,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 MAX_IMPORT_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+IMAGE_UPLOAD_DIR = "/app/uploads/form_entries"
+_DATA_URL_RE = re.compile(r"^data:image/(?P<ext>[a-zA-Z0-9.+-]+);base64,(?P<b64>.+)$", re.DOTALL)
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -982,6 +986,39 @@ def _strip_images(data: Any) -> Any:
     return data
 
 
+def _persist_image_value(value: str) -> str:
+    """base64 data URL이면 디스크에 파일로 저장하고 정적 서빙 URL로 대체.
+    이미 URL(기존 저장된 값을 그대로 재제출한 경우)이면 그대로 둔다."""
+    m = _DATA_URL_RE.match(value)
+    if not m:
+        return value
+    ext = m.group("ext").split("+")[0].lower()  # e.g. svg+xml -> svg
+    try:
+        raw = base64.b64decode(m.group("b64"))
+    except Exception:
+        logger.warning("Failed to decode base64 image value; leaving as-is")
+        return value
+
+    os.makedirs(IMAGE_UPLOAD_DIR, exist_ok=True)
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    path = os.path.join(IMAGE_UPLOAD_DIR, filename)
+    with open(path, "wb") as f:
+        f.write(raw)
+    return f"/api/uploads/form_entries/{filename}"
+
+
+def _persist_images(data: Any) -> Any:
+    """제출된 data를 재귀 순회하며 base64 이미지 값을 디스크 파일로 externalize.
+    MongoDB 16MB 문서 크기 제한을 피하기 위해 create/patch 시 반드시 거쳐야 한다."""
+    if isinstance(data, str):
+        return _persist_image_value(data)
+    if isinstance(data, list):
+        return [_persist_images(v) for v in data]
+    if isinstance(data, dict):
+        return {k: _persist_images(v) for k, v in data.items()}
+    return data
+
+
 @router.get("", response_model=list[FormEntryOut])
 async def list_entries(
     template_id: str = Query(...),
@@ -1034,7 +1071,7 @@ async def create_entry(
     now = _now()
     doc = {
         "template_id": payload.template_id,
-        "data": payload.data,
+        "data": _persist_images(payload.data),
         "version": 1,
         "is_deleted": False,
         "created_at": now,
@@ -1059,7 +1096,7 @@ async def patch_entry(
     now = _now()
     result = await col.find_one_and_update(
         {"_id": entry_oid, "version": payload.version, "is_deleted": {"$ne": True}},
-        {"$set": {"data": payload.data, "updated_at": now, "updated_by": current_user.full_name or current_user.email},
+        {"$set": {"data": _persist_images(payload.data), "updated_at": now, "updated_by": current_user.full_name or current_user.email},
          "$inc": {"version": 1}},
         return_document=True,
     )
