@@ -1590,7 +1590,20 @@
           <q-btn flat dense round icon="close" class="q-ml-md self-start" @click="detailDialog = false" />
         </q-card-section>
 
-        <div class="col scroll" style="min-height: 0; overflow-y: auto;">
+        <q-tabs
+          v-model="detailTab"
+          dense no-caps align="left"
+          active-color="primary" indicator-color="primary"
+          class="asset-detail-tabs" style="flex-shrink: 0;"
+        >
+          <q-tab name="basic" label="기본정보" />
+          <q-tab name="config" label="구성정보" />
+          <q-tab name="location" label="위치·연결" />
+          <q-tab name="history" label="변경이력" @click="loadDetailHistory" />
+        </q-tabs>
+
+        <q-tab-panels v-model="detailTab" animated class="col scroll" style="min-height: 0; overflow-y: auto;">
+        <q-tab-panel name="basic" class="q-pa-none">
           <!-- 기본 정보 -->
           <q-card-section class="q-py-sm">
             <div class="section-title-row">
@@ -1653,7 +1666,9 @@
               </div>
             </div>
           </q-card-section>
+        </q-tab-panel>
 
+        <q-tab-panel name="config" class="q-pa-none">
           <!-- 운영체제 / 기종 -->
           <q-card-section class="q-py-sm">
             <div class="section-title-row">
@@ -1886,8 +1901,48 @@
               </div>
             </div>
           </q-card-section>
+        </q-tab-panel>
 
-        </div>
+        <q-tab-panel name="location" class="q-pa-md">
+          <div class="row q-col-gutter-x-lg q-col-gutter-y-md">
+            <div class="col-6 form-field">
+              <div class="field-label">위치(서버실)</div>
+              <div class="detail-value">{{ displayValue(detailTarget.fields?.['위치']) || '-' }}</div>
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">랙</div>
+              <div class="detail-value">
+                <template v-if="detailTarget.fields?.['rack_no']">{{ displayValue(detailTarget.fields?.['rack_no']) }}</template>
+                <span v-else class="text-grey-5">미배치</span>
+              </div>
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">U 위치</div>
+              <div class="detail-value">
+                <template v-if="detailTarget.fields?.['rack_unit_no']">U{{ displayValue(detailTarget.fields?.['rack_unit_no']) }}</template>
+                <span v-else>-</span>
+              </div>
+            </div>
+          </div>
+          <q-btn v-if="detailTarget.fields?.['rack_no']" flat dense no-caps color="primary" icon="grid_view"
+            label="랙 배치도에서 보기" class="q-mt-md" @click="goToRack()" />
+        </q-tab-panel>
+
+        <q-tab-panel name="history" class="q-pa-md">
+          <div v-if="loadingDetailHistory" class="text-grey text-center q-pa-md">불러오는 중…</div>
+          <q-timeline v-else-if="detailHistory.length" color="blue-grey-4">
+            <q-timeline-entry
+              v-for="h in detailHistory" :key="h.id"
+              :title="h.action" :subtitle="fmtHistoryDate(h.changedAt)"
+            >
+              <div v-if="h.diff && h.diff.length" class="text-caption">
+                <div v-for="(d, i) in h.diff" :key="i">{{ d.path }}: {{ displayValue(d.before) }} → {{ displayValue(d.after) }}</div>
+              </div>
+            </q-timeline-entry>
+          </q-timeline>
+          <div v-else class="text-grey text-center q-pa-md">변경 이력이 없습니다.</div>
+        </q-tab-panel>
+        </q-tab-panels>
 
         <q-separator style="flex-shrink: 0;" />
         <!-- 하단: 태그(왼쪽) + 버튼(오른쪽) -->
@@ -3548,10 +3603,39 @@ async function doBulkPurge(targets: ServerAsset[]) {
 /** Detail view */
 const detailDialog = ref(false)
 const detailTarget = ref<ServerAsset | null>(null)
+const detailTab = ref('basic')
+const detailHistory = ref<AssetHistory[]>([])
+const loadingDetailHistory = ref(false)
 
 function openDetailView(row: ServerAsset) {
   detailTarget.value = row
+  detailTab.value = 'basic'
+  detailHistory.value = []
   detailDialog.value = true
+}
+
+async function loadDetailHistory() {
+  const t = detailTarget.value
+  if (!t) return
+  loadingDetailHistory.value = true
+  try {
+    const cat = (t.fields?.['자산유형'] as string) || category.value || '서버'
+    detailHistory.value = await getServerHistory(t.id, cat)
+  } catch {
+    detailHistory.value = []
+  } finally {
+    loadingDetailHistory.value = false
+  }
+}
+
+function fmtHistoryDate(s?: string): string {
+  return s ? new Date(s).toLocaleString('ko-KR') : ''
+}
+
+function goToRack() {
+  detailDialog.value = false
+  const query = { ...route.query, category: '랙' }
+  void router.push({ query })
 }
 
 /** Row edit */
