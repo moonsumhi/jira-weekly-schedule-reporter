@@ -1551,16 +1551,50 @@ const backofficeUserList = computed((): Record<string, string>[] => {
 // firewall-table-wrap이 가로 드래그 스크롤 때문에 user-select:none이라 텍스트
 // 드래그 선택으로는 복사가 안 됨 — 버튼으로 표 전체를 탭 구분 텍스트(엑셀에 바로
 // 붙여넣기 가능)로 클립보드에 복사한다.
+// navigator.clipboard는 secure context(HTTPS 또는 localhost)에서만 동작 —
+// 사내망처럼 HTTP로만 서비스되는 운영 환경에서는 조용히 실패하므로,
+// 옛 방식(숨긴 textarea + execCommand)으로 폴백한다.
+function legacyCopyText(text: string): boolean {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  textarea.style.top = '0'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  let ok = false
+  try {
+    ok = document.execCommand('copy')
+  } catch {
+    ok = false
+  }
+  document.body.removeChild(textarea)
+  return ok
+}
+
 async function copyTableToClipboard(headers: string[], rows: Record<string, string>[], keys: string[]) {
   if (!rows.length) return
   const lines = [headers.join('\t')]
   for (const row of rows) {
     lines.push(keys.map((k) => row[k] || '').join('\t'))
   }
-  try {
-    await navigator.clipboard.writeText(lines.join('\n'))
+  const text = lines.join('\n')
+
+  let ok = false
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      ok = true
+    } catch {
+      ok = false
+    }
+  }
+  if (!ok) ok = legacyCopyText(text)
+
+  if (ok) {
     $q.notify({ type: 'positive', message: '표 내용을 클립보드에 복사했습니다.' })
-  } catch {
+  } else {
     $q.notify({ type: 'negative', message: '복사에 실패했습니다.' })
   }
 }
