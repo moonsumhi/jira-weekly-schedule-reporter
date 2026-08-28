@@ -158,8 +158,10 @@
                               >
                                 <img
                                   :src="imgSrc"
-                                  style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                  draggable="true"
+                                  style="width:72px;height:56px;object-fit:cover;cursor:grab;border:1px solid #ccc;border-radius:2px;"
                                   @click.stop="previewImage(imgSrc)"
+                                  @dragstart="onCellImageDragStart(section.title, rowIdx, field.label, imgIdx, $event)"
                                 />
                                 <q-btn
                                   flat dense round icon="close" size="xs"
@@ -219,8 +221,10 @@
                               >
                                 <img
                                   :src="imgSrc"
-                                  style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                  draggable="true"
+                                  style="width:72px;height:56px;object-fit:cover;cursor:grab;border:1px solid #ccc;border-radius:2px;"
                                   @click.stop="previewImage(imgSrc)"
+                                  @dragstart="onCellImageDragStart(section.title, rowIdx, pairedImageField(section, field)!.label, imgIdx, $event)"
                                 />
                                 <q-btn
                                   flat dense round icon="close" size="xs"
@@ -305,8 +309,10 @@
                                 >
                                   <img
                                     :src="imgSrc"
-                                    style="width:72px;height:56px;object-fit:cover;cursor:pointer;border:1px solid #ccc;border-radius:2px;"
+                                    draggable="true"
+                                    style="width:72px;height:56px;object-fit:cover;cursor:grab;border:1px solid #ccc;border-radius:2px;"
                                     @click.stop="previewImage(imgSrc)"
+                                    @dragstart="onCellImageDragStart(section.title, rowIdx, field.label, imgIdx, $event)"
                                   />
                                   <q-btn
                                     flat dense round icon="close" size="xs"
@@ -461,7 +467,7 @@
           <q-card-section class="image-panel q-py-sm">
             <div class="row items-center q-mb-xs">
               <span class="text-subtitle2">
-                추출된 이미지 ({{ importedImages.length }}장)
+                자동 배치되지 않은 이미지 ({{ importedImages.length }}장)
                 <span v-if="selectedPanelImage" class="text-positive q-ml-sm">— 이미지 선택됨. 배치할 셀을 클릭하세요</span>
                 <span v-else class="text-grey q-ml-sm">— 이미지를 클릭해 선택 후 배치할 셀을 클릭하세요</span>
               </span>
@@ -952,10 +958,46 @@ function removeRow(sectionTitle: string, rowIdx: number): void {
 // ── Image drag & drop helpers ───────────────────────────────────────────────
 
 
+interface CellImageDragPayload {
+  source: 'cell'
+  sectionTitle: string
+  rowIdx: number
+  fieldLabel: string
+  imgIdx: number
+}
+
+function onCellImageDragStart(sectionTitle: string, rowIdx: number, fieldLabel: string, imgIdx: number, e: DragEvent) {
+  const payload: CellImageDragPayload = { source: 'cell', sectionTitle, rowIdx, fieldLabel, imgIdx }
+  e.dataTransfer?.setData('text/plain', JSON.stringify(payload))
+  selectedPanelImage.value = ''
+}
+
 function onDropImage(sectionTitle: string, rowIdx: number, fieldLabel: string, e: DragEvent) {
   dragOverCell.value = ''
-  const idxStr = e.dataTransfer?.getData('text/plain') ?? ''
-  const idx = idxStr !== '' ? Number(idxStr) : -1
+  const raw = e.dataTransfer?.getData('text/plain') ?? ''
+
+  // 셀 → 셀 이동 (다른 칸에 이미 배치된 이미지를 드래그해온 경우)
+  if (raw.startsWith('{')) {
+    try {
+      const payload = JSON.parse(raw) as Partial<CellImageDragPayload>
+      if (payload.source === 'cell' && payload.sectionTitle && payload.fieldLabel && payload.rowIdx !== undefined && payload.imgIdx !== undefined) {
+        const isSameCell = payload.sectionTitle === sectionTitle && payload.rowIdx === rowIdx && payload.fieldLabel === fieldLabel
+        if (!isSameCell) {
+          const src = getRowImages(payload.sectionTitle, payload.rowIdx, payload.fieldLabel)[payload.imgIdx]
+          if (src) {
+            removeRowImage(payload.sectionTitle, payload.rowIdx, payload.fieldLabel, payload.imgIdx)
+            addRowImage(sectionTitle, rowIdx, fieldLabel, src)
+          }
+        }
+        return
+      }
+    } catch {
+      // JSON 파싱 실패 시 패널 드래그(숫자 인덱스)로 폴백
+    }
+  }
+
+  // 패널 → 셀 배치(기존 동작)
+  const idx = raw !== '' ? Number(raw) : -1
   const src = (idx >= 0 && importedImages.value[idx]) ? importedImages.value[idx] : selectedPanelImage.value
   if (src) {
     addRowImage(sectionTitle, rowIdx, fieldLabel, src)

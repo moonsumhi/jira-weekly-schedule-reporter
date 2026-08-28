@@ -927,6 +927,54 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
     return result, all_skipped
 
 
+def _auto_map_images(extracted: dict, sections: list, images: list[str]) -> tuple[dict, list[str]]:
+    """추출된 이미지를 문서 내 등장 순서대로, 이미지 필드가 있는 행에 순차 배치.
+
+    이미지 자체엔 어느 행에 속했는지 위치 정보가 없으므로 "N번째 이미지 = N번째
+    이미지 슬롯(섹션 순서 → 행 순서 → 필드 순서)"으로 가정하는 휴리스틱이다.
+    실제 문서에서 특정 행에 이미지가 없거나 한 행에 여러 장이면 어긋날 수 있다.
+    다 배치하지 못한(남은) 이미지는 그대로 반환해 프론트 수동 배치 패널에서 채운다.
+    """
+    remaining = list(images)
+
+    def take_next() -> str | None:
+        return remaining.pop(0) if remaining else None
+
+    for sec in sections:
+        title = sec.get("title", "")
+        image_labels = [f.get("label") for f in sec.get("fields", []) if f.get("type") == "image" and f.get("label")]
+        if not image_labels:
+            continue
+
+        if sec.get("multiple"):
+            rows = extracted.get(title)
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                for label in image_labels:
+                    if row.get(label):
+                        continue  # 텍스트 추출로 이미 값이 채워져 있으면 덮어쓰지 않음
+                    img = take_next()
+                    if img is None:
+                        return extracted, remaining
+                    row[label] = img
+        else:
+            row = extracted.get(title)
+            if not isinstance(row, dict):
+                continue
+            for label in image_labels:
+                if row.get(label):
+                    continue
+                img = take_next()
+                if img is None:
+                    return extracted, remaining
+                row[label] = img
+
+    return extracted, remaining
+
+
 @router.post("/import")
 async def import_entry_from_file(
     file: UploadFile = File(...),
@@ -963,6 +1011,7 @@ async def import_entry_from_file(
         raise HTTPException(status_code=422, detail="파일에서 텍스트를 추출할 수 없습니다.")
 
     extracted, skipped = _extract_form_data(text, tmpl.get("sections", []))
+    extracted, images = _auto_map_images(extracted, tmpl.get("sections", []), images)
     return {"data": extracted, "skipped": skipped, "images": images}
 
 
