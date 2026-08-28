@@ -16,101 +16,117 @@
 
     <template v-else>
     <!-- Header -->
-    <div class="row items-center q-gutter-sm q-mb-md">
+    <div class="asset-toolbar row items-center q-gutter-sm q-mb-sm">
       <div class="text-h6">{{ pageTitle }}</div>
-
-      <!-- 상태 요약 (클릭 시 필터) -->
-      <div class="asset-summary row items-center q-gutter-xs">
-        <q-chip
-          dense clickable :outline="statusFilter !== null"
-          color="blue-grey-1" text-color="blue-grey-9"
-          :selected="statusFilter === null"
-          @click="statusFilter = null"
-        >총 {{ visibleTotal }}</q-chip>
-        <q-chip
-          v-for="s in ['운영', '점검', '미사용', '폐기예정']" :key="s"
-          dense clickable
-          :color="statusFilter === s ? statusColor(s) : 'grey-2'"
-          :text-color="statusFilter === s ? 'white' : 'grey-8'"
-          @click="toggleStatusFilter(s)"
-        >{{ s }} {{ statusSummary[s] }}</q-chip>
-      </div>
-
       <q-space />
 
-      <q-toggle
-        v-model="includeDeleted"
-        label="삭제 포함"
-        dense
-      />
-
-      <q-toggle
-        v-model="includeDisposed"
-        label="폐기 포함"
-        dense
-      />
-
+      <!-- 대량 작업 (삭제 포함 모드일 때만) -->
       <q-btn
-        v-if="includeDeleted"
-        outline
-        :color="bulkDeleteMode ? 'primary' : undefined"
+        v-if="includeDeleted" outline dense no-caps
+        :color="bulkDeleteMode ? 'primary' : 'grey-7'"
         icon="checklist"
         :label="bulkDeleteMode ? '선택 취소' : '선택 삭제'"
         @click="toggleBulkDeleteMode"
       />
       <q-btn
         v-if="bulkDeleteMode && selectedIds.size > 0"
-        color="negative"
+        color="negative" dense unelevated no-caps
         icon="delete_forever"
         :label="`영구삭제 (${selectedIds.size})`"
         :loading="bulkPurging"
         @click="confirmBulkPurge"
       />
 
-      <q-btn
-        outline
-        icon="refresh"
-        label="새로고침"
-        :loading="loading"
-        @click="load"
-      />
-
-
-      <q-btn outline icon="view_column" label="컬럼 상세보기" @click="openColVisDialog" />
-      <q-btn outline icon="file_download" label="템플릿 다운로드" @click="downloadTemplate" />
-      <q-btn outline icon="upload_file" label="Import" @click="triggerImport" />
+      <!-- Import 결과 알림 (있을 때만) -->
       <q-btn
         v-if="importFailedRows.filter(r => !r.retrySuccess).length > 0"
-        outline icon="error_outline" color="negative"
-        :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}건`"
+        flat dense no-caps icon="error_outline" color="negative"
+        :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}`"
         @click="importResultTab = 'failed'; importFailDialog = true"
       />
       <q-btn
         v-if="importSkippedRows.length > 0"
-        outline icon="skip_next" color="warning"
-        :label="`건너뜀 ${importSkippedRows.length}건`"
+        flat dense no-caps icon="skip_next" color="warning"
+        :label="`건너뜀 ${importSkippedRows.length}`"
         @click="importResultTab = 'skipped'; importFailDialog = true"
       />
       <q-btn
         v-if="duplicateSkippedRows.filter(r => !r.separateSaved).length > 0"
-        outline icon="add_circle_outline" color="teal"
-        :label="`별도 저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}건`"
+        flat dense no-caps icon="add_circle_outline" color="teal"
+        :label="`별도저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}`"
         @click="importResultTab = 'separate'; importFailDialog = true"
       />
-      <q-btn outline icon="download" label="Export" :loading="exportLoading" @click="doExport" />
+
+      <q-btn round flat dense icon="refresh" color="grey-7" :loading="loading" @click="load">
+        <q-tooltip>새로고침</q-tooltip>
+      </q-btn>
+
+      <!-- 더보기: 유틸리티 모음 -->
+      <q-btn outline dense no-caps icon="more_horiz" label="더보기" color="grey-7">
+        <q-menu anchor="bottom right" self="top right">
+          <q-list style="min-width: 200px">
+            <q-item clickable v-close-popup @click="openColVisDialog">
+              <q-item-section avatar><q-icon name="view_column" /></q-item-section>
+              <q-item-section>컬럼 상세보기</q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item clickable v-close-popup @click="downloadTemplate">
+              <q-item-section avatar><q-icon name="file_download" /></q-item-section>
+              <q-item-section>템플릿 다운로드</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="triggerImport">
+              <q-item-section avatar><q-icon name="upload_file" /></q-item-section>
+              <q-item-section>Import (엑셀)</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup :disable="exportLoading" @click="doExport">
+              <q-item-section avatar>
+                <q-spinner v-if="exportLoading" size="20px" />
+                <q-icon v-else name="download" />
+              </q-item-section>
+              <q-item-section>Export (엑셀)</q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item tag="label">
+              <q-item-section>삭제 포함</q-item-section>
+              <q-item-section side><q-toggle v-model="includeDeleted" dense /></q-item-section>
+            </q-item>
+            <q-item tag="label">
+              <q-item-section>폐기 포함</q-item-section>
+              <q-item-section side><q-toggle v-model="includeDisposed" dense /></q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-btn>
+
       <input ref="importFileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onImportFile" />
 
       <q-btn
-        color="primary"
+        color="primary" unelevated no-caps
         icon="add"
-        :label="category ? `${category} 추가` : '자산 추가'"
+        :label="category ? `${category} 등록` : '자산 등록'"
         @click="category ? openCreate() : (assetTypeDialog = true)"
       />
     </div>
 
+    <!-- 상태 요약 (클릭 시 필터) -->
+    <div class="asset-summary row items-center q-gutter-xs q-mb-md">
+      <q-chip
+        dense clickable :outline="statusFilter !== null"
+        color="blue-grey-1" text-color="blue-grey-9"
+        @click="statusFilter = null"
+      >총 {{ visibleTotal }}</q-chip>
+      <q-chip
+        v-for="s in ['운영', '점검', '미사용', '폐기예정']" :key="s"
+        dense clickable
+        :color="statusFilter === s ? statusColor(s) : 'grey-2'"
+        :text-color="statusFilter === s ? 'white' : 'grey-8'"
+        @click="toggleStatusFilter(s)"
+      >{{ s }} {{ statusSummary[s] }}</q-chip>
+    </div>
+
     <q-card bordered>
       <!-- Filters -->
-      <q-card-section class="row items-center q-gutter-sm">
+      <q-card-section class="asset-filter-bar row items-center q-gutter-sm">
         <q-select
           v-model="filterCol"
           :options="filterColOptions"
@@ -150,18 +166,6 @@
           class="col"
           @clear="filter = ''"
         />
-        <q-select
-          v-model="facetFilters.위치"
-          :options="locationFacetOptions"
-          dense outlined clearable options-dense
-          label="위치" style="min-width: 150px"
-        />
-        <q-select
-          v-model="facetFilters.소속부서"
-          :options="deptFacetOptions"
-          dense outlined clearable options-dense
-          label="소속부서" style="min-width: 150px"
-        />
       </q-card-section>
 
       <!-- 적용된 필터 태그 -->
@@ -172,12 +176,6 @@
         </q-chip>
         <q-chip v-if="statusFilter" dense removable :color="statusColor(statusFilter)" text-color="white" @remove="statusFilter = null">
           상태: {{ statusFilter }}
-        </q-chip>
-        <q-chip v-if="facetFilters.위치" dense removable color="blue-grey-1" text-color="blue-grey-9" @remove="facetFilters.위치 = null">
-          위치: {{ facetFilters.위치 }}
-        </q-chip>
-        <q-chip v-if="facetFilters.소속부서" dense removable color="blue-grey-1" text-color="blue-grey-9" @remove="facetFilters.소속부서 = null">
-          소속부서: {{ facetFilters.소속부서 }}
         </q-chip>
         <q-space />
         <q-btn flat dense no-caps size="sm" color="grey-7" label="전체 초기화" @click="clearAllFilters" />
@@ -366,41 +364,7 @@
                   label="상세 보기"
                   @click="openDetailView(props.row)"
                 />
-                <template v-if="!props.row.isDeleted">
-                  <q-btn
-                    dense
-                    outline
-                    size="12px"
-                    icon="edit"
-                    label="편집"
-                    @click="openRowEdit(props.row)"
-                  />
-                  <q-btn
-                    dense
-                    outline
-                    size="12px"
-                    icon="history"
-                    label="이력"
-                    @click="openHistory(props.row)"
-                  />
-                  <q-btn
-                    dense
-                    outline
-                    size="12px"
-                    icon="delete"
-                    color="negative"
-                    @click="confirmDelete(props.row)"
-                  />
-                </template>
-                <template v-else>
-                  <q-btn
-                    dense
-                    outline
-                    size="12px"
-                    icon="history"
-                    label="이력"
-                    @click="openHistory(props.row)"
-                  />
+                <template v-if="props.row.isDeleted">
                   <q-btn
                     dense
                     outline
@@ -1063,82 +1027,9 @@
 
     <!-- Export 컬럼 선택 다이얼로그 -->
 
-    <!-- History drawer -->
-    <q-drawer
-      v-model="historyOpen"
-      side="right"
-      bordered
-      overlay
-      :width="420"
-    >
-      <div class="q-pa-md">
-        <div class="row items-center q-gutter-sm">
-          <div class="text-h6">변경 이력</div>
-          <q-space />
-          <q-btn flat dense icon="close" @click="historyOpen = false" />
-        </div>
-
-        <div v-if="historyTarget" class="q-mt-sm text-caption text-grey-7">
-          <div><b>IP</b>: {{ historyTarget.ip }}</div>
-          <div><b>Name</b>: {{ historyTarget.name }}</div>
-          <div><b>ID</b>: {{ historyTarget.id }}</div>
-        </div>
-
-        <q-separator class="q-my-md" />
-
-        <q-inner-loading :showing="historyLoading">
-          <q-spinner size="32px" />
-        </q-inner-loading>
-
-        <q-list v-if="!historyLoading">
-          <q-item v-for="h in historyItems" :key="h.id" clickable>
-            <q-item-section>
-              <q-item-label>
-                <q-badge
-                  :color="historyBadgeColor(h.action)"
-                  outline
-                  class="q-mr-sm"
-                >
-                  {{ h.action }}
-                </q-badge>
-                <span class="text-caption">
-                  {{ formatKst(h.changedAt) }}
-                </span>
-              </q-item-label>
-              <q-item-label caption>
-                by {{ h.changedBy }}
-              </q-item-label>
-
-              <div v-if="h.diff?.length" class="q-mt-sm">
-                <div class="text-caption text-grey-7 q-mb-xs">Changes</div>
-                <div
-                  v-for="d in h.diff.slice(0, 6)"
-                  :key="d.path"
-                  class="text-body2"
-                >
-                  <span class="text-grey-8">{{ d.path }}</span>
-                  <span class="text-grey-6">: </span>
-                  <span class="text-grey-9">{{ displayValue(d.before) }}</span>
-                  <span class="text-grey-6"> → </span>
-                  <span class="text-grey-9">{{ displayValue(d.after) }}</span>
-                </div>
-                <div v-if="h.diff.length > 6" class="text-caption text-grey-6 q-mt-xs">
-                  +{{ h.diff.length - 6 }} more…
-                </div>
-              </div>
-            </q-item-section>
-          </q-item>
-
-          <div v-if="historyItems.length === 0" class="text-grey-6 q-pa-md">
-            이력이 없습니다.
-          </div>
-        </q-list>
-      </div>
-    </q-drawer>
-
-    <!-- Row edit dialog -->
+    <!-- Row edit dialog (목록에서 직접 편집할 때 사용) -->
     <q-dialog v-model="rowEditDialog">
-      <q-card class="server-form-card" v-if="rowEditTarget">
+      <q-card v-if="rowEditTarget" class="server-form-card">
         <!-- 상단: 호스트명 & IP -->
         <q-card-section class="q-pb-sm row items-center">
           <div class="col">
@@ -1580,14 +1471,16 @@
           <div class="col">
             <div class="top-field-row">
               <span class="top-field-label">호스트명:</span>
-              <span class="top-field-value">{{ detailTarget.name }}</span>
+              <q-input v-if="detailEditing" v-model="rowEditValues['__name__']" borderless dense class="top-field-input" />
+              <span v-else class="top-field-value">{{ detailTarget.name }}</span>
             </div>
             <div class="top-field-row q-mt-sm">
               <span class="top-field-label">IP:</span>
-              <span class="top-field-value">{{ detailTarget.ip }}</span>
+              <q-input v-if="detailEditing" v-model="rowEditValues['__ip__']" borderless dense class="top-field-input" />
+              <span v-else class="top-field-value">{{ detailTarget.ip }}</span>
             </div>
           </div>
-          <q-btn flat dense round icon="close" class="q-ml-md self-start" @click="detailDialog = false" />
+          <q-btn flat dense round icon="close" class="q-ml-md self-start" @click="closeDetail" />
         </q-card-section>
 
         <q-tabs
@@ -1615,15 +1508,18 @@
             <div class="row q-col-gutter-x-lg q-col-gutter-y-md">
               <div class="col-6 form-field">
                 <div class="field-label">자산명</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['서버명']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['서버명']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['서버명']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">구분</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['구분']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['구분']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['구분']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">상태</div>
-                <div class="detail-value">
+                <q-select v-if="detailEditing" v-model="rowEditValues['상태']" :options="STATUS_OPTIONS" borderless dense clearable class="field-input" />
+                <div v-else class="detail-value">
                   <q-badge v-if="detailTarget.fields?.['상태']" :color="statusColor(detailTarget.fields['상태'] as string)">
                     {{ detailTarget.fields['상태'] }}
                   </q-badge>
@@ -1632,7 +1528,8 @@
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">자산번호</div>
-                <div class="detail-value">{{ displayValue(detailTarget.assetNo ?? detailTarget.fields?.['자산번호']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['자산번호']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.assetNo ?? detailTarget.fields?.['자산번호']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">RackNo.</div>
@@ -1650,19 +1547,23 @@
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">자산관리번호</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['자산관리번호']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['자산관리번호']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['자산관리번호']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">SN</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['SN']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['SN']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['SN']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">위치</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['위치']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['위치']" :readonly="isRowEditLocationLocked" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['위치']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">설명</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['설명']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['설명']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['설명']) }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1679,7 +1580,8 @@
             <div v-if="['네트워크', '정보보호시스템'].includes(detailTarget.fields?.['자산유형'] as string)" class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
               <div class="col-12 form-field">
                 <div class="field-label">기종</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['운영체제']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
               </div>
             </div>
             <!-- DBMS: DB 종류 + 버전 + EoS -->
@@ -1687,11 +1589,13 @@
               <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
                 <div class="col-4 form-field">
                   <div class="field-label">DB 종류</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                  <q-select v-if="detailEditing" v-model="rowEditValues['운영체제']" :options="Object.keys(DBMS_TREE)" borderless dense clearable class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">버전</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['version']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
@@ -1717,11 +1621,13 @@
               <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
                 <div class="col-4 form-field">
                   <div class="field-label">배포판</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['운영체제']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">버전</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['version']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
@@ -1754,7 +1660,8 @@
               </div>
               <div class="col form-field">
                 <div class="field-label">EoL 종료 일자</div>
-                <div class="detail-value">{{ detailTarget.fields?.[EOL_DATE_KEY] || '-' }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues[EOL_DATE_KEY]" borderless dense placeholder="YYYY-MM" class="field-input" />
+                <div v-else class="detail-value">{{ detailTarget.fields?.[EOL_DATE_KEY] || '-' }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1768,39 +1675,48 @@
             <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
               <div class="col-6 form-field">
                 <div class="field-label">용도(상세)</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['용도']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['용도']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['용도']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">소속부서/사업</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['소속부서']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['소속부서']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['소속부서']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">제품명(모델명)</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['제품명']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['제품명']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['제품명']) }}</div>
               </div>
               <div class="col-12 form-field">
                 <div class="field-label">사양</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['사양']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['사양']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['사양']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">도입사업</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['도입사업']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['도입사업']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['도입사업']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">납품회사</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['납품회사']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['납품회사']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['납품회사']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">담당자</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['담당자']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['담당자']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['담당자']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">도입가격</div>
-                <div class="detail-value">{{ displayPrice(detailTarget.fields?.['도입가격']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['도입가격']" type="number" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayPrice(detailTarget.fields?.['도입가격']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">도입일자(취득일자)</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['도입일자']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['도입일자']" type="date" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['도입일자']) }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1814,53 +1730,63 @@
             <div class="row q-col-gutter-x-md q-mt-xs">
               <div class="col-4 form-field">
                 <div class="field-label">ISMS-P 대상 여부</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.[ISMS_P_KEY]) }}</div>
+                <q-select v-if="detailEditing" v-model="rowEditValues[ISMS_P_KEY]" :options="ismsPOptions" emit-value map-options clearable borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[ISMS_P_KEY]) }}</div>
               </div>
               <div class="col form-field">
                 <div class="field-label">ISMS-P 비고</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['ISMS-P비고']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['ISMS-P비고']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['ISMS-P비고']) }}</div>
               </div>
             </div>
             <template v-if="!detailTarget.fields?.['자산유형'] || detailTarget.fields?.['자산유형'] === '서버'">
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">백신 여부</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.[ANTIVIRUS_KEY]) }}</div>
+                  <q-select v-if="detailEditing" v-model="rowEditValues[ANTIVIRUS_KEY]" :options="antivirusOptions" emit-value map-options clearable borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[ANTIVIRUS_KEY]) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">백신 비고</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['백신비고']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['백신비고']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['백신비고']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">VADA 설치여부</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.[VADA_KEY]) }}</div>
+                  <q-select v-if="detailEditing" v-model="rowEditValues[VADA_KEY]" :options="vadaOptions" emit-value map-options clearable borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[VADA_KEY]) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">VADA 비고</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['VADA비고']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['VADA비고']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['VADA비고']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">폐기 여부</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.[DISPOSAL_KEY]) }}</div>
+                  <q-select v-if="detailEditing" v-model="rowEditValues[DISPOSAL_KEY]" :options="disposalOptions" emit-value map-options clearable borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[DISPOSAL_KEY]) }}</div>
                 </div>
                 <div class="col-4 form-field">
                   <div class="field-label">폐기 일정</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['폐기일정']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['폐기일정']" type="date" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['폐기일정']) }}</div>
                 </div>
                 <div class="col form-field">
                   <div class="field-label">폐기 관련 비고</div>
-                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['폐기비고']) }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['폐기비고']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['폐기비고']) }}</div>
                 </div>
               </div>
             </template>
             <div class="row q-col-gutter-x-md q-mt-sm">
               <div class="col-12 form-field">
                 <div class="field-label">비고</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['비고']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['비고']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['비고']) }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1877,27 +1803,32 @@
             <div class="row q-col-gutter-x-md q-mt-xs">
               <div class="col-6 form-field">
                 <div class="field-label">유지보수 계약구분</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수계약구분']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수계약구분']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수계약구분']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">현 유지보수 종료일자</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수종료일자']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수종료일자']" type="date" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수종료일자']) }}</div>
               </div>
             </div>
             <div class="row q-col-gutter-x-md q-mt-sm">
               <div class="col-6 form-field">
                 <div class="field-label">유지보수 업체</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수업체']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수업체']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수업체']) }}</div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">유지보수 연락처</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수연락처']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수연락처']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수연락처']) }}</div>
               </div>
             </div>
             <div class="row q-col-gutter-x-md q-mt-sm">
               <div class="col-12 form-field">
                 <div class="field-label">유지보수 특이사항</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수특이사항']) }}</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수특이사항']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수특이사항']) }}</div>
               </div>
             </div>
           </q-card-section>
@@ -1948,7 +1879,16 @@
         <!-- 하단: 태그(왼쪽) + 버튼(오른쪽) -->
         <div class="row items-center q-px-md q-py-sm" style="flex-shrink: 0;">
           <div class="row q-gutter-xs flex-wrap col">
+            <q-select
+              v-if="detailEditing"
+              v-model="rowEditTags"
+              use-input use-chips multiple hide-dropdown-icon
+              input-debounce="0" new-value-mode="add-unique"
+              borderless dense class="field-input full-width"
+              placeholder="#태그 입력 후 Enter"
+            />
             <q-chip
+              v-else
               v-for="tag in (detailTarget.fields?.[TAGS_KEY] as string[] ?? [])"
               :key="tag"
               square dense
@@ -1958,8 +1898,19 @@
             >#{{ tag }}</q-chip>
           </div>
           <div class="row q-gutter-xs" style="flex-shrink:0">
-            <q-btn flat label="닫기" @click="detailDialog = false" />
-            <q-btn v-if="!detailTarget?.isDeleted" class="create-btn" icon="edit" label="편집" @click="detailDialog = false; openRowEdit(detailTarget!)" />
+            <template v-if="detailEditing">
+              <q-btn flat label="취소" @click="cancelDetailEdit" />
+              <q-btn class="create-btn" label="저장" :loading="rowEditSaving" @click="doRowEdit" />
+            </template>
+            <template v-else>
+              <q-btn flat label="닫기" @click="detailDialog = false" />
+              <q-btn
+                v-if="!detailTarget?.isDeleted"
+                flat icon="delete" label="삭제" color="negative"
+                @click="confirmDelete(detailTarget)"
+              />
+              <q-btn v-if="!detailTarget?.isDeleted" class="create-btn" icon="edit" label="편집" @click="openDetailEdit" />
+            </template>
           </div>
         </div>
       </div>
@@ -2428,7 +2379,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
@@ -2489,7 +2440,6 @@ function formatCell(col: unknown, value: unknown): string {
 import { parseSmartValue } from 'src/utils/parse/smartValue'
 import { formatKst, isDateSoon } from 'src/utils/time/kst'
 import { eosStatusColor, eosStatusLabel, normalizeEosStatus } from 'src/utils/rules/eos'
-import { historyBadgeColor } from 'src/utils/ui/badges'
 
 const $q = useQuasar()
 const route = useRoute()
@@ -2652,26 +2602,11 @@ function toggleStatusFilter(s: string) {
   statusFilter.value = statusFilter.value === s ? null : s
 }
 
-// 패싯 필터 (위치 / 소속부서) — 로드된 자산의 고유값으로 옵션 구성
-const facetFilters = reactive<{ 위치: string | null; 소속부서: string | null }>({ 위치: null, 소속부서: null })
-function facetOptions(key: string): string[] {
-  const s = new Set<string>()
-  for (const r of rows.value) {
-    const v = r.fields?.[key]
-    if (typeof v === 'string' && v.trim()) s.add(v)
-  }
-  return [...s].sort()
-}
-const locationFacetOptions = computed(() => facetOptions('위치'))
-const deptFacetOptions = computed(() => facetOptions('소속부서'))
-
 const hasActiveFilters = computed(
-  () => !!(statusFilter.value || facetFilters.위치 || facetFilters.소속부서 || filter.value),
+  () => !!(statusFilter.value || filter.value),
 )
 function clearAllFilters() {
   statusFilter.value = null
-  facetFilters.위치 = null
-  facetFilters.소속부서 = null
   filter.value = ''
   filterCol.value = null
 }
@@ -3005,10 +2940,6 @@ const filteredRows = computed(() => {
 
     // 상태 필터 (요약 카운트 클릭)
     if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
-
-    // 패싯 필터 (위치 / 소속부서)
-    if (facetFilters.위치 && (r.fields?.['위치'] ?? '') !== facetFilters.위치) return false
-    if (facetFilters.소속부서 && (r.fields?.['소속부서'] ?? '') !== facetFilters.소속부서) return false
 
     // 카테고리 필터 (서버 사이드에서 이미 필터링됨 — 클라이언트 측은 생략)
 
@@ -3472,6 +3403,7 @@ async function doDelete(row: ServerAsset) {
   try {
     const deleted = await deleteServer(row.id, deleteReason.value.trim() || undefined, (row.fields?.['자산유형'] as string) || category.value || '서버')
     rows.value = rows.value.map((r) => (r.id === row.id ? deleted : r))
+    if (detailTarget.value?.id === row.id) detailTarget.value = deleted
     deleteDialog.value = false
     $q.notify({ type: 'info', message: '삭제됨' })
   } catch (err: unknown) {
@@ -3603,8 +3535,10 @@ const detailTarget = ref<ServerAsset | null>(null)
 const detailTab = ref('basic')
 const detailHistory = ref<AssetHistory[]>([])
 const loadingDetailHistory = ref(false)
+const detailEditing = ref(false)
 
 function openDetailView(row: ServerAsset) {
+  detailEditing.value = false
   detailTarget.value = row
   detailTab.value = 'basic'
   detailHistory.value = []
@@ -3691,7 +3625,7 @@ const rowEditExtraFields = computed(() => {
   )
 })
 
-function openRowEdit(row: ServerAsset) {
+function prepareRowEdit(row: ServerAsset) {
   rowEditTarget.value = row
   const vals: Record<string, string> = {
     __ip__: row.ip,
@@ -3725,7 +3659,21 @@ function openRowEdit(row: ServerAsset) {
   rowEditManualEosDate.value = (!autoEos && ['네트워크', '정보보호시스템'].includes(category.value)) ? (vals[EOS_DATE_KEY] ?? '') : ''
   const locVal = vals['위치'] ?? ''
   rowEditLocationSelect.value = LOCATION_PRESETS.value.includes(locVal) ? locVal : (locVal ? '기타' : '')
-  rowEditDialog.value = true
+}
+
+function openDetailEdit() {
+  if (!detailTarget.value) return
+  prepareRowEdit(detailTarget.value)
+  detailEditing.value = true
+}
+
+function cancelDetailEdit() {
+  detailEditing.value = false
+}
+
+function closeDetail() {
+  detailEditing.value = false
+  detailDialog.value = false
 }
 
 watch(
@@ -3801,39 +3749,19 @@ async function doRowEdit() {
     if (newName) updated.name = newName
 
     rows.value = rows.value.map((r) => (r.id === row.id ? updated : r))
-    rowEditDialog.value = false
+    rowEditTarget.value = updated
+    if (detailEditing.value) {
+      detailTarget.value = updated
+      detailEditing.value = false
+    } else {
+      rowEditDialog.value = false
+    }
     $q.notify({ type: 'positive', message: '저장 완료' })
   } catch (err: unknown) {
     $q.notify({ type: 'negative', message: getErrorMessage(err, '저장 실패') })
   } finally {
     rowEditSaving.value = false
   }
-}
-
-/** History */
-const historyOpen = ref(false)
-const historyTarget = ref<ServerAsset | null>(null)
-const historyLoading = ref(false)
-const historyItems = ref<AssetHistory[]>([])
-
-async function loadHistory(assetId: string) {
-  historyLoading.value = true
-  try {
-    const rowCat = historyTarget.value ? ((historyTarget.value.fields?.['자산유형'] as string) || category.value || '서버') : undefined
-    historyItems.value = await getServerHistory(assetId, rowCat)
-  } catch (err: unknown) {
-    historyItems.value = []
-    $q.notify({ type: 'negative', message: getErrorMessage(err, '이력 조회 실패') })
-  } finally {
-    historyLoading.value = false
-  }
-}
-
-function openHistory(row: ServerAsset) {
-  historyTarget.value = row
-  historyItems.value = []
-  historyOpen.value = true
-  void loadHistory(row.id)
 }
 
 /** Export */
@@ -4654,8 +4582,25 @@ onMounted(() => {
 .asset-cat-tabs {
   border-bottom: 1px solid #e0e0e0;
 }
+.asset-toolbar {
+  min-height: 40px;
+}
 .asset-summary {
   margin-left: 12px;
+  min-height: 32px;
+}
+.asset-summary :deep(.q-chip) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.asset-filter-bar {
+  min-height: 64px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.asset-filter-bar :deep(.q-field__control) {
+  min-height: 40px;
+  height: 40px;
 }
 .conflict-diff-table {
   border-collapse: collapse;
@@ -4694,6 +4639,17 @@ onMounted(() => {
   top: 0;
   z-index: 2;
   background: white;
+  height: 44px;
+  padding: 0 12px;
+  vertical-align: middle;
+}
+.sticky-header-table tbody td {
+  height: 44px;
+  padding: 6px 12px;
+  vertical-align: middle;
+}
+.sticky-header-table :deep(.q-table__bottom) {
+  min-height: 48px;
 }
 
 .sticky-actions-col {
@@ -4809,24 +4765,28 @@ tbody .sticky-actions-col {
 .form-field {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .field-label {
   font-size: 11px;
   color: #999;
-  margin-bottom: 2px;
-  line-height: 1.2;
+  margin-bottom: 4px;
+  min-height: 14px;
+  line-height: 14px;
 }
 .field-input {
   border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  min-height: 32px;
 }
 .field-input :deep(.q-field__control) {
   padding: 0 2px;
-  min-height: 30px;
+  min-height: 32px;
 }
 .field-input :deep(.q-field__native) {
   font-size: 14px;
   color: #333;
   padding: 2px 0;
+  min-height: 32px;
 }
 .field-disabled {
   color: #bbb;
@@ -4870,16 +4830,26 @@ tbody .sticky-actions-col {
   color: #333;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   flex: 1;
-  padding: 2px 0;
+  padding: 4px 0;
+  min-height: 32px;
+  line-height: 24px;
 }
 .detail-value {
   font-size: 14px;
   color: #333;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 4px 2px;
-  min-height: 28px;
+  padding: 5px 2px;
+  min-height: 32px;
+  line-height: 21px;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+.asset-detail-drawer .form-field {
+  justify-content: flex-end;
+}
+.asset-detail-drawer .q-tab-panel > .q-card__section {
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 /* 생성/저장 버튼 */
