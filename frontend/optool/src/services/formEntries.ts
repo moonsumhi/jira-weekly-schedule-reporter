@@ -11,10 +11,16 @@ export type ImportSkipped = {
   reason: string
 }
 
+export type ImportImageGroup = {
+  caption: string
+  images: string[]
+}
+
 export type ImportResult = {
   data: EntryData
   skipped: ImportSkipped[]
   images?: string[]
+  imageGroups?: ImportImageGroup[]
 }
 
 export type FormEntry = {
