@@ -85,8 +85,8 @@ class IssueOut(BaseModel):
     priority: IssuePriority
     assignee_id: Optional[str]
     assignee_name: Optional[str]
-    reporter_id: str
-    reporter_name: str
+    reporter_id: Optional[str]
+    reporter_name: Optional[str]
     sprint_id: Optional[str]
     epic_id: Optional[str]
     epic_title: Optional[str] = None
