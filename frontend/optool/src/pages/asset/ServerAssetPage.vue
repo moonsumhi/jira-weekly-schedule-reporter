@@ -1,5 +1,9 @@
 <template>
   <q-page class="q-pa-md">
+    <!-- 랙 카테고리는 전용 배치 관리 화면으로 분기 -->
+    <RackManagementPage v-if="category === '랙'" />
+
+    <template v-else>
     <!-- Header -->
     <div class="row items-center q-gutter-sm q-mb-md">
       <div class="text-h6">{{ pageTitle }}</div>
@@ -403,12 +407,12 @@
               <q-input v-model="createFields['자산번호']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
-              <div class="field-label">RackNo. <span class="req-star">*</span></div>
-              <q-input v-model="createFields['rack_no']" borderless dense class="field-input" />
+              <div class="field-label">RackNo.</div>
+              <q-input v-model="createFields['rack_no']" borderless dense readonly class="field-input" placeholder="랙 배치 시 자동" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">Rack Unit No.</div>
-              <q-input v-model="createFields['rack_unit_no']" borderless dense class="field-input" />
+              <q-input v-model="createFields['rack_unit_no']" borderless dense readonly class="field-input" placeholder="랙 배치 시 자동" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">자산관리번호</div>
@@ -1094,11 +1098,11 @@
             </div>
             <div class="col-6 form-field">
               <div class="field-label">RackNo.</div>
-              <q-input v-model="rowEditValues['rack_no']" borderless dense class="field-input" />
+              <q-input v-model="rowEditValues['rack_no']" borderless dense readonly class="field-input" placeholder="랙 배치로 관리" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">Rack Unit No.</div>
-              <q-input v-model="rowEditValues['rack_unit_no']" borderless dense class="field-input" />
+              <q-input v-model="rowEditValues['rack_unit_no']" borderless dense readonly class="field-input" placeholder="랙 배치로 관리" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">자산관리번호</div>
@@ -1520,11 +1524,17 @@
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">RackNo.</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['rack_no']) }}</div>
+                <div class="detail-value">
+                  <template v-if="detailTarget.fields?.['rack_no']">{{ displayValue(detailTarget.fields?.['rack_no']) }}</template>
+                  <span v-else class="text-grey-5">랙 배치로 관리 (미배치)</span>
+                </div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">Rack Unit No.</div>
-                <div class="detail-value">{{ displayValue(detailTarget.fields?.['rack_unit_no']) }}</div>
+                <div class="detail-value">
+                  <template v-if="detailTarget.fields?.['rack_unit_no']">{{ displayValue(detailTarget.fields?.['rack_unit_no']) }}</template>
+                  <span v-else class="text-grey-5">랙 배치로 관리</span>
+                </div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">자산관리번호</div>
@@ -2259,6 +2269,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    </template>
   </q-page>
 </template>
 
@@ -2269,6 +2280,7 @@ import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
 import draggable from 'vuedraggable'
 import { api } from 'boot/axios'
+import RackManagementPage from 'src/components/rack/RackManagementPage.vue'
 
 import type { ServerAsset, AssetHistory, FieldsMap, FieldValue, EosActionStatus } from 'src/types/assets'
 import { EOS_STATUS_KEY, EOS_DATE_KEY } from 'src/types/assets'
@@ -2886,7 +2898,7 @@ function onAssetTypeConfirm() {
   openCreate()
 }
 
-const CREATE_REQUIRED_KEYS = ['구분', '자산번호', '서버명', 'rack_no', '위치', '설명'] as const
+const CREATE_REQUIRED_KEYS = ['구분', '자산번호', '서버명', '위치', '설명'] as const
 const createOsFamily = ref('')
 const createOsMajor = ref('')
 const createDbSeries = ref('')
@@ -3635,8 +3647,6 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'web-server-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
     { key: '구분',          label: '중분류(구분)',                                                    sample: '물리' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'SV-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -3685,8 +3695,6 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'sw-core-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
     { key: '구분',          label: '중분류(구분)',                                                    sample: 'Switch' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'NW-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -3722,8 +3730,6 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'db-server-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
     { key: '구분',          label: '중분류(구분)',                                                    sample: 'DB' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'DB-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -3760,8 +3766,6 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'sec-device-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
     { key: '구분',          label: '중분류(구분)',                                                    sample: 'F/W' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'SEC-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -3798,8 +3802,6 @@ const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'vm-host-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: 'rack_no',       label: 'RackNo.',                                                         sample: 'R01' },
-    { key: 'rack_unit_no',  label: 'Rack Unit No.',                                                   sample: '' },
     { key: '구분',          label: '중분류(구분)',                                                    sample: 'ESXi' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'VM-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -4335,6 +4337,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
           const fields2Empty: Record<string, string> = {}
           colKeys.forEach((k, i) => {
             if (k === 'ip' || k === 'name' || k === 'asset_id' || k === '__asset_id__') return
+            if (k === 'rack_no' || k === 'rack_unit_no') return  // 랙 위치는 rack_placements 가 원본
             const v = cellStr(row[i], k).trim()
             if (v) fields2Empty[k] = v
           })
@@ -4375,6 +4378,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
         const fields2: Record<string, string> = {}
         colKeys.forEach((k, i) => {
           if (k === 'ip' || k === 'name' || k === 'asset_id' || k === '__asset_id__') return
+          if (k === 'rack_no' || k === 'rack_unit_no') return  // 랙 위치는 rack_placements 가 원본
           let v = cellStr(row[i], k).trim()
           if (k === EOS_DATE_KEY && /^\d{4}-\d{2}-\d{2}/.test(v)) v = v.slice(0, 7)
           if (k === '운영체제') v = normalizeOsName(v)
@@ -4454,6 +4458,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       const fields: Record<string, string> = {}
       colKeys.forEach((k, i) => {
         if (k === 'ip' || k === 'name' || k === 'asset_id' || k === '__asset_id__') return
+        if (k === 'rack_no' || k === 'rack_unit_no') return  // 랙 위치는 rack_placements 가 원본
         let v = cellStr(row[i], k).trim()
         // EoS 종료 일자는 YYYY-MM 형식으로 정규화
         if (k === EOS_DATE_KEY && /^\d{4}-\d{2}-\d{2}/.test(v)) v = v.slice(0, 7)

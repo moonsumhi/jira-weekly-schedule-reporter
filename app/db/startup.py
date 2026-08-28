@@ -375,6 +375,7 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "정보보호시스템", "icon": "fa-solid fa-shield-halved", "link": "/asset/list?category=정보보호시스템"},
             {"title": "DBMS",         "icon": "fa-solid fa-database",      "link": "/asset/list?category=DBMS"},
             {"title": "VMware",       "icon": "fa-brands fa-vuejs",        "link": "/asset/list?category=VMware"},
+            {"title": "랙",           "icon": "fa-solid fa-boxes-stacked", "link": "/asset/list?category=랙"},
         ],
     },
     "watch":      {"link": "/watch/timetable"},
@@ -520,6 +521,19 @@ async def migrate_remove_deprecated_features() -> None:
     )
     if r2.modified_count:
         logger.info("제거된 기능 권한 정리: %d명", r2.modified_count)
+
+
+async def migrate_rack_submenu() -> None:
+    """asset 메뉴에 '랙' 서브메뉴가 없으면 추가한다 (멱등)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    item = {"title": "랙", "icon": "fa-solid fa-boxes-stacked", "link": "/asset/list?category=랙"}
+    doc = await menus_col.find_one({"slug": "asset"})
+    if not doc:
+        return
+    existing_links = [s.get("link") for s in doc.get("submenus", [])]
+    if item["link"] not in existing_links:
+        await menus_col.update_one({"slug": "asset"}, {"$push": {"submenus": item}})
+        logger.info("랙 서브메뉴 추가")
 
 
 async def migrate_notice_submenu() -> None:
@@ -673,6 +687,7 @@ async def run_startup() -> None:
     await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
     await migrate_recurring_issue_submenu()
+    await migrate_rack_submenu()
     await migrate_notice_submenu()
     await migrate_remove_deprecated_features()
     await seed_env_categories()
@@ -680,6 +695,9 @@ async def run_startup() -> None:
     await migrate_env_submenu()
     await seed_job_form_templates()
     await migrate_assets()
+
+    from app.db.rack_indexes import create_rack_indexes
+    await create_rack_indexes()
 
     from app.db.pm_indexes import create_pm_indexes
     await create_pm_indexes()

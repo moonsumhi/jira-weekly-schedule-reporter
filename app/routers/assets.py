@@ -26,7 +26,7 @@ from app.services.assets_service import AssetsService, list_all_assets
 from app.services.eos_service import EosService
 from app.utils.mongo import oid
 
-VALID_CATEGORIES = {"서버", "네트워크", "정보보호시스템", "DBMS", "VMware"}
+VALID_CATEGORIES = {"서버", "네트워크", "정보보호시스템", "DBMS", "VMware", "랙"}
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
+from fastapi import HTTPException
 
 from app.db.mongo import MongoClientManager
 from app.utils.mongo import to_out
@@ -103,6 +104,7 @@ class AssetsService:
         col_name, hist_name = MongoClientManager.CATEGORY_COLLECTIONS.get(
             category, MongoClientManager.CATEGORY_COLLECTIONS["서버"]
         )
+        self._category = category
         self._col_name = col_name
         self._hist_col_name = hist_name
 
@@ -133,6 +135,11 @@ class AssetsService:
         col = self._col()
 
         await _check_asset_id(col, asset_id)
+
+        # 랙은 이름 중복 금지(랙 식별·매칭 기준이므로)
+        if self._category == "랙" and name:
+            if await col.find_one({"name": name, "is_deleted": {"$ne": True}}):
+                raise ValueError(f"동일 이름의 랙 '{name}'이(가) 이미 있습니다.")
 
         now = TimeUtil.now_utc()
         doc = {
@@ -277,6 +284,22 @@ class AssetsService:
         if patch.get("fields") is not None:
             if not isinstance(patch["fields"], dict):
                 raise ValueError("fields는 객체(object) 형식이어야 합니다.")
+            # 랙 전체 U 축소 차단: 현재 배치된 최상단 U 미만으로 줄일 수 없음
+            if self._category == "랙":
+                try:
+                    new_total = int(patch["fields"].get("total_u"))
+                except (TypeError, ValueError):
+                    new_total = None
+                if new_total is not None:
+                    placements = MongoClientManager.get_rack_placements_collection()
+                    docs = await placements.find(
+                        {"rack_ref_id": _id, "is_deleted": False}, {"end_u": 1}
+                    ).to_list(None)
+                    max_u = max((d.get("end_u", 0) for d in docs), default=0)
+                    if new_total < max_u:
+                        raise ValueError(
+                            f"랙 전체 U를 {new_total}U로 줄일 수 없습니다. 현재 최상단 배치가 U{max_u}입니다."
+                        )
             update["fields"] = patch["fields"]
 
         if not update and not unset:
@@ -315,6 +338,20 @@ class AssetsService:
         existing = await col.find_one({"_id": _id, "is_deleted": {"$ne": True}})
         if not existing:
             raise KeyError("찾을 수 없습니다.")
+
+        # 랙 배치 정합성: 배치된 자산 / 자산이 배치된 랙은 삭제 차단
+        placements = MongoClientManager.get_rack_placements_collection()
+        if await placements.find_one({"asset_ref_id": _id, "is_deleted": False}):
+            raise HTTPException(status_code=409, detail={
+                "code": "ASSET_STILL_PLACED",
+                "message": "랙에 배치된 자산입니다. 랙에서 반출한 후 삭제해 주세요.",
+            })
+        placed_count = await placements.count_documents({"rack_ref_id": _id, "is_deleted": False})
+        if placed_count:
+            raise HTTPException(status_code=409, detail={
+                "code": "RACK_NOT_EMPTY",
+                "message": f"현재 {placed_count}개의 자산이 배치되어 있어 랙을 삭제할 수 없습니다.",
+            })
 
         now = TimeUtil.now_utc()
         update = {
