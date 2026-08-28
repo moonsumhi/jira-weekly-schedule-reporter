@@ -16,96 +16,112 @@
 
     <template v-else>
     <!-- Header -->
-    <div class="row items-center q-gutter-sm q-mb-md">
+    <div class="row items-center q-gutter-sm q-mb-sm">
       <div class="text-h6">{{ pageTitle }}</div>
-
-      <!-- 상태 요약 (클릭 시 필터) -->
-      <div class="asset-summary row items-center q-gutter-xs">
-        <q-chip
-          dense clickable :outline="statusFilter !== null"
-          color="blue-grey-1" text-color="blue-grey-9"
-          :selected="statusFilter === null"
-          @click="statusFilter = null"
-        >총 {{ visibleTotal }}</q-chip>
-        <q-chip
-          v-for="s in ['운영', '점검', '미사용', '폐기예정']" :key="s"
-          dense clickable
-          :color="statusFilter === s ? statusColor(s) : 'grey-2'"
-          :text-color="statusFilter === s ? 'white' : 'grey-8'"
-          @click="toggleStatusFilter(s)"
-        >{{ s }} {{ statusSummary[s] }}</q-chip>
-      </div>
-
       <q-space />
 
-      <q-toggle
-        v-model="includeDeleted"
-        label="삭제 포함"
-        dense
-      />
-
-      <q-toggle
-        v-model="includeDisposed"
-        label="폐기 포함"
-        dense
-      />
-
+      <!-- 대량 작업 (삭제 포함 모드일 때만) -->
       <q-btn
-        v-if="includeDeleted"
-        outline
-        :color="bulkDeleteMode ? 'primary' : undefined"
+        v-if="includeDeleted" outline dense no-caps
+        :color="bulkDeleteMode ? 'primary' : 'grey-7'"
         icon="checklist"
         :label="bulkDeleteMode ? '선택 취소' : '선택 삭제'"
         @click="toggleBulkDeleteMode"
       />
       <q-btn
         v-if="bulkDeleteMode && selectedIds.size > 0"
-        color="negative"
+        color="negative" dense unelevated no-caps
         icon="delete_forever"
         :label="`영구삭제 (${selectedIds.size})`"
         :loading="bulkPurging"
         @click="confirmBulkPurge"
       />
 
-      <q-btn
-        outline
-        icon="refresh"
-        label="새로고침"
-        :loading="loading"
-        @click="load"
-      />
-
-
-      <q-btn outline icon="view_column" label="컬럼 상세보기" @click="openColVisDialog" />
-      <q-btn outline icon="file_download" label="템플릿 다운로드" @click="downloadTemplate" />
-      <q-btn outline icon="upload_file" label="Import" @click="triggerImport" />
+      <!-- Import 결과 알림 (있을 때만) -->
       <q-btn
         v-if="importFailedRows.filter(r => !r.retrySuccess).length > 0"
-        outline icon="error_outline" color="negative"
-        :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}건`"
+        flat dense no-caps icon="error_outline" color="negative"
+        :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}`"
         @click="importResultTab = 'failed'; importFailDialog = true"
       />
       <q-btn
         v-if="importSkippedRows.length > 0"
-        outline icon="skip_next" color="warning"
-        :label="`건너뜀 ${importSkippedRows.length}건`"
+        flat dense no-caps icon="skip_next" color="warning"
+        :label="`건너뜀 ${importSkippedRows.length}`"
         @click="importResultTab = 'skipped'; importFailDialog = true"
       />
       <q-btn
         v-if="duplicateSkippedRows.filter(r => !r.separateSaved).length > 0"
-        outline icon="add_circle_outline" color="teal"
-        :label="`별도 저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}건`"
+        flat dense no-caps icon="add_circle_outline" color="teal"
+        :label="`별도저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}`"
         @click="importResultTab = 'separate'; importFailDialog = true"
       />
-      <q-btn outline icon="download" label="Export" :loading="exportLoading" @click="doExport" />
+
+      <q-btn round flat dense icon="refresh" color="grey-7" :loading="loading" @click="load">
+        <q-tooltip>새로고침</q-tooltip>
+      </q-btn>
+
+      <!-- 더보기: 유틸리티 모음 -->
+      <q-btn outline dense no-caps icon="more_horiz" label="더보기" color="grey-7">
+        <q-menu anchor="bottom right" self="top right">
+          <q-list style="min-width: 200px">
+            <q-item clickable v-close-popup @click="openColVisDialog">
+              <q-item-section avatar><q-icon name="view_column" /></q-item-section>
+              <q-item-section>컬럼 상세보기</q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item clickable v-close-popup @click="downloadTemplate">
+              <q-item-section avatar><q-icon name="file_download" /></q-item-section>
+              <q-item-section>템플릿 다운로드</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="triggerImport">
+              <q-item-section avatar><q-icon name="upload_file" /></q-item-section>
+              <q-item-section>Import (엑셀)</q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup :disable="exportLoading" @click="doExport">
+              <q-item-section avatar>
+                <q-spinner v-if="exportLoading" size="20px" />
+                <q-icon v-else name="download" />
+              </q-item-section>
+              <q-item-section>Export (엑셀)</q-item-section>
+            </q-item>
+            <q-separator />
+            <q-item tag="label">
+              <q-item-section>삭제 포함</q-item-section>
+              <q-item-section side><q-toggle v-model="includeDeleted" dense /></q-item-section>
+            </q-item>
+            <q-item tag="label">
+              <q-item-section>폐기 포함</q-item-section>
+              <q-item-section side><q-toggle v-model="includeDisposed" dense /></q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-btn>
+
       <input ref="importFileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onImportFile" />
 
       <q-btn
-        color="primary"
+        color="primary" unelevated no-caps
         icon="add"
-        :label="category ? `${category} 추가` : '자산 추가'"
+        :label="category ? `${category} 등록` : '자산 등록'"
         @click="category ? openCreate() : (assetTypeDialog = true)"
       />
+    </div>
+
+    <!-- 상태 요약 (클릭 시 필터) -->
+    <div class="asset-summary row items-center q-gutter-xs q-mb-md">
+      <q-chip
+        dense clickable :outline="statusFilter !== null"
+        color="blue-grey-1" text-color="blue-grey-9"
+        @click="statusFilter = null"
+      >총 {{ visibleTotal }}</q-chip>
+      <q-chip
+        v-for="s in ['운영', '점검', '미사용', '폐기예정']" :key="s"
+        dense clickable
+        :color="statusFilter === s ? statusColor(s) : 'grey-2'"
+        :text-color="statusFilter === s ? 'white' : 'grey-8'"
+        @click="toggleStatusFilter(s)"
+      >{{ s }} {{ statusSummary[s] }}</q-chip>
     </div>
 
     <q-card bordered>
@@ -156,12 +172,6 @@
           dense outlined clearable options-dense
           label="위치" style="min-width: 150px"
         />
-        <q-select
-          v-model="facetFilters.소속부서"
-          :options="deptFacetOptions"
-          dense outlined clearable options-dense
-          label="소속부서" style="min-width: 150px"
-        />
       </q-card-section>
 
       <!-- 적용된 필터 태그 -->
@@ -175,9 +185,6 @@
         </q-chip>
         <q-chip v-if="facetFilters.위치" dense removable color="blue-grey-1" text-color="blue-grey-9" @remove="facetFilters.위치 = null">
           위치: {{ facetFilters.위치 }}
-        </q-chip>
-        <q-chip v-if="facetFilters.소속부서" dense removable color="blue-grey-1" text-color="blue-grey-9" @remove="facetFilters.소속부서 = null">
-          소속부서: {{ facetFilters.소속부서 }}
         </q-chip>
         <q-space />
         <q-btn flat dense no-caps size="sm" color="grey-7" label="전체 초기화" @click="clearAllFilters" />
@@ -2652,8 +2659,8 @@ function toggleStatusFilter(s: string) {
   statusFilter.value = statusFilter.value === s ? null : s
 }
 
-// 패싯 필터 (위치 / 소속부서) — 로드된 자산의 고유값으로 옵션 구성
-const facetFilters = reactive<{ 위치: string | null; 소속부서: string | null }>({ 위치: null, 소속부서: null })
+// 패싯 필터 (위치) — 로드된 자산의 고유값으로 옵션 구성
+const facetFilters = reactive<{ 위치: string | null }>({ 위치: null })
 function facetOptions(key: string): string[] {
   const s = new Set<string>()
   for (const r of rows.value) {
@@ -2663,15 +2670,13 @@ function facetOptions(key: string): string[] {
   return [...s].sort()
 }
 const locationFacetOptions = computed(() => facetOptions('위치'))
-const deptFacetOptions = computed(() => facetOptions('소속부서'))
 
 const hasActiveFilters = computed(
-  () => !!(statusFilter.value || facetFilters.위치 || facetFilters.소속부서 || filter.value),
+  () => !!(statusFilter.value || facetFilters.위치 || filter.value),
 )
 function clearAllFilters() {
   statusFilter.value = null
   facetFilters.위치 = null
-  facetFilters.소속부서 = null
   filter.value = ''
   filterCol.value = null
 }
@@ -3006,9 +3011,8 @@ const filteredRows = computed(() => {
     // 상태 필터 (요약 카운트 클릭)
     if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
 
-    // 패싯 필터 (위치 / 소속부서)
+    // 패싯 필터 (위치)
     if (facetFilters.위치 && (r.fields?.['위치'] ?? '') !== facetFilters.위치) return false
-    if (facetFilters.소속부서 && (r.fields?.['소속부서'] ?? '') !== facetFilters.소속부서) return false
 
     // 카테고리 필터 (서버 사이드에서 이미 필터링됨 — 클라이언트 측은 생략)
 
