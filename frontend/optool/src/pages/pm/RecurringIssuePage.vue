@@ -111,7 +111,7 @@
             />
           </div>
 
-          <q-separator class="q-my-md" />
+          <q-separator class="q-my-lg" />
 
           <!-- 이슈 내용 -->
           <div class="section-label q-mb-sm">생성될 이슈 내용</div>
@@ -128,13 +128,19 @@
               v-model="form.assigneeId"
               :options="memberOptions"
               emit-value map-options clearable
-              label="담당자"
+              :label="form.showOnDashboard ? '담당자 *' : '담당자'"
               outlined dense />
             <q-input v-model="form.description" label="설명" type="textarea"
               outlined dense autogrow input-style="min-height: 60px" />
+            <div class="ri-check">
+              <q-checkbox v-model="form.showOnDashboard" dense label="대시보드 D-Day 표시" />
+              <div v-if="form.showOnDashboard" class="ri-check-note text-caption text-grey-6">
+                D-Day는 담당자 대시보드에만 표시됩니다. 담당자를 지정해 주세요.
+              </div>
+            </div>
           </div>
 
-          <q-separator class="q-my-md" />
+          <q-separator class="q-my-lg" />
 
           <!-- 반복 규칙 -->
           <div class="section-label q-mb-sm">반복 규칙</div>
@@ -161,13 +167,13 @@
             <template v-else>
               <div class="ri-row">
                 <q-select v-model="form.weeks" :options="WEEK_OPTIONS" emit-value map-options
-                  multiple use-chips label="주차 *" outlined dense class="col" />
+                  multiple use-chips label="몇 번째 *" outlined dense class="col" />
                 <q-select v-model="form.weekdaysSel" :options="WEEKDAY_OPTIONS" emit-value map-options
                   multiple use-chips label="요일 *" outlined dense class="col" />
               </div>
               <div class="text-caption text-grey-6" style="margin-top:-2px">
                 <span v-if="weekdaySummary">→ 매월 {{ weekdaySummary }}</span>
-                <span v-else>주차와 요일을 고르면 조합됩니다 (예: 첫째주 + 월 → 첫째주 월요일)</span>
+                <span v-else>몇 번째와 요일을 고르면 조합됩니다 (예: 1번째 + 목 → 매월 첫 목요일)</span>
               </div>
             </template>
 
@@ -181,11 +187,11 @@
             </div>
           </div>
 
-          <q-separator class="q-my-md" />
+          <q-separator class="q-my-lg" />
 
           <!-- 옵션 -->
           <div class="section-label q-mb-sm">옵션</div>
-          <div class="column q-gutter-y-sm">
+          <div class="column q-gutter-y-md">
             <q-toggle v-model="form.autoEnabled" color="primary"
               label="자동 생성 (매일 스케줄러가 도래한 회차를 자동으로 만듭니다)" />
             <q-toggle v-model="form.active" color="positive"
@@ -296,13 +302,15 @@ const MODE_OPTIONS = [
   { label: '날짜 지정', value: 'day_of_month' },
   { label: '요일 지정', value: 'weekday' },
 ]
+// "N번째 요일" = 그 달에 해당 요일이 N번째로 등장하는 날 (달력 줄 수가 아님).
+// iCal/Google 캘린더 등과 동일한 표준 방식이라 라벨도 "1번째 …"로 표기한다.
 const WEEK_OPTIONS = [
-  { label: '첫째주', value: 1 },
-  { label: '둘째주', value: 2 },
-  { label: '셋째주', value: 3 },
-  { label: '넷째주', value: 4 },
-  { label: '다섯째주', value: 5 },
-  { label: '마지막주', value: -1 },
+  { label: '1번째', value: 1 },
+  { label: '2번째', value: 2 },
+  { label: '3번째', value: 3 },
+  { label: '4번째', value: 4 },
+  { label: '5번째', value: 5 },
+  { label: '마지막', value: -1 },
 ]
 const WEEKDAY_OPTIONS = [
   { label: '월', value: 0 },
@@ -313,7 +321,7 @@ const WEEKDAY_OPTIONS = [
   { label: '토', value: 5 },
   { label: '일', value: 6 },
 ]
-const WEEK_LABEL: Record<number, string> = { 1: '첫째주', 2: '둘째주', 3: '셋째주', 4: '넷째주', 5: '다섯째주', [-1]: '마지막주' }
+const WEEK_LABEL: Record<number, string> = { 1: '1번째', 2: '2번째', 3: '3번째', 4: '4번째', 5: '5번째', [-1]: '마지막' }
 const WEEKDAY_LABEL = ['월', '화', '수', '목', '금', '토', '일']
 
 const loading = ref(false)
@@ -374,6 +382,7 @@ type FormState = {
   priority: IssuePriority
   assigneeId: string | null
   description: string
+  showOnDashboard: boolean
   mode: RuleMode
   daysOfMonth: number[]
   weeks: number[]
@@ -392,6 +401,7 @@ const form = ref<FormState>({
   priority: 'MEDIUM',
   assigneeId: null,
   description: '',
+  showOnDashboard: false,
   mode: 'day_of_month',
   daysOfMonth: [],
   weeks: [],
@@ -405,13 +415,14 @@ const form = ref<FormState>({
 function resetForm() {
   form.value = {
     name: '', projectId: '', title: '', type: 'TASK', priority: 'MEDIUM',
-    assigneeId: null, description: '', mode: 'day_of_month', daysOfMonth: [],
+    assigneeId: null, description: '', showOnDashboard: false,
+    mode: 'day_of_month', daysOfMonth: [],
     weeks: [], weekdaysSel: [], time: '09:00',
     leadDays: 0, autoEnabled: true, active: true,
   }
 }
 
-// 요일 지정 조합 미리보기 ("첫째주 월요일 · 셋째주 월요일")
+// 요일 지정 조합 미리보기 ("1번째 월요일 · 3번째 월요일")
 const weekdaySummary = computed(() => {
   const parts: string[] = []
   for (const w of form.value.weeks) {
@@ -448,6 +459,7 @@ async function openEdit(row: RecurringIssueTemplate) {
     priority: row.blueprint.priority,
     assigneeId: row.blueprint.assigneeId,
     description: row.blueprint.description ?? '',
+    showOnDashboard: row.blueprint.showOnDashboard,
     mode: row.rule.mode ?? 'day_of_month',
     daysOfMonth: [...(row.rule.daysOfMonth ?? [])],
     weeks: [...new Set((row.rule.weekdays ?? []).map(w => w.week))],
@@ -473,7 +485,7 @@ function buildPayload(): TemplatePayload {
       priority: form.value.priority,
       assignee_id: form.value.assigneeId,
       label_ids: [],
-      show_on_dashboard: false,
+      show_on_dashboard: form.value.showOnDashboard,
     },
     rule: {
       freq: 'monthly',
@@ -500,8 +512,15 @@ async function save() {
     $q.notify({
       type: 'warning',
       message: form.value.mode === 'weekday'
-        ? '이름·프로젝트·제목과 주차·요일은 필수입니다.'
+        ? '이름·프로젝트·제목과 몇 번째·요일은 필수입니다.'
         : '이름·프로젝트·제목·회차일은 필수입니다.',
+    })
+    return
+  }
+  if (form.value.showOnDashboard && !form.value.assigneeId) {
+    $q.notify({
+      type: 'warning',
+      message: 'D-Day 표시는 담당자 대시보드에만 노출됩니다. 담당자를 지정해 주세요.',
     })
     return
   }
@@ -606,14 +625,15 @@ onMounted(async () => {
 
 <style scoped>
 .ri-dialog {
-  width: 540px;
+  width: 560px;
   max-width: 95vw;
 }
 .ri-body {
   max-height: 72vh;
   overflow-y: auto;
 }
-/* 섹션 내 필드들 세로 균등 간격 (필드 자체 하단 공간 + 소폭 gap) */
+/* 섹션 내 필드들 세로 간격 — 필드가 자체 하단 메시지 공간(~20px)을
+   가지므로 gap 은 소폭만. (과하면 hint 없는 필드 사이가 텅 비어 보임) */
 .ri-fields {
   display: flex;
   flex-direction: column;
@@ -622,11 +642,22 @@ onMounted(async () => {
 /* 2컬럼 한 줄 (필드 폭·시작 위치 일치) */
 .ri-row {
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 .ri-row > .col {
   flex: 1 1 0;
   min-width: 0;
+}
+/* D-Day 체크박스 — 위 필드와 구분되도록 얇은 구분선 + 여백 */
+.ri-check {
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+/* 체크박스 밑 주의사항 — 체크박스 라벨 글자와 시작선 맞춤 */
+.ri-check-note {
+  margin-top: 4px;
+  padding-left: 34px;
 }
 .section-label {
   font-size: 11px;

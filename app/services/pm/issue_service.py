@@ -46,7 +46,6 @@ async def enrich_issue(doc: dict) -> dict:
     d = dict(doc)
     d["id"] = str(d.pop("_id"))
     d["project_id"] = str(d["project_id"])
-    d["reporter_id"] = str(d["reporter_id"])
 
     # 프로젝트 키 / 이름
     projects_col = MongoClientManager.get_pm_projects_collection()
@@ -67,9 +66,14 @@ async def enrich_issue(doc: dict) -> dict:
         d["assignee_id"] = None
         d["assignee_name"] = None
 
-    # 보고자
-    reporter = await users.find_one({"_id": ObjectId(d["reporter_id"])}, {"full_name": 1, "email": 1})
-    d["reporter_name"] = reporter.get("full_name") or reporter.get("email", "") if reporter else ""
+    # 보고자 (자동 생성 이슈는 보고자가 없을 수 있음)
+    if d.get("reporter_id"):
+        d["reporter_id"] = str(d["reporter_id"])
+        reporter = await users.find_one({"_id": ObjectId(d["reporter_id"])}, {"full_name": 1, "email": 1})
+        d["reporter_name"] = reporter.get("full_name") or reporter.get("email", "") if reporter else ""
+    else:
+        d["reporter_id"] = None
+        d["reporter_name"] = None
 
     # 상위 Epic 제목
     if d.get("epic_id"):
