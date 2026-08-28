@@ -150,6 +150,37 @@
           class="col"
           @clear="filter = ''"
         />
+        <q-select
+          v-model="facetFilters.위치"
+          :options="locationFacetOptions"
+          dense outlined clearable options-dense
+          label="위치" style="min-width: 150px"
+        />
+        <q-select
+          v-model="facetFilters.소속부서"
+          :options="deptFacetOptions"
+          dense outlined clearable options-dense
+          label="소속부서" style="min-width: 150px"
+        />
+      </q-card-section>
+
+      <!-- 적용된 필터 태그 -->
+      <q-card-section v-if="hasActiveFilters" class="q-pt-none q-pb-sm row items-center q-gutter-xs">
+        <span class="text-caption text-grey-6 q-mr-xs">적용 필터</span>
+        <q-chip v-if="filter" dense removable color="blue-grey-1" text-color="blue-grey-9" @remove="filter = ''">
+          검색: {{ filter }}
+        </q-chip>
+        <q-chip v-if="statusFilter" dense removable :color="statusColor(statusFilter)" text-color="white" @remove="statusFilter = null">
+          상태: {{ statusFilter }}
+        </q-chip>
+        <q-chip v-if="facetFilters.위치" dense removable color="blue-grey-1" text-color="blue-grey-9" @remove="facetFilters.위치 = null">
+          위치: {{ facetFilters.위치 }}
+        </q-chip>
+        <q-chip v-if="facetFilters.소속부서" dense removable color="blue-grey-1" text-color="blue-grey-9" @remove="facetFilters.소속부서 = null">
+          소속부서: {{ facetFilters.소속부서 }}
+        </q-chip>
+        <q-space />
+        <q-btn flat dense no-caps size="sm" color="grey-7" label="전체 초기화" @click="clearAllFilters" />
       </q-card-section>
 
       <q-separator />
@@ -1542,8 +1573,8 @@
     </q-dialog>
 
     <!-- Detail view dialog -->
-    <q-dialog v-model="detailDialog">
-      <q-card class="server-form-card" v-if="detailTarget" style="max-height: 90vh; display: flex; flex-direction: column;">
+    <q-drawer v-model="detailDialog" side="right" overlay bordered :width="600" class="asset-detail-drawer">
+      <div v-if="detailTarget" class="column no-wrap" style="height: 100%;">
         <!-- 상단: 호스트명 & IP -->
         <q-card-section class="q-pb-sm row items-center" style="flex-shrink: 0;">
           <div class="col">
@@ -1556,7 +1587,7 @@
               <span class="top-field-value">{{ detailTarget.ip }}</span>
             </div>
           </div>
-          <q-btn flat dense round icon="close" v-close-popup class="q-ml-md self-start" />
+          <q-btn flat dense round icon="close" class="q-ml-md self-start" @click="detailDialog = false" />
         </q-card-section>
 
         <div class="col scroll" style="min-height: 0; overflow-y: auto;">
@@ -1872,12 +1903,12 @@
             >#{{ tag }}</q-chip>
           </div>
           <div class="row q-gutter-xs" style="flex-shrink:0">
-            <q-btn flat label="닫기" v-close-popup />
+            <q-btn flat label="닫기" @click="detailDialog = false" />
             <q-btn v-if="!detailTarget?.isDeleted" class="create-btn" icon="edit" label="편집" @click="detailDialog = false; openRowEdit(detailTarget!)" />
           </div>
         </div>
-      </q-card>
-    </q-dialog>
+      </div>
+    </q-drawer>
 
     <!-- 삭제 확인 다이얼로그 -->
     <q-dialog v-model="deleteDialog" persistent>
@@ -2342,7 +2373,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
@@ -2567,6 +2598,30 @@ const visibleTotal = computed(
 )
 function toggleStatusFilter(s: string) {
   statusFilter.value = statusFilter.value === s ? null : s
+}
+
+// 패싯 필터 (위치 / 소속부서) — 로드된 자산의 고유값으로 옵션 구성
+const facetFilters = reactive<{ 위치: string | null; 소속부서: string | null }>({ 위치: null, 소속부서: null })
+function facetOptions(key: string): string[] {
+  const s = new Set<string>()
+  for (const r of rows.value) {
+    const v = r.fields?.[key]
+    if (typeof v === 'string' && v.trim()) s.add(v)
+  }
+  return [...s].sort()
+}
+const locationFacetOptions = computed(() => facetOptions('위치'))
+const deptFacetOptions = computed(() => facetOptions('소속부서'))
+
+const hasActiveFilters = computed(
+  () => !!(statusFilter.value || facetFilters.위치 || facetFilters.소속부서 || filter.value),
+)
+function clearAllFilters() {
+  statusFilter.value = null
+  facetFilters.위치 = null
+  facetFilters.소속부서 = null
+  filter.value = ''
+  filterCol.value = null
 }
 const tableSortDesc = ref(false)
 
@@ -2898,6 +2953,10 @@ const filteredRows = computed(() => {
 
     // 상태 필터 (요약 카운트 클릭)
     if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
+
+    // 패싯 필터 (위치 / 소속부서)
+    if (facetFilters.위치 && (r.fields?.['위치'] ?? '') !== facetFilters.위치) return false
+    if (facetFilters.소속부서 && (r.fields?.['소속부서'] ?? '') !== facetFilters.소속부서) return false
 
     // 카테고리 필터 (서버 사이드에서 이미 필터링됨 — 클라이언트 측은 생략)
 
