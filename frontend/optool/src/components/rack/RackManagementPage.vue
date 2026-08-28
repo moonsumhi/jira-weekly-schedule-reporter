@@ -275,7 +275,15 @@
               <q-input v-model="rackForm.assetId" label="랙 코드 (선택)" outlined dense />
             </div>
             <div class="col-6">
-              <q-input v-model="rackForm.serverRoom" label="서버실" outlined dense />
+              <q-select
+                v-model="rackRoomSelect"
+                :options="[...locationOptions, '기타']"
+                label="서버실(위치)" outlined dense clearable
+                @update:model-value="(v: string) => { rackForm.serverRoom = v && v !== '기타' ? v : '' }"
+              />
+            </div>
+            <div v-if="rackRoomSelect === '기타'" class="col-12">
+              <q-input v-model="rackForm.serverRoom" label="서버실 직접 입력" outlined dense />
             </div>
             <div class="col-6">
               <q-input v-model.number="rackForm.totalU" type="number" label="전체 U *" outlined dense min="1" />
@@ -372,6 +380,7 @@ import {
   migrateRackFromFields, movePlacement, removePlacement, searchRackAssets,
 } from 'src/services/racks'
 import { createServer, deleteServer, getServer } from 'src/services/assets'
+import { envCategoryService } from 'src/services/envCategory'
 import type { ServerAsset } from 'src/types/assets'
 import type {
   AssetSearchResult, IntegrityReport, MountSide, PlacementHistory, PlacementHistoryPos,
@@ -408,6 +417,8 @@ const STATUS_OPTIONS = ['ACTIVE', '점검', '폐기']
 const rackDialog = ref(false)
 const savingRack = ref(false)
 const deletingRack = ref(false)
+const locationOptions = ref<string[]>([])
+const rackRoomSelect = ref('')
 const rackForm = reactive({
   name: '', assetId: '', serverRoom: '', totalU: 42, status: 'ACTIVE',
   maxLoadKg: null as number | null, maxPowerW: null as number | null,
@@ -596,6 +607,7 @@ function openRackCreate() {
   Object.assign(rackForm, {
     name: '', assetId: '', serverRoom: '', totalU: 42, status: 'ACTIVE', maxLoadKg: null, maxPowerW: null,
   })
+  rackRoomSelect.value = ''
   rackDialog.value = true
 }
 
@@ -729,7 +741,14 @@ function posLabel(pos: PlacementHistoryPos): string {
 }
 function fmtDate(s: string): string { return new Date(s).toLocaleString('ko-KR') }
 
-onMounted(() => { void loadRacks(); void loadUnplaced(); void checkIntegrity() })
+async function loadLocationOptions() {
+  try {
+    const items = await envCategoryService.itemsByKey('asset_location')
+    locationOptions.value = items.map((i) => i.value || i.label)
+  } catch { /* 무시 */ }
+}
+
+onMounted(() => { void loadRacks(); void loadUnplaced(); void checkIntegrity(); void loadLocationOptions() })
 </script>
 
 <style scoped>

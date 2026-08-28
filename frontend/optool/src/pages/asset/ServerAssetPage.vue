@@ -1,5 +1,16 @@
 <template>
   <q-page class="q-pa-md">
+    <!-- 카테고리 탭 (항상 표시, 랙 포함) -->
+    <q-tabs
+      :model-value="category || '전체'"
+      dense no-caps align="left"
+      active-color="primary" indicator-color="primary"
+      class="asset-cat-tabs q-mb-md"
+      @update:model-value="v => selectCategoryTab(String(v))"
+    >
+      <q-tab v-for="c in ASSET_CATEGORY_TABS" :key="c" :name="c" :label="c" />
+    </q-tabs>
+
     <!-- 랙 카테고리는 전용 배치 관리 화면으로 분기 -->
     <RackManagementPage v-if="category === '랙'" />
 
@@ -7,6 +18,24 @@
     <!-- Header -->
     <div class="row items-center q-gutter-sm q-mb-md">
       <div class="text-h6">{{ pageTitle }}</div>
+
+      <!-- 상태 요약 (클릭 시 필터) -->
+      <div class="asset-summary row items-center q-gutter-xs">
+        <q-chip
+          dense clickable :outline="statusFilter !== null"
+          color="blue-grey-1" text-color="blue-grey-9"
+          :selected="statusFilter === null"
+          @click="statusFilter = null"
+        >총 {{ visibleTotal }}</q-chip>
+        <q-chip
+          v-for="s in ['운영', '점검', '미사용', '폐기예정']" :key="s"
+          dense clickable
+          :color="statusFilter === s ? statusColor(s) : 'grey-2'"
+          :text-color="statusFilter === s ? 'white' : 'grey-8'"
+          @click="toggleStatusFilter(s)"
+        >{{ s }} {{ statusSummary[s] }}</q-chip>
+      </div>
+
       <q-space />
 
       <q-toggle
@@ -245,6 +274,14 @@
                 />
               </template>
 
+              <!-- 상태: 색상 배지 -->
+              <template v-else-if="colKey(props.col) === '상태'">
+                <q-badge v-if="getField(props.row, '상태')" :color="statusColor(getField(props.row, '상태') as string)">
+                  {{ getField(props.row, '상태') }}
+                </q-badge>
+                <span v-else>-</span>
+              </template>
+
               <!-- 운영체제: OS + version 함께 표시 -->
               <template v-else-if="colKey(props.col) === '운영체제'">
                 <span>{{ displayValue(getField(props.row, '운영체제')) }}</span>
@@ -403,6 +440,10 @@
               <q-input v-model="createFields['구분']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
+              <div class="field-label">상태</div>
+              <q-select v-model="createFields['상태']" :options="STATUS_OPTIONS" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
               <div class="field-label">자산번호 <span class="req-star">*</span></div>
               <q-input v-model="createFields['자산번호']" borderless dense class="field-input" />
             </div>
@@ -423,18 +464,25 @@
               <q-input v-model="createFields['SN']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
-              <div class="field-label">위치 <span class="req-star">*</span></div>
-              <q-select
-                v-model="createLocationSelect"
-                :options="activeCreateCategory === 'DBMS' ? DBMS_LOCATION_OPTIONS : LOCATION_OPTIONS"
-                borderless dense clearable class="field-input"
-                @update:model-value="val => { if (val && val !== '기타') createFields['위치'] = val; else createFields['위치'] = '' }"
-              />
+              <div class="field-label">위치 <span v-if="!isCreateLocationLocked" class="req-star">*</span></div>
               <q-input
-                v-if="createLocationSelect === '기타'"
-                v-model="createFields['위치']"
-                borderless dense placeholder="위치 직접 입력" class="field-input q-mt-xs"
+                v-if="isCreateLocationLocked"
+                :model-value="createFields['위치']"
+                borderless dense readonly class="field-input" placeholder="랙 배치로 관리"
               />
+              <template v-else>
+                <q-select
+                  v-model="createLocationSelect"
+                  :options="activeCreateCategory === 'DBMS' ? DBMS_LOCATION_OPTIONS : LOCATION_OPTIONS"
+                  borderless dense clearable class="field-input"
+                  @update:model-value="val => { if (val && val !== '기타') createFields['위치'] = val; else createFields['위치'] = '' }"
+                />
+                <q-input
+                  v-if="createLocationSelect === '기타'"
+                  v-model="createFields['위치']"
+                  borderless dense placeholder="위치 직접 입력" class="field-input q-mt-xs"
+                />
+              </template>
             </div>
             <div class="col-6 form-field">
               <div class="field-label">설명 <span class="req-star">*</span></div>
@@ -1093,6 +1141,10 @@
               <q-input v-model="rowEditValues['구분']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
+              <div class="field-label">상태</div>
+              <q-select v-model="rowEditValues['상태']" :options="STATUS_OPTIONS" borderless dense clearable class="field-input" />
+            </div>
+            <div class="col-6 form-field">
               <div class="field-label">자산번호</div>
               <q-input v-model="rowEditValues['자산번호']" borderless dense class="field-input" />
             </div>
@@ -1114,17 +1166,24 @@
             </div>
             <div class="col-6 form-field">
               <div class="field-label">위치</div>
-              <q-select
-                v-model="rowEditLocationSelect"
-                :options="LOCATION_OPTIONS"
-                dense borderless clearable class="field-input"
-                @update:model-value="val => { if (val && val !== '기타') rowEditValues['위치'] = val; else rowEditValues['위치'] = '' }"
-              />
               <q-input
-                v-if="rowEditLocationSelect === '기타'"
-                v-model="rowEditValues['위치']"
-                dense borderless placeholder="위치 직접 입력" class="field-input q-mt-xs"
+                v-if="isRowEditLocationLocked"
+                :model-value="rowEditValues['위치']"
+                dense borderless readonly class="field-input" placeholder="랙 배치로 관리"
               />
+              <template v-else>
+                <q-select
+                  v-model="rowEditLocationSelect"
+                  :options="LOCATION_OPTIONS"
+                  dense borderless clearable class="field-input"
+                  @update:model-value="val => { if (val && val !== '기타') rowEditValues['위치'] = val; else rowEditValues['위치'] = '' }"
+                />
+                <q-input
+                  v-if="rowEditLocationSelect === '기타'"
+                  v-model="rowEditValues['위치']"
+                  dense borderless placeholder="위치 직접 입력" class="field-input q-mt-xs"
+                />
+              </template>
             </div>
             <div class="col-6 form-field">
               <div class="field-label">설명</div>
@@ -1517,6 +1576,15 @@
               <div class="col-6 form-field">
                 <div class="field-label">구분</div>
                 <div class="detail-value">{{ displayValue(detailTarget.fields?.['구분']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">상태</div>
+                <div class="detail-value">
+                  <q-badge v-if="detailTarget.fields?.['상태']" :color="statusColor(detailTarget.fields['상태'] as string)">
+                    {{ detailTarget.fields['상태'] }}
+                  </q-badge>
+                  <span v-else>-</span>
+                </div>
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">자산번호</div>
@@ -2275,7 +2343,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
 import draggable from 'vuedraggable'
@@ -2293,6 +2361,7 @@ import {
 } from 'src/services/eosDetection'
 
 import { listServers, createServer, patchServer, deleteServer, restoreServer, purgeServer, getServerHistory } from 'src/services/assets'
+import { envCategoryService } from 'src/services/envCategory'
 import { eolStatusColor, eolStatusLabel, getAutoEol } from 'src/services/eolData'
 
 const VADA_KEY = 'vada_installed' as const
@@ -2341,6 +2410,17 @@ import { historyBadgeColor } from 'src/utils/ui/badges'
 
 const $q = useQuasar()
 const route = useRoute()
+const router = useRouter()
+
+// 카테고리 탭 (전체 = category 없음)
+const ASSET_CATEGORY_TABS = ['전체', '서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙']
+function selectCategoryTab(v: string) {
+  const query = { ...route.query }
+  if (v === '전체') delete query.category
+  else query.category = v
+  statusFilter.value = null
+  void router.push({ query })
+}
 
 const category = computed(() => (route.query.category as string) || '')
 const pageTitle = computed(() => category.value ? `${category.value} 자산 관리` : '전체 자산 관리')
@@ -2351,6 +2431,7 @@ const eosSoonDays = 90
 
 // 표준 필드 키 순서 정의 (데이터에 없어도 표시 순서 보장)
 const PREFERRED_FIELD_KEYS = [
+  '상태',
   'rack_no',
   'rack_unit_no',
   '구분',
@@ -2404,6 +2485,7 @@ function fieldLabel(key: string): string {
 }
 
 const FIELD_LABEL_MAP: Record<string, string> = {
+  '상태': '상태',
   rack_no: 'RackNo.',
   rack_unit_no: 'Rack Unit No.',
   '구분': '중분류(구분)',
@@ -2467,7 +2549,25 @@ watch(includeDeleted, () => { void load() })
 
 const filter = ref('')
 const filterCol = ref<string | null>(null)
+const statusFilter = ref<string | null>(null)
 const tableSortKey = ref('ip')
+
+// 상태 요약 (현재 로드된 자산 기준)
+const statusSummary = computed(() => {
+  const c: Record<string, number> = { 운영: 0, 점검: 0, 미사용: 0, 폐기예정: 0 }
+  for (const r of rows.value) {
+    if (!includeDeleted.value && r.isDeleted) continue
+    const s = (r.fields?.['상태'] as string) ?? ''
+    if (s in c) c[s]!++
+  }
+  return c
+})
+const visibleTotal = computed(
+  () => rows.value.filter((r) => includeDeleted.value || !r.isDeleted).length,
+)
+function toggleStatusFilter(s: string) {
+  statusFilter.value = statusFilter.value === s ? null : s
+}
 const tableSortDesc = ref(false)
 
 function getSortKey(col: { name: string; [k: string]: unknown }): string {
@@ -2582,7 +2682,7 @@ function colKey(col: unknown): string {
 
 // 컬럼 표시 순서 — '__ip__'/'__name__'은 IP/HostName 고정 컬럼 위치 마커
 const COLUMN_DISPLAY_ORDER = [
-  'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
+  '상태', 'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
   EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항', TAGS_KEY, '비고',
 ] as const
 
@@ -2796,6 +2896,9 @@ const filteredRows = computed(() => {
     // 폐기된 항목 필터 (기본 숨김, "폐기 포함" 토글로만 표시)
     if (!includeDisposed.value && r.fields?.[DISPOSAL_KEY] === 'O') return false
 
+    // 상태 필터 (요약 카운트 클릭)
+    if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
+
     // 카테고리 필터 (서버 사이드에서 이미 필터링됨 — 클라이언트 측은 생략)
 
     // 텍스트 검색
@@ -2898,7 +3001,7 @@ function onAssetTypeConfirm() {
   openCreate()
 }
 
-const CREATE_REQUIRED_KEYS = ['구분', '자산번호', '서버명', '위치', '설명'] as const
+const CREATE_REQUIRED_KEYS = ['구분', '자산번호', '서버명', '설명'] as const
 const createOsFamily = ref('')
 const createOsMajor = ref('')
 const createDbSeries = ref('')
@@ -2925,9 +3028,30 @@ const createFields = ref<Record<string, string>>({})
 const createTags = ref<string[]>([])
 
 
-const LOCATION_OPTIONS = ['암빅데이터센터', '정보화팀', '정보보호팀', '기타']
-const LOCATION_PRESETS = ['암빅데이터센터', '정보화팀', '정보보호팀']
+// 자산 상태 옵션 (fields['상태'])
+const STATUS_OPTIONS = ['운영', '점검', '미사용', '폐기예정']
+function statusColor(s?: string | null): string {
+  return s === '운영' ? 'positive' : s === '점검' ? 'orange' : s === '폐기예정' ? 'negative' : 'grey'
+}
+
+// 위치 옵션은 Admin > 환경설정(env_categories: asset_location)에서 관리한다. 아래는 폴백.
+const LOCATION_PRESETS = ref<string[]>(['암빅데이터센터', '정보화팀', '정보보호팀'])
+const LOCATION_OPTIONS = computed(() => [...LOCATION_PRESETS.value, '기타'])
 const DBMS_LOCATION_OPTIONS = ['암빅데이터센터', 'Closed DMZ', '기타']
+
+// 랙 장착 카테고리는 위치를 랙 배치에서 미러링하므로 서버 폼에선 읽기전용
+const PLACEABLE_CATS = ['서버', '네트워크', '정보보호시스템']
+const isCreateLocationLocked = computed(() => PLACEABLE_CATS.includes(activeCreateCategory.value))
+const isRowEditLocationLocked = computed(() =>
+  PLACEABLE_CATS.includes((rowEditTarget.value?.fields?.['자산유형'] as string) || category.value || '서버'),
+)
+
+async function loadLocationOptions() {
+  try {
+    const items = await envCategoryService.itemsByKey('asset_location')
+    if (items.length) LOCATION_PRESETS.value = items.map((i) => i.value || i.label)
+  } catch { /* 폴백 유지 */ }
+}
 
 const actingId = ref<string | null>(null)
 const actingType = ref<'create' | 'editBase' | 'editField' | 'delete' | null>(null)
@@ -2937,6 +3061,7 @@ function openCreate() {
   createIpError.value = ''
   createName.value = ''
   createFields.value = (activeCreateCategory.value && activeCreateCategory.value !== '서버') ? { '자산유형': activeCreateCategory.value } : {}
+  createFields.value['상태'] = '운영'  // 기본 상태
   createOsFamily.value = ''
   createDbSeries.value = ''
   createTags.value = []
@@ -3016,12 +3141,7 @@ async function doCreate() {
   }
   for (const k of CREATE_REQUIRED_KEYS) {
     if (!(createFields.value[k] ?? '').toString().trim()) {
-      const label = fieldLabel(k)
-      if (k === '위치' && createLocationSelect.value === '기타') {
-        $q.notify({ type: 'warning', message: '위치(기타)를 직접 입력해주세요.' })
-      } else {
-        $q.notify({ type: 'warning', message: `${label}은(는) 필수입니다.` })
-      }
+      $q.notify({ type: 'warning', message: `${fieldLabel(k)}은(는) 필수입니다.` })
       return
     }
   }
@@ -3167,7 +3287,7 @@ function openEditField(row: ServerAsset, key: string) {
       editFieldLocationSelect.value = ''
     } else if (key === '위치') {
       const locVal = editFieldText.value
-      editFieldLocationSelect.value = LOCATION_PRESETS.includes(locVal) ? locVal : (locVal ? '기타' : '')
+      editFieldLocationSelect.value = LOCATION_PRESETS.value.includes(locVal) ? locVal : (locVal ? '기타' : '')
       editFieldOsFamily.value = ''
       editFieldVersionText.value = ''
     } else {
@@ -3416,7 +3536,7 @@ const rowEditFields = computed(() => {
 
 // 편집 다이얼로그 템플릿에서 이미 하드코딩된 필드 키 목록
 const EDIT_DIALOG_COVERED_KEYS = new Set([
-  '자산유형', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
+  '자산유형', '상태', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
   '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고',
   '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자',
   '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항',
@@ -3464,7 +3584,7 @@ function openRowEdit(row: ServerAsset) {
   const autoEos = ['네트워크', '정보보호시스템'].includes(category.value) ? getNetworkEos(vals['운영체제'] ?? '') : null
   rowEditManualEosDate.value = (!autoEos && ['네트워크', '정보보호시스템'].includes(category.value)) ? (vals[EOS_DATE_KEY] ?? '') : ''
   const locVal = vals['위치'] ?? ''
-  rowEditLocationSelect.value = LOCATION_PRESETS.includes(locVal) ? locVal : (locVal ? '기타' : '')
+  rowEditLocationSelect.value = LOCATION_PRESETS.value.includes(locVal) ? locVal : (locVal ? '기타' : '')
   rowEditDialog.value = true
 }
 
@@ -4585,11 +4705,18 @@ async function _runImport(buf: ArrayBuffer, password: string) {
 
 onMounted(() => {
   void fetchEosMap()  // endoflife.date 에서 EoS 맵 로드 (백그라운드)
+  void loadLocationOptions()  // 위치 옵션(환경설정) 로드
   void load()
 })
 </script>
 
 <style scoped>
+.asset-cat-tabs {
+  border-bottom: 1px solid #e0e0e0;
+}
+.asset-summary {
+  margin-left: 12px;
+}
 .conflict-diff-table {
   border-collapse: collapse;
   font-size: 12px;

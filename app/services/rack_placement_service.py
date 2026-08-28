@@ -191,16 +191,18 @@ async def _validate_target(
 async def _mirror_to_asset(category: str, asset_ref_id: ObjectId, rack: dict, start_u: int, end_u: int) -> None:
     rack_code = (rack.get("asset_id") or rack.get("name") or "") if rack else ""
     unit = str(start_u) if start_u == end_u else f"{start_u}-{end_u}"
+    # 위치 = 랙의 서버실(server_room). 서버 폼의 '위치'와 동일 개념으로 미러링한다.
+    location = (rack.get("fields") or {}).get("server_room", "") if rack else ""
     await MongoClientManager.get_asset_collection(category).update_one(
         {"_id": asset_ref_id},
-        {"$set": {"fields.rack_no": rack_code, "fields.rack_unit_no": unit}},
+        {"$set": {"fields.rack_no": rack_code, "fields.rack_unit_no": unit, "fields.위치": location}},
     )
 
 
 async def _clear_asset_mirror(category: str, asset_ref_id: ObjectId) -> None:
     await MongoClientManager.get_asset_collection(category).update_one(
         {"_id": asset_ref_id},
-        {"$set": {"fields.rack_no": "", "fields.rack_unit_no": ""}},
+        {"$set": {"fields.rack_no": "", "fields.rack_unit_no": "", "fields.위치": ""}},
     )
 
 

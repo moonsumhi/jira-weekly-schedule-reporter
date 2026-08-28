@@ -588,6 +588,20 @@ async def seed_env_categories() -> None:
             "created_at": datetime.now(timezone.utc),
         })
         logger.info("env_categories 초기값 삽입: board_post_categories")
+    if not await col.find_one({"key": "asset_location"}):
+        from uuid import uuid4
+        _locs = ["암빅데이터센터", "정보화팀", "정보보호팀"]
+        await col.insert_one({
+            "key": "asset_location",
+            "label": "자산 위치 / 랙 서버실",
+            "is_system": True,
+            "items": [
+                {"id": str(uuid4()), "label": v, "value": v, "sort_order": i, "is_active": True}
+                for i, v in enumerate(_locs)
+            ],
+            "created_at": datetime.now(timezone.utc),
+        })
+        logger.info("env_categories 초기값 삽입: asset_location")
 
 
 async def migrate_env_submenu() -> None:
@@ -651,6 +665,22 @@ async def migrate_assets() -> None:
         logger.info("assets 마이그레이션 완료: %d건 이동", migrated)
 
 
+async def migrate_asset_status_default() -> None:
+    """상태 필드가 없는 자산에 기본값 '운영'을 채운다 (멱등). 랙 카테고리 제외."""
+    db = MongoClientManager.get_db()
+    total = 0
+    for cat, (col_name, _hist) in MongoClientManager.CATEGORY_COLLECTIONS.items():
+        if cat == "랙":
+            continue
+        r = await db[col_name].update_many(
+            {"fields.상태": {"$in": [None, ""]}},  # 없음/null/빈값 모두 포함
+            {"$set": {"fields.상태": "운영"}},
+        )
+        total += r.modified_count
+    if total:
+        logger.info("자산 상태 기본값 backfill: %d건", total)
+
+
 async def migrate_firewall_contact_names() -> None:
     """방화벽 담당자 메일 항목 중 value 없이 label에 이메일을 그대로 저장해둔
     과거 데이터를, users 컬렉션에서 이메일로 조회해 label=이름/value=이메일로
@@ -695,6 +725,7 @@ async def run_startup() -> None:
     await migrate_env_submenu()
     await seed_job_form_templates()
     await migrate_assets()
+    await migrate_asset_status_default()
 
     from app.db.rack_indexes import create_rack_indexes
     await create_rack_indexes()
