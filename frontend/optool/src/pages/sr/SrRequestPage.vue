@@ -90,7 +90,8 @@
             <div class="section-label">요청 제목</div>
             <q-input v-model="form.title" outlined dense
               placeholder="한 줄로 요약해주세요."
-              :rules="[v => !!v || '필수 항목입니다.']" />
+              maxlength="255" counter
+              :rules="[v => !!v || '필수 항목입니다.', v => (v?.length ?? 0) <= 255 || '제목은 255자 이내로 입력해주세요.']" />
           </div>
 
           <div class="form-section">

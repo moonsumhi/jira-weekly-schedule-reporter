@@ -1999,8 +1999,8 @@ watch(() => route.params.id, (newId) => {
   margin-top: 0 !important;
 }
 
-.content-text  { font-size: 0.9rem; line-height: 1.65; color: #212121; }
-.content-date  { display: flex; align-items: center; font-size: 0.9rem; color: #212121; }
+.content-text  { font-size: 0.9rem; line-height: 1.65; color: #212121; overflow-wrap: anywhere; word-break: break-word; }
+.content-date  { display: flex; align-items: center; font-size: 0.9rem; color: #212121; overflow-wrap: anywhere; }
 .pre-wrap      { white-space: pre-wrap; }
 
 .content-html { font-size: 0.9rem; line-height: 1.75; color: #212121; }
