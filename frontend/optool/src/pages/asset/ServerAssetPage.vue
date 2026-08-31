@@ -209,16 +209,6 @@
             />
           </div>
           <div class="row q-col-gutter-md q-row-gutter-md">
-            <div v-if="!category" class="col-12 col-sm-6 col-md-4">
-              <q-select
-                v-model="advancedFilters.assetTypes" :options="assetTypeFilterOptions"
-                :display-value="filterSelectionDisplay(advancedFilters.assetTypes)"
-                label="자산 종류" outlined dense clearable multiple bg-color="white"
-                class="advanced-filter-field"
-              >
-                <template #prepend><q-icon name="category" size="17px" color="grey-5" /></template>
-              </q-select>
-            </div>
             <div class="col-12 col-sm-6 col-md-4">
               <q-select
                 v-model="advancedFilters.locations" :options="locationFilterOptions"
@@ -2621,7 +2611,6 @@ function selectCategoryTab(v: string) {
   if (v === '전체') delete query.category
   else query.category = v
   clearStatusFilters()
-  advancedFilters.assetTypes = []
   void router.push({ query })
 }
 
@@ -2755,7 +2744,6 @@ const includedStatusFilters = ref<string[]>([])
 const excludedStatusFilters = ref<string[]>([])
 const advancedFilterOpen = ref(false)
 const advancedFilters = reactive({
-  assetTypes: [] as string[] | null,
   locations: [] as string[] | null,
   departments: [] as string[] | null,
   manufacturers: [] as string[] | null,
@@ -2804,13 +2792,6 @@ function facetOptions(key: string, arrayItems = false): string[] {
   return [...values].sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }))
 }
 
-const assetTypeFilterOptions = computed(() => {
-  const values = new Set<string>()
-  for (const row of rows.value) {
-    if (!row.isDeleted) values.add((row.fields?.['자산유형'] as string) || '서버')
-  }
-  return [...values].sort((a, b) => a.localeCompare(b, 'ko'))
-})
 const locationFilterOptions = computed(() => facetOptions('위치'))
 const departmentFilterOptions = computed(() => facetOptions('소속부서'))
 const manufacturerFilterOptions = computed(() => facetOptions('제조사'))
@@ -2819,7 +2800,6 @@ const managerFilterOptions = computed(() => facetOptions('담당자'))
 const tagFilterOptions = computed(() => facetOptions(TAGS_KEY, true))
 
 const advancedFilterCount = computed(() => [
-  !category.value ? advancedFilters.assetTypes?.length : 0,
   advancedFilters.locations?.length,
   advancedFilters.departments?.length,
   advancedFilters.manufacturers?.length,
@@ -2840,7 +2820,6 @@ const advancedFilterChips = computed(() => {
   const addMulti = (key: AdvancedFilterKey, label: string, values: string[] | null) => {
     if (values?.length) chips.push({ key, label, value: values.join(', ') })
   }
-  if (!category.value) addMulti('assetTypes', '자산 종류', advancedFilters.assetTypes)
   addMulti('locations', '위치', advancedFilters.locations)
   addMulti('departments', '소속부서/사업', advancedFilters.departments)
   addMulti('manufacturers', '제조사', advancedFilters.manufacturers)
@@ -2866,7 +2845,6 @@ const advancedFilterChips = computed(() => {
 
 function clearAdvancedFilter(key: AdvancedFilterKey) {
   switch (key) {
-    case 'assetTypes': advancedFilters.assetTypes = []; break
     case 'locations': advancedFilters.locations = []; break
     case 'departments': advancedFilters.departments = []; break
     case 'manufacturers': advancedFilters.manufacturers = []; break
@@ -2885,7 +2863,7 @@ function clearAdvancedFilter(key: AdvancedFilterKey) {
 
 function clearAdvancedFilters() {
   Object.assign(advancedFilters, {
-    assetTypes: [], locations: [], departments: [], manufacturers: [],
+    locations: [], departments: [], manufacturers: [],
     operatingSystems: [], managers: [], tags: [], eosStatuses: [],
     acquiredFrom: null, acquiredTo: null,
   })
@@ -3305,9 +3283,6 @@ const filteredRows = computed(() => {
       if (excludedStatusFilters.value.includes(status)) return false
 
       // 상세 필터
-      const assetType = (r.fields?.['자산유형'] as string) || '서버'
-      if (!category.value && advancedFilters.assetTypes?.length
-        && !advancedFilters.assetTypes.includes(assetType)) return false
       if (!matchesFieldSelection(r, '위치', advancedFilters.locations)) return false
       if (!matchesFieldSelection(r, '소속부서', advancedFilters.departments)) return false
       if (!matchesFieldSelection(r, '제조사', advancedFilters.manufacturers)) return false
