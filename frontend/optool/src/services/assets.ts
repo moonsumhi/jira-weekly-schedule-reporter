@@ -26,7 +26,7 @@ export async function createServer(ip: string, name: string, fields?: FieldsMap,
 
 export async function patchServer(
   id: string,
-  payload: Partial<Pick<ServerAsset, 'ip' | 'name'>> & { fields?: FieldsMap; asset_id?: string | null; asset_no?: string | null },
+  payload: Partial<Pick<ServerAsset, 'ip' | 'name' | 'version'>> & { fields?: FieldsMap; asset_id?: string | null; asset_no?: string | null },
   category?: string,
 ): Promise<ServerAsset> {
   const res = await api.patch<ServerAsset>(`${SERVERS}/${id}`, payload, {

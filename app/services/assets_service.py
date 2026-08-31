@@ -271,7 +271,16 @@ class AssetsService:
             update["ip"] = ip
 
         if patch.get("name") is not None:
-            update["name"] = patch["name"]
+            name = patch["name"]
+            if self._category == "랙" and name != existing.get("name"):
+                duplicate = await col.find_one({
+                    "_id": {"$ne": _id},
+                    "name": name,
+                    "is_deleted": {"$ne": True},
+                })
+                if duplicate:
+                    raise ValueError(f"동일 이름의 랙 '{name}'이(가) 이미 있습니다.")
+            update["name"] = name
 
         unset: Dict[str, Any] = {}
         if "asset_id" in patch and patch["asset_id"] != existing.get("asset_id"):
@@ -345,19 +354,33 @@ class AssetsService:
         if not existing:
             raise KeyError("찾을 수 없습니다.")
 
-        # 랙 배치 정합성: 배치된 자산 / 자산이 배치된 랙은 삭제 차단
+        # 랙에 배치된 자산을 삭제하면 배치도 함께 반출(soft delete)한다.
+        # remove_placement를 사용해 랙 슬롯 해제, 미러 필드 초기화, 반출 이력을 한 번에 처리한다.
         placements = MongoClientManager.get_rack_placements_collection()
-        if await placements.find_one({"asset_ref_id": _id, "is_deleted": False}):
-            raise HTTPException(status_code=409, detail={
-                "code": "ASSET_STILL_PLACED",
-                "message": "랙에 배치된 자산입니다. 랙에서 반출한 후 삭제해 주세요.",
+        if self._category == "랙":
+            # 랙 자체는 배치 자산이 남아 있으면 삭제하지 않는다.
+            placed_count = await placements.count_documents({"rack_ref_id": _id, "is_deleted": False})
+            if placed_count:
+                raise HTTPException(status_code=409, detail={
+                    "code": "RACK_NOT_EMPTY",
+                    "message": f"현재 {placed_count}개의 자산이 배치되어 있어 랙을 삭제할 수 없습니다.",
+                })
+        else:
+            active_placement = await placements.find_one({
+                "asset_category": self._category,
+                "asset_ref_id": _id,
+                "is_deleted": False,
             })
-        placed_count = await placements.count_documents({"rack_ref_id": _id, "is_deleted": False})
-        if placed_count:
-            raise HTTPException(status_code=409, detail={
-                "code": "RACK_NOT_EMPTY",
-                "message": f"현재 {placed_count}개의 자산이 배치되어 있어 랙을 삭제할 수 없습니다.",
-            })
+            if active_placement:
+                from app.services import rack_placement_service
+
+                await rack_placement_service.remove_placement(
+                    str(active_placement["_id"]), actor=actor_email
+                )
+                # remove_placement가 rack_no/rack_unit_no/위치를 비우므로 최신 문서로 이력을 남긴다.
+                existing = await col.find_one({"_id": _id, "is_deleted": {"$ne": True}})
+                if not existing:
+                    raise KeyError("찾을 수 없습니다.")
 
         now = TimeUtil.now_utc()
         update = {

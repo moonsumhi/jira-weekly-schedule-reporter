@@ -57,9 +57,6 @@
       <q-btn v-if="isAdmin" flat round icon="cloud_download" color="blue-grey-7" :loading="loadingMigrate" @click="runMigration">
         <q-tooltip>레거시 RackNo 가져오기</q-tooltip>
       </q-btn>
-      <q-btn flat round icon="refresh" color="blue-grey-7" :loading="loading" @click="reloadAll">
-        <q-tooltip>새로고침</q-tooltip>
-      </q-btn>
       <q-btn unelevated color="primary" icon="add" label="랙 추가" @click="openRackCreate" />
     </div>
 
@@ -165,15 +162,62 @@
               <q-badge :color="statusColor(layout.rack.status)" class="q-pa-xs">{{ layout.rack.status || '-' }}</q-badge>
             </div>
             <q-separator />
-            <div class="rk-kv">
+            <div v-if="rackEditing" class="rk-edit-form">
+              <label class="rk-edit-label">랙 이름 <em>*</em></label>
+              <q-input v-model="rackEditForm.name" dense outlined autofocus hide-bottom-space />
+
+              <label class="rk-edit-label">랙 코드</label>
+              <q-input v-model="rackEditForm.assetId" dense outlined hide-bottom-space />
+
+              <label class="rk-edit-label">서버실(위치)</label>
+              <div class="rk-edit-control">
+                <q-select
+                  v-model="rackEditRoomSelect"
+                  :options="[...locationOptions, '기타']"
+                  dense outlined clearable hide-bottom-space
+                  @update:model-value="onRackEditRoomChange"
+                />
+                <q-input
+                  v-if="rackEditRoomSelect === '기타'"
+                  v-model="rackEditForm.serverRoom"
+                  dense outlined hide-bottom-space
+                  placeholder="서버실 직접 입력"
+                  class="q-mt-sm"
+                />
+              </div>
+
+              <label class="rk-edit-label">전체 U <em>*</em></label>
+              <q-input v-model.number="rackEditForm.totalU" type="number" min="1" dense outlined hide-bottom-space />
+
+              <label class="rk-edit-label">상태</label>
+              <q-select v-model="rackEditForm.status" :options="STATUS_OPTIONS" dense outlined hide-bottom-space />
+
+              <label class="rk-edit-label">최대 하중(kg)</label>
+              <q-input v-model.number="rackEditForm.maxLoadKg" type="number" min="0" dense outlined hide-bottom-space />
+
+              <label class="rk-edit-label">최대 전력(W)</label>
+              <q-input v-model.number="rackEditForm.maxPowerW" type="number" min="0" dense outlined hide-bottom-space />
+            </div>
+            <div v-else class="rk-kv">
+              <div class="rk-kv-row"><span>랙 코드</span><b>{{ layout.rack.assetCode || '—' }}</b></div>
               <div class="rk-kv-row"><span>사용</span><b>{{ layout.rack.usedU }}/{{ layout.rack.totalU }}U ({{ layout.rack.usageRate }}%)</b></div>
               <div class="rk-kv-row"><span>최대 연속 빈</span><b>{{ layout.rack.maxContiguousFreeU }}U</b></div>
               <div class="rk-kv-row"><span>최대 허용 하중</span><b>{{ layout.rack.maxLoadKg != null ? layout.rack.maxLoadKg + ' kg' : '—' }}</b></div>
               <div class="rk-kv-row"><span>최대 허용 전력</span><b>{{ layout.rack.maxPowerW != null ? layout.rack.maxPowerW + ' W' : '—' }}</b></div>
             </div>
             <q-separator />
-            <div class="rk-detail-actions">
-              <q-btn outline color="negative" icon="delete" label="랙 삭제" class="col" :loading="deletingRack" @click="confirmDeleteRack" />
+            <div v-if="rackEditing" class="rk-detail-actions">
+              <q-btn flat color="blue-grey-7" label="취소" class="col" :disable="savingRackEdit" @click="cancelRackEdit" />
+              <q-btn
+                unelevated color="primary" icon="save" label="저장" class="col"
+                :loading="savingRackEdit"
+                :disable="!rackEditForm.name.trim() || rackEditForm.totalU < 1"
+                @click="saveRackEdit"
+              />
+            </div>
+            <div v-else class="rk-detail-actions">
+              <q-btn unelevated color="primary" icon="edit" label="수정" class="col" :loading="loadingRackEdit" @click="openRackEdit" />
+              <q-btn outline color="negative" icon="delete" label="삭제" class="col" :loading="deletingRack" @click="confirmDeleteRack" />
             </div>
           </template>
           <div v-else class="rk-empty"><q-icon name="touch_app" size="28px" color="blue-grey-2" /><div>자산 또는 랙을 선택하세요.</div></div>
@@ -379,7 +423,7 @@ import {
   getRackHistory, getRackLayout, integrityCheck, listRacks, listUnplacedAssets,
   migrateRackFromFields, movePlacement, removePlacement, searchRackAssets,
 } from 'src/services/racks'
-import { createServer, deleteServer, getServer } from 'src/services/assets'
+import { createServer, deleteServer, getServer, patchServer } from 'src/services/assets'
 import { envCategoryService } from 'src/services/envCategory'
 import type { ServerAsset } from 'src/types/assets'
 import type {
@@ -417,9 +461,18 @@ const STATUS_OPTIONS = ['ACTIVE', '점검', '폐기']
 const rackDialog = ref(false)
 const savingRack = ref(false)
 const deletingRack = ref(false)
+const rackEditing = ref(false)
+const loadingRackEdit = ref(false)
+const savingRackEdit = ref(false)
+const rackEditAsset = ref<ServerAsset | null>(null)
 const locationOptions = ref<string[]>([])
 const rackRoomSelect = ref('')
+const rackEditRoomSelect = ref('')
 const rackForm = reactive({
+  name: '', assetId: '', serverRoom: '', totalU: 42, status: 'ACTIVE',
+  maxLoadKg: null as number | null, maxPowerW: null as number | null,
+})
+const rackEditForm = reactive({
   name: '', assetId: '', serverRoom: '', totalU: 42, status: 'ACTIVE',
   maxLoadKg: null as number | null, maxPowerW: null as number | null,
 })
@@ -493,6 +546,7 @@ async function loadRacks() {
 }
 
 async function selectRack(rackId: string) {
+  cancelRackEdit()
   selectedRackId.value = rackId
   selectedAsset.value = null
   highlightAssetId.value = null
@@ -510,6 +564,7 @@ async function reloadAll() {
 }
 
 function onSelectAsset(p: RackPlacementAsset) {
+  cancelRackEdit()
   selectedAsset.value = p
   highlightAssetId.value = p.assetId
 }
@@ -609,6 +664,84 @@ function openRackCreate() {
   })
   rackRoomSelect.value = ''
   rackDialog.value = true
+}
+
+function numberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function textOr(value: unknown, fallback = ''): string {
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback
+}
+
+function onRackEditRoomChange(value: string | null) {
+  rackEditForm.serverRoom = value && value !== '기타' ? value : ''
+}
+
+async function openRackEdit() {
+  const rackId = selectedRackId.value
+  if (!rackId || !layout.value) return
+  loadingRackEdit.value = true
+  try {
+    const rack = await getServer(rackId, '랙')
+    const fields = rack.fields ?? {}
+    const serverRoom = textOr(fields.server_room, layout.value.rack.serverRoom ?? '')
+    rackEditAsset.value = rack
+    Object.assign(rackEditForm, {
+      name: rack.name,
+      assetId: rack.assetId ?? '',
+      serverRoom,
+      totalU: Number(fields.total_u ?? layout.value.rack.totalU ?? 42),
+      status: textOr(fields.status, layout.value.rack.status ?? 'ACTIVE'),
+      maxLoadKg: numberOrNull(fields.max_load_kg),
+      maxPowerW: numberOrNull(fields.max_power_w),
+    })
+    rackEditRoomSelect.value = !serverRoom
+      ? ''
+      : locationOptions.value.includes(serverRoom) ? serverRoom : '기타'
+    rackEditing.value = true
+  } catch (e) {
+    $q.notify({ type: 'negative', message: apiErr(e, '랙 정보를 불러오지 못했습니다.') })
+  } finally {
+    loadingRackEdit.value = false
+  }
+}
+
+function cancelRackEdit() {
+  rackEditing.value = false
+  rackEditAsset.value = null
+}
+
+async function saveRackEdit() {
+  const rack = rackEditAsset.value
+  const rackId = selectedRackId.value
+  if (!rack || !rackId) return
+  savingRackEdit.value = true
+  try {
+    await patchServer(rackId, {
+      name: rackEditForm.name.trim(),
+      asset_id: rackEditForm.assetId.trim() || null,
+      fields: {
+        ...rack.fields,
+        server_room: rackEditForm.serverRoom.trim(),
+        total_u: Number(rackEditForm.totalU),
+        status: rackEditForm.status,
+        u_direction: rack.fields.u_direction ?? 'BOTTOM_UP',
+        max_load_kg: rackEditForm.maxLoadKg,
+        max_power_w: rackEditForm.maxPowerW,
+      },
+      ...(rack.version != null ? { version: rack.version } : {}),
+    }, '랙')
+    $q.notify({ type: 'positive', message: '랙 정보를 수정했습니다.' })
+    cancelRackEdit()
+    await reloadAll()
+  } catch (e) {
+    $q.notify({ type: 'negative', message: apiErr(e, '랙 수정에 실패했습니다.') })
+  } finally {
+    savingRackEdit.value = false
+  }
 }
 
 async function createRack() {
@@ -833,6 +966,22 @@ onMounted(() => { void loadRacks(); void loadUnplaced(); void checkIntegrity(); 
 }
 .rk-kv-row span { color: #90a4ae; flex: 0 0 auto; }
 .rk-kv-row b { color: #37474f; font-weight: 600; text-align: right; min-width: 0; }
+.rk-edit-form {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 8px;
+  padding: 12px;
+}
+.rk-edit-label {
+  color: #78909c;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: right;
+}
+.rk-edit-label em { color: #d32f2f; font-style: normal; }
+.rk-edit-control { min-width: 0; }
 .rk-detail-actions { display: flex; gap: 8px; padding: 12px; }
 
 /* 미배치 */

@@ -17,39 +17,38 @@
     <template v-else>
     <!-- Header -->
     <div class="asset-toolbar row items-center q-gutter-sm q-mb-sm">
-      <div class="text-h6">{{ pageTitle }}</div>
+      <q-btn
+        v-if="trashView" flat dense no-caps color="primary"
+        icon="arrow_back" label="자산 목록"
+        @click="trashView = false"
+      >
+        <q-tooltip>휴지통을 닫고 자산 목록으로 돌아갑니다.</q-tooltip>
+      </q-btn>
+      <q-separator v-if="trashView" vertical inset />
+      <div class="text-h6">{{ trashView ? '휴지통' : pageTitle }}</div>
+      <div v-if="trashView" class="text-caption text-grey-6">{{ category ? `${category} 자산` : '전체 자산' }}</div>
       <q-space />
 
-      <!-- 휴지통 나가기 (휴지통 뷰일 때만) -->
-      <q-btn
-        v-if="trashView" outline dense no-caps color="grey-7"
-        icon="arrow_back" label="목록으로"
-        @click="trashView = false"
-      />
-
-      <!-- Import 결과 알림 (있을 때만) -->
-      <q-btn
-        v-if="importFailedRows.filter(r => !r.retrySuccess).length > 0"
-        flat dense no-caps icon="error_outline" color="negative"
-        :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}`"
-        @click="importResultTab = 'failed'; importFailDialog = true"
-      />
-      <q-btn
-        v-if="importSkippedRows.length > 0"
-        flat dense no-caps icon="skip_next" color="warning"
-        :label="`건너뜀 ${importSkippedRows.length}`"
-        @click="importResultTab = 'skipped'; importFailDialog = true"
-      />
-      <q-btn
-        v-if="duplicateSkippedRows.filter(r => !r.separateSaved).length > 0"
-        flat dense no-caps icon="add_circle_outline" color="teal"
-        :label="`별도저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}`"
-        @click="importResultTab = 'separate'; importFailDialog = true"
-      />
-
-      <q-btn round flat dense icon="refresh" color="grey-7" :loading="loading" @click="load">
-        <q-tooltip>새로고침</q-tooltip>
-      </q-btn>
+      <template v-if="!trashView">
+        <!-- Import 결과 알림 (있을 때만) -->
+        <q-btn
+          v-if="importFailedRows.filter(r => !r.retrySuccess).length > 0"
+          flat dense no-caps icon="error_outline" color="negative"
+          :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}`"
+          @click="importResultTab = 'failed'; importFailDialog = true"
+        />
+        <q-btn
+          v-if="importSkippedRows.length > 0"
+          flat dense no-caps icon="skip_next" color="warning"
+          :label="`건너뜀 ${importSkippedRows.length}`"
+          @click="importResultTab = 'skipped'; importFailDialog = true"
+        />
+        <q-btn
+          v-if="duplicateSkippedRows.filter(r => !r.separateSaved).length > 0"
+          flat dense no-caps icon="add_circle_outline" color="teal"
+          :label="`별도저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}`"
+          @click="importResultTab = 'separate'; importFailDialog = true"
+        />
 
       <!-- 더보기: 유틸리티 모음 -->
       <q-btn outline dense no-caps icon="more_horiz" label="더보기" color="grey-7">
@@ -91,12 +90,13 @@
 
       <input ref="importFileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onImportFile" />
 
-      <q-btn
-        color="primary" unelevated no-caps
-        icon="add"
-        :label="category ? `${category} 등록` : '자산 등록'"
-        @click="category ? openCreate() : (assetTypeDialog = true)"
-      />
+        <q-btn
+          color="primary" unelevated no-caps
+          icon="add"
+          :label="category ? `${category} 등록` : '자산 등록'"
+          @click="category ? openCreate() : (assetTypeDialog = true)"
+        />
+      </template>
     </div>
 
     <!-- 상태 요약 (일반 뷰: 클릭 시 필터) -->
