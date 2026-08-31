@@ -63,7 +63,7 @@ async def get_eos_summary(current_user: UserPublic = Depends(get_current_user)):
 
     for a in assets:
         fields = a.get("fields") or {}
-        if str(fields.get("disposal_status") or "").strip() == "O":
+        if str(fields.get("상태") or "").strip() == "폐기":
             continue  # 폐기된 자산은 EoS 카운트에서 제외
         status_val = str(fields.get("eos_action_status") or "").strip()
         eos_date_str = str(fields.get("eos_date") or "").strip()
