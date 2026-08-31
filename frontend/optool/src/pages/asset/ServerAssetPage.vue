@@ -20,23 +20,11 @@
       <div class="text-h6">{{ pageTitle }}</div>
       <q-space />
 
-      <!-- 삭제된 자산 영구 삭제 (삭제 포함 모드일 때만) -->
+      <!-- 휴지통 나가기 (휴지통 뷰일 때만) -->
       <q-btn
-        v-if="includeDeleted" outline dense no-caps
-        :color="bulkDeleteMode ? 'primary' : 'grey-7'"
-        icon="delete_sweep"
-        :label="bulkDeleteMode ? '선택 종료' : '영구 삭제 선택'"
-        @click="toggleBulkDeleteMode"
-      >
-        <q-tooltip>이미 삭제된 자산을 선택해 복구할 수 없도록 완전히 삭제합니다.</q-tooltip>
-      </q-btn>
-      <q-btn
-        v-if="bulkDeleteMode && selectedIds.size > 0"
-        color="negative" dense unelevated no-caps
-        icon="delete_forever"
-        :label="`영구삭제 (${selectedIds.size})`"
-        :loading="bulkPurging"
-        @click="confirmBulkPurge"
+        v-if="trashView" outline dense no-caps color="grey-7"
+        icon="arrow_back" label="목록으로"
+        @click="trashView = false"
       />
 
       <!-- Import 결과 알림 (있을 때만) -->
@@ -89,12 +77,13 @@
             </q-item>
             <q-separator />
             <q-item tag="label">
-              <q-item-section>삭제 포함</q-item-section>
-              <q-item-section side><q-toggle v-model="includeDeleted" dense /></q-item-section>
-            </q-item>
-            <q-item tag="label">
               <q-item-section>폐기 포함</q-item-section>
               <q-item-section side><q-toggle v-model="includeDisposed" dense /></q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="trashView = true">
+              <q-item-section avatar><q-icon name="delete_outline" /></q-item-section>
+              <q-item-section>휴지통 (삭제된 자산)</q-item-section>
+              <q-item-section side><q-badge v-if="deletedCount" color="grey-6">{{ deletedCount }}</q-badge></q-item-section>
             </q-item>
           </q-list>
         </q-menu>
@@ -110,8 +99,8 @@
       />
     </div>
 
-    <!-- 상태 요약 (클릭 시 필터) -->
-    <div class="asset-summary row items-center q-gutter-xs q-mb-md">
+    <!-- 상태 요약 (일반 뷰: 클릭 시 필터) -->
+    <div v-if="!trashView" class="asset-summary row items-center q-gutter-xs q-mb-md">
       <q-chip
         dense clickable
         color="blue-grey-1" text-color="blue-grey-9"
@@ -124,16 +113,29 @@
         :text-color="statusFilter === s ? 'white' : 'grey-8'"
         @click="toggleStatusFilter(s)"
       >{{ s }} {{ statusSummary[s] }}</q-chip>
+      <q-space />
+      <q-chip
+        v-if="deletedCount" dense clickable icon="delete_outline"
+        color="grey-3" text-color="grey-8"
+        @click="trashView = true"
+      >휴지통 {{ deletedCount }}</q-chip>
     </div>
 
-    <q-banner v-if="bulkDeleteMode" rounded class="bulk-delete-guide q-mb-md">
-      <template #avatar><q-icon name="warning_amber" color="negative" /></template>
-      <div class="text-weight-medium">삭제된 자산을 영구 삭제하는 모드입니다.</div>
+    <!-- 휴지통 안내 + 일괄 작업 바 -->
+    <q-banner v-if="trashView" rounded class="trash-guide q-mb-md">
+      <template #avatar><q-icon name="delete_outline" color="blue-grey-7" /></template>
+      <div class="text-weight-medium">휴지통 · 삭제된 자산 {{ deletedCount }}건</div>
       <div class="text-caption text-grey-7">
-        표 왼쪽의 체크박스로 삭제된 자산을 선택하세요. 영구 삭제한 데이터는 복구할 수 없습니다.
+        복원하거나 영구 삭제할 수 있습니다. 영구 삭제한 데이터는 복구할 수 없습니다.
       </div>
       <template #action>
-        <q-badge color="negative" :label="`${selectedIds.size}건 선택`" />
+        <template v-if="selectedIds.size > 0">
+          <q-btn dense unelevated no-caps color="positive" icon="restore"
+            :label="`복원 (${selectedIds.size})`" :loading="bulkRestoring" @click="confirmBulkRestore" />
+          <q-btn dense unelevated no-caps color="negative" icon="delete_forever" class="q-ml-sm"
+            :label="`영구삭제 (${selectedIds.size})`" :loading="bulkPurging" @click="confirmBulkPurge" />
+        </template>
+        <span v-else class="text-caption text-grey-6">행을 선택하거나 각 행의 복원/영구삭제 버튼을 사용하세요.</span>
       </template>
     </q-banner>
 
@@ -2585,16 +2587,13 @@ const CHANGE_TYPE_OPTIONS = [
 
 const loading = ref(false)
 const rows = ref<ServerAsset[]>([])
-const includeDeleted = ref(false)
+// 휴지통 뷰: 삭제된(soft-deleted) 자산만 모아 복원/영구삭제하는 화면.
+const trashView = ref(false)
 // 폐기(상태 === '폐기') 자산은 기본적으로 숨기고, "폐기 포함" 토글로 켰을 때만 같이 보여준다.
 const includeDisposed = ref(false)
 
-watch(includeDeleted, (enabled) => {
-  if (!enabled) {
-    bulkDeleteMode.value = false
-    selectedIds.value = new Set()
-  }
-  void load()
+watch(trashView, () => {
+  selectedIds.value = new Set()
 })
 
 const filter = ref('')
@@ -2602,19 +2601,18 @@ const filterCol = ref<string | null>(null)
 const statusFilter = ref<string | null>(null)
 const tableSortKey = ref('ip')
 
-// 상태 요약 (현재 로드된 자산 기준)
+// 상태 요약 (정상(비삭제) 자산 기준)
 const statusSummary = computed(() => {
   const c: Record<string, number> = { 운영: 0, 점검: 0, 미사용: 0, 폐기예정: 0, 폐기: 0 }
   for (const r of rows.value) {
-    if (!includeDeleted.value && r.isDeleted) continue
+    if (r.isDeleted) continue
     const s = (r.fields?.['상태'] as string) ?? ''
     if (s in c) c[s]!++
   }
   return c
 })
-const visibleTotal = computed(
-  () => rows.value.filter((r) => includeDeleted.value || !r.isDeleted).length,
-)
+const visibleTotal = computed(() => rows.value.filter((r) => !r.isDeleted).length)
+const deletedCount = computed(() => rows.value.filter((r) => r.isDeleted).length)
 function toggleStatusFilter(s: string) {
   statusFilter.value = statusFilter.value === s ? null : s
 }
@@ -2902,7 +2900,7 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
 
   const result: NonNullable<QTableProps['columns']> = []
 
-  if (bulkDeleteMode.value) {
+  if (trashView.value) {
     result.push({
       name: 'select', label: '', field: 'select', align: 'center',
       style: 'width: 48px; min-width: 48px; max-width: 48px',
@@ -2953,17 +2951,19 @@ const filteredRows = computed(() => {
   const q = (filter.value ?? '').trim().toLowerCase()
 
   return rows.value.filter((r) => {
-    // 삭제된 항목 필터
-    if (!includeDeleted.value && r.isDeleted) return false
+    // 휴지통 뷰: 삭제된 자산만, 상태/폐기/패싯 필터는 무시하고 텍스트 검색만 적용
+    if (trashView.value) {
+      if (!r.isDeleted) return false
+    } else {
+      // 일반 뷰: 삭제된 항목 숨김
+      if (r.isDeleted) return false
 
-    // 폐기된 항목 필터 (기본 숨김, "폐기 포함" 토글로만 표시)
-    // 폐기 상태는 기본 숨김(폐기 포함 토글) — 단, 폐기로 필터 중이면 표시
-    if (!includeDisposed.value && statusFilter.value !== '폐기' && r.fields?.['상태'] === '폐기') return false
+      // 폐기 상태는 기본 숨김(폐기 포함 토글) — 단, 폐기로 필터 중이면 표시
+      if (!includeDisposed.value && statusFilter.value !== '폐기' && r.fields?.['상태'] === '폐기') return false
 
-    // 상태 필터 (요약 카운트 클릭)
-    if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
-
-    // 카테고리 필터 (서버 사이드에서 이미 필터링됨 — 클라이언트 측은 생략)
+      // 상태 필터 (요약 카운트 클릭)
+      if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
+    }
 
     // 텍스트 검색
     if (q) {
@@ -3017,7 +3017,7 @@ const bulkSelectState = computed<boolean | null>(() => {
 async function load() {
   loading.value = true
   try {
-    rows.value = await listServers(includeDeleted.value, category.value || undefined)
+    rows.value = await listServers(true, category.value || undefined)
     // DB에 eos_action_status가 없는 기존 레코드를 on-the-fly로 보완 (표시 전용, DB 미수정)
     await fetchEosMap()
     for (const row of rows.value) {
@@ -3502,19 +3502,10 @@ async function doPurge(row: ServerAsset) {
   }
 }
 
-/** 영구 삭제 (일괄 선택) */
-const bulkDeleteMode = ref(false)
+/** 휴지통 일괄 작업 (선택 복원 / 영구삭제) */
 const selectedIds = ref<Set<string>>(new Set())
 const bulkPurging = ref(false)
-
-function toggleBulkDeleteMode() {
-  if (!bulkDeleteMode.value && !rows.value.some((row) => row.isDeleted)) {
-    $q.notify({ type: 'info', message: '영구 삭제할 삭제 자산이 없습니다.' })
-    return
-  }
-  bulkDeleteMode.value = !bulkDeleteMode.value
-  selectedIds.value = new Set()
-}
+const bulkRestoring = ref(false)
 
 function toggleRowSelected(id: string) {
   const next = new Set(selectedIds.value)
@@ -3572,10 +3563,39 @@ async function doBulkPurge(targets: ServerAsset[]) {
       $q.notify({ type: 'negative', message: `${succeededIds.size}건 영구 삭제됨, ${failedCount}건 실패` })
     } else {
       $q.notify({ type: 'positive', message: `${succeededIds.size}건 영구 삭제됨` })
-      bulkDeleteMode.value = false
     }
   } finally {
     bulkPurging.value = false
+  }
+}
+
+function confirmBulkRestore() {
+  const targets = rows.value.filter((r) => selectedIds.value.has(r.id))
+  if (targets.length === 0) return
+  $q.dialog({
+    title: '복원',
+    message: `선택한 ${targets.length}건을 복원하시겠습니까?`,
+    cancel: true,
+    ok: { label: '복원', color: 'positive', unelevated: true },
+  }).onOk(() => void doBulkRestore(targets))
+}
+
+async function doBulkRestore(targets: ServerAsset[]) {
+  bulkRestoring.value = true
+  try {
+    const results = await Promise.allSettled(
+      targets.map((r) => restoreServer(r.id, (r.fields?.['자산유형'] as string) || category.value || '서버')),
+    )
+    const ok = results.filter((r) => r.status === 'fulfilled').length
+    const fail = targets.length - ok
+    selectedIds.value = new Set()
+    await load()
+    $q.notify({
+      type: fail ? 'warning' : 'positive',
+      message: `${ok}건 복원됨${fail ? `, ${fail}건 실패` : ''}`,
+    })
+  } finally {
+    bulkRestoring.value = false
   }
 }
 
@@ -4313,7 +4333,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
     // asset_id 매칭은 현재 탭(카테고리)에 국한되지 않고 전체 카테고리를 대상으로 해야 한다.
     // (예: "서버" 탭에서 import해도, 자산유형이 비어있는 행이 실제로는 DBMS 자산일 수 있으므로
     //  asset_id로 전체에서 찾아, 그 자산의 실제 자산유형으로 업데이트해야 카테고리별 중복 생성을 막을 수 있음)
-    const allAssetsForMatching = await listServers(includeDeleted.value)
+    const allAssetsForMatching = await listServers(true)
     const existingByAssetId = new Map(allAssetsForMatching.filter(r => r.assetId).map(r => [r.assetId!, r]))
     console.log('[Import] existingByAssetId size:', existingByAssetId.size)
 
@@ -4646,6 +4666,10 @@ onMounted(() => {
 .bulk-delete-guide {
   border: 1px solid #ffcdd2;
   background: #fff5f5;
+}
+.trash-guide {
+  border: 1px solid #cfd8dc;
+  background: #f5f7f8;
 }
 .bulk-select-col {
   width: 48px;
