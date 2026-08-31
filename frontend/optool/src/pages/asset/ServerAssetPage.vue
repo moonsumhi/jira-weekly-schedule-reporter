@@ -75,10 +75,6 @@
               <q-item-section>Export (엑셀)</q-item-section>
             </q-item>
             <q-separator />
-            <q-item tag="label">
-              <q-item-section>폐기 포함</q-item-section>
-              <q-item-section side><q-toggle v-model="includeDisposed" dense /></q-item-section>
-            </q-item>
             <q-item clickable v-close-popup @click="trashView = true">
               <q-item-section avatar><q-icon name="delete_outline" /></q-item-section>
               <q-item-section>휴지통 (삭제된 자산)</q-item-section>
@@ -104,15 +100,16 @@
       <q-chip
         dense clickable
         color="blue-grey-1" text-color="blue-grey-9"
-        @click="statusFilter = null"
-      >총 {{ visibleTotal }}</q-chip>
+        @click="clearStatusFilters"
+      >전체 {{ visibleTotal }}</q-chip>
       <q-chip
         v-for="s in ['운영', '점검', '미사용', '폐기예정', '폐기']" :key="s"
         dense clickable
-        :color="statusFilter === s ? statusColor(s) : 'grey-2'"
-        :text-color="statusFilter === s ? 'white' : 'grey-8'"
+        :icon="excludedStatusFilters.includes(s) ? 'remove_circle_outline' : undefined"
+        :color="includedStatusFilters.includes(s) ? statusColor(s) : excludedStatusFilters.includes(s) ? 'red-1' : 'grey-2'"
+        :text-color="includedStatusFilters.includes(s) ? 'white' : excludedStatusFilters.includes(s) ? 'red-9' : 'grey-8'"
         @click="toggleStatusFilter(s)"
-      >{{ s }} {{ statusSummary[s] }}</q-chip>
+      >{{ s }} {{ statusSummary[s] }}{{ excludedStatusFilters.includes(s) ? ' 제외' : '' }}</q-chip>
       <q-space />
       <q-chip
         v-if="deletedCount" dense clickable icon="delete_outline"
@@ -181,7 +178,100 @@
           class="col"
           @clear="filter = ''"
         />
+        <q-btn
+          v-if="!trashView"
+          flat dense no-caps icon="tune" label="상세 필터"
+          :color="advancedFilterOpen ? 'indigo-7' : 'grey-7'"
+          @click="advancedFilterOpen = !advancedFilterOpen"
+        >
+          <q-badge v-if="advancedFilterCount" color="indigo-7" :label="advancedFilterCount" floating />
+        </q-btn>
       </q-card-section>
+
+      <!-- 상세 필터 -->
+      <q-slide-transition>
+        <q-card-section v-show="advancedFilterOpen && !trashView" class="asset-advanced-filter q-pt-none">
+          <q-separator class="q-mb-md" />
+          <div class="row q-col-gutter-sm q-row-gutter-sm">
+            <div v-if="!category" class="col-12 col-sm-6 col-md-4">
+              <q-select
+                v-model="advancedFilters.assetTypes" :options="assetTypeFilterOptions"
+                label="자산 종류" outlined dense clearable multiple use-chips bg-color="white"
+              >
+                <template #prepend><q-icon name="category" size="17px" color="grey-5" /></template>
+              </q-select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-select
+                v-model="advancedFilters.locations" :options="locationFilterOptions"
+                label="위치" outlined dense clearable multiple use-chips bg-color="white"
+              >
+                <template #prepend><q-icon name="place" size="17px" color="grey-5" /></template>
+              </q-select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-select
+                v-model="advancedFilters.departments" :options="departmentFilterOptions"
+                label="소속부서/사업" outlined dense clearable multiple use-chips bg-color="white"
+              >
+                <template #prepend><q-icon name="business" size="17px" color="grey-5" /></template>
+              </q-select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-select
+                v-model="advancedFilters.manufacturers" :options="manufacturerFilterOptions"
+                label="제조사" outlined dense clearable multiple use-chips bg-color="white"
+              >
+                <template #prepend><q-icon name="precision_manufacturing" size="17px" color="grey-5" /></template>
+              </q-select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-select
+                v-model="advancedFilters.operatingSystems" :options="operatingSystemFilterOptions"
+                :label="['네트워크', '정보보호시스템'].includes(category) ? '기종' : '운영체제'"
+                outlined dense clearable multiple use-chips bg-color="white"
+              >
+                <template #prepend><q-icon name="memory" size="17px" color="grey-5" /></template>
+              </q-select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-select
+                v-model="advancedFilters.managers" :options="managerFilterOptions"
+                label="담당자" outlined dense clearable multiple use-chips bg-color="white"
+              >
+                <template #prepend><q-icon name="person" size="17px" color="grey-5" /></template>
+              </q-select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-select
+                v-model="advancedFilters.tags" :options="tagFilterOptions"
+                label="태그" outlined dense clearable multiple use-chips bg-color="white"
+              >
+                <template #prepend><q-icon name="sell" size="17px" color="grey-5" /></template>
+              </q-select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-select
+                v-model="advancedFilters.eosStatuses" :options="EOS_FILTER_OPTIONS"
+                label="EoS 여부" outlined dense clearable multiple use-chips emit-value map-options bg-color="white"
+              >
+                <template #prepend><q-icon name="event_busy" size="17px" color="grey-5" /></template>
+              </q-select>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="text-caption text-grey-7 q-mb-xs">도입일자(취득일자)</div>
+              <div class="row items-center no-wrap q-gutter-xs">
+                <q-input v-model="advancedFilters.acquiredFrom" type="date" outlined dense clearable bg-color="white" class="col" />
+                <span class="text-grey-5">~</span>
+                <q-input v-model="advancedFilters.acquiredTo" type="date" outlined dense clearable bg-color="white" class="col" />
+              </div>
+              <div v-if="advancedDateInvalid" class="text-negative text-caption q-mt-xs">
+                시작일이 종료일보다 늦습니다.
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+      </q-slide-transition>
 
       <!-- 적용된 필터 태그 -->
       <q-card-section v-if="hasActiveFilters" class="q-pt-none q-pb-sm row items-center q-gutter-xs">
@@ -189,8 +279,26 @@
         <q-chip v-if="filter" dense removable color="blue-grey-1" text-color="blue-grey-9" @remove="filter = ''">
           검색: {{ filter }}
         </q-chip>
-        <q-chip v-if="statusFilter" dense removable :color="statusColor(statusFilter)" text-color="white" @remove="statusFilter = null">
-          상태: {{ statusFilter }}
+        <q-chip
+          v-for="status in includedStatusFilters" :key="`included-${status}`"
+          dense removable :color="statusColor(status)" text-color="white"
+          @remove="removeStatusFilter(status, 'included')"
+        >
+          상태: {{ status }}
+        </q-chip>
+        <q-chip
+          v-for="status in excludedStatusFilters" :key="`excluded-${status}`"
+          dense removable color="red-1" text-color="red-9"
+          @remove="removeStatusFilter(status, 'excluded')"
+        >
+          상태 제외: {{ status }}
+        </q-chip>
+        <q-chip
+          v-for="chip in advancedFilterChips" :key="chip.key"
+          dense removable color="indigo-1" text-color="indigo-9"
+          @remove="clearAdvancedFilter(chip.key)"
+        >
+          {{ chip.label }}: {{ chip.value }}
         </q-chip>
         <q-space />
         <q-btn flat dense no-caps size="sm" color="grey-7" label="전체 초기화" @click="clearAllFilters" />
@@ -2375,7 +2483,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
@@ -2466,7 +2574,8 @@ function selectCategoryTab(v: string) {
   const query = { ...route.query }
   if (v === '전체') delete query.category
   else query.category = v
-  statusFilter.value = null
+  clearStatusFilters()
+  advancedFilters.assetTypes = []
   void router.push({ query })
 }
 
@@ -2589,8 +2698,6 @@ const loading = ref(false)
 const rows = ref<ServerAsset[]>([])
 // 휴지통 뷰: 삭제된(soft-deleted) 자산만 모아 복원/영구삭제하는 화면.
 const trashView = ref(false)
-// 폐기(상태 === '폐기') 자산은 기본적으로 숨기고, "폐기 포함" 토글로 켰을 때만 같이 보여준다.
-const includeDisposed = ref(false)
 
 watch(trashView, () => {
   selectedIds.value = new Set()
@@ -2598,8 +2705,139 @@ watch(trashView, () => {
 
 const filter = ref('')
 const filterCol = ref<string | null>(null)
-const statusFilter = ref<string | null>(null)
+const includedStatusFilters = ref<string[]>([])
+const excludedStatusFilters = ref<string[]>([])
+const advancedFilterOpen = ref(false)
+const advancedFilters = reactive({
+  assetTypes: [] as string[] | null,
+  locations: [] as string[] | null,
+  departments: [] as string[] | null,
+  manufacturers: [] as string[] | null,
+  operatingSystems: [] as string[] | null,
+  managers: [] as string[] | null,
+  tags: [] as string[] | null,
+  eosStatuses: [] as EosFilterStatus[],
+  acquiredFrom: null as string | null,
+  acquiredTo: null as string | null,
+})
 const tableSortKey = ref('ip')
+
+type AdvancedFilterKey = keyof typeof advancedFilters | 'acquiredDate'
+type EosFilterStatus = EosActionStatus | 'UNKNOWN'
+const EOS_FILTER_OPTIONS: Array<{ label: string; value: EosFilterStatus }> = [
+  { label: '지원 기간 중', value: 'ACTIVE' },
+  { label: 'EoS 지남', value: 'EOS' },
+  { label: '확인 불가', value: 'UNKNOWN' },
+]
+
+function eosFilterLabel(status: EosFilterStatus): string {
+  return status === 'UNKNOWN' ? '확인 불가' : eosStatusLabel(status)
+}
+
+function facetOptions(key: string, arrayItems = false): string[] {
+  const values = new Set<string>()
+  for (const row of rows.value) {
+    if (row.isDeleted) continue
+    const raw = row.fields?.[key]
+    if (arrayItems && Array.isArray(raw)) {
+      raw.forEach((value) => {
+        if (typeof value === 'string' && value.trim()) values.add(value.trim())
+      })
+      continue
+    }
+    if ((typeof raw === 'string' || typeof raw === 'number') && String(raw).trim()) {
+      values.add(String(raw).trim())
+    }
+  }
+  return [...values].sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }))
+}
+
+const assetTypeFilterOptions = computed(() => {
+  const values = new Set<string>()
+  for (const row of rows.value) {
+    if (!row.isDeleted) values.add((row.fields?.['자산유형'] as string) || '서버')
+  }
+  return [...values].sort((a, b) => a.localeCompare(b, 'ko'))
+})
+const locationFilterOptions = computed(() => facetOptions('위치'))
+const departmentFilterOptions = computed(() => facetOptions('소속부서'))
+const manufacturerFilterOptions = computed(() => facetOptions('제조사'))
+const operatingSystemFilterOptions = computed(() => facetOptions('운영체제'))
+const managerFilterOptions = computed(() => facetOptions('담당자'))
+const tagFilterOptions = computed(() => facetOptions(TAGS_KEY, true))
+
+const advancedFilterCount = computed(() => [
+  !category.value ? advancedFilters.assetTypes?.length : 0,
+  advancedFilters.locations?.length,
+  advancedFilters.departments?.length,
+  advancedFilters.manufacturers?.length,
+  advancedFilters.operatingSystems?.length,
+  advancedFilters.managers?.length,
+  advancedFilters.tags?.length,
+  advancedFilters.eosStatuses.length,
+  advancedFilters.acquiredFrom || advancedFilters.acquiredTo,
+].filter(Boolean).length)
+const advancedDateInvalid = computed(() => !!(
+  advancedFilters.acquiredFrom
+  && advancedFilters.acquiredTo
+  && advancedFilters.acquiredFrom > advancedFilters.acquiredTo
+))
+
+const advancedFilterChips = computed(() => {
+  const chips: Array<{ key: AdvancedFilterKey; label: string; value: string }> = []
+  const addMulti = (key: AdvancedFilterKey, label: string, values: string[] | null) => {
+    if (values?.length) chips.push({ key, label, value: values.join(', ') })
+  }
+  if (!category.value) addMulti('assetTypes', '자산 종류', advancedFilters.assetTypes)
+  addMulti('locations', '위치', advancedFilters.locations)
+  addMulti('departments', '소속부서/사업', advancedFilters.departments)
+  addMulti('manufacturers', '제조사', advancedFilters.manufacturers)
+  addMulti('operatingSystems', '운영체제/기종', advancedFilters.operatingSystems)
+  addMulti('managers', '담당자', advancedFilters.managers)
+  addMulti('tags', '태그', advancedFilters.tags)
+  if (advancedFilters.eosStatuses.length) {
+    chips.push({
+      key: 'eosStatuses',
+      label: 'EoS 여부',
+      value: advancedFilters.eosStatuses.map(eosFilterLabel).join(', '),
+    })
+  }
+  if (advancedFilters.acquiredFrom || advancedFilters.acquiredTo) {
+    chips.push({
+      key: 'acquiredDate',
+      label: '도입일자',
+      value: `${advancedFilters.acquiredFrom || '처음'} ~ ${advancedFilters.acquiredTo || '현재'}`,
+    })
+  }
+  return chips
+})
+
+function clearAdvancedFilter(key: AdvancedFilterKey) {
+  switch (key) {
+    case 'assetTypes': advancedFilters.assetTypes = []; break
+    case 'locations': advancedFilters.locations = []; break
+    case 'departments': advancedFilters.departments = []; break
+    case 'manufacturers': advancedFilters.manufacturers = []; break
+    case 'operatingSystems': advancedFilters.operatingSystems = []; break
+    case 'managers': advancedFilters.managers = []; break
+    case 'tags': advancedFilters.tags = []; break
+    case 'eosStatuses': advancedFilters.eosStatuses = []; break
+    case 'acquiredDate':
+      advancedFilters.acquiredFrom = null
+      advancedFilters.acquiredTo = null
+      break
+    case 'acquiredFrom': advancedFilters.acquiredFrom = null; break
+    case 'acquiredTo': advancedFilters.acquiredTo = null; break
+  }
+}
+
+function clearAdvancedFilters() {
+  Object.assign(advancedFilters, {
+    assetTypes: [], locations: [], departments: [], manufacturers: [],
+    operatingSystems: [], managers: [], tags: [], eosStatuses: [],
+    acquiredFrom: null, acquiredTo: null,
+  })
+}
 
 // 상태 요약 (정상(비삭제) 자산 기준)
 const statusSummary = computed(() => {
@@ -2614,16 +2852,41 @@ const statusSummary = computed(() => {
 const visibleTotal = computed(() => rows.value.filter((r) => !r.isDeleted).length)
 const deletedCount = computed(() => rows.value.filter((r) => r.isDeleted).length)
 function toggleStatusFilter(s: string) {
-  statusFilter.value = statusFilter.value === s ? null : s
+  const includedIndex = includedStatusFilters.value.indexOf(s)
+  if (includedIndex >= 0) {
+    includedStatusFilters.value.splice(includedIndex, 1)
+    excludedStatusFilters.value.push(s)
+    return
+  }
+  const excludedIndex = excludedStatusFilters.value.indexOf(s)
+  if (excludedIndex >= 0) {
+    excludedStatusFilters.value.splice(excludedIndex, 1)
+    return
+  }
+  includedStatusFilters.value.push(s)
+}
+function removeStatusFilter(s: string, mode: 'included' | 'excluded') {
+  const target = mode === 'included' ? includedStatusFilters : excludedStatusFilters
+  target.value = target.value.filter((status) => status !== s)
+}
+function clearStatusFilters() {
+  includedStatusFilters.value = []
+  excludedStatusFilters.value = []
 }
 
 const hasActiveFilters = computed(
-  () => !!(statusFilter.value || filter.value),
+  () => !!(
+    includedStatusFilters.value.length
+    || excludedStatusFilters.value.length
+    || filter.value
+    || advancedFilterCount.value
+  ),
 )
 function clearAllFilters() {
-  statusFilter.value = null
+  clearStatusFilters()
   filter.value = ''
   filterCol.value = null
+  clearAdvancedFilters()
 }
 const tableSortDesc = ref(false)
 
@@ -2713,6 +2976,16 @@ const pagination = ref<NonNullable<QTableProps['pagination']>>({
   sortBy: null,
   descending: false,
 })
+
+watch(
+  () => [
+    filter.value,
+    includedStatusFilters.value.join('|'),
+    excludedStatusFilters.value.join('|'),
+    JSON.stringify(advancedFilters),
+  ],
+  () => { pagination.value.page = 1 },
+)
 
 function onPagination(p: NonNullable<QTableProps['pagination']>) {
   pagination.value = { ...p, sortBy: null, descending: false }
@@ -2947,22 +3220,56 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
   return result
 })
 
+function matchesFieldSelection(row: ServerAsset, key: string, selected: string[] | null): boolean {
+  if (!selected?.length) return true
+  const raw = row.fields?.[key]
+  if (Array.isArray(raw)) {
+    return raw.some((value) => typeof value === 'string' && selected.includes(value.trim()))
+  }
+  if (typeof raw !== 'string' && typeof raw !== 'number') return false
+  return selected.includes(String(raw).trim())
+}
+
+function assetDateValue(row: ServerAsset, key: string): string {
+  const raw = row.fields?.[key]
+  if (typeof raw !== 'string' && typeof raw !== 'number') return ''
+  return String(raw).trim().slice(0, 10)
+}
+
 const filteredRows = computed(() => {
   const q = (filter.value ?? '').trim().toLowerCase()
 
   return rows.value.filter((r) => {
-    // 휴지통 뷰: 삭제된 자산만, 상태/폐기/패싯 필터는 무시하고 텍스트 검색만 적용
+    // 휴지통 뷰: 삭제된 자산만, 상태/패싯 필터는 무시하고 텍스트 검색만 적용
     if (trashView.value) {
       if (!r.isDeleted) return false
     } else {
       // 일반 뷰: 삭제된 항목 숨김
       if (r.isDeleted) return false
 
-      // 폐기 상태는 기본 숨김(폐기 포함 토글) — 단, 폐기로 필터 중이면 표시
-      if (!includeDisposed.value && statusFilter.value !== '폐기' && r.fields?.['상태'] === '폐기') return false
-
       // 상태 필터 (요약 카운트 클릭)
-      if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
+      const status = (r.fields?.['상태'] as string) ?? ''
+      if (includedStatusFilters.value.length && !includedStatusFilters.value.includes(status)) return false
+      if (excludedStatusFilters.value.includes(status)) return false
+
+      // 상세 필터
+      const assetType = (r.fields?.['자산유형'] as string) || '서버'
+      if (!category.value && advancedFilters.assetTypes?.length
+        && !advancedFilters.assetTypes.includes(assetType)) return false
+      if (!matchesFieldSelection(r, '위치', advancedFilters.locations)) return false
+      if (!matchesFieldSelection(r, '소속부서', advancedFilters.departments)) return false
+      if (!matchesFieldSelection(r, '제조사', advancedFilters.manufacturers)) return false
+      if (!matchesFieldSelection(r, '운영체제', advancedFilters.operatingSystems)) return false
+      if (!matchesFieldSelection(r, '담당자', advancedFilters.managers)) return false
+      if (!matchesFieldSelection(r, TAGS_KEY, advancedFilters.tags)) return false
+      if (advancedFilters.eosStatuses.length) {
+        const eosStatus = normalizeEosStatus(r.fields?.[EOS_STATUS_KEY]) ?? 'UNKNOWN'
+        if (!advancedFilters.eosStatuses.includes(eosStatus)) return false
+      }
+
+      const acquiredDate = assetDateValue(r, '도입일자')
+      if (advancedFilters.acquiredFrom && (!acquiredDate || acquiredDate < advancedFilters.acquiredFrom)) return false
+      if (advancedFilters.acquiredTo && (!acquiredDate || acquiredDate > advancedFilters.acquiredTo)) return false
     }
 
     // 텍스트 검색
@@ -4688,6 +4995,20 @@ onMounted(() => {
 .asset-filter-bar :deep(.q-field__control) {
   min-height: 40px;
   height: 40px;
+}
+.asset-advanced-filter {
+  background: #fafbfc;
+}
+.asset-advanced-filter :deep(.q-field__control) {
+  min-height: 40px;
+}
+.asset-advanced-filter :deep(.q-chip) {
+  max-width: 150px;
+}
+.asset-advanced-filter :deep(.q-chip__content) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .conflict-diff-table {
   border-collapse: collapse;
