@@ -24,6 +24,7 @@ from app.models.racks import (
 from app.models.user import UserPublic
 from app.routers.admin import require_admin
 from app.routers.auth import get_current_user
+from app.routers.permissions import require_asset_access
 from app.services import rack_placement_service as placement_svc
 from app.services import rack_service as rack_svc
 
@@ -89,7 +90,7 @@ async def get_layout(
 @router.post("/placements", response_model=RackPlacementOut, status_code=status.HTTP_201_CREATED)
 async def create_placement(
     body: RackPlacementCreate,
-    current_user: UserPublic = Depends(require_admin),
+    current_user: UserPublic = Depends(require_asset_access),
 ):
     return await placement_svc.create_placement(body.model_dump(), actor=current_user.email)
 
@@ -98,7 +99,7 @@ async def create_placement(
 async def move_placement(
     placement_id: str,
     body: RackPlacementUpdate,
-    current_user: UserPublic = Depends(require_admin),
+    current_user: UserPublic = Depends(require_asset_access),
 ):
     return await placement_svc.move_placement(placement_id, body.model_dump(), actor=current_user.email)
 
@@ -106,6 +107,6 @@ async def move_placement(
 @router.delete("/placements/{placement_id}", response_model=RackPlacementOut)
 async def remove_placement(
     placement_id: str,
-    current_user: UserPublic = Depends(require_admin),
+    current_user: UserPublic = Depends(require_asset_access),
 ):
     return await placement_svc.remove_placement(placement_id, actor=current_user.email)

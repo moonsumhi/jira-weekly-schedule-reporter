@@ -8,25 +8,28 @@
         <span class="text-h6 q-ml-sm">{{ mode === 'move' ? '배치 수정' : '자산 배치' }}</span>
       </q-card-section>
 
-      <q-card-section>
-        <div class="row q-col-gutter-sm">
+      <q-separator class="q-mt-md" />
+
+      <q-card-section class="rp-form-grid">
           <!-- 자산 선택 (배치) 또는 표시 (이동/프리셋) -->
-          <div v-if="mode === 'move'" class="col-12 rp-asset-fixed">
-            <div class="text-caption text-grey-7">이동할 자산</div>
-            <div class="text-body1">{{ asset?.name }} <span class="text-caption text-grey">({{ asset?.assetCategory }})</span></div>
+          <div class="rp-label">{{ mode === 'move' ? '이동할 자산' : '배치할 자산' }} <span class="rp-required">*</span></div>
+          <div v-if="mode === 'move'" class="rp-fixed-value">
+            <span>{{ asset?.name }}</span>
+            <span class="text-caption text-grey-7">{{ asset?.assetCategory }}</span>
           </div>
-          <div v-else-if="presetAsset" class="col-12 rp-asset-fixed">
-            <div class="text-caption text-grey-7">배치할 자산</div>
-            <div class="text-body1">{{ presetAsset.name }} <span class="text-caption text-grey">({{ presetAsset.assetCategory }})</span></div>
+          <div v-else-if="presetAsset" class="rp-fixed-value">
+            <span>{{ presetAsset.name }}</span>
+            <span class="text-caption text-grey-7">{{ presetAsset.assetCategory }}</span>
           </div>
-          <div v-else class="col-12">
+          <div v-else class="rp-control">
             <q-select
               v-model="selectedAsset"
               :options="assetOptions"
               option-label="name"
               use-input
               input-debounce="300"
-              label="배치할 자산 (미배치) *"
+              aria-label="배치할 자산"
+              placeholder="미배치 자산 선택"
               outlined dense
               :loading="searching"
               @filter="onAssetFilter"
@@ -46,35 +49,42 @@
           </div>
 
           <!-- 대상 랙 -->
-          <div class="col-12">
+          <div class="rp-label">랙 <span class="rp-required">*</span></div>
+          <div class="rp-control">
             <q-select
               v-model="form.rackId"
               :options="rackOptions"
               emit-value map-options
-              label="랙 *"
+              aria-label="랙"
               outlined dense
               :readonly="mode === 'place'"
             />
           </div>
 
-          <div class="col-4">
-            <q-input v-model.number="form.startU" type="number" label="시작 U *" outlined dense min="1" />
-          </div>
-          <div class="col-4">
-            <q-input v-model.number="form.heightU" type="number" label="높이(U) *" outlined dense min="1" />
-          </div>
-          <div class="col-4">
-            <q-select v-model="form.mountSide" :options="MOUNT_OPTIONS" emit-value map-options label="장착면" outlined dense />
+          <div class="rp-label">시작 U <span class="rp-required">*</span></div>
+          <div class="rp-control">
+            <q-input v-model.number="form.startU" type="number" aria-label="시작 U" outlined dense min="1" />
           </div>
 
-          <div class="col-12 text-caption" :class="rangeValid ? 'text-grey-7' : 'text-negative'">
-            점유 예정: U{{ form.startU }}~U{{ endU }}
+          <div class="rp-label">높이(U) <span class="rp-required">*</span></div>
+          <div class="rp-control">
+            <q-input v-model.number="form.heightU" type="number" aria-label="높이(U)" outlined dense min="1" />
+          </div>
+
+          <div class="rp-label">장착면</div>
+          <div class="rp-control">
+            <q-select v-model="form.mountSide" :options="MOUNT_OPTIONS" emit-value map-options aria-label="장착면" outlined dense />
+          </div>
+
+          <div class="rp-label">점유 예정</div>
+          <div class="rp-range" :class="rangeValid ? 'text-grey-8' : 'text-negative'">
+            U{{ form.startU }}~U{{ endU }}
             <span v-if="!rangeValid"> — 시작 U/높이를 확인하세요</span>
           </div>
-        </div>
       </q-card-section>
 
-      <q-card-actions align="right">
+      <q-separator />
+      <q-card-actions align="right" class="q-px-md q-py-sm">
         <q-btn flat label="취소" v-close-popup />
         <q-btn
           color="primary"
@@ -227,10 +237,57 @@ async function save() {
 
 <style scoped>
 .rp-dialog {
-  width: 460px;
+  width: 520px;
   max-width: 95vw;
 }
-.rp-asset-fixed {
-  padding: 4px 0;
+.rp-form-grid {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 12px;
+}
+.rp-label {
+  color: #607d8b;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+}
+.rp-required {
+  color: #d32f2f;
+}
+.rp-control {
+  min-width: 0;
+}
+.rp-control :deep(.q-field) {
+  width: 100%;
+}
+.rp-fixed-value,
+.rp-range {
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid #cfd8dc;
+  border-radius: 4px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rp-fixed-value > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rp-range {
+  border-color: #eceff1;
+  background: #f7f9fa;
+  font-size: 13px;
+}
+@media (max-width: 480px) {
+  .rp-form-grid {
+    grid-template-columns: 88px minmax(0, 1fr);
+    column-gap: 10px;
+  }
 }
 </style>
