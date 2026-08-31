@@ -210,7 +210,7 @@
           flat
           bordered
           class="sticky-header-table"
-          style="height: calc(100vh - 200px)"
+          style="max-height: calc(100vh - 200px)"
         >
           <!-- Custom header with sort + checkboxes -->
           <template #header="props">
