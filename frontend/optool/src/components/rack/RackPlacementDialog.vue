@@ -27,6 +27,8 @@
               :options="assetOptions"
               option-label="name"
               use-input
+              fill-input
+              hide-selected
               input-debounce="300"
               aria-label="배치할 자산"
               placeholder="미배치 자산 선택"
