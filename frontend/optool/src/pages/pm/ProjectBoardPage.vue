@@ -50,6 +50,93 @@
 
       <q-separator vertical inset class="q-mx-xs" style="height: 20px" />
 
+      <!-- 우선순위 -->
+      <q-chip
+        :color="filterPriority ? 'orange-7' : undefined"
+        :text-color="filterPriority ? 'white' : 'grey-8'"
+        :outline="!filterPriority"
+        clickable dense size="sm"
+        :removable="!!filterPriority"
+        @remove="filterPriority = null"
+      >
+        <q-icon v-if="filterPriority" :name="PRIORITY_ICON[filterPriority]" size="10px" class="q-mr-xs" />
+        <span>{{ filterPriority ? PRIORITY_LABEL[filterPriority] : '우선순위' }}</span>
+        <q-icon v-if="!filterPriority" name="expand_more" size="14px" class="q-ml-xs" />
+        <q-menu>
+          <q-list dense style="min-width: 150px">
+            <q-item-label header class="text-grey-5" style="font-size: 11px; padding-bottom: 4px">우선순위 선택</q-item-label>
+            <q-item v-for="opt in priorityOptions" :key="opt.value" clickable v-close-popup @click="filterPriority = opt.value">
+              <q-item-section side style="padding-right: 8px; min-width: 24px">
+                <q-icon :name="PRIORITY_ICON[opt.value]" :color="PRIORITY_COLOR[opt.value]" size="xs" />
+              </q-item-section>
+              <q-item-section>{{ opt.label }}</q-item-section>
+              <q-item-section side v-if="filterPriority === opt.value">
+                <q-icon name="check" color="orange-7" size="xs" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-chip>
+
+      <!-- 유형 -->
+      <q-chip
+        :color="filterType ? TYPE_COLOR[filterType] : undefined"
+        :text-color="filterType ? 'white' : 'grey-8'"
+        :outline="!filterType"
+        clickable dense size="sm"
+        :removable="!!filterType"
+        @remove="filterType = null"
+      >
+        <q-icon v-if="filterType" :name="TYPE_ICON[filterType]" size="10px" class="q-mr-xs" />
+        <span>{{ filterType ? TYPE_LABEL[filterType] : '유형' }}</span>
+        <q-icon v-if="!filterType" name="expand_more" size="14px" class="q-ml-xs" />
+        <q-menu>
+          <q-list dense style="min-width: 150px">
+            <q-item-label header class="text-grey-5" style="font-size: 11px; padding-bottom: 4px">유형 선택</q-item-label>
+            <q-item v-for="opt in typeOptions" :key="opt.value" clickable v-close-popup @click="filterType = opt.value">
+              <q-item-section side style="padding-right: 8px; min-width: 24px">
+                <q-icon :name="TYPE_ICON[opt.value]" :color="TYPE_COLOR[opt.value]" size="xs" />
+              </q-item-section>
+              <q-item-section>{{ opt.label }}</q-item-section>
+              <q-item-section side v-if="filterType === opt.value">
+                <q-icon name="check" :color="TYPE_COLOR[opt.value]" size="xs" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-chip>
+
+      <!-- 담당자 -->
+      <q-chip
+        :color="filterAssigneeId ? 'teal' : undefined"
+        :text-color="filterAssigneeId ? 'white' : 'grey-8'"
+        :outline="!filterAssigneeId"
+        clickable dense size="sm"
+        :removable="!!filterAssigneeId"
+        @remove="filterAssigneeId = null"
+      >
+        <q-icon v-if="filterAssigneeId" name="person" size="10px" class="q-mr-xs" />
+        <span>{{ filterAssigneeId ? (memberOptions.find(m => m.value === filterAssigneeId)?.label ?? '담당자') : '담당자' }}</span>
+        <q-icon v-if="!filterAssigneeId" name="expand_more" size="14px" class="q-ml-xs" />
+        <q-menu>
+          <q-list dense style="min-width: 170px">
+            <q-item-label header class="text-grey-5" style="font-size: 11px; padding-bottom: 4px">담당자 선택</q-item-label>
+            <q-item v-if="memberOptions.length === 0" class="text-grey-5 text-caption q-px-md q-py-xs">멤버가 없습니다</q-item>
+            <q-item v-for="opt in memberOptions" :key="opt.value" clickable v-close-popup @click="filterAssigneeId = opt.value">
+              <q-item-section side style="padding-right: 8px; min-width: 28px">
+                <q-avatar size="22px" color="teal" text-color="white" font-size="11px">
+                  {{ opt.label.charAt(0).toUpperCase() }}
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>{{ opt.label }}</q-item-section>
+              <q-item-section side v-if="filterAssigneeId === opt.value">
+                <q-icon name="check" color="teal" size="xs" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
+      </q-chip>
+
       <q-chip
         :color="filterDateFrom || filterDateTo ? 'deep-orange-7' : undefined"
         :text-color="filterDateFrom || filterDateTo ? 'white' : 'grey-8'"
@@ -178,10 +265,10 @@ import draggable from 'vuedraggable'
 import {
   getBoard, updateIssue, getIssue,
   ISSUE_STATUSES, STATUS_LABEL, STATUS_COLOR,
-  TYPE_ICON, TYPE_COLOR, PRIORITY_ICON, PRIORITY_COLOR,
-  type Issue, type IssueStatus, type SubtaskSummary,
+  TYPE_ICON, TYPE_COLOR, PRIORITY_ICON, PRIORITY_COLOR, PRIORITY_LABEL,
+  type Issue, type IssueStatus, type IssuePriority, type IssueType, type SubtaskSummary,
 } from 'src/services/pm/issue'
-import { getProject, type Project } from 'src/services/pm/project'
+import { getProject, listProjectMembers, type Project, type ProjectMember } from 'src/services/pm/project'
 import { listSprints, type Sprint } from 'src/services/pm/sprint'
 import IssueFormDialog from './components/IssueFormDialog.vue'
 import IssueDetailDialog from './components/IssueDetailDialog.vue'
@@ -194,6 +281,27 @@ const visibleStatuses = ref(new Set<IssueStatus>(ISSUE_STATUSES))
 const titleClamp = ref(true)
 const filterDateFrom = ref<string | null>(null)
 const filterDateTo   = ref<string | null>(null)
+const filterPriority  = ref<IssuePriority | null>(null)
+const filterType      = ref<IssueType | null>(null)
+const filterAssigneeId = ref<string | null>(null)
+const members = ref<ProjectMember[]>([])
+
+const TYPE_LABEL: Record<IssueType, string> = {
+  EPIC: 'Epic', STORY: 'Story', TASK: 'Task', BUG: 'Bug', SUB_TASK: 'Sub-task',
+}
+const priorityOptions = [
+  { label: '최고', value: 'HIGHEST' as IssuePriority }, { label: '높음', value: 'HIGH' as IssuePriority },
+  { label: '보통', value: 'MEDIUM' as IssuePriority  }, { label: '낮음', value: 'LOW' as IssuePriority  },
+  { label: '최저', value: 'LOWEST' as IssuePriority  },
+]
+const typeOptions = [
+  { label: 'Epic',     value: 'EPIC'     as IssueType }, { label: 'Story', value: 'STORY'    as IssueType },
+  { label: 'Task',     value: 'TASK'     as IssueType }, { label: 'Bug',   value: 'BUG'      as IssueType },
+  { label: 'Sub-task', value: 'SUB_TASK' as IssueType },
+]
+const memberOptions = computed(() =>
+  members.value.map(m => ({ label: m.userName || m.userEmail, value: m.userId }))
+)
 
 function toggleStatus(status: IssueStatus) {
   const next = new Set(visibleStatuses.value)
@@ -218,13 +326,20 @@ const sprintOptions = computed(() => [
   ...sprints.value.map(s => ({ label: `${s.name} (${s.status})`, value: s.id })),
 ])
 
+const hasBoardFilter = computed(() =>
+  !!(filterDateFrom.value || filterDateTo.value || filterPriority.value || filterType.value || filterAssigneeId.value)
+)
+
 const filteredBoard = computed(() => {
-  if (!filterDateFrom.value && !filterDateTo.value) return board.value
+  if (!hasBoardFilter.value) return board.value
   const result = {} as Record<IssueStatus, Issue[]>
   for (const status of ISSUE_STATUSES) {
     result[status] = (board.value[status] ?? []).filter(issue => {
       if (filterDateFrom.value && (!issue.dueDate || issue.dueDate < filterDateFrom.value)) return false
       if (filterDateTo.value   && (!issue.dueDate || issue.dueDate > filterDateTo.value))   return false
+      if (filterPriority.value   && issue.priority   !== filterPriority.value)   return false
+      if (filterType.value       && issue.type       !== filterType.value)       return false
+      if (filterAssigneeId.value && issue.assigneeId !== filterAssigneeId.value) return false
       return true
     })
   }
@@ -234,9 +349,10 @@ const filteredBoard = computed(() => {
 onMounted(async () => {
   loading.value = true
   try {
-    const [proj, sp] = await Promise.all([getProject(projectId), listSprints(projectId)])
+    const [proj, sp, mem] = await Promise.all([getProject(projectId), listSprints(projectId), listProjectMembers(projectId)])
     project.value = proj
     sprints.value = sp
+    members.value = mem
     const active = sp.find(s => s.status === 'ACTIVE')
     if (active) selectedSprintId.value = active.id
     await loadBoard()
