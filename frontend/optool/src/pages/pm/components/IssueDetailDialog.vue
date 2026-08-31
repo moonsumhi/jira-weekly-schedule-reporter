@@ -278,7 +278,7 @@
                             :dense="true"
                           />
                           <div class="column q-gutter-xs justify-center">
-                            <q-btn color="primary" label="등록" size="sm" :loading="commentLoading" @click="submitReply(c.id)" />
+                            <q-btn color="primary" label="답글 등록" size="sm" :loading="commentLoading" @click="submitReply(c.id)" />
                             <q-btn flat label="취소" size="sm" @click="replyingTo = null" />
                           </div>
                         </div>
@@ -353,8 +353,8 @@
                     @click="fileInputRef?.click()"
                   />
                   <q-space />
-                  <q-btn color="primary" label="등록" :loading="commentLoading" no-caps @click="addComment" />
-                  <q-btn flat label="취소" no-caps @click="newComment = ''; pendingFiles = []" />
+                  <q-btn color="primary" :label="commentSubmitLabel" :loading="commentLoading" no-caps @click="addComment" />
+                  <q-btn flat label="작성 취소" no-caps @click="newComment = ''; pendingFiles = []" />
                 </div>
               </div>
             </q-tab-panel>
@@ -614,6 +614,16 @@ interface PendingFile {
 }
 const pendingFiles = ref<PendingFile[]>([])
 const fileInputRef = ref<HTMLInputElement | null>(null)
+
+// 댓글 텍스트 없이 첨부파일만 올려서 등록하는 경우 "댓글 등록"이라고 하면
+// 어색하므로, 실제로 뭘 등록하는지에 맞춰 버튼 문구를 바꾼다.
+const commentSubmitLabel = computed(() => {
+  const hasText = newComment.value.trim().length > 0
+  const hasFiles = pendingFiles.value.length > 0
+  if (hasFiles && !hasText) return '첨부파일 등록'
+  if (hasFiles && hasText) return '댓글/첨부파일 등록'
+  return '댓글 등록'
+})
 
 function isImage(file: File | Attachment): boolean {
   const type = 'contentType' in file ? file.contentType : file.type

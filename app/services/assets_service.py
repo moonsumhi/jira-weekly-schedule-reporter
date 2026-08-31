@@ -142,6 +142,11 @@ class AssetsService:
 
         await _check_asset_id(col, asset_id)
 
+        normalized_fields = dict(fields or {})
+        # 컬렉션이 실제 자산 유형의 원본이다. 유형값 누락으로 전체 목록에서
+        # 기본 유형인 서버로 잘못 표시되지 않도록 항상 일치시킨다.
+        normalized_fields["자산유형"] = self._category
+
         # 랙은 이름 중복 금지(랙 식별·매칭 기준이므로)
         if self._category == "랙" and name:
             if await col.find_one({"name": name, "is_deleted": {"$ne": True}}):
@@ -151,7 +156,7 @@ class AssetsService:
         doc = {
             "ip": ip,
             "name": name,
-            "fields": fields or {},
+            "fields": normalized_fields,
             "created_at": now,
             "created_by": actor_email,
             "updated_at": now,
@@ -199,11 +204,13 @@ class AssetsService:
         if asset_id != existing.get("asset_id"):
             await _check_asset_id(col, asset_id, exclude_id=_id)
 
+        normalized_fields = dict(fields or {})
+        normalized_fields["자산유형"] = self._category
         now = TimeUtil.now_utc()
         new_doc = {
             "ip": ip,
             "name": name,
-            "fields": fields or {},
+            "fields": normalized_fields,
             "updated_at": now,
             "updated_by": actor_email,
             "version": int(existing.get("version", 1)) + 1,
@@ -271,7 +278,16 @@ class AssetsService:
             update["ip"] = ip
 
         if patch.get("name") is not None:
-            update["name"] = patch["name"]
+            name = patch["name"]
+            if self._category == "랙" and name != existing.get("name"):
+                duplicate = await col.find_one({
+                    "_id": {"$ne": _id},
+                    "name": name,
+                    "is_deleted": {"$ne": True},
+                })
+                if duplicate:
+                    raise ValueError(f"동일 이름의 랙 '{name}'이(가) 이미 있습니다.")
+            update["name"] = name
 
         unset: Dict[str, Any] = {}
         if "asset_id" in patch and patch["asset_id"] != existing.get("asset_id"):
@@ -290,10 +306,12 @@ class AssetsService:
         if patch.get("fields") is not None:
             if not isinstance(patch["fields"], dict):
                 raise ValueError("fields는 객체(object) 형식이어야 합니다.")
+            normalized_fields = dict(patch["fields"])
+            normalized_fields["자산유형"] = self._category
             # 랙 전체 U 축소 차단: 현재 배치된 최상단 U 미만으로 줄일 수 없음
             if self._category == "랙":
                 try:
-                    new_total = int(patch["fields"].get("total_u"))
+                    new_total = int(normalized_fields.get("total_u"))
                 except (TypeError, ValueError):
                     new_total = None
                 if new_total is not None:
@@ -306,7 +324,7 @@ class AssetsService:
                         raise ValueError(
                             f"랙 전체 U를 {new_total}U로 줄일 수 없습니다. 현재 최상단 배치가 U{max_u}입니다."
                         )
-            update["fields"] = patch["fields"]
+            update["fields"] = normalized_fields
 
         if not update and not unset:
             return to_out(existing)
@@ -345,19 +363,33 @@ class AssetsService:
         if not existing:
             raise KeyError("찾을 수 없습니다.")
 
-        # 랙 배치 정합성: 배치된 자산 / 자산이 배치된 랙은 삭제 차단
+        # 랙에 배치된 자산을 삭제하면 배치도 함께 반출(soft delete)한다.
+        # remove_placement를 사용해 랙 슬롯 해제, 미러 필드 초기화, 반출 이력을 한 번에 처리한다.
         placements = MongoClientManager.get_rack_placements_collection()
-        if await placements.find_one({"asset_ref_id": _id, "is_deleted": False}):
-            raise HTTPException(status_code=409, detail={
-                "code": "ASSET_STILL_PLACED",
-                "message": "랙에 배치된 자산입니다. 랙에서 반출한 후 삭제해 주세요.",
+        if self._category == "랙":
+            # 랙 자체는 배치 자산이 남아 있으면 삭제하지 않는다.
+            placed_count = await placements.count_documents({"rack_ref_id": _id, "is_deleted": False})
+            if placed_count:
+                raise HTTPException(status_code=409, detail={
+                    "code": "RACK_NOT_EMPTY",
+                    "message": f"현재 {placed_count}개의 자산이 배치되어 있어 랙을 삭제할 수 없습니다.",
+                })
+        else:
+            active_placement = await placements.find_one({
+                "asset_category": self._category,
+                "asset_ref_id": _id,
+                "is_deleted": False,
             })
-        placed_count = await placements.count_documents({"rack_ref_id": _id, "is_deleted": False})
-        if placed_count:
-            raise HTTPException(status_code=409, detail={
-                "code": "RACK_NOT_EMPTY",
-                "message": f"현재 {placed_count}개의 자산이 배치되어 있어 랙을 삭제할 수 없습니다.",
-            })
+            if active_placement:
+                from app.services import rack_placement_service
+
+                await rack_placement_service.remove_placement(
+                    str(active_placement["_id"]), actor=actor_email
+                )
+                # remove_placement가 rack_no/rack_unit_no/위치를 비우므로 최신 문서로 이력을 남긴다.
+                existing = await col.find_one({"_id": _id, "is_deleted": {"$ne": True}})
+                if not existing:
+                    raise KeyError("찾을 수 없습니다.")
 
         now = TimeUtil.now_utc()
         update = {

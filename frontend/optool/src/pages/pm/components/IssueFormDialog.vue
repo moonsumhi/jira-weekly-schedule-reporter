@@ -1,5 +1,5 @@
 <template>
-  <q-dialog :model-value="modelValue" persistent @update:model-value="$emit('update:modelValue', $event)" @show="onDialogShow">
+  <q-dialog :model-value="modelValue" @update:model-value="onDialogModelUpdate" @show="onDialogShow">
     <q-card style="width: 1080px; max-width: 96vw">
 
       <!-- 헤더 -->
@@ -9,7 +9,7 @@
           <div class="text-caption text-grey-6">새 이슈를 생성합니다</div>
         </div>
         <q-space />
-        <q-btn flat round dense icon="close" @click="$emit('update:modelValue', false)" />
+        <q-btn flat round dense icon="close" @click="onDialogModelUpdate(false)" />
       </q-card-section>
 
       <q-separator class="q-mt-md" />
@@ -76,7 +76,7 @@
             <q-select
               v-model="form.assigneeId"
               :options="memberOptions"
-              label="담당자"
+              :label="form.type === 'TASK' ? '담당자 *' : '담당자'"
               outlined dense emit-value map-options clearable
               style="flex: 1"
             >
@@ -99,7 +99,7 @@
             <q-select
               v-model="form.epicId"
               :options="epicOptions"
-              label="상위 Epic"
+              :label="form.type === 'TASK' ? '상위 Epic *' : '상위 Epic'"
               outlined dense emit-value map-options clearable
               style="flex: 1"
             >
@@ -141,7 +141,7 @@
           </q-select>
           <q-input
             v-model="form.startDate"
-            label="시작일"
+            :label="form.type === 'TASK' ? '시작일 *' : '시작일'"
             outlined dense
             type="date"
             stack-label
@@ -149,7 +149,7 @@
           />
           <q-input
             v-model="form.dueDate"
-            label="마감일"
+            :label="form.type === 'TASK' ? '마감일 *' : '마감일'"
             outlined dense
             type="date"
             stack-label
@@ -281,7 +281,7 @@
 
       <!-- 하단 버튼 -->
       <q-card-actions align="right" class="q-pa-md q-gutter-x-sm">
-        <q-btn flat label="취소" @click="$emit('update:modelValue', false)" />
+        <q-btn flat label="취소" @click="onDialogModelUpdate(false)" />
         <q-btn color="primary" label="이슈 추가" :loading="loading" :disable="loading" @click="submit" />
       </q-card-actions>
 
@@ -293,7 +293,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
-import { Notify, type QInput } from 'quasar'
+import { Dialog, Notify, type QInput } from 'quasar'
 import {
   createIssue, listIssues, listLabels, uploadAttachment,
   ISSUE_STATUSES, STATUS_LABEL,
@@ -451,6 +451,7 @@ watch(() => props.modelValue, async (open) => {
       showOnDashboard: false,
     }
     attachments.value = []
+    formSnapshot.value = JSON.stringify(form.value)
     try {
       epics.value = await listIssues(props.projectId, { type: 'EPIC' })
     } catch {
@@ -458,6 +459,30 @@ watch(() => props.modelValue, async (open) => {
     }
   }
 })
+
+// ESC/배경 클릭/취소·닫기 버튼으로 닫으려 할 때, 입력한 내용이 있으면 확인 없이
+// 그냥 닫혀 작성 중이던 내용을 잃어버리는 걸 막기 위한 변경사항 추적
+const formSnapshot = ref('')
+const isDirty = computed(() =>
+  JSON.stringify(form.value) !== formSnapshot.value || attachments.value.length > 0
+)
+
+function onDialogModelUpdate(val: boolean) {
+  if (val) {
+    emit('update:modelValue', true)
+    return
+  }
+  if (!isDirty.value) {
+    emit('update:modelValue', false)
+    return
+  }
+  Dialog.create({
+    title: '저장하지 않은 변경사항이 있습니다',
+    message: '저장하지 않고 닫으시겠습니까?',
+    cancel: { label: '취소', flat: true },
+    ok: { label: '닫기', color: 'negative' },
+  }).onOk(() => emit('update:modelValue', false))
+}
 
 function triggerFileInput() {
   fileInputRef.value?.click()
@@ -521,6 +546,10 @@ function fmtSize(bytes: number) {
 async function submit() {
   if (!form.value.title.trim()) {
     Notify.create({ type: 'warning', message: '제목은 필수입니다.' })
+    return
+  }
+  if (form.value.type === 'TASK' && (!form.value.startDate || !form.value.dueDate || !form.value.assigneeId || !form.value.epicId)) {
+    Notify.create({ type: 'warning', message: 'Task 타입은 담당자, 상위 Epic, 시작일, 마감일이 필수입니다.' })
     return
   }
   loading.value = true

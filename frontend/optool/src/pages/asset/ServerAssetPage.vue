@@ -8,7 +8,7 @@
       class="asset-cat-tabs q-mb-md"
       @update:model-value="v => selectCategoryTab(String(v))"
     >
-      <q-tab v-for="c in ASSET_CATEGORY_TABS" :key="c" :name="c" :label="c" />
+      <q-tab v-for="c in assetCategoryTabs" :key="c" :name="c" :label="c" />
     </q-tabs>
 
     <!-- 랙 카테고리는 전용 배치 관리 화면으로 분기 -->
@@ -17,49 +17,38 @@
     <template v-else>
     <!-- Header -->
     <div class="asset-toolbar row items-center q-gutter-sm q-mb-sm">
-      <div class="text-h6">{{ pageTitle }}</div>
+      <q-btn
+        v-if="trashView" flat dense no-caps color="primary"
+        icon="arrow_back" label="자산 목록"
+        @click="trashView = false"
+      >
+        <q-tooltip>휴지통을 닫고 자산 목록으로 돌아갑니다.</q-tooltip>
+      </q-btn>
+      <q-separator v-if="trashView" vertical inset />
+      <div class="text-h6">{{ trashView ? '휴지통' : pageTitle }}</div>
+      <div v-if="trashView" class="text-caption text-grey-6">{{ category ? `${category} 자산` : '전체 자산' }}</div>
       <q-space />
 
-      <!-- 대량 작업 (삭제 포함 모드일 때만) -->
-      <q-btn
-        v-if="includeDeleted" outline dense no-caps
-        :color="bulkDeleteMode ? 'primary' : 'grey-7'"
-        icon="checklist"
-        :label="bulkDeleteMode ? '선택 취소' : '선택 삭제'"
-        @click="toggleBulkDeleteMode"
-      />
-      <q-btn
-        v-if="bulkDeleteMode && selectedIds.size > 0"
-        color="negative" dense unelevated no-caps
-        icon="delete_forever"
-        :label="`영구삭제 (${selectedIds.size})`"
-        :loading="bulkPurging"
-        @click="confirmBulkPurge"
-      />
-
-      <!-- Import 결과 알림 (있을 때만) -->
-      <q-btn
-        v-if="importFailedRows.filter(r => !r.retrySuccess).length > 0"
-        flat dense no-caps icon="error_outline" color="negative"
-        :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}`"
-        @click="importResultTab = 'failed'; importFailDialog = true"
-      />
-      <q-btn
-        v-if="importSkippedRows.length > 0"
-        flat dense no-caps icon="skip_next" color="warning"
-        :label="`건너뜀 ${importSkippedRows.length}`"
-        @click="importResultTab = 'skipped'; importFailDialog = true"
-      />
-      <q-btn
-        v-if="duplicateSkippedRows.filter(r => !r.separateSaved).length > 0"
-        flat dense no-caps icon="add_circle_outline" color="teal"
-        :label="`별도저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}`"
-        @click="importResultTab = 'separate'; importFailDialog = true"
-      />
-
-      <q-btn round flat dense icon="refresh" color="grey-7" :loading="loading" @click="load">
-        <q-tooltip>새로고침</q-tooltip>
-      </q-btn>
+      <template v-if="!trashView">
+        <!-- Import 결과 알림 (있을 때만) -->
+        <q-btn
+          v-if="importFailedRows.filter(r => !r.retrySuccess).length > 0"
+          flat dense no-caps icon="error_outline" color="negative"
+          :label="`실패 ${importFailedRows.filter(r => !r.retrySuccess).length}`"
+          @click="importResultTab = 'failed'; importFailDialog = true"
+        />
+        <q-btn
+          v-if="importSkippedRows.length > 0"
+          flat dense no-caps icon="skip_next" color="warning"
+          :label="`건너뜀 ${importSkippedRows.length}`"
+          @click="importResultTab = 'skipped'; importFailDialog = true"
+        />
+        <q-btn
+          v-if="duplicateSkippedRows.filter(r => !r.separateSaved).length > 0"
+          flat dense no-caps icon="add_circle_outline" color="teal"
+          :label="`별도저장 ${duplicateSkippedRows.filter(r => !r.separateSaved).length}`"
+          @click="importResultTab = 'separate'; importFailDialog = true"
+        />
 
       <!-- 더보기: 유틸리티 모음 -->
       <q-btn outline dense no-caps icon="more_horiz" label="더보기" color="grey-7">
@@ -87,12 +76,13 @@
             </q-item>
             <q-separator />
             <q-item tag="label">
-              <q-item-section>삭제 포함</q-item-section>
-              <q-item-section side><q-toggle v-model="includeDeleted" dense /></q-item-section>
-            </q-item>
-            <q-item tag="label">
               <q-item-section>폐기 포함</q-item-section>
               <q-item-section side><q-toggle v-model="includeDisposed" dense /></q-item-section>
+            </q-item>
+            <q-item clickable v-close-popup @click="trashView = true">
+              <q-item-section avatar><q-icon name="delete_outline" /></q-item-section>
+              <q-item-section>휴지통 (삭제된 자산)</q-item-section>
+              <q-item-section side><q-badge v-if="deletedCount" color="grey-6">{{ deletedCount }}</q-badge></q-item-section>
             </q-item>
           </q-list>
         </q-menu>
@@ -100,29 +90,54 @@
 
       <input ref="importFileInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onImportFile" />
 
-      <q-btn
-        color="primary" unelevated no-caps
-        icon="add"
-        :label="category ? `${category} 등록` : '자산 등록'"
-        @click="category ? openCreate() : (assetTypeDialog = true)"
-      />
+        <q-btn
+          color="primary" unelevated no-caps
+          icon="add"
+          :label="category ? `${category} 등록` : '자산 등록'"
+          @click="category ? openCreate() : (assetTypeDialog = true)"
+        />
+      </template>
     </div>
 
-    <!-- 상태 요약 (클릭 시 필터) -->
-    <div class="asset-summary row items-center q-gutter-xs q-mb-md">
+    <!-- 상태 요약 (일반 뷰: 클릭 시 필터) -->
+    <div v-if="!trashView" class="asset-summary row items-center q-gutter-xs q-mb-md">
       <q-chip
         dense clickable
         color="blue-grey-1" text-color="blue-grey-9"
         @click="statusFilter = null"
       >총 {{ visibleTotal }}</q-chip>
       <q-chip
-        v-for="s in ['운영', '점검', '미사용', '폐기예정']" :key="s"
+        v-for="s in ['운영', '점검', '미사용', '폐기예정', '폐기']" :key="s"
         dense clickable
         :color="statusFilter === s ? statusColor(s) : 'grey-2'"
         :text-color="statusFilter === s ? 'white' : 'grey-8'"
         @click="toggleStatusFilter(s)"
       >{{ s }} {{ statusSummary[s] }}</q-chip>
+      <q-space />
+      <q-chip
+        v-if="deletedCount" dense clickable icon="delete_outline"
+        color="grey-3" text-color="grey-8"
+        @click="trashView = true"
+      >휴지통 {{ deletedCount }}</q-chip>
     </div>
+
+    <!-- 휴지통 안내 + 일괄 작업 바 -->
+    <q-banner v-if="trashView" rounded class="trash-guide q-mb-md">
+      <template #avatar><q-icon name="delete_outline" color="blue-grey-7" /></template>
+      <div class="text-weight-medium">휴지통 · 삭제된 자산 {{ deletedCount }}건</div>
+      <div class="text-caption text-grey-7">
+        복원하거나 영구 삭제할 수 있습니다. 영구 삭제한 데이터는 복구할 수 없습니다.
+      </div>
+      <template #action>
+        <template v-if="selectedIds.size > 0">
+          <q-btn dense unelevated no-caps color="positive" icon="restore"
+            :label="`복원 (${selectedIds.size})`" :loading="bulkRestoring" @click="confirmBulkRestore" />
+          <q-btn dense unelevated no-caps color="negative" icon="delete_forever" class="q-ml-sm"
+            :label="`영구삭제 (${selectedIds.size})`" :loading="bulkPurging" @click="confirmBulkPurge" />
+        </template>
+        <span v-else class="text-caption text-grey-6">행을 선택하거나 각 행의 복원/영구삭제 버튼을 사용하세요.</span>
+      </template>
+    </q-banner>
 
     <q-card bordered>
       <!-- Filters -->
@@ -203,12 +218,28 @@
               <th
                 v-for="(col, idx) in props.cols"
                 :key="idx"
-                :class="['text-' + (col.align ?? 'left'), 'q-table__th', col.name !== 'actions' && col.name !== 'select' ? 'cursor-pointer select-none' : 'sticky-actions-col']"
+                :class="[
+                  'text-' + (col.align ?? 'left'),
+                  'q-table__th',
+                  { 'cursor-pointer select-none': col.name !== 'actions' && col.name !== 'select' },
+                  { 'sticky-actions-col': col.name === 'actions' },
+                  { 'bulk-select-col': col.name === 'select' },
+                ]"
                 :style="col.headerStyle"
                 @click="col.name !== 'actions' && col.name !== 'select' && toggleSort(col)"
               >
                 <div class="row items-center no-wrap q-gutter-xs">
-                  <span>{{ col.label }}</span>
+                  <q-checkbox
+                    v-if="col.name === 'select'"
+                    :model-value="bulkSelectState"
+                    dense
+                    color="negative"
+                    @update:model-value="toggleAllDeleted"
+                    @click.stop
+                  >
+                    <q-tooltip>현재 목록의 삭제된 자산 전체 선택</q-tooltip>
+                  </q-checkbox>
+                  <span v-else>{{ col.label }}</span>
                   <q-icon
                     v-if="col.name !== 'actions' && col.name !== 'select' && tableSortKey === getSortKey(col)"
                     :name="tableSortDesc ? 'arrow_downward' : 'arrow_upward'"
@@ -237,11 +268,12 @@
           </template>
           <!-- 일괄 삭제 선택 체크박스 (삭제된 항목만 선택 가능) -->
           <template #body-cell-select="props">
-            <q-td :props="props">
+            <q-td :props="props" class="bulk-select-col">
               <q-checkbox
                 v-if="props.row.isDeleted"
                 :model-value="selectedIds.has(props.row.id)"
                 dense
+                color="negative"
                 @update:model-value="toggleRowSelected(props.row.id)"
               />
             </q-td>
@@ -754,16 +786,6 @@
                 <q-input v-model="createFields['백신비고']" borderless dense class="field-input" />
               </div>
               <div class="col-4 form-field">
-                <div class="field-label">폐기 여부</div>
-                <q-select
-                  v-model="createFields[DISPOSAL_KEY]"
-                  :options="disposalOptions"
-                  borderless dense emit-value map-options
-                  clearable
-                  class="field-input"
-                />
-              </div>
-              <div class="col-4 form-field">
                 <div class="field-label">폐기 일정</div>
                 <q-input v-model="createFields['폐기일정']" borderless dense class="field-input" :type="('date' as any)" />
               </div>
@@ -928,17 +950,6 @@
               :options="ismsPOptions"
               outlined dense emit-value map-options
               label="ISMS-P 대상 여부"
-              class="q-mt-md"
-            />
-          </template>
-
-          <!-- 폐기 여부 -->
-          <template v-else-if="editFieldKey === DISPOSAL_KEY">
-            <q-select
-              v-model="editFieldText"
-              :options="disposalOptions"
-              outlined dense emit-value map-options
-              label="폐기 여부"
               class="q-mt-md"
             />
           </template>
@@ -1371,16 +1382,6 @@
                 <q-input v-model="rowEditValues['백신비고']" borderless dense class="field-input" />
               </div>
               <div class="col-4 form-field">
-                <div class="field-label">폐기 여부</div>
-                <q-select
-                  v-model="rowEditValues[DISPOSAL_KEY]"
-                  :options="disposalOptions"
-                  borderless dense emit-value map-options
-                  clearable
-                  class="field-input"
-                />
-              </div>
-              <div class="col-4 form-field">
                 <div class="field-label">폐기 일정</div>
                 <q-input v-model="rowEditValues['폐기일정']" borderless dense class="field-input" :type="('date' as any)" />
               </div>
@@ -1765,11 +1766,6 @@
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
-                <div class="col-4 form-field">
-                  <div class="field-label">폐기 여부</div>
-                  <q-select v-if="detailEditing" v-model="rowEditValues[DISPOSAL_KEY]" :options="disposalOptions" emit-value map-options clearable borderless dense class="field-input" />
-                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[DISPOSAL_KEY]) }}</div>
-                </div>
                 <div class="col-4 form-field">
                   <div class="field-label">폐기 일정</div>
                   <q-input v-if="detailEditing" v-model="rowEditValues['폐기일정']" type="date" borderless dense class="field-input" />
@@ -2400,8 +2396,9 @@ import {
 import { listServers, createServer, patchServer, deleteServer, restoreServer, purgeServer, getServerHistory } from 'src/services/assets'
 import { envCategoryService } from 'src/services/envCategory'
 import { eolStatusColor, eolStatusLabel, getAutoEol } from 'src/services/eolData'
+import { useMenuStore } from 'src/stores/menus'
 import {
-  ANTIVIRUS_KEY, DISPOSAL_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
+  ANTIVIRUS_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
 } from './assetKeys'
 import { CATEGORY_TEMPLATE_COLS, type TemplateCol } from './assetTemplateColumns'
 
@@ -2417,11 +2414,6 @@ const ismsPOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
 ]
-const disposalOptions = [
-  { label: 'O', value: 'O' },
-  { label: 'X', value: 'X' },
-]
-
 import { getErrorMessage } from 'src/utils/http/error'
 import { displayValue } from 'src/utils/format/value'
 
@@ -2444,9 +2436,32 @@ import { eosStatusColor, eosStatusLabel, normalizeEosStatus } from 'src/utils/ru
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
+const menuStore = useMenuStore()
 
-// 카테고리 탭 (전체 = category 없음)
-const ASSET_CATEGORY_TABS = ['전체', '서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙']
+// 사이드바 자산 하위 메뉴와 같은 순서로 카테고리 탭을 표시한다.
+// 메뉴 데이터가 아직 로드되지 않은 최초 렌더링에서는 기본 순서를 사용한다.
+const DEFAULT_ASSET_CATEGORY_TABS = ['전체', '서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙']
+const ASSET_CATEGORY_SET = new Set(DEFAULT_ASSET_CATEGORY_TABS)
+const assetCategoryTabs = computed(() => {
+  const assetMenu = menuStore.sidebarMenus.find((menu) => menu.slug === 'asset')
+  const submenus = assetMenu?.submenus ?? []
+  if (!submenus.length) return DEFAULT_ASSET_CATEGORY_TABS
+
+  let ordered = [...submenus]
+  if (assetMenu?.subOrder?.length) {
+    const orderMap = new Map(assetMenu.subOrder.map((link, index) => [link, index]))
+    ordered = [
+      ...ordered
+        .filter((submenu) => orderMap.has(submenu.link))
+        .sort((a, b) => (orderMap.get(a.link) ?? Infinity) - (orderMap.get(b.link) ?? Infinity)),
+      ...ordered.filter((submenu) => !orderMap.has(submenu.link)),
+    ]
+  }
+
+  const tabs = ordered.map((submenu) => submenu.title).filter((title) => ASSET_CATEGORY_SET.has(title))
+  return tabs.length ? tabs : DEFAULT_ASSET_CATEGORY_TABS
+})
+
 function selectCategoryTab(v: string) {
   const query = { ...route.query }
   if (v === '전체') delete query.category
@@ -2490,7 +2505,6 @@ const PREFERRED_FIELD_KEYS = [
   'VADA비고',
   ANTIVIRUS_KEY,
   '백신비고',
-  DISPOSAL_KEY,
   '폐기일정',
   '폐기비고',
   '제품명',
@@ -2521,7 +2535,7 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   '상태': '상태',
   rack_no: 'RackNo.',
   rack_unit_no: 'Rack Unit No.',
-  '구분': '중분류(구분)',
+  '구분': '구분',
   '자산번호': '자산번호',
   '자산관리번호': '자산관리번호',
   'SN': 'SN',
@@ -2544,7 +2558,6 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   'VADA비고': 'VADA 비고',
   [ANTIVIRUS_KEY]: '백신 여부',
   '백신비고': '백신 비고',
-  [DISPOSAL_KEY]: '폐기 여부',
   '폐기일정': '폐기 일정',
   '폐기비고': '폐기 관련 비고',
   '제품명': '제품명(모델명)',
@@ -2574,30 +2587,32 @@ const CHANGE_TYPE_OPTIONS = [
 
 const loading = ref(false)
 const rows = ref<ServerAsset[]>([])
-const includeDeleted = ref(false)
-// 폐기(disposal_status === 'O') 자산은 기본적으로 숨기고, 토글로 켰을 때만 같이 보여준다.
+// 휴지통 뷰: 삭제된(soft-deleted) 자산만 모아 복원/영구삭제하는 화면.
+const trashView = ref(false)
+// 폐기(상태 === '폐기') 자산은 기본적으로 숨기고, "폐기 포함" 토글로 켰을 때만 같이 보여준다.
 const includeDisposed = ref(false)
 
-watch(includeDeleted, () => { void load() })
+watch(trashView, () => {
+  selectedIds.value = new Set()
+})
 
 const filter = ref('')
 const filterCol = ref<string | null>(null)
 const statusFilter = ref<string | null>(null)
 const tableSortKey = ref('ip')
 
-// 상태 요약 (현재 로드된 자산 기준)
+// 상태 요약 (정상(비삭제) 자산 기준)
 const statusSummary = computed(() => {
-  const c: Record<string, number> = { 운영: 0, 점검: 0, 미사용: 0, 폐기예정: 0 }
+  const c: Record<string, number> = { 운영: 0, 점검: 0, 미사용: 0, 폐기예정: 0, 폐기: 0 }
   for (const r of rows.value) {
-    if (!includeDeleted.value && r.isDeleted) continue
+    if (r.isDeleted) continue
     const s = (r.fields?.['상태'] as string) ?? ''
     if (s in c) c[s]!++
   }
   return c
 })
-const visibleTotal = computed(
-  () => rows.value.filter((r) => includeDeleted.value || !r.isDeleted).length,
-)
+const visibleTotal = computed(() => rows.value.filter((r) => !r.isDeleted).length)
+const deletedCount = computed(() => rows.value.filter((r) => r.isDeleted).length)
 function toggleStatusFilter(s: string) {
   statusFilter.value = statusFilter.value === s ? null : s
 }
@@ -2725,7 +2740,7 @@ function colKey(col: unknown): string {
 // 컬럼 표시 순서 — '__ip__'/'__name__'은 IP/HostName 고정 컬럼 위치 마커
 const COLUMN_DISPLAY_ORDER = [
   '상태', 'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
-  EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항', TAGS_KEY, '비고',
+  EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', '폐기일정', '폐기비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항', TAGS_KEY, '비고',
 ] as const
 
 // 컬럼 선택 다이얼로그
@@ -2885,8 +2900,12 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
 
   const result: NonNullable<QTableProps['columns']> = []
 
-  if (bulkDeleteMode.value) {
-    result.push({ name: 'select', label: '', field: 'select', align: 'center', style: 'width: 1px' })
+  if (trashView.value) {
+    result.push({
+      name: 'select', label: '', field: 'select', align: 'center',
+      style: 'width: 48px; min-width: 48px; max-width: 48px',
+      headerStyle: 'width: 48px; min-width: 48px; max-width: 48px',
+    })
   }
 
   // 전체 탭에서만 자산 종류 컬럼을 맨 앞에 추가
@@ -2932,16 +2951,19 @@ const filteredRows = computed(() => {
   const q = (filter.value ?? '').trim().toLowerCase()
 
   return rows.value.filter((r) => {
-    // 삭제된 항목 필터
-    if (!includeDeleted.value && r.isDeleted) return false
+    // 휴지통 뷰: 삭제된 자산만, 상태/폐기/패싯 필터는 무시하고 텍스트 검색만 적용
+    if (trashView.value) {
+      if (!r.isDeleted) return false
+    } else {
+      // 일반 뷰: 삭제된 항목 숨김
+      if (r.isDeleted) return false
 
-    // 폐기된 항목 필터 (기본 숨김, "폐기 포함" 토글로만 표시)
-    if (!includeDisposed.value && r.fields?.[DISPOSAL_KEY] === 'O') return false
+      // 폐기 상태는 기본 숨김(폐기 포함 토글) — 단, 폐기로 필터 중이면 표시
+      if (!includeDisposed.value && statusFilter.value !== '폐기' && r.fields?.['상태'] === '폐기') return false
 
-    // 상태 필터 (요약 카운트 클릭)
-    if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
-
-    // 카테고리 필터 (서버 사이드에서 이미 필터링됨 — 클라이언트 측은 생략)
+      // 상태 필터 (요약 카운트 클릭)
+      if (statusFilter.value && (r.fields?.['상태'] ?? '') !== statusFilter.value) return false
+    }
 
     // 텍스트 검색
     if (q) {
@@ -2982,10 +3004,20 @@ const filteredRows = computed(() => {
   })
 })
 
+const selectableDeletedRows = computed(() => filteredRows.value.filter((row) => row.isDeleted))
+const bulkSelectState = computed<boolean | null>(() => {
+  const selectable = selectableDeletedRows.value
+  if (!selectable.length) return false
+  const selectedCount = selectable.filter((row) => selectedIds.value.has(row.id)).length
+  if (selectedCount === 0) return false
+  if (selectedCount === selectable.length) return true
+  return null
+})
+
 async function load() {
   loading.value = true
   try {
-    rows.value = await listServers(includeDeleted.value, category.value || undefined)
+    rows.value = await listServers(true, category.value || undefined)
     // DB에 eos_action_status가 없는 기존 레코드를 on-the-fly로 보완 (표시 전용, DB 미수정)
     await fetchEosMap()
     for (const row of rows.value) {
@@ -3071,9 +3103,13 @@ const createTags = ref<string[]>([])
 
 
 // 자산 상태 옵션 (fields['상태'])
-const STATUS_OPTIONS = ['운영', '점검', '미사용', '폐기예정']
+const STATUS_OPTIONS = ['운영', '점검', '미사용', '폐기예정', '폐기']
 function statusColor(s?: string | null): string {
-  return s === '운영' ? 'positive' : s === '점검' ? 'orange' : s === '폐기예정' ? 'negative' : 'grey'
+  return s === '운영' ? 'positive'
+    : s === '점검' ? 'orange'
+    : s === '폐기예정' ? 'negative'
+    : s === '폐기' ? 'blue-grey-8'
+    : 'grey'
 }
 
 // 위치 옵션은 Admin > 환경설정(env_categories: asset_location)에서 관리한다. 아래는 폴백.
@@ -3466,20 +3502,26 @@ async function doPurge(row: ServerAsset) {
   }
 }
 
-/** 영구 삭제 (일괄 선택) */
-const bulkDeleteMode = ref(false)
+/** 휴지통 일괄 작업 (선택 복원 / 영구삭제) */
 const selectedIds = ref<Set<string>>(new Set())
 const bulkPurging = ref(false)
-
-function toggleBulkDeleteMode() {
-  bulkDeleteMode.value = !bulkDeleteMode.value
-  selectedIds.value = new Set()
-}
+const bulkRestoring = ref(false)
 
 function toggleRowSelected(id: string) {
   const next = new Set(selectedIds.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
+  selectedIds.value = next
+}
+
+function toggleAllDeleted() {
+  const selectableIds = selectableDeletedRows.value.map((row) => row.id)
+  const next = new Set(selectedIds.value)
+  const shouldSelectAll = selectableIds.some((id) => !next.has(id))
+  for (const id of selectableIds) {
+    if (shouldSelectAll) next.add(id)
+    else next.delete(id)
+  }
   selectedIds.value = next
 }
 
@@ -3521,10 +3563,39 @@ async function doBulkPurge(targets: ServerAsset[]) {
       $q.notify({ type: 'negative', message: `${succeededIds.size}건 영구 삭제됨, ${failedCount}건 실패` })
     } else {
       $q.notify({ type: 'positive', message: `${succeededIds.size}건 영구 삭제됨` })
-      bulkDeleteMode.value = false
     }
   } finally {
     bulkPurging.value = false
+  }
+}
+
+function confirmBulkRestore() {
+  const targets = rows.value.filter((r) => selectedIds.value.has(r.id))
+  if (targets.length === 0) return
+  $q.dialog({
+    title: '복원',
+    message: `선택한 ${targets.length}건을 복원하시겠습니까?`,
+    cancel: true,
+    ok: { label: '복원', color: 'positive', unelevated: true },
+  }).onOk(() => void doBulkRestore(targets))
+}
+
+async function doBulkRestore(targets: ServerAsset[]) {
+  bulkRestoring.value = true
+  try {
+    const results = await Promise.allSettled(
+      targets.map((r) => restoreServer(r.id, (r.fields?.['자산유형'] as string) || category.value || '서버')),
+    )
+    const ok = results.filter((r) => r.status === 'fulfilled').length
+    const fail = targets.length - ok
+    selectedIds.value = new Set()
+    await load()
+    $q.notify({
+      type: fail ? 'warning' : 'positive',
+      message: `${ok}건 복원됨${fail ? `, ${fail}건 실패` : ''}`,
+    })
+  } finally {
+    bulkRestoring.value = false
   }
 }
 
@@ -3611,7 +3682,7 @@ const rowEditFields = computed(() => {
 // 편집 다이얼로그 템플릿에서 이미 하드코딩된 필드 키 목록
 const EDIT_DIALOG_COVERED_KEYS = new Set([
   '자산유형', '상태', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
-  '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', DISPOSAL_KEY, '폐기일정', '폐기비고',
+  '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', '폐기일정', '폐기비고',
   '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자',
   '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항',
   '비고', TAGS_KEY,
@@ -4262,7 +4333,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
     // asset_id 매칭은 현재 탭(카테고리)에 국한되지 않고 전체 카테고리를 대상으로 해야 한다.
     // (예: "서버" 탭에서 import해도, 자산유형이 비어있는 행이 실제로는 DBMS 자산일 수 있으므로
     //  asset_id로 전체에서 찾아, 그 자산의 실제 자산유형으로 업데이트해야 카테고리별 중복 생성을 막을 수 있음)
-    const allAssetsForMatching = await listServers(includeDeleted.value)
+    const allAssetsForMatching = await listServers(true)
     const existingByAssetId = new Map(allAssetsForMatching.filter(r => r.assetId).map(r => [r.assetId!, r]))
     console.log('[Import] existingByAssetId size:', existingByAssetId.size)
 
@@ -4591,6 +4662,23 @@ onMounted(() => {
 .asset-summary :deep(.q-chip) {
   margin-top: 0;
   margin-bottom: 0;
+}
+.bulk-delete-guide {
+  border: 1px solid #ffcdd2;
+  background: #fff5f5;
+}
+.trash-guide {
+  border: 1px solid #cfd8dc;
+  background: #f5f7f8;
+}
+.bulk-select-col {
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  text-align: center;
+  background: #fff8f8 !important;
 }
 .asset-filter-bar {
   min-height: 64px;
