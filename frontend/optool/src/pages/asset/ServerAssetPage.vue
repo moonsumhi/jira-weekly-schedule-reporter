@@ -184,7 +184,11 @@
           :color="advancedFilterOpen ? 'indigo-7' : 'grey-7'"
           @click="advancedFilterOpen = !advancedFilterOpen"
         >
-          <q-badge v-if="advancedFilterCount" color="indigo-7" :label="advancedFilterCount" floating />
+          <q-badge
+            v-if="advancedFilterCount"
+            color="indigo-7" :label="advancedFilterCount" rounded
+            class="advanced-filter-count q-ml-xs"
+          />
         </q-btn>
       </q-card-section>
 
@@ -192,11 +196,25 @@
       <q-slide-transition>
         <q-card-section v-show="advancedFilterOpen && !trashView" class="asset-advanced-filter q-pt-none">
           <q-separator class="q-mb-md" />
-          <div class="row q-col-gutter-sm q-row-gutter-sm">
+          <div class="asset-advanced-filter__header row items-center q-mb-sm">
+            <div>
+              <div class="text-subtitle2 text-grey-9">상세 필터</div>
+              <div class="text-caption text-grey-6">각 항목에서 복수 선택할 수 있으며, 선택한 조건을 조합해 결과를 좁힐 수 있습니다.</div>
+            </div>
+            <q-space />
+            <q-btn
+              v-if="advancedFilterCount"
+              flat dense no-caps icon="restart_alt" label="상세 필터 초기화" color="grey-7"
+              @click="clearAdvancedFilters"
+            />
+          </div>
+          <div class="row q-col-gutter-md q-row-gutter-md">
             <div v-if="!category" class="col-12 col-sm-6 col-md-4">
               <q-select
                 v-model="advancedFilters.assetTypes" :options="assetTypeFilterOptions"
-                label="자산 종류" outlined dense clearable multiple use-chips bg-color="white"
+                :display-value="filterSelectionDisplay(advancedFilters.assetTypes)"
+                label="자산 종류" outlined dense clearable multiple bg-color="white"
+                class="advanced-filter-field"
               >
                 <template #prepend><q-icon name="category" size="17px" color="grey-5" /></template>
               </q-select>
@@ -204,7 +222,9 @@
             <div class="col-12 col-sm-6 col-md-4">
               <q-select
                 v-model="advancedFilters.locations" :options="locationFilterOptions"
-                label="위치" outlined dense clearable multiple use-chips bg-color="white"
+                :display-value="filterSelectionDisplay(advancedFilters.locations)"
+                label="위치" outlined dense clearable multiple bg-color="white"
+                class="advanced-filter-field"
               >
                 <template #prepend><q-icon name="place" size="17px" color="grey-5" /></template>
               </q-select>
@@ -212,7 +232,9 @@
             <div class="col-12 col-sm-6 col-md-4">
               <q-select
                 v-model="advancedFilters.departments" :options="departmentFilterOptions"
-                label="소속부서/사업" outlined dense clearable multiple use-chips bg-color="white"
+                :display-value="filterSelectionDisplay(advancedFilters.departments)"
+                label="소속부서/사업" outlined dense clearable multiple bg-color="white"
+                class="advanced-filter-field"
               >
                 <template #prepend><q-icon name="business" size="17px" color="grey-5" /></template>
               </q-select>
@@ -220,7 +242,9 @@
             <div class="col-12 col-sm-6 col-md-4">
               <q-select
                 v-model="advancedFilters.manufacturers" :options="manufacturerFilterOptions"
-                label="제조사" outlined dense clearable multiple use-chips bg-color="white"
+                :display-value="filterSelectionDisplay(advancedFilters.manufacturers)"
+                label="제조사" outlined dense clearable multiple bg-color="white"
+                class="advanced-filter-field"
               >
                 <template #prepend><q-icon name="precision_manufacturing" size="17px" color="grey-5" /></template>
               </q-select>
@@ -228,8 +252,10 @@
             <div class="col-12 col-sm-6 col-md-4">
               <q-select
                 v-model="advancedFilters.operatingSystems" :options="operatingSystemFilterOptions"
+                :display-value="filterSelectionDisplay(advancedFilters.operatingSystems)"
                 :label="['네트워크', '정보보호시스템'].includes(category) ? '기종' : '운영체제'"
-                outlined dense clearable multiple use-chips bg-color="white"
+                outlined dense clearable multiple bg-color="white"
+                class="advanced-filter-field"
               >
                 <template #prepend><q-icon name="memory" size="17px" color="grey-5" /></template>
               </q-select>
@@ -237,7 +263,9 @@
             <div class="col-12 col-sm-6 col-md-4">
               <q-select
                 v-model="advancedFilters.managers" :options="managerFilterOptions"
-                label="담당자" outlined dense clearable multiple use-chips bg-color="white"
+                :display-value="filterSelectionDisplay(advancedFilters.managers)"
+                label="담당자" outlined dense clearable multiple bg-color="white"
+                class="advanced-filter-field"
               >
                 <template #prepend><q-icon name="person" size="17px" color="grey-5" /></template>
               </q-select>
@@ -245,7 +273,9 @@
             <div class="col-12 col-sm-6 col-md-4">
               <q-select
                 v-model="advancedFilters.tags" :options="tagFilterOptions"
-                label="태그" outlined dense clearable multiple use-chips bg-color="white"
+                :display-value="filterSelectionDisplay(advancedFilters.tags)"
+                label="태그" outlined dense clearable multiple bg-color="white"
+                class="advanced-filter-field"
               >
                 <template #prepend><q-icon name="sell" size="17px" color="grey-5" /></template>
               </q-select>
@@ -253,17 +283,33 @@
             <div class="col-12 col-sm-6 col-md-4">
               <q-select
                 v-model="advancedFilters.eosStatuses" :options="EOS_FILTER_OPTIONS"
-                label="EoS 여부" outlined dense clearable multiple use-chips emit-value map-options bg-color="white"
+                :display-value="filterSelectionDisplay(advancedFilters.eosStatuses?.map(eosFilterLabel) ?? [])"
+                label="EoS 여부" outlined dense clearable multiple emit-value map-options bg-color="white"
+                class="advanced-filter-field"
               >
                 <template #prepend><q-icon name="event_busy" size="17px" color="grey-5" /></template>
               </q-select>
             </div>
-            <div class="col-12 col-md-6">
-              <div class="text-caption text-grey-7 q-mb-xs">도입일자(취득일자)</div>
-              <div class="row items-center no-wrap q-gutter-xs">
-                <q-input v-model="advancedFilters.acquiredFrom" type="date" outlined dense clearable bg-color="white" class="col" />
-                <span class="text-grey-5">~</span>
-                <q-input v-model="advancedFilters.acquiredTo" type="date" outlined dense clearable bg-color="white" class="col" />
+            <div class="col-12 col-sm-12 col-md-4">
+              <div class="row q-col-gutter-sm">
+                <div class="col-12 col-sm-6">
+                  <q-input
+                    v-model="advancedFilters.acquiredFrom" type="date"
+                    label="도입일자 시작" outlined dense clearable bg-color="white"
+                    class="advanced-filter-field"
+                  >
+                    <template #prepend><q-icon name="date_range" size="17px" color="grey-5" /></template>
+                  </q-input>
+                </div>
+                <div class="col-12 col-sm-6">
+                  <q-input
+                    v-model="advancedFilters.acquiredTo" type="date"
+                    label="도입일자 종료" outlined dense clearable bg-color="white"
+                    class="advanced-filter-field"
+                  >
+                    <template #prepend><q-icon name="date_range" size="17px" color="grey-5" /></template>
+                  </q-input>
+                </div>
               </div>
               <div v-if="advancedDateInvalid" class="text-negative text-caption q-mt-xs">
                 시작일이 종료일보다 늦습니다.
@@ -2716,7 +2762,7 @@ const advancedFilters = reactive({
   operatingSystems: [] as string[] | null,
   managers: [] as string[] | null,
   tags: [] as string[] | null,
-  eosStatuses: [] as EosFilterStatus[],
+  eosStatuses: [] as EosFilterStatus[] | null,
   acquiredFrom: null as string | null,
   acquiredTo: null as string | null,
 })
@@ -2732,6 +2778,12 @@ const EOS_FILTER_OPTIONS: Array<{ label: string; value: EosFilterStatus }> = [
 
 function eosFilterLabel(status: EosFilterStatus): string {
   return status === 'UNKNOWN' ? '확인 불가' : eosStatusLabel(status)
+}
+
+function filterSelectionDisplay(values: readonly string[] | null): string {
+  if (!values?.length) return ''
+  if (values.length === 1) return values[0] ?? ''
+  return `${values[0]} 외 ${values.length - 1}개`
 }
 
 function facetOptions(key: string, arrayItems = false): string[] {
@@ -2774,7 +2826,7 @@ const advancedFilterCount = computed(() => [
   advancedFilters.operatingSystems?.length,
   advancedFilters.managers?.length,
   advancedFilters.tags?.length,
-  advancedFilters.eosStatuses.length,
+  advancedFilters.eosStatuses?.length,
   advancedFilters.acquiredFrom || advancedFilters.acquiredTo,
 ].filter(Boolean).length)
 const advancedDateInvalid = computed(() => !!(
@@ -2795,7 +2847,7 @@ const advancedFilterChips = computed(() => {
   addMulti('operatingSystems', '운영체제/기종', advancedFilters.operatingSystems)
   addMulti('managers', '담당자', advancedFilters.managers)
   addMulti('tags', '태그', advancedFilters.tags)
-  if (advancedFilters.eosStatuses.length) {
+  if (advancedFilters.eosStatuses?.length) {
     chips.push({
       key: 'eosStatuses',
       label: 'EoS 여부',
@@ -3262,7 +3314,7 @@ const filteredRows = computed(() => {
       if (!matchesFieldSelection(r, '운영체제', advancedFilters.operatingSystems)) return false
       if (!matchesFieldSelection(r, '담당자', advancedFilters.managers)) return false
       if (!matchesFieldSelection(r, TAGS_KEY, advancedFilters.tags)) return false
-      if (advancedFilters.eosStatuses.length) {
+      if (advancedFilters.eosStatuses?.length) {
         const eosStatus = normalizeEosStatus(r.fields?.[EOS_STATUS_KEY]) ?? 'UNKNOWN'
         if (!advancedFilters.eosStatuses.includes(eosStatus)) return false
       }
@@ -4996,16 +5048,31 @@ onMounted(() => {
   min-height: 40px;
   height: 40px;
 }
+.advanced-filter-count {
+  min-width: 18px;
+  min-height: 18px;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 18px;
+}
 .asset-advanced-filter {
-  background: #fafbfc;
+  background: #f8f9fc;
+  padding-bottom: 18px;
+}
+.asset-advanced-filter__header {
+  min-height: 42px;
 }
 .asset-advanced-filter :deep(.q-field__control) {
-  min-height: 40px;
+  min-height: 44px;
+  height: 44px;
 }
-.asset-advanced-filter :deep(.q-chip) {
-  max-width: 150px;
+.asset-advanced-filter :deep(.q-field__label) {
+  color: #616161;
+  font-weight: 500;
 }
-.asset-advanced-filter :deep(.q-chip__content) {
+.advanced-filter-field :deep(.q-field__native),
+.advanced-filter-field :deep(.q-field__input) {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
