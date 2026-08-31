@@ -1,0 +1,61 @@
+name: Update EoS snapshot
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths-ignore:
+      - app/data/eos_map_snapshot.json
+  schedule:
+    - cron: "17 18 * * *"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to update
+        required: true
+        default: main
+        type: choice
+        options:
+          - main
+          - dev
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-eos-snapshot-${{ github.event_name == 'push' && github.ref_name || github.event.inputs.branch || 'main' }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: ${{ github.event_name == 'push' && github.ref_name || github.event.inputs.branch || 'main' }}
+    steps:
+      - name: Check out target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Refresh snapshot
+        run: python app/scripts/update_eos_snapshot.py
+
+      - name: Commit changed snapshot
+        shell: bash
+        run: |
+          if git diff --quiet -- app/data/eos_map_snapshot.json; then
+            echo "EoS snapshot is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/data/eos_map_snapshot.json
+          git commit -m "chore: update EoS snapshot"
+          git push origin "HEAD:${TARGET_BRANCH}"
