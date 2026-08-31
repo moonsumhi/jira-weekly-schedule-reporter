@@ -8,7 +8,7 @@
       class="asset-cat-tabs q-mb-md"
       @update:model-value="v => selectCategoryTab(String(v))"
     >
-      <q-tab v-for="c in ASSET_CATEGORY_TABS" :key="c" :name="c" :label="c" />
+      <q-tab v-for="c in assetCategoryTabs" :key="c" :name="c" :label="c" />
     </q-tabs>
 
     <!-- 랙 카테고리는 전용 배치 관리 화면으로 분기 -->
@@ -20,14 +20,16 @@
       <div class="text-h6">{{ pageTitle }}</div>
       <q-space />
 
-      <!-- 대량 작업 (삭제 포함 모드일 때만) -->
+      <!-- 삭제된 자산 영구 삭제 (삭제 포함 모드일 때만) -->
       <q-btn
         v-if="includeDeleted" outline dense no-caps
         :color="bulkDeleteMode ? 'primary' : 'grey-7'"
-        icon="checklist"
-        :label="bulkDeleteMode ? '선택 취소' : '선택 삭제'"
+        icon="delete_sweep"
+        :label="bulkDeleteMode ? '선택 종료' : '영구 삭제 선택'"
         @click="toggleBulkDeleteMode"
-      />
+      >
+        <q-tooltip>이미 삭제된 자산을 선택해 복구할 수 없도록 완전히 삭제합니다.</q-tooltip>
+      </q-btn>
       <q-btn
         v-if="bulkDeleteMode && selectedIds.size > 0"
         color="negative" dense unelevated no-caps
@@ -124,6 +126,17 @@
       >{{ s }} {{ statusSummary[s] }}</q-chip>
     </div>
 
+    <q-banner v-if="bulkDeleteMode" rounded class="bulk-delete-guide q-mb-md">
+      <template #avatar><q-icon name="warning_amber" color="negative" /></template>
+      <div class="text-weight-medium">삭제된 자산을 영구 삭제하는 모드입니다.</div>
+      <div class="text-caption text-grey-7">
+        표 왼쪽의 체크박스로 삭제된 자산을 선택하세요. 영구 삭제한 데이터는 복구할 수 없습니다.
+      </div>
+      <template #action>
+        <q-badge color="negative" :label="`${selectedIds.size}건 선택`" />
+      </template>
+    </q-banner>
+
     <q-card bordered>
       <!-- Filters -->
       <q-card-section class="asset-filter-bar row items-center q-gutter-sm">
@@ -203,12 +216,28 @@
               <th
                 v-for="(col, idx) in props.cols"
                 :key="idx"
-                :class="['text-' + (col.align ?? 'left'), 'q-table__th', col.name !== 'actions' && col.name !== 'select' ? 'cursor-pointer select-none' : 'sticky-actions-col']"
+                :class="[
+                  'text-' + (col.align ?? 'left'),
+                  'q-table__th',
+                  { 'cursor-pointer select-none': col.name !== 'actions' && col.name !== 'select' },
+                  { 'sticky-actions-col': col.name === 'actions' },
+                  { 'bulk-select-col': col.name === 'select' },
+                ]"
                 :style="col.headerStyle"
                 @click="col.name !== 'actions' && col.name !== 'select' && toggleSort(col)"
               >
                 <div class="row items-center no-wrap q-gutter-xs">
-                  <span>{{ col.label }}</span>
+                  <q-checkbox
+                    v-if="col.name === 'select'"
+                    :model-value="bulkSelectState"
+                    dense
+                    color="negative"
+                    @update:model-value="toggleAllDeleted"
+                    @click.stop
+                  >
+                    <q-tooltip>현재 목록의 삭제된 자산 전체 선택</q-tooltip>
+                  </q-checkbox>
+                  <span v-else>{{ col.label }}</span>
                   <q-icon
                     v-if="col.name !== 'actions' && col.name !== 'select' && tableSortKey === getSortKey(col)"
                     :name="tableSortDesc ? 'arrow_downward' : 'arrow_upward'"
@@ -237,11 +266,12 @@
           </template>
           <!-- 일괄 삭제 선택 체크박스 (삭제된 항목만 선택 가능) -->
           <template #body-cell-select="props">
-            <q-td :props="props">
+            <q-td :props="props" class="bulk-select-col">
               <q-checkbox
                 v-if="props.row.isDeleted"
                 :model-value="selectedIds.has(props.row.id)"
                 dense
+                color="negative"
                 @update:model-value="toggleRowSelected(props.row.id)"
               />
             </q-td>
@@ -2400,6 +2430,7 @@ import {
 import { listServers, createServer, patchServer, deleteServer, restoreServer, purgeServer, getServerHistory } from 'src/services/assets'
 import { envCategoryService } from 'src/services/envCategory'
 import { eolStatusColor, eolStatusLabel, getAutoEol } from 'src/services/eolData'
+import { useMenuStore } from 'src/stores/menus'
 import {
   ANTIVIRUS_KEY, DISPOSAL_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
 } from './assetKeys'
@@ -2444,9 +2475,32 @@ import { eosStatusColor, eosStatusLabel, normalizeEosStatus } from 'src/utils/ru
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
+const menuStore = useMenuStore()
 
-// 카테고리 탭 (전체 = category 없음)
-const ASSET_CATEGORY_TABS = ['전체', '서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙']
+// 사이드바 자산 하위 메뉴와 같은 순서로 카테고리 탭을 표시한다.
+// 메뉴 데이터가 아직 로드되지 않은 최초 렌더링에서는 기본 순서를 사용한다.
+const DEFAULT_ASSET_CATEGORY_TABS = ['전체', '서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙']
+const ASSET_CATEGORY_SET = new Set(DEFAULT_ASSET_CATEGORY_TABS)
+const assetCategoryTabs = computed(() => {
+  const assetMenu = menuStore.sidebarMenus.find((menu) => menu.slug === 'asset')
+  const submenus = assetMenu?.submenus ?? []
+  if (!submenus.length) return DEFAULT_ASSET_CATEGORY_TABS
+
+  let ordered = [...submenus]
+  if (assetMenu?.subOrder?.length) {
+    const orderMap = new Map(assetMenu.subOrder.map((link, index) => [link, index]))
+    ordered = [
+      ...ordered
+        .filter((submenu) => orderMap.has(submenu.link))
+        .sort((a, b) => (orderMap.get(a.link) ?? Infinity) - (orderMap.get(b.link) ?? Infinity)),
+      ...ordered.filter((submenu) => !orderMap.has(submenu.link)),
+    ]
+  }
+
+  const tabs = ordered.map((submenu) => submenu.title).filter((title) => ASSET_CATEGORY_SET.has(title))
+  return tabs.length ? tabs : DEFAULT_ASSET_CATEGORY_TABS
+})
+
 function selectCategoryTab(v: string) {
   const query = { ...route.query }
   if (v === '전체') delete query.category
@@ -2521,7 +2575,7 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   '상태': '상태',
   rack_no: 'RackNo.',
   rack_unit_no: 'Rack Unit No.',
-  '구분': '중분류(구분)',
+  '구분': '구분',
   '자산번호': '자산번호',
   '자산관리번호': '자산관리번호',
   'SN': 'SN',
@@ -2578,7 +2632,13 @@ const includeDeleted = ref(false)
 // 폐기(disposal_status === 'O') 자산은 기본적으로 숨기고, 토글로 켰을 때만 같이 보여준다.
 const includeDisposed = ref(false)
 
-watch(includeDeleted, () => { void load() })
+watch(includeDeleted, (enabled) => {
+  if (!enabled) {
+    bulkDeleteMode.value = false
+    selectedIds.value = new Set()
+  }
+  void load()
+})
 
 const filter = ref('')
 const filterCol = ref<string | null>(null)
@@ -2886,7 +2946,11 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
   const result: NonNullable<QTableProps['columns']> = []
 
   if (bulkDeleteMode.value) {
-    result.push({ name: 'select', label: '', field: 'select', align: 'center', style: 'width: 1px' })
+    result.push({
+      name: 'select', label: '', field: 'select', align: 'center',
+      style: 'width: 48px; min-width: 48px; max-width: 48px',
+      headerStyle: 'width: 48px; min-width: 48px; max-width: 48px',
+    })
   }
 
   // 전체 탭에서만 자산 종류 컬럼을 맨 앞에 추가
@@ -2980,6 +3044,16 @@ const filteredRows = computed(() => {
     const cmp = av.localeCompare(bv, 'ko', { numeric: true })
     return tableSortDesc.value ? -cmp : cmp
   })
+})
+
+const selectableDeletedRows = computed(() => filteredRows.value.filter((row) => row.isDeleted))
+const bulkSelectState = computed<boolean | null>(() => {
+  const selectable = selectableDeletedRows.value
+  if (!selectable.length) return false
+  const selectedCount = selectable.filter((row) => selectedIds.value.has(row.id)).length
+  if (selectedCount === 0) return false
+  if (selectedCount === selectable.length) return true
+  return null
 })
 
 async function load() {
@@ -3472,6 +3546,10 @@ const selectedIds = ref<Set<string>>(new Set())
 const bulkPurging = ref(false)
 
 function toggleBulkDeleteMode() {
+  if (!bulkDeleteMode.value && !rows.value.some((row) => row.isDeleted)) {
+    $q.notify({ type: 'info', message: '영구 삭제할 삭제 자산이 없습니다.' })
+    return
+  }
   bulkDeleteMode.value = !bulkDeleteMode.value
   selectedIds.value = new Set()
 }
@@ -3480,6 +3558,17 @@ function toggleRowSelected(id: string) {
   const next = new Set(selectedIds.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
+  selectedIds.value = next
+}
+
+function toggleAllDeleted() {
+  const selectableIds = selectableDeletedRows.value.map((row) => row.id)
+  const next = new Set(selectedIds.value)
+  const shouldSelectAll = selectableIds.some((id) => !next.has(id))
+  for (const id of selectableIds) {
+    if (shouldSelectAll) next.add(id)
+    else next.delete(id)
+  }
   selectedIds.value = next
 }
 
@@ -4591,6 +4680,19 @@ onMounted(() => {
 .asset-summary :deep(.q-chip) {
   margin-top: 0;
   margin-bottom: 0;
+}
+.bulk-delete-guide {
+  border: 1px solid #ffcdd2;
+  background: #fff5f5;
+}
+.bulk-select-col {
+  width: 48px;
+  min-width: 48px;
+  max-width: 48px;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+  text-align: center;
+  background: #fff8f8 !important;
 }
 .asset-filter-bar {
   min-height: 64px;
