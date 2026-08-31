@@ -1,16 +1,20 @@
-"""End-of-Support 날짜 맵 빌드 및 24시간 캐시 관리."""
+"""End-of-Support 날짜 맵 빌드 및 메모리/파일 캐시 관리."""
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+import os
 import re
-import time
+from pathlib import Path
 from typing import Any, Dict
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-_CACHE_TTL = 86400  # 24h
+_SNAPSHOT_ENV = "EOS_SNAPSHOT_PATH"
+_BUNDLED_SNAPSHOT_PATH = Path(__file__).resolve().parents[1] / "data" / "eos_map_snapshot.json"
 
 # Rocky Linux / RHEL / CentOS 는 endoflife.date 가 마이너 버전 단위 사이클만 제공하며
 # 현재 지원 중인 최신 마이너의 eol 이 false 이므로 메이저 버전 키를 직접 정의한다.
@@ -142,7 +146,7 @@ def _parse_eol(eol: Any) -> str | None:
     return None
 
 
-async def _fetch_product(client: httpx.AsyncClient, slug: str) -> list:
+async def _fetch_product(client: httpx.AsyncClient, slug: str) -> tuple[list, bool]:
     try:
         r = await client.get(
             f"https://endoflife.date/api/{slug}.json",
@@ -150,26 +154,33 @@ async def _fetch_product(client: httpx.AsyncClient, slug: str) -> list:
             follow_redirects=True,
         )
         r.raise_for_status()
-        return r.json()
+        data = r.json()
+        return (data if isinstance(data, list) else []), True
     except Exception as e:
         logger.warning("endoflife.date fetch failed for %s: %s", slug, e)
-        return []
+        return [], False
 
 
-async def build_eos_map() -> Dict[str, str]:
-    """endoflife.date API를 호출해 EoS 날짜 맵을 빌드한다."""
+async def _build_eos_map_with_status(base: Dict[str, str] | None = None) -> tuple[Dict[str, str], int]:
+    """외부 API를 병렬 호출해 EoS 맵과 성공한 API 수를 반환한다."""
     result: Dict[str, str] = dict(STATIC_FALLBACK)
+    if base:
+        result.update(base)
 
     async with httpx.AsyncClient() as client:
+        slugs = [*_PRODUCT_DISPLAY, _WINDOWS_SLUG]
+        responses = await asyncio.gather(*(_fetch_product(client, slug) for slug in slugs))
+        fetched = dict(zip(slugs, responses))
+
         for slug, display in _PRODUCT_DISPLAY.items():
-            cycles = await _fetch_product(client, slug)
+            cycles, _ = fetched[slug]
             for entry in cycles:
                 cycle = str(entry.get("cycle", ""))
                 eol = _parse_eol(entry.get("eol"))
                 if cycle and eol:
                     result[f"{display}|{cycle}"] = eol
 
-        win_cycles = await _fetch_product(client, _WINDOWS_SLUG)
+        win_cycles, _ = fetched[_WINDOWS_SLUG]
         for entry in win_cycles:
             cycle = str(entry.get("cycle", ""))
             eol = _parse_eol(entry.get("eol"))
@@ -201,21 +212,54 @@ async def build_eos_map() -> Dict[str, str]:
                 ws_aliases[f"Windows Server|{normalized}"] = val
     result.update(ws_aliases)
 
+    success_count = sum(1 for _, succeeded in responses if succeeded)
+    return result, success_count
+
+
+async def build_eos_map() -> Dict[str, str]:
+    """endoflife.date API를 호출해 EoS 날짜 맵을 빌드한다."""
+    result, _ = await _build_eos_map_with_status()
     return result
 
 
+def _snapshot_path() -> Path:
+    return Path(os.getenv(_SNAPSHOT_ENV, str(_BUNDLED_SNAPSHOT_PATH))).expanduser()
+
+
+def _read_snapshot() -> Dict[str, str] | None:
+    path = _snapshot_path()
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        data = raw.get("data", raw) if isinstance(raw, dict) else None
+        if not isinstance(data, dict):
+            raise ValueError("snapshot data must be an object")
+        normalized = {
+            str(key): str(value)
+            for key, value in data.items()
+            if isinstance(key, str) and isinstance(value, str) and key and value
+        }
+        if not normalized:
+            raise ValueError("snapshot is empty")
+        logger.info("EoS snapshot %d개 항목 로드: %s", len(normalized), path)
+        return normalized
+    except FileNotFoundError:
+        logger.warning("EoS snapshot 파일 없음: %s", path)
+    except Exception as e:
+        logger.warning("EoS snapshot 로드 실패 (%s): %s", path, e)
+        return None
+
+
 class EosService:
-    """EoS 맵 빌드 결과를 24시간 캐시하는 서비스."""
+    """저장소에 포함된 EoS snapshot을 메모리에 캐시하는 서비스."""
 
     _cache_data: Dict[str, str] | None = None
-    _cache_ts: float = 0.0
 
     @classmethod
     async def get_eos_map(cls) -> Dict[str, str]:
-        now = time.time()
-        if cls._cache_data is None or now - cls._cache_ts > _CACHE_TTL:
-            logger.info("EoS map 캐시 갱신 중...")
-            cls._cache_data = await build_eos_map()
-            cls._cache_ts = now
-            logger.info("EoS map %d개 항목 로드 완료", len(cls._cache_data))
+        if cls._cache_data is None:
+            snapshot = _read_snapshot()
+            cls._cache_data = dict(STATIC_FALLBACK)
+            if snapshot:
+                cls._cache_data.update(snapshot)
+
         return cls._cache_data
