@@ -142,6 +142,11 @@ class AssetsService:
 
         await _check_asset_id(col, asset_id)
 
+        normalized_fields = dict(fields or {})
+        # 컬렉션이 실제 자산 유형의 원본이다. 유형값 누락으로 전체 목록에서
+        # 기본 유형인 서버로 잘못 표시되지 않도록 항상 일치시킨다.
+        normalized_fields["자산유형"] = self._category
+
         # 랙은 이름 중복 금지(랙 식별·매칭 기준이므로)
         if self._category == "랙" and name:
             if await col.find_one({"name": name, "is_deleted": {"$ne": True}}):
@@ -151,7 +156,7 @@ class AssetsService:
         doc = {
             "ip": ip,
             "name": name,
-            "fields": fields or {},
+            "fields": normalized_fields,
             "created_at": now,
             "created_by": actor_email,
             "updated_at": now,
@@ -199,11 +204,13 @@ class AssetsService:
         if asset_id != existing.get("asset_id"):
             await _check_asset_id(col, asset_id, exclude_id=_id)
 
+        normalized_fields = dict(fields or {})
+        normalized_fields["자산유형"] = self._category
         now = TimeUtil.now_utc()
         new_doc = {
             "ip": ip,
             "name": name,
-            "fields": fields or {},
+            "fields": normalized_fields,
             "updated_at": now,
             "updated_by": actor_email,
             "version": int(existing.get("version", 1)) + 1,
@@ -299,10 +306,12 @@ class AssetsService:
         if patch.get("fields") is not None:
             if not isinstance(patch["fields"], dict):
                 raise ValueError("fields는 객체(object) 형식이어야 합니다.")
+            normalized_fields = dict(patch["fields"])
+            normalized_fields["자산유형"] = self._category
             # 랙 전체 U 축소 차단: 현재 배치된 최상단 U 미만으로 줄일 수 없음
             if self._category == "랙":
                 try:
-                    new_total = int(patch["fields"].get("total_u"))
+                    new_total = int(normalized_fields.get("total_u"))
                 except (TypeError, ValueError):
                     new_total = None
                 if new_total is not None:
@@ -315,7 +324,7 @@ class AssetsService:
                         raise ValueError(
                             f"랙 전체 U를 {new_total}U로 줄일 수 없습니다. 현재 최상단 배치가 U{max_u}입니다."
                         )
-            update["fields"] = patch["fields"]
+            update["fields"] = normalized_fields
 
         if not update and not unset:
             return to_out(existing)
