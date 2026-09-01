@@ -3338,6 +3338,34 @@ const filteredRows = computed(() => {
   })
 })
 
+// DB에 eos_action_status/eol_status가 없는 레코드를 on-the-fly로 보완 (표시 전용,
+// DB 미수정). 목록 새로고침 시뿐 아니라, 생성 직후 바로 상세를 열거나 하는 등
+// 이 계산을 거치지 않고 화면에 표시되는 모든 경로에서 재사용한다.
+function enrichEosEol(row: ServerAsset): void {
+  const dist = (row.fields?.['운영체제'] as string) ?? ''
+  if (!dist) return
+  const version = (row.fields?.['version'] as string) ?? ''
+  const assetType = (row.fields?.['자산유형'] as string) || category.value || '서버'
+  const series = Object.keys(DBMS_TREE[dist] ?? {}).find(s =>
+    (DBMS_TREE[dist]?.[s] ?? []).includes(version)) ?? ''
+  if (!row.fields?.[EOS_STATUS_KEY]) {
+    const eos = getAutoEos(dist, version)
+      ?? (series ? getAutoEos(dist, series) : null)
+      ?? (['네트워크', '정보보호시스템'].includes(assetType) ? getNetworkEos(dist) : null)
+    if (eos) {
+      row.fields[EOS_STATUS_KEY] = eos.status
+      row.fields[EOS_DATE_KEY] = eos.date
+    }
+  }
+  if (!row.fields?.[EOL_STATUS_KEY]) {
+    const eol = getAutoEol(dist, version) ?? (series ? getAutoEol(dist, series) : null)
+    if (eol) {
+      row.fields[EOL_STATUS_KEY] = eol.status
+      row.fields[EOL_DATE_KEY] = eol.date
+    }
+  }
+}
+
 const selectableDeletedRows = computed(() => filteredRows.value.filter((row) => row.isDeleted))
 const bulkSelectState = computed<boolean | null>(() => {
   const selectable = selectableDeletedRows.value
@@ -3355,28 +3383,7 @@ async function load() {
     // DB에 eos_action_status가 없는 기존 레코드를 on-the-fly로 보완 (표시 전용, DB 미수정)
     await fetchEosMap()
     for (const row of rows.value) {
-      const dist = (row.fields?.['운영체제'] as string) ?? ''
-      if (!dist) continue
-      const version = (row.fields?.['version'] as string) ?? ''
-      const assetType = (row.fields?.['자산유형'] as string) || category.value || '서버'
-      const series = Object.keys(DBMS_TREE[dist] ?? {}).find(s =>
-        (DBMS_TREE[dist]?.[s] ?? []).includes(version)) ?? ''
-      if (!row.fields?.[EOS_STATUS_KEY]) {
-        const eos = getAutoEos(dist, version)
-          ?? (series ? getAutoEos(dist, series) : null)
-          ?? (['네트워크', '정보보호시스템'].includes(assetType) ? getNetworkEos(dist) : null)
-        if (eos) {
-          row.fields[EOS_STATUS_KEY] = eos.status
-          row.fields[EOS_DATE_KEY] = eos.date
-        }
-      }
-      if (!row.fields?.[EOL_STATUS_KEY]) {
-        const eol = getAutoEol(dist, version) ?? (series ? getAutoEol(dist, series) : null)
-        if (eol) {
-          row.fields[EOL_STATUS_KEY] = eol.status
-          row.fields[EOL_DATE_KEY] = eol.date
-        }
-      }
+      enrichEosEol(row)
     }
   } catch (err: unknown) {
     $q.notify({ type: 'negative', message: getErrorMessage(err, '조회 실패') })
@@ -3601,7 +3608,10 @@ async function doCreate() {
       if ((v ?? '').toString().trim()) fields[k] = parseSmartValue(v)
     }
     if (createTags.value.length) fields[TAGS_KEY] = createTags.value
-    // watch가 아직 실행되지 않았을 경우를 대비해 EoS/EoL 직접 계산
+    // watch가 아직 실행되지 않았을 경우를 대비해 EoS/EoL 직접 계산.
+    // fetchEosMap()이 이 페이지에서 아직 한 번도 호출된 적 없으면(예: 목록을
+    // 안 거치고 바로 생성) EoS 맵이 비어있어 항상 null이 되므로 먼저 확실히 채운다.
+    await fetchEosMap()
     const eos = getAutoEos(createFields.value['운영체제'] ?? '', createFields.value['version'] ?? '')
     if (eos) {
       fields[EOS_STATUS_KEY] = eos.status
@@ -3942,12 +3952,18 @@ const detailHistory = ref<AssetHistory[]>([])
 const loadingDetailHistory = ref(false)
 const detailEditing = ref(false)
 
-function openDetailView(row: ServerAsset) {
+async function openDetailView(row: ServerAsset) {
   detailEditing.value = false
   detailTarget.value = row
   detailTab.value = 'basic'
   detailHistory.value = []
   detailDialog.value = true
+  // 방금 생성한 자산처럼 목록 새로고침(load())을 거치지 않고 바로 상세를 연
+  // 경우, EoS/EoL 계산이 아직 안 됐을 수 있어 여기서도 한 번 더 시도한다.
+  if (!row.fields?.[EOS_STATUS_KEY] || !row.fields?.[EOL_STATUS_KEY]) {
+    await fetchEosMap()
+    enrichEosEol(row)
+  }
 }
 
 async function loadDetailHistory() {
