@@ -50,6 +50,14 @@ export default defineBoot(({ app, router }) => {
         return res
       }
 
+      // Skip transformation for endpoints whose response keys are data (lookup keys),
+      // not field names — e.g. eos-map returns { "Windows Server|2012 R2": "2023-10" },
+      // and camelcaseKeys would mangle "Windows Server|2012 R2" into an unrecognizable
+      // key, silently breaking every EoS lookup.
+      if (res.config.url?.includes('/eos-map')) {
+        return res
+      }
+
       // Preserve user-defined 'fields' dict keys before camelCase transformation.
       // camelcaseKeys deep: true would transform e.g. eos_action_status → eosActionStatus
       // inside fields, but the frontend uses the original snake_case keys.
