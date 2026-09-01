@@ -50,6 +50,11 @@ class Settings(BaseSettings):
 
     ASSET_EXPORT_PASSWORD: str = Field(default="", description="Password for encrypted asset Excel export")
 
+    INCIDENT_NOTIFY_API_KEY: str = Field(
+        default="",
+        description="장애 알림 대상자 조회용 외부 연동 API 키",
+    )
+
     DELAYED_DIGEST_ENABLED: bool = Field(default=True, description="지연 일정 담당자별 메일 다이제스트(매일 09시 KST) 활성화 여부")
 
     PILOT_ENABLED: bool = Field(default=False, description="Enable Jira→Pilot polling")
