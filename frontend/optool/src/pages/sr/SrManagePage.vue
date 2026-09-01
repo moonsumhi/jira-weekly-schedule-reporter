@@ -133,7 +133,46 @@
               </div>
             </q-td>
             <q-td>{{ row.requesterDepartment }}</q-td>
-            <q-td>{{ row.requesterName }}</q-td>
+            <q-td :class="isAdminUser ? 'editable-cell' : ''" @click.stop="isAdminUser && openRequesterPopup(row)">
+              <div class="row items-center no-wrap">
+                <span>{{ row.requesterName }}</span>
+                <q-icon v-if="isAdminUser" name="edit" size="11px" color="grey-4" class="edit-hint q-ml-xs" />
+              </div>
+              <q-popup-proxy v-if="isAdminUser" cover transition-show="scale" transition-hide="scale">
+                <q-card flat class="q-pa-sm" style="min-width:260px">
+                  <div class="text-caption text-grey-6 q-mb-sm">요청자 변경</div>
+                  <q-select
+                    v-model="requesterInput"
+                    :options="filteredRequesterUsers"
+                    option-value="id" :option-label="userDisplayName"
+                    emit-value map-options
+                    label="요청자 선택"
+                    dense outlined
+                    use-input hide-selected fill-input
+                    input-debounce="0"
+                    @filter="filterRequesterUsers"
+                  >
+                    <template #option="scope">
+                      <q-item v-bind="scope.itemProps">
+                        <q-item-section>
+                          <q-item-label>{{ userDisplayName(scope.opt) }}</q-item-label>
+                          <q-item-label caption>{{ scope.opt.team || '부서 미지정' }} · {{ scope.opt.email }}</q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                    <template #no-option>
+                      <q-item><q-item-section class="text-grey">없음</q-item-section></q-item>
+                    </template>
+                  </q-select>
+                  <div class="row justify-end q-mt-sm q-gutter-xs">
+                    <q-btn flat dense size="sm" label="취소" v-close-popup />
+                    <q-btn unelevated dense size="sm" color="primary" label="저장"
+                      v-close-popup :disable="!requesterInput || requesterInput === row.requesterId"
+                      @click="saveRequester(row)" />
+                  </div>
+                </q-card>
+              </q-popup-proxy>
+            </q-td>
             <q-td class="text-center editable-cell" @click.stop>
               <div class="row items-center justify-center no-wrap">
                 <q-badge :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" outline />
@@ -336,7 +375,7 @@ import { useQuasar } from 'quasar'
 import type { QTableProps, QInput } from 'quasar'
 import { api } from 'src/boot/axios'
 import {
-  listAllSRs, getSRStats, changeSRStatus, patchSRInline, changePlannedDueDate,
+  listAllSRs, getSRStats, changeSRStatus, patchSRInline, changePlannedDueDate, changeSRRequester,
   SR_STATUS_LABEL, SR_STATUS_COLOR,
   REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL, SR_PRIORITY_COLOR,
   SR_PRIORITY_OPTIONS,
@@ -453,8 +492,10 @@ const currentSrDefault = computed(() => {
 const changingStatusId  = ref<string | null>(null)
 const bulkChanging      = ref(false)
 const filteredPmUsers   = ref<PmUser[]>([])
+const filteredRequesterUsers = ref<PmUser[]>([])
 const dateInput         = ref('')
 const assigneeInput     = ref<string | null>(null)
+const requesterInput    = ref<string | null>(null)
 const plannedDateInput  = ref('')
 const plannedDateReason = ref('')
 
@@ -730,6 +771,42 @@ function saveAssignee(row: SRListItem) {
   void inlinePatch(row, { assignee_id: user.id, assignee_name: user.name })
 }
 
+function userDisplayName(user: PmUser): string {
+  return user.name || user.email
+}
+
+function openRequesterPopup(row: SRListItem) {
+  requesterInput.value = row.requesterId
+  filteredRequesterUsers.value = pmUsers.value
+}
+
+function filterRequesterUsers(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    const q = val.trim().toLowerCase()
+    filteredRequesterUsers.value = q
+      ? pmUsers.value.filter(user =>
+          userDisplayName(user).toLowerCase().includes(q)
+          || user.email.toLowerCase().includes(q)
+          || (user.team || '').toLowerCase().includes(q),
+        )
+      : pmUsers.value
+  })
+}
+
+async function saveRequester(row: SRListItem) {
+  if (!requesterInput.value || requesterInput.value === row.requesterId) return
+  try {
+    const updated = await changeSRRequester(row.id, requesterInput.value)
+    row.requesterId = updated.requesterId
+    row.requesterName = updated.requesterName
+    row.requesterDepartment = updated.requesterDepartment
+    $q.notify({ type: 'positive', message: '요청자가 변경되었습니다.', timeout: 1500 })
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    $q.notify({ type: 'negative', message: msg || '요청자 변경에 실패했습니다.' })
+  }
+}
+
 // ── 상태 변경 ────────────────────────────────────────────────────────────
 
 function requestStatusChange(row: SRListItem, newStatus: string) {
@@ -865,6 +942,7 @@ onMounted(() => {
   void listPmUsers().then(users => {
     pmUsers.value         = users
     filteredPmUsers.value = users
+    filteredRequesterUsers.value = users
   })
 })
 

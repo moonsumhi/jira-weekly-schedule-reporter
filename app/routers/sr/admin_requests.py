@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.sr.service_request import (
-    SROut, SRListItem, SRListPage, SRPatch, SRInlinePatch,
+    SROut, SRListItem, SRListPage, SRPatch, SRInlinePatch, SRRequesterChange,
     SRReview, SRAssign, SRStatusChange, SRDueDateChange,
     SRStats, SR_STATUS_LABEL, REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL,
 )
@@ -218,6 +218,87 @@ async def patch_sr_inline(
             await record_sr_history(sr_id, f"FIELD_CHANGE:{field}", str(old_val), str(value), _user_label(current_user))
 
     await col.update_one({"_id": ObjectId(sr_id)}, {"$set": updates})
+    updated = await col.find_one({"_id": ObjectId(sr_id)})
+    return SROut(**sr_to_out(updated))
+
+
+# ── 요청자 변경 (시스템 관리자) ────────────────────────────────────────
+
+@router.patch("/{sr_id}/requester", response_model=SROut)
+async def change_sr_requester(
+    sr_id: str,
+    body: SRRequesterChange,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    require_sr_admin(current_user)
+    doc = await get_sr_or_404(sr_id)
+
+    try:
+        requester_oid = ObjectId(body.requester_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="잘못된 요청자 ID입니다.")
+
+    users_col = MongoClientManager.get_users_collection()
+    requester = await users_col.find_one({
+        "_id": requester_oid,
+        "is_blocked": {"$ne": True},
+    })
+    if not requester:
+        raise HTTPException(status_code=404, detail="변경할 요청자를 찾을 수 없습니다.")
+
+    if doc.get("requester_id") == requester_oid:
+        return SROut(**sr_to_out(doc))
+
+    requester_name = requester.get("full_name") or requester.get("email", "")
+    requester_department = requester.get("team") or ""
+    requester_email = requester.get("email", "")
+    now = datetime.now(timezone.utc)
+    actor = _user_label(current_user)
+
+    updates = {
+        "requester_id": requester_oid,
+        "requester_name": requester_name,
+        "requester_department": requester_department,
+        "requester_email": requester_email,
+        "updated_at": now,
+        "updated_by": actor,
+    }
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    result = await col.update_one(
+        {"_id": ObjectId(sr_id), "requester_id": doc.get("requester_id")},
+        {"$set": updates},
+    )
+    if result.modified_count != 1:
+        raise HTTPException(status_code=409, detail="요청자가 이미 변경되었습니다. 새로고침 후 다시 시도해주세요.")
+
+    history_fields = (
+        ("requester_id", doc.get("requester_id"), requester_oid),
+        ("requester_name", doc.get("requester_name"), requester_name),
+        ("requester_department", doc.get("requester_department"), requester_department),
+        ("requester_email", doc.get("requester_email"), requester_email),
+    )
+    for field, before, after in history_fields:
+        if str(before or "") != str(after or ""):
+            await record_sr_history(
+                sr_id,
+                f"FIELD_CHANGE:{field}",
+                str(before or ""),
+                str(after or ""),
+                actor,
+            )
+
+    await create_notification(
+        recipient_user_id=str(requester_oid),
+        notification_type="REQUESTER_CHANGED",
+        title="SR 요청자 지정",
+        message=f"'{doc.get('title', '')}' SR의 요청자로 지정되었습니다.",
+        sender_user_id=str(current_user.id),
+        sender_name=actor,
+        target_type="SR",
+        target_id=sr_id,
+        target_url=f"/pm/sr/{sr_id}",
+    )
+
     updated = await col.find_one({"_id": ObjectId(sr_id)})
     return SROut(**sr_to_out(updated))
 

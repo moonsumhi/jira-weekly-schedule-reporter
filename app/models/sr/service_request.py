@@ -339,6 +339,11 @@ class SRInlinePatch(BaseModel):
     assignee_name:    Optional[str]        = None
 
 
+class SRRequesterChange(BaseModel):
+    """관리자가 SR 요청자를 기존 사용자 계정으로 변경할 때 사용."""
+    requester_id: str
+
+
 class SRStats(BaseModel):
     total: int
     submitted: int
