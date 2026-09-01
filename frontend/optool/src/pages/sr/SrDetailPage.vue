@@ -1009,6 +1009,11 @@
               <q-item>
                 <q-item-section side class="side-label">요청자</q-item-section>
                 <q-item-section class="text-weight-medium">{{ sr.requesterName }}</q-item-section>
+                <q-item-section v-if="isAdminUser" side>
+                  <q-btn flat dense round icon="edit" size="sm" color="primary" @click="openRequesterDialog">
+                    <q-tooltip>요청자 변경</q-tooltip>
+                  </q-btn>
+                </q-item-section>
               </q-item>
               <q-item>
                 <q-item-section side class="side-label">부서</q-item-section>
@@ -1118,6 +1123,46 @@
         <div class="dialog-footer">
           <q-btn flat label="닫기" v-close-popup color="grey-7" />
           <q-btn color="negative" unelevated label="취소 확인" @click="doCancel" :loading="actionLoading" />
+        </div>
+      </q-card>
+    </q-dialog>
+
+    <!-- 요청자 변경 -->
+    <q-dialog v-model="requesterDialog">
+      <q-card class="dialog-card">
+        <div class="dialog-header dialog-header--primary">
+          <div class="dialog-header__title">요청자 변경</div>
+          <div class="dialog-header__sub">{{ sr?.srNo }} · 현재 {{ sr?.requesterName }}</div>
+        </div>
+        <q-card-section class="dialog-body">
+          <div class="field-label">새 요청자 <span class="required">*</span></div>
+          <q-select v-model="requesterSelectedUser" outlined
+            :options="requesterOptions" :option-label="userDisplayName"
+            use-input fill-input hide-selected input-debounce="0"
+            @filter="filterRequesterOptions" clearable
+            placeholder="이름 또는 이메일로 검색" hide-bottom-space>
+            <template #option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section avatar>
+                  <q-avatar size="28px" color="primary" text-color="white" style="font-size:0.76rem">
+                    {{ userDisplayName(scope.opt).charAt(0) }}
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ userDisplayName(scope.opt) }}</q-item-label>
+                  <q-item-label caption>{{ scope.opt.team || '부서 미지정' }} · {{ scope.opt.email }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+            <template #no-option><q-item><q-item-section class="text-grey-5">검색 결과 없음</q-item-section></q-item></template>
+          </q-select>
+          <div class="text-caption text-grey-6 q-mt-sm">
+            변경 이후 SR 조회 권한과 알림·메일 수신자가 새 요청자로 전환됩니다.
+          </div>
+        </q-card-section>
+        <div class="dialog-footer">
+          <q-btn flat label="취소" v-close-popup color="grey-7" />
+          <q-btn color="primary" unelevated label="변경" @click="doChangeRequester" :loading="actionLoading" />
         </div>
       </q-card>
     </q-dialog>
@@ -1288,7 +1333,7 @@ import { useAuthStore } from 'src/stores/auth'
 import {
   getSR, getAdminSR, listComments, listHistory, addComment, uploadSRAttachment,
   deleteComment, toggleCommentReaction,
-  cancelSR, reviewSR, assignSR, changeSRStatus,
+  cancelSR, reviewSR, assignSR, changeSRStatus, changeSRRequester,
   SR_STATUS_LABEL, SR_STATUS_COLOR, SR_PRIORITY_LABEL,
   REQUEST_TYPE_LABEL,
   type SR, type SRComment, type SRHistory, type SRStatus, type ReviewResult, type SRAttachment,
@@ -1415,6 +1460,7 @@ const commentFileInput = ref<HTMLInputElement | null>(null)
 const actionLoading  = ref(false)
 const activeAction   = ref<string | null>(null)
 const cancelDialog   = ref(false)
+const requesterDialog = ref(false)
 const reviewDialog   = ref(false)
 const assignDialog   = ref(false)
 const statusDialog   = ref(false)
@@ -1434,6 +1480,9 @@ const allUsers       = ref<PmUser[]>([])
 const userOptions    = ref<PmUser[]>([])
 const assignSelectedUser = ref<PmUser | null>(null)
 const reviewSelectedUser = ref<PmUser | null>(null)
+const requesterUsers = ref<PmUser[]>([])
+const requesterOptions = ref<PmUser[]>([])
+const requesterSelectedUser = ref<PmUser | null>(null)
 const statusForm = ref({
   status: null as string | null, reason: '', processResult: '',
   deployed: false, deployedAt: null as string | null,
@@ -1636,6 +1685,29 @@ function filterUserOptions(val: string, update: (fn: () => void) => void) {
   })
 }
 
+function userDisplayName(user: PmUser): string {
+  return user.name || user.email
+}
+
+function filterRequesterOptions(val: string, update: (fn: () => void) => void) {
+  update(() => {
+    const q = val.trim().toLowerCase()
+    requesterOptions.value = q
+      ? requesterUsers.value.filter(user =>
+          userDisplayName(user).toLowerCase().includes(q)
+          || user.email.toLowerCase().includes(q)
+          || (user.team || '').toLowerCase().includes(q),
+        )
+      : requesterUsers.value
+  })
+}
+
+function openRequesterDialog() {
+  requesterSelectedUser.value = requesterUsers.value.find(user => user.id === sr.value?.requesterId) ?? null
+  requesterOptions.value = requesterUsers.value
+  requesterDialog.value = true
+}
+
 function typeIcon(t: string)         { return TYPE_ICON[t] ?? 'help_outline' }
 function typeChipColor(t: string)    { return TYPE_CHIP_COLOR[t] ?? 'grey-7' }
 function statusLabel(s: string)      { return (SR_STATUS_LABEL    as Record<string,string>)[s] ?? s }
@@ -1694,6 +1766,10 @@ function fmtDate(d: string | null | undefined)     { return fmtDateKst(d) }
 function fmtDateTime(d: string | null | undefined) { return d ? formatKst(d) : '-' }
 
 const FIELD_LABELS: Record<string, string> = {
+  requester_id:        '요청자 계정',
+  requester_name:      '요청자',
+  requester_department: '요청자 부서',
+  requester_email:     '요청자 이메일',
   title:               '제목',
   description:         '요청 내용',
   background:          '배경',
@@ -1937,6 +2013,30 @@ async function doAssign() {
   } finally { actionLoading.value = false; activeAction.value = null }
 }
 
+async function doChangeRequester() {
+  if (!requesterSelectedUser.value || !sr.value) {
+    $q.notify({ type: 'warning', message: '변경할 요청자를 선택해주세요.' })
+    return
+  }
+  if (requesterSelectedUser.value.id === sr.value.requesterId) {
+    requesterDialog.value = false
+    return
+  }
+
+  actionLoading.value = true
+  try {
+    sr.value = await changeSRRequester(srId.value, requesterSelectedUser.value.id)
+    requesterDialog.value = false
+    $q.notify({ type: 'positive', message: '요청자가 변경되었습니다.' })
+    statusHistory.value = await listHistory(srId.value)
+  } catch (e) {
+    const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+    $q.notify({ type: 'negative', message: msg || '요청자 변경에 실패했습니다.' })
+  } finally {
+    actionLoading.value = false
+  }
+}
+
 function openAssignDialog(prefill: boolean) {
   if (prefill && sr.value) {
     assignSelectedUser.value = allUsers.value.find(u => u.id === sr.value!.assigneeId) ?? null
@@ -1978,12 +2078,17 @@ onMounted(async () => {
     allUsers.value = await listPmUsers('데이터운영팀')
     userOptions.value = allUsers.value
   } catch { /* 사용자 목록 실패 시 무시 */ }
+  try {
+    requesterUsers.value = await listPmUsers()
+    requesterOptions.value = requesterUsers.value
+  } catch { /* 요청자 목록 실패 시 무시 */ }
 })
 
 watch(() => route.params.id, (newId) => {
   if (!newId) return
   // 다른 SR로 이동할 때 이전 SR에서 입력하던 처리 폼 내용이 남아있지 않도록 초기화
   cancelDialog.value = false
+  requesterDialog.value = false
   reviewDialog.value = false
   assignDialog.value = false
   statusDialog.value = false
@@ -2104,6 +2209,7 @@ watch(() => route.params.id, (newId) => {
   color: white;
 }
 .dialog-header--negative { background: var(--q-negative); }
+.dialog-header--primary  { background: var(--q-primary); }
 .dialog-header--teal     { background: #00897b; }
 .dialog-header--cyan     { background: #00838f; }
 .dialog-header--blue     { background: #1565c0; }

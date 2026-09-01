@@ -442,6 +442,13 @@ export async function patchSRInline(id: string, payload: SRInlinePatch) {
   return data
 }
 
+export async function changeSRRequester(id: string, requesterId: string) {
+  const { data } = await api.patch<SR>(`/admin/schedule/service-requests/${id}/requester`, {
+    requester_id: requesterId,
+  })
+  return data
+}
+
 export async function updateAdminSR(id: string, payload: SRPatch) {
   const { data } = await api.put<SR>(`/admin/schedule/service-requests/${id}`, payload)
   return data
@@ -483,4 +490,3 @@ export async function getSRStats(params?: { date_from?: string; date_to?: string
   const { data } = await api.get<SRStats>('/admin/schedule/service-requests/stats/summary', { params })
   return data
 }
-
