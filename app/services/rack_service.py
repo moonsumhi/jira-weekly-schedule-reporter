@@ -363,7 +363,10 @@ async def _ensure_rack(rack_code: str, dry_run: bool, actor: str, created_codes:
     now = datetime.now(timezone.utc)
     doc = {
         "ip": "", "name": rack_code, "asset_id": rack_code,
-        "fields": {"server_room": "", "total_u": 42, "status": "ACTIVE", "u_direction": "BOTTOM_UP"},
+        "fields": {
+            "자산유형": "랙", "server_room": "", "total_u": 42,
+            "status": "ACTIVE", "u_direction": "BOTTOM_UP",
+        },
         "created_at": now, "created_by": actor, "updated_at": now, "updated_by": actor,
         "version": 1, "is_deleted": False,
     }

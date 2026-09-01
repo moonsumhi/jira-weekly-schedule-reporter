@@ -1,7 +1,7 @@
 // 자산 Import/Export 템플릿 컬럼 정의 (카테고리별). 순수 데이터.
 import { EOS_STATUS_KEY, EOS_DATE_KEY } from 'src/types/assets'
 import {
-  ANTIVIRUS_KEY, DISPOSAL_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
+  ANTIVIRUS_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
 } from './assetKeys'
 
 export type TemplateCol = { key: string; label: string; sample?: string }
@@ -12,7 +12,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'web-server-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: '물리' },
+    { key: '구분',          label: '구분',                                                            sample: '물리' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'SV-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
     { key: 'SN',            label: 'SN',                                                              sample: '' },
@@ -34,7 +34,6 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'VADA비고',      label: 'VADA비고',                                                        sample: '' },
     { key: ANTIVIRUS_KEY,   label: '백신여부',                                                        sample: 'O' },
     { key: '백신비고',       label: '백신비고',                                                        sample: '' },
-    { key: DISPOSAL_KEY,    label: '폐기여부',                                                        sample: 'O' },
     { key: '폐기일정',      label: '폐기일정',                                                        sample: '' },
     { key: '폐기비고',      label: '폐기 관련 비고',                                                  sample: '' },
     { key: '제품명',        label: '제품명(모델명)',                                                  sample: '' },
@@ -60,7 +59,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'sw-core-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: 'Switch' },
+    { key: '구분',          label: '구분',                                                            sample: 'Switch' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'NW-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
     { key: 'SN',            label: 'SN',                                                              sample: '' },
@@ -95,7 +94,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'db-server-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: 'DB' },
+    { key: '구분',          label: '구분',                                                            sample: 'DB' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'DB-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
     { key: 'SN',            label: 'SN',                                                              sample: '' },
@@ -131,7 +130,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'sec-device-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: 'F/W' },
+    { key: '구분',          label: '구분',                                                            sample: 'F/W' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'SEC-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
     { key: 'SN',            label: 'SN',                                                              sample: '' },
@@ -167,7 +166,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'vm-host-01' },
     { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
-    { key: '구분',          label: '중분류(구분)',                                                    sample: 'ESXi' },
+    { key: '구분',          label: '구분',                                                            sample: 'ESXi' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'VM-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
     { key: 'SN',            label: 'SN',                                                              sample: '' },

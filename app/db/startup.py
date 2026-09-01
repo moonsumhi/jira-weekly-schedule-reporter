@@ -681,6 +681,35 @@ async def migrate_asset_status_default() -> None:
         logger.info("자산 상태 기본값 backfill: %d건", total)
 
 
+async def migrate_rack_asset_type() -> None:
+    """기존 랙 문서의 자산유형을 '랙'으로 보정한다 (멱등)."""
+    col = MongoClientManager.get_asset_collection("랙")
+    result = await col.update_many(
+        {"fields.자산유형": {"$ne": "랙"}},
+        {"$set": {"fields.자산유형": "랙"}},
+    )
+    if result.modified_count:
+        logger.info("랙 자산유형 보정 완료: %d건", result.modified_count)
+
+
+async def migrate_disposal_to_status() -> None:
+    """기존 disposal_status='O' 자산을 상태='폐기'로 이관하고 disposal_status 필드를 제거한다.
+    (멱등, 랙 제외) — migrate_asset_status_default(운영 기본값) 이후에 실행해 폐기가 우선되게 한다.
+    """
+    db = MongoClientManager.get_db()
+    total = 0
+    for cat, (col_name, _hist) in MongoClientManager.CATEGORY_COLLECTIONS.items():
+        if cat == "랙":
+            continue
+        r = await db[col_name].update_many(
+            {"fields.disposal_status": "O"},
+            {"$set": {"fields.상태": "폐기"}, "$unset": {"fields.disposal_status": ""}},
+        )
+        total += r.modified_count
+    if total:
+        logger.info("폐기 상태 이관(disposal_status→상태='폐기'): %d건", total)
+
+
 async def migrate_firewall_contact_names() -> None:
     """방화벽 담당자 메일 항목 중 value 없이 label에 이메일을 그대로 저장해둔
     과거 데이터를, users 컬렉션에서 이메일로 조회해 label=이름/value=이메일로
@@ -725,7 +754,9 @@ async def run_startup() -> None:
     await migrate_env_submenu()
     await seed_job_form_templates()
     await migrate_assets()
+    await migrate_rack_asset_type()
     await migrate_asset_status_default()
+    await migrate_disposal_to_status()
 
     from app.db.rack_indexes import create_rack_indexes
     await create_rack_indexes()

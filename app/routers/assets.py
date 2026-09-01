@@ -22,6 +22,7 @@ from app.models.assets import (
 from app.models.user import UserPublic
 from app.routers.admin import require_admin
 from app.routers.auth import get_current_user
+from app.routers.permissions import require_asset_access
 from app.services.assets_service import AssetsService, list_all_assets
 from app.services.eos_service import EosService
 from app.utils.mongo import oid
@@ -62,7 +63,7 @@ async def get_eos_summary(current_user: UserPublic = Depends(get_current_user)):
 
     for a in assets:
         fields = a.get("fields") or {}
-        if str(fields.get("disposal_status") or "").strip() == "O":
+        if str(fields.get("상태") or "").strip() == "폐기":
             continue  # 폐기된 자산은 EoS 카운트에서 제외
         status_val = str(fields.get("eos_action_status") or "").strip()
         eos_date_str = str(fields.get("eos_date") or "").strip()
@@ -129,7 +130,7 @@ async def create_server(
     body: ServerAssetCreate,
     category: Optional[str] = Query(None),
     source: str = Query(default="manual"),
-    current_user: UserPublic = Depends(get_current_user),
+    current_user: UserPublic = Depends(require_asset_access),
 ):
     cat = category or (body.fields or {}).get("자산유형", "서버")
     try:
@@ -153,7 +154,7 @@ async def replace_server(
     server_id: str,
     body: ServerAssetReplace,
     category: Optional[str] = Query(None),
-    current_user: UserPublic = Depends(get_current_user),
+    current_user: UserPublic = Depends(require_asset_access),
 ):
     cat = category or (body.fields or {}).get("자산유형", "서버")
     try:
@@ -178,7 +179,7 @@ async def patch_server(
     server_id: str,
     body: ServerAssetPatch,
     category: Optional[str] = Query(None),
-    current_user: UserPublic = Depends(get_current_user),
+    current_user: UserPublic = Depends(require_asset_access),
 ):
     try:
         out = await _svc(category).patch(
@@ -199,7 +200,7 @@ async def delete_server(
     server_id: str,
     body: ServerAssetDelete = Body(default_factory=ServerAssetDelete),
     category: Optional[str] = Query(None),
-    current_user: UserPublic = Depends(get_current_user),
+    current_user: UserPublic = Depends(require_asset_access),
 ):
     try:
         out = await _svc(category).delete(_id=oid(server_id), actor_email=current_user.email, reason=body.reason)
@@ -212,7 +213,7 @@ async def delete_server(
 async def restore_server(
     server_id: str,
     category: Optional[str] = Query(None),
-    current_user: UserPublic = Depends(get_current_user),
+    current_user: UserPublic = Depends(require_asset_access),
 ):
     try:
         out = await _svc(category).restore(_id=oid(server_id), actor_email=current_user.email)
