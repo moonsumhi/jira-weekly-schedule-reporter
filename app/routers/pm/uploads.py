@@ -28,7 +28,9 @@ ALLOWED_TYPES = {
     "video/mp4",
 }
 # 브라우저가 표준 MIME 타입을 보내지 않는 확장자 (한글 문서, 로그/설정 파일 등) → 확장자로 허용 판단
-ALLOWED_EXTENSIONS_FALLBACK = {".hwp", ".hwpx", ".log", ".yaml", ".yml"}
+# .zip: Windows에서는 브라우저가 application/zip이 아니라 application/x-zip-compressed로
+# 보내는 경우가 흔해 ALLOWED_TYPES만으로는 거부되므로 확장자로도 허용한다.
+ALLOWED_EXTENSIONS_FALLBACK = {".hwp", ".hwpx", ".log", ".yaml", ".yml", ".zip"}
 
 
 class AttachmentOut(BaseModel):
