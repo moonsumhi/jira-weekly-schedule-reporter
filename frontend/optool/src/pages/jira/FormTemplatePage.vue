@@ -1245,9 +1245,8 @@ async function handleFileImport(event: Event) {
     if (result.skipped && result.skipped.length > 0) {
       skippedItems.value = result.skipped
       skippedDialog.value = true
-    } else {
-      $q.notify({ type: 'positive', message: 'Import 완료. 내용을 확인 후 저장하세요.' })
     }
+    $q.notify({ type: 'positive', message: 'Import 완료. 내용과 이미지 위치 확인 후 저장해주세요.' })
   } catch {
     $q.notify({ type: 'negative', message: 'Import 실패. 파일을 확인하세요.' })
   } finally {
