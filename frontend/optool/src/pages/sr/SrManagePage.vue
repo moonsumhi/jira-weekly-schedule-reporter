@@ -86,6 +86,7 @@
         row-key="id"
         :loading="loading"
         flat
+        :class="{ 'no-top-bar': !selected.length }"
         :rows-per-page-options="[10, 20, 50, 100]"
         v-model:pagination="pagination"
         @request="onTableRequest"
@@ -958,6 +959,16 @@ watch(srProjectDialog, (open) => { if (open) void loadProjects() })
   background: #e8f0fe;
   border-radius: 4px;
   min-height: 36px;
+}
+
+/* 선택된 행이 없을 땐 상단 빈 여백(q-table__top)을 접어서 표시하지 않음 */
+:deep(.no-top-bar .q-table__top) {
+  padding: 0;
+  min-height: 0;
+}
+
+:deep(.q-table thead th) {
+  font-size: 13px;
 }
 
 .editable-cell {
