@@ -14,6 +14,7 @@ NotificationType = Literal[
     "APPROVAL_REQUESTED",
     "DUE_DATE_APPROACHING",
     "DUE_DATE_OVERDUE",
+    "REQUESTER_CHANGED",
     "NOTICE",
     "SYSTEM",
 ]

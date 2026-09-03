@@ -9,6 +9,7 @@ export type NotificationType =
   | 'APPROVAL_REQUESTED'
   | 'DUE_DATE_APPROACHING'
   | 'DUE_DATE_OVERDUE'
+  | 'REQUESTER_CHANGED'
   | 'NOTICE'
   | 'SYSTEM'
 
@@ -83,6 +84,7 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   APPROVAL_REQUESTED: '승인 요청',
   DUE_DATE_APPROACHING: '마감 임박',
   DUE_DATE_OVERDUE: '마감 초과',
+  REQUESTER_CHANGED: '요청자 변경',
   NOTICE: '공지',
   SYSTEM: '시스템',
 }
@@ -96,6 +98,7 @@ export const NOTIFICATION_TYPE_ICON: Record<NotificationType, string> = {
   APPROVAL_REQUESTED: 'thumb_up',
   DUE_DATE_APPROACHING: 'schedule',
   DUE_DATE_OVERDUE: 'warning',
+  REQUESTER_CHANGED: 'manage_accounts',
   NOTICE: 'campaign',
   SYSTEM: 'info',
 }
@@ -109,6 +112,7 @@ export const NOTIFICATION_TYPE_COLOR: Record<NotificationType, string> = {
   APPROVAL_REQUESTED: 'green',
   DUE_DATE_APPROACHING: 'amber',
   DUE_DATE_OVERDUE: 'red',
+  REQUESTER_CHANGED: 'indigo',
   NOTICE: 'primary',
   SYSTEM: 'grey',
 }

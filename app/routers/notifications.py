@@ -1,23 +1,33 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, get_args
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
-from app.models.notification import NotificationOut, NotificationListPage, NoticeCreate
+from app.models.notification import NotificationOut, NotificationListPage, NotificationType, NoticeCreate
 from app.routers.auth import get_current_user
 from app.services.notification_service import notify_users
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _to_out(doc: dict) -> NotificationOut:
     d = dict(doc)
     d["id"] = str(d.pop("_id"))
+    notification_type = d.get("notification_type")
+    if notification_type not in get_args(NotificationType):
+        logger.warning(
+            "지원하지 않는 알림 유형을 SYSTEM으로 변환합니다: id=%s type=%s",
+            d["id"],
+            notification_type,
+        )
+        d["notification_type"] = "SYSTEM"
     return NotificationOut(**d)
 
 
