@@ -710,20 +710,16 @@
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
             </div>
           </template>
-          <!-- 정보보호시스템: 기종 + 수량 + 제조사 -->
+          <!-- 정보보호시스템: 기종 + 수량 -->
           <template v-else-if="activeCreateCategory === '정보보호시스템'">
             <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
-              <div class="col-4 form-field">
+              <div class="col-6 form-field">
                 <div class="field-label">기종 <span class="req-star">*</span></div>
                 <q-input v-model="createFields['운영체제']" borderless dense class="field-input" placeholder="기종 입력" />
               </div>
-              <div class="col-4 form-field">
+              <div class="col-6 form-field">
                 <div class="field-label">수량</div>
                 <q-input v-model="createFields['수량']" borderless dense class="field-input" type="number" placeholder="0" />
-              </div>
-              <div class="col-4 form-field">
-                <div class="field-label">제조사 <span class="req-star">*</span></div>
-                <q-input v-model="createFields['제조사']" borderless dense class="field-input" placeholder="제조사 입력" />
               </div>
             </div>
             <div class="row q-col-gutter-x-md q-mt-sm">
@@ -841,6 +837,10 @@
           <div class="section-divider" />
           <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
             <div class="col-6 form-field">
+              <div class="field-label">제조사 <span v-if="activeCreateCategory === '정보보호시스템'" class="req-star">*</span></div>
+              <q-input v-model="createFields['제조사']" borderless dense class="field-input" placeholder="제조사 입력" />
+            </div>
+            <div class="col-6 form-field">
               <div class="field-label">용도(상세)</div>
               <q-input v-model="createFields['용도']" borderless dense class="field-input" />
             </div>
@@ -875,6 +875,23 @@
             <div class="col-6 form-field">
               <div class="field-label">도입일자(취득일자)</div>
               <q-input v-model="createFields['도입일자']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">수령일</div>
+              <q-input v-model="createFields['수령일']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">변경일</div>
+              <q-input v-model="createFields['변경일']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">변경사항</div>
+              <q-select
+                v-model="createFields['변경사항']"
+                :options="CHANGE_TYPE_OPTIONS"
+                emit-value map-options clearable
+                borderless dense class="field-input"
+              />
             </div>
           </div>
         </q-card-section>
@@ -1437,6 +1454,14 @@
           <div class="section-divider" />
           <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
             <div class="col-6 form-field">
+              <div class="field-label">제조사</div>
+              <q-input v-model="rowEditValues['제조사']" borderless dense class="field-input" />
+            </div>
+            <div v-if="(rowEditTarget?.fields?.['자산유형'] || category) === '정보보호시스템'" class="col-6 form-field">
+              <div class="field-label">수량</div>
+              <q-input v-model="rowEditValues['수량']" type="number" borderless dense class="field-input" />
+            </div>
+            <div class="col-6 form-field">
               <div class="field-label">용도(상세)</div>
               <q-input v-model="rowEditValues['용도']" borderless dense class="field-input" />
             </div>
@@ -1471,6 +1496,23 @@
             <div class="col-6 form-field">
               <div class="field-label">도입일자(취득일자)</div>
               <q-input v-model="rowEditValues['도입일자']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">수령일</div>
+              <q-input v-model="rowEditValues['수령일']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">변경일</div>
+              <q-input v-model="rowEditValues['변경일']" borderless dense class="field-input" :type="('date' as any)" />
+            </div>
+            <div class="col-6 form-field">
+              <div class="field-label">변경사항</div>
+              <q-select
+                v-model="rowEditValues['변경사항']"
+                :options="CHANGE_TYPE_OPTIONS"
+                emit-value map-options clearable
+                borderless dense class="field-input"
+              />
             </div>
           </div>
         </q-card-section>
@@ -1721,14 +1763,40 @@
               <span class="section-title">{{ detailTarget.fields?.['자산유형'] === 'DBMS' ? 'DBMS' : ['네트워크', '정보보호시스템'].includes(detailTarget.fields?.['자산유형'] as string) ? '기종' : '운영체제' }}</span>
             </div>
             <div class="section-divider" />
-            <!-- 네트워크 / 정보보호시스템: 기종 텍스트만 표시 -->
-            <div v-if="['네트워크', '정보보호시스템'].includes(detailTarget.fields?.['자산유형'] as string)" class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
-              <div class="col-12 form-field">
-                <div class="field-label">기종</div>
-                <q-input v-if="detailEditing" v-model="rowEditValues['운영체제']" borderless dense class="field-input" />
-                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+            <!-- 네트워크 / 정보보호시스템: 기종 + EoS -->
+            <template v-if="['네트워크', '정보보호시스템'].includes(detailTarget.fields?.['자산유형'] as string)">
+              <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+                <div :class="detailTarget.fields?.['자산유형'] === '정보보호시스템' ? 'col-8 form-field' : 'col-12 form-field'">
+                  <div class="field-label">기종</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['운영체제']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                </div>
+                <div v-if="detailTarget.fields?.['자산유형'] === '정보보호시스템'" class="col-4 form-field">
+                  <div class="field-label">수량</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['수량']" type="number" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['수량']) }}</div>
+                </div>
               </div>
-            </div>
+              <div class="row q-col-gutter-x-md q-mt-sm">
+                <div class="col-4 form-field">
+                  <div class="field-label">EoS 여부</div>
+                  <div class="detail-value">
+                    <q-badge
+                      v-if="(detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY])"
+                      :color="eosStatusColor((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) as string)"
+                      outline
+                    >
+                      {{ eosStatusLabel((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) as string) }}
+                    </q-badge>
+                    <span v-else>-</span>
+                  </div>
+                </div>
+                <div class="col form-field">
+                  <div class="field-label">EoS 종료 일자</div>
+                  <div class="detail-value">{{ (detailEditing ? rowEditValues[EOS_DATE_KEY] : detailTarget.fields?.[EOS_DATE_KEY]) || '-' }}</div>
+                </div>
+              </div>
+            </template>
             <!-- DBMS: DB 종류 + 버전 + EoS -->
             <template v-else-if="detailTarget.fields?.['자산유형'] === 'DBMS'">
               <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
@@ -1819,6 +1887,11 @@
             <div class="section-divider" />
             <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
               <div class="col-6 form-field">
+                <div class="field-label">제조사</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['제조사']" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['제조사']) }}</div>
+              </div>
+              <div class="col-6 form-field">
                 <div class="field-label">용도(상세)</div>
                 <q-input v-if="detailEditing" v-model="rowEditValues['용도']" borderless dense class="field-input" />
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['용도']) }}</div>
@@ -1862,6 +1935,27 @@
                 <div class="field-label">도입일자(취득일자)</div>
                 <q-input v-if="detailEditing" v-model="rowEditValues['도입일자']" type="date" borderless dense class="field-input" />
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['도입일자']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">수령일</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['수령일']" type="date" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['수령일']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">변경일</div>
+                <q-input v-if="detailEditing" v-model="rowEditValues['변경일']" type="date" borderless dense class="field-input" />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['변경일']) }}</div>
+              </div>
+              <div class="col-6 form-field">
+                <div class="field-label">변경사항</div>
+                <q-select
+                  v-if="detailEditing"
+                  v-model="rowEditValues['변경사항']"
+                  :options="CHANGE_TYPE_OPTIONS"
+                  emit-value map-options clearable
+                  borderless dense class="field-input"
+                />
+                <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['변경사항']) }}</div>
               </div>
             </div>
           </q-card-section>
@@ -4032,8 +4126,8 @@ const rowEditFields = computed(() => {
 // 편집 다이얼로그 템플릿에서 이미 하드코딩된 필드 키 목록
 const EDIT_DIALOG_COVERED_KEYS = new Set([
   '자산유형', '상태', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
-  '운영체제', 'version', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', '폐기일정', '폐기비고',
-  '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자',
+  '운영체제', 'version', '제조사', '수량', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', '폐기일정', '폐기비고',
+  '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항',
   '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항',
   '비고', TAGS_KEY,
 ])
@@ -4076,8 +4170,9 @@ function prepareRowEdit(row: ServerAsset) {
   } else {
     rowEditDbSeries.value = ''
   }
-  const autoEos = ['네트워크', '정보보호시스템'].includes(category.value) ? getNetworkEos(vals['운영체제'] ?? '') : null
-  rowEditManualEosDate.value = (!autoEos && ['네트워크', '정보보호시스템'].includes(category.value)) ? (vals[EOS_DATE_KEY] ?? '') : ''
+  const isNetworkAsset = ['네트워크', '정보보호시스템'].includes(assetTypeVal)
+  const autoEos = isNetworkAsset ? getNetworkEos(vals['운영체제'] ?? '') : null
+  rowEditManualEosDate.value = (!autoEos && isNetworkAsset) ? (vals[EOS_DATE_KEY] ?? '') : ''
   const locVal = vals['위치'] ?? ''
   rowEditLocationSelect.value = LOCATION_PRESETS.value.includes(locVal) ? locVal : (locVal ? '기타' : '')
 }
@@ -4102,8 +4197,9 @@ watch(
   async ([dist, version, major]) => {
     await fetchEosMap()
     rowEditManualEosDate.value = ''
+    const rowAssetType = (rowEditTarget.value?.fields?.['자산유형'] as string) || category.value
     const eos = getAutoEos(dist ?? '', version ?? '')
-      ?? (['네트워크', '정보보호시스템'].includes(category.value) ? getNetworkEos(dist ?? '') : null)
+      ?? (['네트워크', '정보보호시스템'].includes(rowAssetType) ? getNetworkEos(dist ?? '') : null)
     if (eos) {
       rowEditValues.value[EOS_STATUS_KEY] = eos.status
       rowEditValues.value[EOS_DATE_KEY] = eos.date
