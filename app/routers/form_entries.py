@@ -1028,6 +1028,72 @@ def _extract_hwp_image_group_captions(text: str, id_groups: list[list[str]]) -> 
     return captions
 
 
+def _section_scope(text: str, all_titles: list[str], title: str) -> str:
+    """섹션 제목 마커([제목]) 기준으로 스코프 텍스트를 잘라 반환.
+    _extract_form_data 내부의 동일 로직(마커 없으면 이전 섹션 시작부터 전체 반환)을
+    컬럼 기반 이미지 자동 배치 전용으로 재사용하기 위해 독립 함수로 둔다."""
+    def sec_pattern(t: str) -> str:
+        return r'\[\s*' + re.escape(t) + r'\s*\]'
+
+    def bounds(t: str) -> tuple[int, int] | None:
+        m = re.search(sec_pattern(t), text, re.DOTALL)
+        if not m:
+            return None
+        start = m.end()
+        end = len(text)
+        for other in all_titles:
+            if other == t:
+                continue
+            om = re.search(sec_pattern(other), text[start:], re.DOTALL)
+            if om and start + om.start() < end:
+                end = start + om.start()
+        km = re.search(r'\[\s*[가-힣][가-힣\s]*[가-힣]\s*\]', text[start:])
+        if km and start + km.start() < end:
+            end = start + km.start()
+        return start, end
+
+    b = bounds(title)
+    if b:
+        return text[b[0]:b[1]]
+    idx = all_titles.index(title) if title in all_titles else -1
+    if idx > 0:
+        for prev in reversed(all_titles[:idx]):
+            pb = bounds(prev)
+            if pb:
+                return text[pb[0]:]
+    return text
+
+
+def _extract_multicolumn_image_tables(scope: str) -> list[list[list[str]]]:
+    """스코프 내 ===TABLE_END===로 구분된 표들 중 이미지가 포함된 표를 문서 순서대로
+    찾아, 각 표를 컬럼 인덱스별 이미지 bindata-id 리스트로 변환해 반환.
+
+    "작업 전/작업 후 사진"처럼 좌우 컬럼으로 사진을 나눠 배치하는 결과보고서 표는
+    캡션 문구가 문서마다 달라 텍스트 매칭으로는 신뢰할 수 없지만, 컬럼 위치는 HWP
+    표 객체 자체의 구조 정보(_parse_hwp_xml에서 채운 col 순서)라 문서와 무관하게
+    안정적이다 — ===ROW_END===로 나뉜 각 행 안에서 줄바꿈(\n) 순서가 곧 컬럼 인덱스.
+    """
+    chunks = scope.split('===TABLE_END===')
+    tables: list[list[list[str]]] = []
+    for chunk in chunks:
+        if '===IMG:' not in chunk:
+            continue
+        rows = [r for r in chunk.split('===ROW_END===') if r.strip()]
+        col_images: dict[int, list[str]] = {}
+        max_cols = 0
+        for row in rows:
+            cells = [c for c in row.split('\n') if c.strip()]
+            max_cols = max(max_cols, len(cells))
+            for c_idx, cell in enumerate(cells):
+                ids = _IMG_MARKER_RE.findall(cell)
+                if ids:
+                    col_images.setdefault(c_idx, []).extend(ids)
+        if not col_images:
+            continue
+        tables.append([col_images.get(c, []) for c in range(max_cols)])
+    return tables
+
+
 def _strip_image_markers(extracted: dict) -> dict:
     """자동 배치를 포기하고 수동 배치만 지원하기로 함에 따라, ===IMG:N=== 마커는
     어느 필드에도 채워 넣지 않고 텍스트에서 제거만 한다 (사용자에게 마커 원문이
@@ -1088,17 +1154,56 @@ async def import_entry_from_file(
 
     extracted, skipped = _extract_form_data(text, tmpl.get("sections", []))
 
-    # 이미지를 어느 필드/행에 자동 배치할지는 신뢰할 수 있는 방법이 없어(문서마다
-    # 사진-본문 연관 관습이 달라 순서/캡션 매칭 모두 실제 문서에서 어긋남을 확인)
-    # 자동 배치를 하지 않는다. 대신 캡션과 함께 묶어서 반환해 사용자가 수동 배치
-    # 패널에서 직접 드래그해 넣도록 한다.
+    # 좌우 컬럼(예: 작업 전/작업 후, 개발서버/운영서버)으로 사진을 나눠 배치하는 표는
+    # 컬럼 위치가 HWP 표 객체 자체의 구조 정보라 문서마다 다른 캡션 문구에 기대지
+    # 않고도 신뢰할 수 있다 — "multiple" 섹션에 이미지 타입 필드가 있으면 이 방식으로
+    # 우선 자동 배치를 시도한다. 배치된 이미지는 아래 캡션 묶음 후보에서 제외한다.
+    auto_placed_ids: set[str] = set()
+    if hwp_bindata_map:
+        all_titles = [s.get("title", "") for s in tmpl.get("sections", [])]
+        for section in tmpl.get("sections", []):
+            if not section.get("multiple"):
+                continue
+            image_fields = [f.get("label", "") for f in section.get("fields", []) if f.get("type") == "image"]
+            if not image_fields:
+                continue
+            title = section.get("title", "")
+            scope = _section_scope(text, all_titles, title)
+            photo_tables = _extract_multicolumn_image_tables(scope)
+            # 섹션 스코프가 겹칠 수 있어(브라켓 마커 없는 문서는 전체 텍스트로 폴백됨)
+            # 컬럼 수가 이 섹션의 이미지 필드 개수와 정확히 일치하는 표만 신뢰한다.
+            # 그래야 "서명"처럼 이미지 필드가 1개뿐인 무관한 섹션이 2컬럼 사진표를
+            # 잘못 가져가는 것을 막을 수 있다.
+            photo_tables = [t for t in photo_tables if len(t) == len(image_fields)]
+            if not photo_tables:
+                continue
+
+            existing_rows = extracted.get(title) or []
+            blank_row = {f.get("label", ""): "" for f in section.get("fields", [])}
+            new_rows: list[dict] = []
+            for i, cols in enumerate(photo_tables):
+                row = dict(existing_rows[i]) if i < len(existing_rows) else dict(blank_row)
+                for f_idx, field_label in enumerate(image_fields):
+                    ids = cols[f_idx] if f_idx < len(cols) else []
+                    urls = [hwp_bindata_map[bid] for bid in ids if bid in hwp_bindata_map]
+                    if urls:
+                        row[field_label] = urls
+                        auto_placed_ids.update(ids)
+                new_rows.append(row)
+            extracted[title] = new_rows
+
+    # 컬럼 기반으로 배치되지 않고 남은 이미지는 어느 필드/행에 자동 배치할지 신뢰할
+    # 수 있는 방법이 없어(문서마다 사진-본문 연관 관습이 달라 순서/캡션 매칭 모두
+    # 실제 문서에서 어긋남을 확인) 자동 배치를 하지 않는다. 대신 캡션과 함께 묶어서
+    # 반환해 사용자가 수동 배치 패널에서 직접 드래그해 넣도록 한다.
     image_groups: list[dict[str, Any]] = []
     if hwp_bindata_map:
         extracted = _strip_image_markers(extracted)
         id_groups = _extract_hwp_image_groups(text)
         captions = _extract_hwp_image_group_captions(text, id_groups)
         for g, cap in zip(id_groups, captions):
-            imgs = [hwp_bindata_map[i] for i in g if i in hwp_bindata_map]
+            g_remaining = [i for i in g if i not in auto_placed_ids]
+            imgs = [hwp_bindata_map[i] for i in g_remaining if i in hwp_bindata_map]
             if imgs:
                 image_groups.append({"caption": cap, "images": imgs})
         images = [img for grp in image_groups for img in grp["images"]]
