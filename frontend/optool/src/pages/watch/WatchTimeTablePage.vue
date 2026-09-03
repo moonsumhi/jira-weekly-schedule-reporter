@@ -100,7 +100,7 @@
             {{ dialog.mode === 'create' ? '근무 일정 생성' : '근무 일정 수정' }}
           </div>
           <div v-if="dialog.mode === 'create'" class="text-caption text-grey-7 q-mt-xs">
-            {{ dialog.date }}
+            {{ dialog.toDate && dialog.toDate !== dialog.date ? `${dialog.date} ~ ${dialog.toDate}` : dialog.date }}
           </div>
         </q-card-section>
 
@@ -250,7 +250,8 @@ const dialog = ref({
   assignee: '',     // edit 모드 전용
   assigneeA: '',    // create 모드 A타임
   assigneeB: '',    // create 모드 B타임
-  date: '',         // create 모드 선택 날짜 (YYYY-MM-DD)
+  date: '',         // create 모드 선택 시작 날짜 (YYYY-MM-DD)
+  toDate: '',       // create 모드 선택 종료 날짜 (드래그로 여러 날 선택 시 date와 달라짐)
   startLocal: '',   // edit 모드 전용
   endLocal: '',     // edit 모드 전용
   note: '',
@@ -258,8 +259,11 @@ const dialog = ref({
   error: ''
 })
 
-function openCreate(start: Date) {
+function openCreate(start: Date, end?: Date) {
   const dateStr = DateTime.fromJSDate(start, { zone: 'Asia/Seoul' }).toISODate() ?? ''
+  // FullCalendar의 select end는 마지막으로 선택된 슬롯의 종료 시각이라 그대로 날짜만 뽑으면 됨
+  // (slotMaxTime이 13:00으로 제한돼 있어 자정으로 넘어가는 배타적 종료 이슈가 없음)
+  const toDateStr = end ? (DateTime.fromJSDate(end, { zone: 'Asia/Seoul' }).toISODate() ?? dateStr) : dateStr
   dialog.value = {
     open: true,
     mode: 'create',
@@ -268,6 +272,7 @@ function openCreate(start: Date) {
     assigneeA: '',
     assigneeB: '',
     date: dateStr,
+    toDate: toDateStr,
     startLocal: '',
     endLocal: '',
     note: '',
@@ -291,6 +296,7 @@ function openEdit(arg: ClickArg) {
     assigneeA: '',
     assigneeB: '',
     date: '',
+    toDate: '',
     startLocal: dateToKstDateTimeLocal(start),
     endLocal: dateToKstDateTimeLocal(end),
     note: typeof ext.note === 'string' ? ext.note : '',
@@ -317,6 +323,16 @@ async function saveDialog() {
 
       const dt = DateTime.fromISO(dialog.value.date, { zone: 'Asia/Seoul' })
       if (!dt.isValid) throw new Error('날짜가 올바르지 않습니다.')
+
+      // 드래그로 여러 날을 선택한 경우(toDate가 date보다 뒤) 범위 전체에 생성
+      if (dialog.value.toDate && dialog.value.toDate !== dialog.value.date) {
+        if (assigneeA) await createBulkForSlot(assigneeA, dialog.value.date, dialog.value.toDate, 11, 0, 12, 0)
+        if (assigneeB) await createBulkForSlot(assigneeB, dialog.value.date, dialog.value.toDate, 12, 0, 13, 0)
+        closeDialog()
+        refetchCalendar()
+        Notify.create({ type: 'positive', message: '저장되었습니다.' })
+        return
+      }
 
       if (assigneeA) {
         const startIso = dt.set({ hour: 11, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
@@ -631,7 +647,7 @@ const calendarOptions = ref<CalendarOptions>({
       })
   },
 
-  select: (arg) => openCreate(arg.start),
+  select: (arg) => openCreate(arg.start, arg.end),
   eventClick: (arg) => openEdit(arg),
   eventDrop: (info) => { void onMoveOrResize(info) },
   eventResize: (info) => { void onMoveOrResize(info)}
