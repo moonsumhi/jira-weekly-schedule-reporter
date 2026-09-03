@@ -1218,17 +1218,44 @@ async def import_entry_from_file(
             if photo_tables:
                 existing_rows = extracted.get(title) or []
                 blank_row = {f.get("label", ""): "" for f in section.get("fields", [])}
-                new_rows: list[dict] = []
-                for i, cols in enumerate(photo_tables):
-                    row = dict(existing_rows[i]) if i < len(existing_rows) else dict(blank_row)
-                    for f_idx, field_label in enumerate(image_fields):
-                        ids = cols[f_idx] if f_idx < len(cols) else []
-                        urls = [hwp_bindata_map[bid] for bid in ids if bid in hwp_bindata_map]
-                        if urls:
-                            row[field_label] = urls
-                            auto_placed_ids.update(ids)
-                    new_rows.append(row)
-                extracted[title] = new_rows
+                existing_has_content = any(
+                    any(str(v).strip() for v in row.values()) for row in existing_rows
+                )
+                # photo_tables[i]가 existing_rows[i]와 같은 항목이라는 보장은 인덱스만으론
+                # 없다 — 텍스트 행 추출(레거시 줄 단위 묶기 폴백 포함)과 사진 표 스캔은
+                # 서로 다른 방식으로 행을 센다. 개수가 안 맞는데도 그냥 붙이면 사진 없는
+                # 항목이 있을 때 사진이 죄다 맨 위 행으로 쏠리는 오배치가 난다. 그래서:
+                #  - 텍스트 추출이 아예 실패해 빈 행뿐이면(원래 신뢰할 정보가 없었으므로)
+                #    사진 표 구조를 그대로 행으로 쓴다.
+                #  - 텍스트 추출이 뭔가 찾았는데 행 개수가 사진 표 개수와 다르면, 어느
+                #    행 것인지 확신할 수 없으므로 자동 배치를 포기하고(사진은 아래
+                #    수동 배치 패널로 넘어감) 텍스트 행은 그대로 둔다.
+                if not existing_has_content:
+                    new_rows = []
+                    for cols in photo_tables:
+                        row = dict(blank_row)
+                        for f_idx, field_label in enumerate(image_fields):
+                            ids = cols[f_idx] if f_idx < len(cols) else []
+                            urls = [hwp_bindata_map[bid] for bid in ids if bid in hwp_bindata_map]
+                            if urls:
+                                row[field_label] = urls
+                                auto_placed_ids.update(ids)
+                        new_rows.append(row)
+                    extracted[title] = new_rows
+                elif len(existing_rows) == len(photo_tables):
+                    new_rows = []
+                    for i, cols in enumerate(photo_tables):
+                        row = dict(existing_rows[i])
+                        for f_idx, field_label in enumerate(image_fields):
+                            ids = cols[f_idx] if f_idx < len(cols) else []
+                            urls = [hwp_bindata_map[bid] for bid in ids if bid in hwp_bindata_map]
+                            if urls:
+                                row[field_label] = urls
+                                auto_placed_ids.update(ids)
+                        new_rows.append(row)
+                    extracted[title] = new_rows
+                # else: 개수 불일치 — 자동 배치하지 않음 (auto_placed_ids에 추가 안 하므로
+                # 아래에서 캡션 묶음으로 수동 배치 패널에 남는다)
             else:
                 # 사진 전용 컬럼 구조가 아니면(예: "세부 작업 내용"처럼 스크린샷이
                 # 본문 텍스트 셀 안에 인라인으로 섞여 있는 경우), 같은 행의 텍스트
