@@ -1276,9 +1276,17 @@ def _strip_images(data: Any) -> Any:
     return data
 
 
+IMAGE_MAX_DIMENSION = 1600  # 긴 변 기준 — 화면 표시에는 충분하고 파일 크기를 크게 줄임
+IMAGE_JPEG_QUALITY = 85
+
+
 def _persist_image_value(value: str) -> str:
     """base64 data URL이면 디스크에 파일로 저장하고 정적 서빙 URL로 대체.
-    이미 URL(기존 저장된 값을 그대로 재제출한 경우)이면 그대로 둔다."""
+    이미 URL(기존 저장된 값을 그대로 재제출한 경우)이면 그대로 둔다.
+
+    HWP에서 추출한 스크린샷은 BMP(무압축)인 경우가 흔해 원본 그대로 저장하면
+    상세 화면을 열 때 이미지 로딩만으로 체감 지연이 생긴다(수 MB짜리가 여러 장).
+    SVG를 제외한 래스터 이미지는 JPEG로 재인코딩하고 큰 변을 축소해 저장한다."""
     m = _DATA_URL_RE.match(value)
     if not m:
         return value
@@ -1290,10 +1298,27 @@ def _persist_image_value(value: str) -> str:
         return value
 
     os.makedirs(IMAGE_UPLOAD_DIR, exist_ok=True)
-    filename = f"{uuid.uuid4().hex}.{ext}"
+
+    stored_bytes, stored_ext = raw, ext
+    if ext != "svg":
+        try:
+            from PIL import Image
+            img = Image.open(io.BytesIO(raw))
+            img.load()
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            if max(img.size) > IMAGE_MAX_DIMENSION:
+                img.thumbnail((IMAGE_MAX_DIMENSION, IMAGE_MAX_DIMENSION), Image.LANCZOS)
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=IMAGE_JPEG_QUALITY, optimize=True)
+            stored_bytes, stored_ext = buf.getvalue(), "jpg"
+        except Exception as e:
+            logger.warning("이미지 재인코딩 실패, 원본 형식으로 저장: %s", e)
+
+    filename = f"{uuid.uuid4().hex}.{stored_ext}"
     path = os.path.join(IMAGE_UPLOAD_DIR, filename)
     with open(path, "wb") as f:
-        f.write(raw)
+        f.write(stored_bytes)
     return f"/api/uploads/form_entries/{filename}"
 
 
