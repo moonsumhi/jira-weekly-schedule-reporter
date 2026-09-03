@@ -44,7 +44,15 @@
         <q-card flat bordered>
           <q-linear-progress v-if="loading" indeterminate color="primary" />
 
-          <div v-if="!loading && items.length === 0" class="q-pa-xl text-center text-grey">
+          <div v-if="!loading && loadError" class="q-pa-xl text-center text-negative">
+            <q-icon name="error_outline" size="48px" class="q-mb-sm" /><br>
+            {{ loadError }}
+            <div class="q-mt-md">
+              <q-btn outline color="primary" label="다시 시도" @click="load()" />
+            </div>
+          </div>
+
+          <div v-else-if="!loading && items.length === 0" class="q-pa-xl text-center text-grey">
             <q-icon name="notifications_none" size="48px" class="q-mb-sm" /><br>
             알림이 없습니다.
           </div>
@@ -137,6 +145,7 @@ const total = ref(0)
 const unreadCount = ref(0)
 const loading = ref(false)
 const loadingMore = ref(false)
+const loadError = ref<string | null>(null)
 const PAGE_SIZE = 30
 
 const hasMore = computed(() => items.value.length < total.value)
@@ -145,6 +154,7 @@ async function load(reset = true) {
   if (reset) {
     loading.value = true
     items.value = []
+    loadError.value = null
   } else {
     loadingMore.value = true
   }
@@ -166,7 +176,8 @@ async function load(reset = true) {
     unreadCount.value = page.unreadCount
     notifStore.unreadCount = page.unreadCount
   } catch (e) {
-    $q.notify({ type: 'negative', message: getErrorMessage(e, '알림 로드 실패') })
+    loadError.value = getErrorMessage(e, '알림 로드 실패')
+    $q.notify({ type: 'negative', message: loadError.value })
   } finally {
     loading.value = false
     loadingMore.value = false

@@ -7,6 +7,7 @@ export const useNotificationStore = defineStore('notification', () => {
   const unreadCount = ref(0)
   const dropdownItems = ref<Notification[]>([])
   const loading = ref(false)
+  const dropdownError = ref<string | null>(null)
   let pollTimer: ReturnType<typeof setInterval> | null = null
 
   async function refreshUnreadCount(background = false) {
@@ -19,10 +20,14 @@ export const useNotificationStore = defineStore('notification', () => {
 
   async function loadDropdown() {
     loading.value = true
+    dropdownError.value = null
     try {
       const page = await fetchNotifications({ isArchived: false, limit: 10 })
       dropdownItems.value = page.items
       unreadCount.value = page.unreadCount
+    } catch {
+      dropdownItems.value = []
+      dropdownError.value = '알림을 불러오지 못했습니다.'
     } finally {
       loading.value = false
     }
@@ -75,10 +80,11 @@ export const useNotificationStore = defineStore('notification', () => {
     }
     unreadCount.value = 0
     dropdownItems.value = []
+    dropdownError.value = null
   }
 
   return {
-    unreadCount, dropdownItems, loading,
+    unreadCount, dropdownItems, loading, dropdownError,
     refreshUnreadCount, loadDropdown, readAndNavigate, readAll, archive,
     startPolling, stopPolling,
   }
