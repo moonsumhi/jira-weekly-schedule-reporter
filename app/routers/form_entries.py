@@ -1094,6 +1094,45 @@ def _extract_multicolumn_image_tables(scope: str) -> list[list[list[str]]]:
     return tables
 
 
+def _pull_inline_row_images(rows: list[dict], image_fields: list[str], hwp_bindata_map: dict[str, str]) -> set[str]:
+    """사진 전용 컬럼이 없는 표(예: "세부 작업 내용"처럼 스크린샷이 본문 텍스트 셀
+    안에 인라인으로 섞여 있는 경우)에서, 각 행의 텍스트 필드 값에 남아있는
+    ===IMG:N=== 마커를 찾아 같은 행의 이미지 타입 필드로 옮긴다.
+
+    _extract_form_data가 이미 행 단위로 셀을 정확히 매칭해뒀기 때문에, 마커가 어느
+    행의 텍스트에 있었는지는 이미 확정된 사실이다 — 문서 전체를 훑어 캡션이나 순서로
+    "이 이미지가 어느 행 것인지" 추정할 필요가 없어 이전에 실패했던 방식과 다르다.
+    """
+    placed: set[str] = set()
+    if not image_fields:
+        return placed
+    for row in rows:
+        found_ids: list[str] = []
+        for key in list(row.keys()):
+            if key in image_fields:
+                continue
+            val = row.get(key)
+            if not isinstance(val, str) or '===IMG:' not in val:
+                continue
+            ids = _IMG_MARKER_RE.findall(val)
+            if not ids:
+                continue
+            found_ids.extend(ids)
+            cleaned = _IMG_MARKER_RE.sub('', val)
+            row[key] = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+        if not found_ids:
+            continue
+        urls = [hwp_bindata_map[i] for i in found_ids if i in hwp_bindata_map]
+        if not urls:
+            continue
+        for f in image_fields:
+            if not row.get(f):
+                row[f] = urls
+                placed.update(found_ids)
+                break
+    return placed
+
+
 def _strip_image_markers(extracted: dict) -> dict:
     """자동 배치를 포기하고 수동 배치만 지원하기로 함에 따라, ===IMG:N=== 마커는
     어느 필드에도 채워 넣지 않고 텍스트에서 제거만 한다 (사용자에게 마커 원문이
@@ -1175,27 +1214,33 @@ async def import_entry_from_file(
             # 그래야 "서명"처럼 이미지 필드가 1개뿐인 무관한 섹션이 2컬럼 사진표를
             # 잘못 가져가는 것을 막을 수 있다.
             photo_tables = [t for t in photo_tables if len(t) == len(image_fields)]
-            if not photo_tables:
-                continue
 
-            existing_rows = extracted.get(title) or []
-            blank_row = {f.get("label", ""): "" for f in section.get("fields", [])}
-            new_rows: list[dict] = []
-            for i, cols in enumerate(photo_tables):
-                row = dict(existing_rows[i]) if i < len(existing_rows) else dict(blank_row)
-                for f_idx, field_label in enumerate(image_fields):
-                    ids = cols[f_idx] if f_idx < len(cols) else []
-                    urls = [hwp_bindata_map[bid] for bid in ids if bid in hwp_bindata_map]
-                    if urls:
-                        row[field_label] = urls
-                        auto_placed_ids.update(ids)
-                new_rows.append(row)
-            extracted[title] = new_rows
+            if photo_tables:
+                existing_rows = extracted.get(title) or []
+                blank_row = {f.get("label", ""): "" for f in section.get("fields", [])}
+                new_rows: list[dict] = []
+                for i, cols in enumerate(photo_tables):
+                    row = dict(existing_rows[i]) if i < len(existing_rows) else dict(blank_row)
+                    for f_idx, field_label in enumerate(image_fields):
+                        ids = cols[f_idx] if f_idx < len(cols) else []
+                        urls = [hwp_bindata_map[bid] for bid in ids if bid in hwp_bindata_map]
+                        if urls:
+                            row[field_label] = urls
+                            auto_placed_ids.update(ids)
+                    new_rows.append(row)
+                extracted[title] = new_rows
+            else:
+                # 사진 전용 컬럼 구조가 아니면(예: "세부 작업 내용"처럼 스크린샷이
+                # 본문 텍스트 셀 안에 인라인으로 섞여 있는 경우), 같은 행의 텍스트
+                # 필드에 남아있는 마커를 그 행의 이미지 필드로 옮긴다. 행 매칭은
+                # _extract_form_data가 이미 확정해뒀으므로 추가 추정이 필요 없다.
+                rows = extracted.get(title) or []
+                auto_placed_ids |= _pull_inline_row_images(rows, image_fields, hwp_bindata_map)
 
-    # 컬럼 기반으로 배치되지 않고 남은 이미지는 어느 필드/행에 자동 배치할지 신뢰할
-    # 수 있는 방법이 없어(문서마다 사진-본문 연관 관습이 달라 순서/캡션 매칭 모두
-    # 실제 문서에서 어긋남을 확인) 자동 배치를 하지 않는다. 대신 캡션과 함께 묶어서
-    # 반환해 사용자가 수동 배치 패널에서 직접 드래그해 넣도록 한다.
+    # 위 두 방식으로도 배치되지 않고 남은 이미지는 어느 필드/행에 자동 배치할지
+    # 신뢰할 수 있는 방법이 없어(문서마다 사진-본문 연관 관습이 달라 순서/캡션 매칭
+    # 모두 실제 문서에서 어긋남을 확인) 자동 배치를 하지 않는다. 대신 캡션과 함께
+    # 묶어서 반환해 사용자가 수동 배치 패널에서 직접 드래그해 넣도록 한다.
     image_groups: list[dict[str, Any]] = []
     if hwp_bindata_map:
         extracted = _strip_image_markers(extracted)
