@@ -44,6 +44,18 @@
           <q-spinner size="sm" />
         </div>
 
+        <!-- 로드 실패 -->
+        <div
+          v-else-if="notifStore.dropdownError"
+          class="q-pa-lg text-center text-negative text-caption"
+        >
+          <q-icon name="error_outline" size="24px" class="q-mb-xs" /><br>
+          {{ notifStore.dropdownError }}
+          <div class="q-mt-sm">
+            <q-btn flat dense size="sm" color="primary" label="다시 시도" @click="notifStore.loadDropdown()" />
+          </div>
+        </div>
+
         <!-- 비어있음 -->
         <div
           v-else-if="notifStore.dropdownItems.length === 0"
@@ -85,7 +97,7 @@
         </q-list>
 
         <q-separator />
-        <div class="q-pa-xs text-center">
+        <div v-if="!notifStore.dropdownError" class="q-pa-xs text-center">
           <q-btn flat dense size="sm" color="primary" label="알림 전체 보기" @click="$router.push('/notifications')" />
         </div>
       </q-menu>
