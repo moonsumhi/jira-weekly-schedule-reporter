@@ -11,7 +11,7 @@
       />
       <q-input
         v-model="filterText" dense outlined clearable
-        placeholder="제목 / 내용 검색"
+        placeholder="제목 / 내용 / 작성자 검색"
         style="flex: 0 1 500px; min-width: 150px"
       >
         <template #prepend><q-icon name="search" /></template>
@@ -27,18 +27,19 @@
       flat
       bordered
       :loading="loading"
+      v-model:pagination="pagination"
+      :rows-per-page-options="[15, 30, 50, 100, 0]"
       no-data-label="게시글이 없습니다"
       @row-click="(_, row) => openPost(row)"
     >
-      <template #body-cell-category="{ row }">
-        <q-td>
-          <q-chip
+      <template #body-cell-title="{ row }">
+        <q-td class="cursor-pointer">
+          <span
             v-if="row.category"
-            dense size="sm" clickable
-            :color="categoryFilter === row.category ? 'blue-6' : 'blue-1'"
-            :text-color="categoryFilter === row.category ? 'white' : 'blue-9'"
+            class="text-primary"
+            :class="{ 'text-weight-bold': categoryFilter === row.category }"
             @click.stop="toggleCategoryFilter(row.category)"
-          >{{ row.category }}</q-chip>
+          >[{{ row.category }}]</span>{{ row.title }}
         </q-td>
       </template>
       <template #body-cell-actions="{ row }">
@@ -81,10 +82,10 @@ const filterText = ref('')
 const categoryFilter = ref<string | null>(null)
 const categoryOptions = ref<{ label: string; value: string }[]>([])
 const tableFilter = computed(() => `${filterText.value}||${categoryFilter.value ?? ''}`)
+const pagination = ref({ page: 1, rowsPerPage: 15 })
 
 const columns = [
   { name: 'title', label: '제목', field: 'title', align: 'left' as const, classes: 'cursor-pointer' },
-  { name: 'category', label: '카테고리', field: 'category', align: 'left' as const },
   { name: 'part', label: '업무 파트', field: 'part', align: 'left' as const },
   { name: 'authorName', label: '작성자', field: 'authorName', align: 'left' as const },
   { name: 'createdAt', label: '작성일', field: (row: PostOut) => formatDate(row.createdAt), align: 'center' as const },
@@ -97,7 +98,8 @@ function filterPosts(rows: readonly PostOut[]): PostOut[] {
     if (categoryFilter.value && r.category !== categoryFilter.value) return false
     if (!needle) return true
     return r.title.toLowerCase().includes(needle) ||
-      r.content.toLowerCase().includes(needle)
+      r.content.toLowerCase().includes(needle) ||
+      r.authorName.toLowerCase().includes(needle)
   })
 }
 
