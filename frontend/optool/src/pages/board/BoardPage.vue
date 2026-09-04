@@ -174,3 +174,9 @@ watch(() => route.params.boardId, (id) => {
 
 onMounted(() => { void load() })
 </script>
+
+<style scoped>
+:deep(.q-table thead th) {
+  font-size: 13px;
+}
+</style>
