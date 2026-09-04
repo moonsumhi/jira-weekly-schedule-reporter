@@ -575,15 +575,17 @@
                 <table class="doc-table full-width">
                   <thead>
                     <tr>
-                      <th :colspan="cellFields(section).length" class="section-title-cell">{{ section.title }}</th>
+                      <th :colspan="cellFields(section).length + 1" class="section-title-cell">{{ section.title }}</th>
                     </tr>
                     <tr>
+                      <th class="label-cell no-col">No.</th>
                       <th v-for="field in cellFields(section)" :key="field.label" class="label-cell" :style="fieldColStyle(field.label)">{{ field.label }}</th>
                     </tr>
                   </thead>
                   <tbody>
                     <template v-for="(rowData, rowIdx) in detailMultipleRows(detailRow, section.title)" :key="rowIdx">
                       <tr>
+                        <td class="no-cell">{{ rowIdx + 1 }}</td>
                         <td
                           v-for="field in cellFields(section)"
                           :key="field.label"
@@ -1243,9 +1245,8 @@ async function handleFileImport(event: Event) {
     if (result.skipped && result.skipped.length > 0) {
       skippedItems.value = result.skipped
       skippedDialog.value = true
-    } else {
-      $q.notify({ type: 'positive', message: 'Import 완료. 내용을 확인 후 저장하세요.' })
     }
+    $q.notify({ type: 'positive', message: 'Import 완료. 내용과 이미지 위치 확인 후 저장해주세요.' })
   } catch {
     $q.notify({ type: 'negative', message: 'Import 실패. 파일을 확인하세요.' })
   } finally {
