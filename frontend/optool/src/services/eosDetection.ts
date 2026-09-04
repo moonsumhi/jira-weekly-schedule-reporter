@@ -65,6 +65,22 @@ function lookupEosDate(key: string): string | undefined {
   return getEosMap()[key]
 }
 
+/**
+ * 마이너 버전 목록이 있는 제품에서 메이저 버전만 고른 경우에는 실제 설치된
+ * 마이너 버전의 지원 여부를 확정할 수 없다. 계열 종료일은 보여주되 지원 중으로
+ * 단정하지 않는다.
+ */
+export function requiresMinorVersion(dist: string, version: string): boolean {
+  return osMajorOptions(dist).includes(version) && osMinorOptions(dist, version).length > 0
+}
+
+/** Rocky Linux 8은 8.10부터 계열 종료일까지 보안 유지보수 단계다. */
+function isMaintenancePhase(dist: string, version: string, today: string): boolean {
+  return resolveDistName(dist) === 'Rocky Linux'
+    && version === '8.10'
+    && today >= '2024-05'
+}
+
 export function getAutoEos(dist: string, version: string): { status: EosActionStatus; date: string } | null {
   // fields는 느슨한 타입이라 실제로는 문자열이 아닌 값(숫자 등)이 들어올 수 있음
   dist = String(dist ?? '')
@@ -83,7 +99,15 @@ export function getAutoEos(dist: string, version: string): { status: EosActionSt
   }
   if (!eosDate) return null
   const today = new Date().toISOString().slice(0, 7)
-  return { status: eosDate <= today ? 'EOS' : 'ACTIVE', date: eosDate }
+  // 계열 자체의 종료일이 지났다면 마이너 버전을 몰라도 EoS로 확정할 수 있다.
+  if (eosDate <= today) return { status: 'EOS', date: eosDate }
+  if (requiresMinorVersion(resolveDistName(dist), version)) {
+    return { status: 'VERSION_REQUIRED', date: eosDate }
+  }
+  if (isMaintenancePhase(dist, version, today)) {
+    return { status: 'MAINTENANCE', date: eosDate }
+  }
+  return { status: 'ACTIVE', date: eosDate }
 }
 
 // ── 네트워크 장비 EoS 탐지 ────────────────────────────────────────────────────

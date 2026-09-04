@@ -11,6 +11,8 @@ function toUpperString(v: unknown): string {
 export function eosStatusLabel(v: unknown): string {
   const s = toUpperString(v)
   if (s === 'ACTIVE') return '지원 기간 중'
+  if (s === 'MAINTENANCE') return '보안 유지보수 중'
+  if (s === 'VERSION_REQUIRED') return '세부 버전 확인 필요'
   if (s === 'EOS') return 'EoS 지남'
   return '확인 불가'
 }
@@ -18,6 +20,8 @@ export function eosStatusLabel(v: unknown): string {
 export function eosStatusColor(v: unknown): string {
   const s = toUpperString(v)
   if (s === 'ACTIVE') return 'positive'
+  if (s === 'MAINTENANCE') return 'info'
+  if (s === 'VERSION_REQUIRED') return 'warning'
   if (s === 'EOS') return 'negative'
   return 'grey'
 }

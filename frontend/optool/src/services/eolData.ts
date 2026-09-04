@@ -1,13 +1,14 @@
 import { DBMS_TREE } from 'src/constants/dbmsVersions'
 import eolMapSnapshot from 'src/data/eol_map_snapshot.json'
+import { requiresMinorVersion, resolveDistName } from 'src/services/eosDetection'
 
 // 배포판|버전 → EoL 종료 일자 (YYYY-MM) 스냅샷
 // EoL = 무상 보안 패치가 완전히 종료되는 시점 (Standard/Full 지원 기준)
 const EOL_MAP: Record<string, string> = eolMapSnapshot
 
 export interface EolResult {
-  /** 'O' = EoL 도달, 'X' = 미도달 */
-  status: 'O' | 'X'
+  /** 'O' = EoL 도달, 'X' = 미도달, VERSION_REQUIRED = 세부 버전 확인 필요 */
+  status: 'O' | 'X' | 'VERSION_REQUIRED'
   date: string
 }
 
@@ -15,6 +16,7 @@ export function eolStatusLabel(v: unknown): string {
   const s = typeof v === 'string' ? v.toUpperCase() : ''
   if (s === 'O') return 'EoL 지남'
   if (s === 'X') return '지원 기간 중'
+  if (s === 'VERSION_REQUIRED') return '세부 버전 확인 필요'
   return '확인 불가'
 }
 
@@ -22,6 +24,7 @@ export function eolStatusColor(v: unknown): string {
   const s = typeof v === 'string' ? v.toUpperCase() : ''
   if (s === 'O') return 'negative'
   if (s === 'X') return 'positive'
+  if (s === 'VERSION_REQUIRED') return 'warning'
   return 'grey'
 }
 
@@ -59,5 +62,9 @@ export function getAutoEol(dist: string, version: string): EolResult | null {
   if (!eolDate) return null
 
   const today = new Date().toISOString().slice(0, 7)
-  return { status: eolDate <= today ? 'O' : 'X', date: eolDate }
+  if (eolDate <= today) return { status: 'O', date: eolDate }
+  if (requiresMinorVersion(resolveDistName(dist), version)) {
+    return { status: 'VERSION_REQUIRED', date: eolDate }
+  }
+  return { status: 'X', date: eolDate }
 }

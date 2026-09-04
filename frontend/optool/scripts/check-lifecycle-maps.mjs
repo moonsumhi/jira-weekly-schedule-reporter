@@ -55,7 +55,8 @@ const combinations = []
 for (const distributions of Object.values(OS_TREE)) {
   for (const [dist, majors] of Object.entries(distributions)) {
     for (const [major, minors] of Object.entries(majors)) {
-      for (const version of minors.length ? minors : [major]) combinations.push([dist, version])
+      // 마이너 버전은 선택 사항이므로 메이저 버전만 저장하는 경우도 반드시 검증한다.
+      for (const version of new Set([major, ...minors])) combinations.push([dist, version])
     }
   }
 }
