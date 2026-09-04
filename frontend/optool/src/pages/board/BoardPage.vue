@@ -85,10 +85,15 @@ const tableFilter = computed(() => `${filterText.value}||${categoryFilter.value 
 const pagination = ref({ page: 1, rowsPerPage: 15 })
 
 const columns = [
-  { name: 'title', label: '제목', field: 'title', align: 'left' as const, classes: 'cursor-pointer' },
-  { name: 'part', label: '업무 파트', field: 'part', align: 'left' as const },
-  { name: 'authorName', label: '작성자', field: 'authorName', align: 'left' as const },
-  { name: 'createdAt', label: '작성일', field: (row: PostOut) => formatDate(row.createdAt), align: 'center' as const },
+  { name: 'title', label: '제목', field: 'title', align: 'left' as const, classes: 'cursor-pointer', sortable: true },
+  { name: 'part', label: '업무 파트', field: 'part', align: 'left' as const, sortable: true },
+  { name: 'authorName', label: '작성자', field: 'authorName', align: 'left' as const, sortable: true },
+  {
+    name: 'createdAt', label: '작성일', field: (row: PostOut) => formatDate(row.createdAt), align: 'center' as const,
+    sortable: true,
+    sort: (_a: unknown, _b: unknown, rowA: PostOut, rowB: PostOut) =>
+      new Date(rowA.createdAt ?? 0).getTime() - new Date(rowB.createdAt ?? 0).getTime(),
+  },
   { name: 'actions', label: '', field: 'id', align: 'right' as const },
 ]
 
