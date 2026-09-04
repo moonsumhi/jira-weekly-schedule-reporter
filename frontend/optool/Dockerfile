@@ -11,6 +11,8 @@ ENV VITE_LIBRECHAT_URL=$VITE_LIBRECHAT_URL
 
 WORKDIR /app
 COPY frontend/optool/ .
+# 빌드 전 드롭다운과 EoS/EoL 스냅샷의 누락 여부를 검증하기 위해 함께 복사한다.
+COPY app/data/eos_map_snapshot.json ./data/eos_map_snapshot.json
 
 RUN if [ "$SKIP_NPM_INSTALL" = "false" ]; then \
     npm install -g @quasar/cli && \
@@ -20,7 +22,7 @@ elif [ -n "$NPM_REGISTRY" ]; then \
     npm install --legacy-peer-deps --registry=$NPM_REGISTRY; \
 fi
 
-RUN npx quasar build
+RUN npm run build
 
 # Stage 2: Serve
 FROM ${NGINX_BASE_IMAGE}
