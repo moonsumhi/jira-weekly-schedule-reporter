@@ -704,10 +704,10 @@
               </div>
             </div>
             <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
-                 :class="createEosIsEos ? 'eos-banner--eos' : 'eos-banner--active'">
+                 :class="eosBannerClass(createEosStatus)">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
-              <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createEosStatus) }}</span><strong>{{ createEosDateText }}</strong></span>
             </div>
           </template>
           <!-- 정보보호시스템: 기종 + 수량 -->
@@ -722,14 +722,8 @@
                 <q-input v-model="createFields['수량']" borderless dense class="field-input" type="number" placeholder="0" />
               </div>
             </div>
-            <div class="row q-col-gutter-x-md q-mt-sm">
-              <div class="col-6 form-field">
-                <div class="field-label">EoS 날짜 직접 입력</div>
-                <q-input v-model="createManualEosDate" type="text" borderless dense class="field-input" placeholder="YYYY-MM" />
-              </div>
-            </div>
             <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
-                 :class="createEosIsEos ? 'eos-banner--eos' : 'eos-banner--active'">
+                 :class="eosBannerClass(createEosStatus)">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
@@ -745,17 +739,10 @@
             </div>
             <!-- 자동 감지된 경우 -->
             <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
-                 :class="createEosIsEos ? 'eos-banner--eos' : 'eos-banner--active'">
+                 :class="eosBannerClass(createEosStatus)">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
-            </div>
-            <!-- 자동 감지 안 된 경우: 수동 입력 -->
-            <div v-else-if="createFields['운영체제']" class="row q-col-gutter-x-md q-mt-sm">
-              <div class="col-6 form-field">
-                <div class="field-label">EoS 날짜 직접 입력</div>
-                <q-input v-model="createManualEosDate" type="text" borderless dense class="field-input" placeholder="YYYY-MM" />
-              </div>
             </div>
           </template>
           <!-- 일반: 캐스케이드 드롭다운 -->
@@ -790,8 +777,7 @@
                   :options="osMajorOptions(createFields['운영체제'] ?? '')"
                   borderless dense clearable class="field-input"
                   @update:model-value="val => {
-                    const minors = osMinorOptions(createFields['운영체제'] ?? '', val ?? '')
-                    createFields['version'] = minors.length ? '' : (val ?? '')
+                    createFields['version'] = val ?? ''
                   }"
                 />
                 <div v-else class="field-input field-disabled">-</div>
@@ -800,32 +786,27 @@
                 <div class="field-label">마이너 버전</div>
                 <q-select
                   v-if="createOsMajor && osMinorOptions(createFields['운영체제'] ?? '', createOsMajor).length"
-                  v-model="createFields['version']"
+                  :model-value="osMinorOptions(createFields['운영체제'] ?? '', createOsMajor).includes(createFields['version'] ?? '') ? createFields['version'] : null"
                   :options="osMinorOptions(createFields['운영체제'] ?? '', createOsMajor)"
                   borderless dense clearable class="field-input"
+                  @update:model-value="val => { createFields['version'] = val ?? createOsMajor }"
                 />
                 <div v-else class="field-input field-disabled">-</div>
               </div>
             </div>
             <!-- EoS 자동 표시 -->
             <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
-                 :class="createEosIsEos ? 'eos-banner--eos' : 'eos-banner--active'">
+                 :class="eosBannerClass(createEosStatus)">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
-              <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createEosStatus) }}</span><strong>{{ createEosDateText }}</strong></span>
             </div>
           </template>
           <div v-if="createFields[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
-               :class="createFields[EOL_STATUS_KEY] === 'O' ? 'eos-banner--eos' : 'eos-banner--active'">
+               :class="eosBannerClass(createFields[EOL_STATUS_KEY])">
             <span class="eos-item"><span class="eos-item-label">EoL 여부</span><strong>{{ eolStatusLabel(createFields[EOL_STATUS_KEY]) }}</strong></span>
             <span class="eos-sep">·</span>
-            <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createFields[EOL_DATE_KEY] || '확인 불가' }}</strong></span>
-          </div>
-          <div class="row q-col-gutter-x-md q-mt-sm">
-            <div class="col-6 form-field">
-              <div class="field-label">EoL 종료 일자 직접 입력</div>
-              <q-input v-model="createFields[EOL_DATE_KEY]" type="text" borderless dense class="field-input" placeholder="YYYY-MM" />
-            </div>
+            <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createFields[EOL_STATUS_KEY]) }}</span><strong>{{ createFields[EOL_DATE_KEY] || '확인 불가' }}</strong></span>
           </div>
         </q-card-section>
 
@@ -975,18 +956,20 @@
         </q-card-section>
 
         <!-- 유지보수 섹션 -->
-        <q-card-section
-          v-if="activeCreateCategory === '서버' || activeCreateCategory === 'VMware' || !activeCreateCategory"
-          class="q-py-sm"
-        >
+        <q-card-section class="q-py-sm">
           <div class="section-title-row">
             <span class="section-title">유지보수</span>
           </div>
           <div class="section-divider" />
           <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
             <div class="col-6 form-field">
-              <div class="field-label">유지보수 계약구분</div>
-              <q-input v-model="createFields['유지보수계약구분']" borderless dense class="field-input" />
+              <div class="field-label">유지보수 계약 여부</div>
+              <q-select
+                v-model="createFields['유지보수계약구분']"
+                :options="maintenanceContractOptions"
+                borderless dense emit-value map-options clearable
+                class="field-input"
+              />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">현 유지보수 종료일자</div>
@@ -1104,6 +1087,17 @@
             />
           </template>
 
+          <!-- 유지보수 계약 여부 -->
+          <template v-else-if="editFieldKey === '유지보수계약구분'">
+            <q-select
+              v-model="editFieldText"
+              :options="maintenanceContractOptions"
+              outlined dense emit-value map-options clearable
+              label="유지보수 계약 여부"
+              class="q-mt-md"
+            />
+          </template>
+
           <!-- ISMS-P 대상 여부 -->
           <template v-else-if="editFieldKey === ISMS_P_KEY">
             <q-select
@@ -1156,16 +1150,16 @@
                 outlined dense clearable label="메이저 버전"
                 class="q-mt-sm"
                 @update:model-value="val => {
-                  const minors = osMinorOptions(editFieldText, val ?? '')
-                  editFieldVersionText = minors.length ? '' : (val ?? '')
+                  editFieldVersionText = val ?? ''
                 }"
               />
               <q-select
                 v-if="editFieldMajor && osMinorOptions(editFieldText, editFieldMajor).length"
-                v-model="editFieldVersionText"
+                :model-value="osMinorOptions(editFieldText, editFieldMajor).includes(editFieldVersionText) ? editFieldVersionText : null"
                 :options="osMinorOptions(editFieldText, editFieldMajor)"
                 outlined dense clearable label="마이너 버전"
                 class="q-mt-sm"
+                @update:model-value="val => { editFieldVersionText = val ?? editFieldMajor }"
               />
             </template>
           </template>
@@ -1268,7 +1262,7 @@
               <template v-else>
                 <q-select
                   v-model="rowEditLocationSelect"
-                  :options="LOCATION_OPTIONS"
+                  :options="rowEditTarget?.fields?.['자산유형'] === 'DBMS' ? DBMS_LOCATION_OPTIONS : LOCATION_OPTIONS"
                   dense borderless clearable class="field-input"
                   @update:model-value="val => { if (val && val !== '기타') rowEditValues['위치'] = val; else rowEditValues['위치'] = '' }"
                 />
@@ -1327,7 +1321,7 @@
               </div>
             </div>
             <div v-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
-                 :class="rowEditValues[EOS_STATUS_KEY] === 'EOS' ? 'eos-banner--eos' : 'eos-banner--active'">
+                 :class="eosBannerClass(rowEditValues[EOS_STATUS_KEY])">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
@@ -1342,26 +1336,11 @@
               </div>
             </div>
             <!-- 자동 감지된 경우 -->
-            <div v-if="rowEditValues[EOS_STATUS_KEY] && !rowEditManualEosDate" class="eos-banner q-mt-sm"
-                 :class="rowEditValues[EOS_STATUS_KEY] === 'EOS' ? 'eos-banner--eos' : 'eos-banner--active'">
+            <div v-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
+                 :class="eosBannerClass(rowEditValues[EOS_STATUS_KEY])">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
-            </div>
-            <!-- 자동 감지 안 된 경우: 수동 입력 -->
-            <div v-else-if="rowEditValues['운영체제']" class="row q-col-gutter-x-md q-mt-sm">
-              <div class="col-6 form-field">
-                <div class="field-label">EoS 날짜 직접 입력</div>
-                <q-input v-model="rowEditManualEosDate" type="text" borderless dense class="field-input" placeholder="YYYY-MM" />
-              </div>
-              <div v-if="rowEditManualEosDate" class="col-12">
-                <div class="eos-banner q-mt-xs"
-                     :class="rowEditValues[EOS_STATUS_KEY] === 'EOS' ? 'eos-banner--eos' : 'eos-banner--active'">
-                  <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
-                  <span class="eos-sep">·</span>
-                  <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
-                </div>
-              </div>
             </div>
           </template>
           <!-- 일반: 캐스케이드 드롭다운 -->
@@ -1407,8 +1386,7 @@
                   :options="osMajorOptions(rowEditValues['운영체제'] ?? '')"
                   dense borderless clearable class="field-input"
                   @update:model-value="val => {
-                    const minors = osMinorOptions(rowEditValues['운영체제'] ?? '', val ?? '')
-                    rowEditValues['version'] = minors.length ? '' : (val ?? '')
+                    rowEditValues['version'] = val ?? ''
                   }"
                 />
                 <div v-else class="field-input field-disabled">-</div>
@@ -1417,32 +1395,27 @@
                 <div class="field-label">마이너 버전</div>
                 <q-select
                   v-if="rowEditMajor && osMinorOptions(rowEditValues['운영체제'] ?? '', rowEditMajor).length"
-                  v-model="rowEditValues['version']"
+                  :model-value="osMinorOptions(rowEditValues['운영체제'] ?? '', rowEditMajor).includes(rowEditValues['version'] ?? '') ? rowEditValues['version'] : null"
                   :options="osMinorOptions(rowEditValues['운영체제'] ?? '', rowEditMajor)"
                   dense borderless clearable class="field-input"
+                  @update:model-value="val => { rowEditValues['version'] = val ?? rowEditMajor }"
                 />
                 <div v-else class="field-input field-disabled">-</div>
               </div>
             </div>
             <!-- EoS 자동 표시 -->
             <div v-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
-                 :class="rowEditValues[EOS_STATUS_KEY] === 'EOS' ? 'eos-banner--eos' : 'eos-banner--active'">
+                 :class="eosBannerClass(rowEditValues[EOS_STATUS_KEY])">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
               <span class="eos-sep">·</span>
-              <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(rowEditValues[EOS_STATUS_KEY]) }}</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
             </div>
           </template>
           <div v-if="rowEditValues[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
-               :class="rowEditValues[EOL_STATUS_KEY] === 'O' ? 'eos-banner--eos' : 'eos-banner--active'">
+               :class="eosBannerClass(rowEditValues[EOL_STATUS_KEY])">
             <span class="eos-item"><span class="eos-item-label">EoL 여부</span><strong>{{ eolStatusLabel(rowEditValues[EOL_STATUS_KEY]) }}</strong></span>
             <span class="eos-sep">·</span>
-            <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ rowEditValues[EOL_DATE_KEY] || '확인 불가' }}</strong></span>
-          </div>
-          <div class="row q-col-gutter-x-md q-mt-sm">
-            <div class="col-6 form-field">
-              <div class="field-label">EoL 종료 일자 직접 입력</div>
-              <q-input v-model="rowEditValues[EOL_DATE_KEY]" type="text" borderless dense class="field-input" placeholder="YYYY-MM" />
-            </div>
+            <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(rowEditValues[EOL_STATUS_KEY]) }}</span><strong>{{ rowEditValues[EOL_DATE_KEY] || '확인 불가' }}</strong></span>
           </div>
         </q-card-section>
 
@@ -1596,18 +1569,20 @@
         </q-card-section>
 
         <!-- 유지보수 섹션 -->
-        <q-card-section
-          v-if="!rowEditTarget?.fields?.['자산유형'] || rowEditTarget?.fields?.['자산유형'] === '서버' || rowEditTarget?.fields?.['자산유형'] === 'VMware'"
-          class="q-py-sm"
-        >
+        <q-card-section class="q-py-sm">
           <div class="section-title-row">
             <span class="section-title">유지보수</span>
           </div>
           <div class="section-divider" />
           <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
             <div class="col-6 form-field">
-              <div class="field-label">유지보수 계약구분</div>
-              <q-input v-model="rowEditValues['유지보수계약구분']" borderless dense class="field-input" />
+              <div class="field-label">유지보수 계약 여부</div>
+              <q-select
+                v-model="rowEditValues['유지보수계약구분']"
+                :options="maintenanceContractOptions"
+                borderless dense emit-value map-options clearable
+                class="field-input"
+              />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">현 유지보수 종료일자</div>
@@ -1705,7 +1680,7 @@
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">상태</div>
-                <q-select v-if="detailEditing" v-model="rowEditValues['상태']" :options="STATUS_OPTIONS" borderless dense clearable class="field-input" />
+                <q-select v-if="detailEditing" v-model="rowEditValues['상태']" :options="STATUS_OPTIONS" borderless dense class="field-input" />
                 <div v-else class="detail-value">
                   <q-badge v-if="detailTarget.fields?.['상태']" :color="statusColor(detailTarget.fields['상태'] as string)">
                     {{ detailTarget.fields['상태'] }}
@@ -1744,7 +1719,26 @@
               </div>
               <div class="col-6 form-field">
                 <div class="field-label">위치</div>
-                <q-input v-if="detailEditing" v-model="rowEditValues['위치']" :readonly="isRowEditLocationLocked" borderless dense class="field-input" />
+                <template v-if="detailEditing">
+                  <q-input
+                    v-if="isRowEditLocationLocked"
+                    :model-value="rowEditValues['위치']"
+                    borderless dense readonly class="field-input" placeholder="랙 배치로 관리"
+                  />
+                  <template v-else>
+                    <q-select
+                      v-model="rowEditLocationSelect"
+                      :options="detailTarget.fields?.['자산유형'] === 'DBMS' ? DBMS_LOCATION_OPTIONS : LOCATION_OPTIONS"
+                      borderless dense clearable class="field-input"
+                      @update:model-value="val => { if (val && val !== '기타') rowEditValues['위치'] = val; else rowEditValues['위치'] = '' }"
+                    />
+                    <q-input
+                      v-if="rowEditLocationSelect === '기타'"
+                      v-model="rowEditValues['위치']"
+                      borderless dense placeholder="위치 직접 입력" class="field-input q-mt-xs"
+                    />
+                  </template>
+                </template>
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['위치']) }}</div>
               </div>
               <div class="col-6 form-field">
@@ -1792,72 +1786,152 @@
                   </div>
                 </div>
                 <div class="col form-field">
-                  <div class="field-label">EoS 종료 일자</div>
+                  <div class="field-label">{{ lifecycleDateLabel((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]), 'EoS') }}</div>
                   <div class="detail-value">{{ (detailEditing ? rowEditValues[EOS_DATE_KEY] : detailTarget.fields?.[EOS_DATE_KEY]) || '-' }}</div>
                 </div>
               </div>
             </template>
             <!-- DBMS: DB 종류 + 버전 + EoS -->
             <template v-else-if="detailTarget.fields?.['자산유형'] === 'DBMS'">
-              <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+              <div v-if="detailEditing" class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
                 <div class="col-4 form-field">
                   <div class="field-label">DB 종류</div>
-                  <q-select v-if="detailEditing" v-model="rowEditValues['운영체제']" :options="Object.keys(DBMS_TREE)" borderless dense clearable class="field-input" />
-                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                  <q-select
+                    v-model="rowEditValues['운영체제']"
+                    :options="Object.keys(DBMS_TREE)"
+                    borderless dense clearable class="field-input"
+                    @update:model-value="() => { rowEditDbSeries = ''; rowEditValues['version'] = '' }"
+                  />
                 </div>
-                <div class="col form-field">
+                <div class="col-4 form-field">
+                  <div class="field-label">시리즈</div>
+                  <q-select
+                    v-if="rowEditValues['운영체제']"
+                    v-model="rowEditDbSeries"
+                    :options="Object.keys(DBMS_TREE[rowEditValues['운영체제']] ?? {})"
+                    borderless dense clearable class="field-input"
+                    @update:model-value="val => { const versions = DBMS_TREE[rowEditValues['운영체제'] ?? '']?.[val ?? ''] ?? []; rowEditValues['version'] = versions.length ? '' : (val ?? '') }"
+                  />
+                  <div v-else class="field-input field-disabled">-</div>
+                </div>
+                <div class="col-4 form-field">
                   <div class="field-label">버전</div>
-                  <q-input v-if="detailEditing" v-model="rowEditValues['version']" borderless dense class="field-input" />
-                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
+                  <q-select
+                    v-if="rowEditDbSeries && (DBMS_TREE[rowEditValues['운영체제'] ?? '']?.[rowEditDbSeries] ?? []).length"
+                    v-model="rowEditValues['version']"
+                    :options="DBMS_TREE[rowEditValues['운영체제'] ?? '']?.[rowEditDbSeries] ?? []"
+                    borderless dense clearable class="field-input"
+                  />
+                  <div v-else class="field-input field-disabled">-</div>
+                </div>
+              </div>
+              <div v-else class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+                <div class="col-6 form-field">
+                  <div class="field-label">DB 종류</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                </div>
+                <div class="col-6 form-field">
+                  <div class="field-label">버전</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">EoS 여부</div>
                   <div class="detail-value">
-                    <template v-if="detailTarget.fields?.['운영체제']">
-                      <q-badge :color="detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusColor(detailTarget.fields?.[EOS_STATUS_KEY]) : 'grey'" outline>
-                        {{ detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusLabel(detailTarget.fields?.[EOS_STATUS_KEY]) : '확인 불가' }}
+                    <template v-if="(detailEditing ? rowEditValues['운영체제'] : detailTarget.fields?.['운영체제'])">
+                      <q-badge :color="(detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) ? eosStatusColor((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) as string) : 'grey'" outline>
+                        {{ (detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) ? eosStatusLabel((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) as string) : '확인 불가' }}
                       </q-badge>
                     </template>
                     <q-badge v-else color="grey" outline>확인 불가</q-badge>
                   </div>
                 </div>
                 <div class="col form-field">
-                  <div class="field-label">EoS 종료 일자</div>
-                  <div class="detail-value">{{ detailTarget.fields?.[EOS_DATE_KEY] || '확인 불가' }}</div>
+                  <div class="field-label">{{ lifecycleDateLabel((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]), 'EoS') }}</div>
+                  <div class="detail-value">{{ (detailEditing ? rowEditValues[EOS_DATE_KEY] : detailTarget.fields?.[EOS_DATE_KEY]) || '확인 불가' }}</div>
                 </div>
               </div>
             </template>
             <!-- 일반: OS + EoS 정보 -->
             <template v-else>
-              <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
-                <div class="col-4 form-field">
-                  <div class="field-label">배포판</div>
-                  <q-input v-if="detailEditing" v-model="rowEditValues['운영체제']" borderless dense class="field-input" />
-                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+              <div v-if="detailEditing" class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+                <div class="col-6 form-field">
+                  <div class="field-label">OS 계열</div>
+                  <q-select
+                    v-model="rowEditOsFamily"
+                    :options="Object.keys(OS_TREE)"
+                    borderless dense clearable class="field-input"
+                    @update:model-value="val => {
+                      if (val === '기타') { rowEditValues['운영체제'] = '기타'; rowEditMajor = ''; rowEditValues['version'] = ''; return }
+                      rowEditValues['운영체제'] = ''
+                      rowEditMajor = ''
+                      rowEditValues['version'] = ''
+                    }"
+                  />
                 </div>
-                <div class="col form-field">
+                <div class="col-6 form-field">
+                  <div class="field-label">배포판</div>
+                  <div v-if="rowEditOsFamily === '기타'" class="field-input field-disabled">기타</div>
+                  <q-select
+                    v-else
+                    v-model="rowEditValues['운영체제']"
+                    :options="osDistOptions(rowEditOsFamily)"
+                    :disable="!rowEditOsFamily"
+                    borderless dense clearable class="field-input"
+                    @update:model-value="() => { rowEditMajor = ''; rowEditValues['version'] = '' }"
+                  />
+                </div>
+                <div class="col-6 form-field">
+                  <div class="field-label">메이저 버전</div>
+                  <q-select
+                    v-if="rowEditValues['운영체제'] && rowEditOsFamily !== '기타'"
+                    v-model="rowEditMajor"
+                    :options="osMajorOptions(rowEditValues['운영체제'] ?? '')"
+                    borderless dense clearable class="field-input"
+                    @update:model-value="val => {
+                      rowEditValues['version'] = val ?? ''
+                    }"
+                  />
+                  <div v-else class="field-input field-disabled">-</div>
+                </div>
+                <div class="col-6 form-field">
+                  <div class="field-label">마이너 버전</div>
+                  <q-select
+                    v-if="rowEditMajor && osMinorOptions(rowEditValues['운영체제'] ?? '', rowEditMajor).length"
+                    :model-value="osMinorOptions(rowEditValues['운영체제'] ?? '', rowEditMajor).includes(rowEditValues['version'] ?? '') ? rowEditValues['version'] : null"
+                    :options="osMinorOptions(rowEditValues['운영체제'] ?? '', rowEditMajor)"
+                    borderless dense clearable class="field-input"
+                    @update:model-value="val => { rowEditValues['version'] = val ?? rowEditMajor }"
+                  />
+                  <div v-else class="field-input field-disabled">-</div>
+                </div>
+              </div>
+              <div v-else class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+                <div class="col-6 form-field">
+                  <div class="field-label">배포판</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
+                </div>
+                <div class="col-6 form-field">
                   <div class="field-label">버전</div>
-                  <q-input v-if="detailEditing" v-model="rowEditValues['version']" borderless dense class="field-input" />
-                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
+                  <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">EoS 여부</div>
                   <div class="detail-value">
-                    <template v-if="detailTarget.fields?.['운영체제']">
-                      <q-badge :color="detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusColor(detailTarget.fields?.[EOS_STATUS_KEY]) : 'grey'" outline>
-                        {{ detailTarget.fields?.[EOS_STATUS_KEY] ? eosStatusLabel(detailTarget.fields?.[EOS_STATUS_KEY]) : '확인 불가' }}
+                    <template v-if="(detailEditing ? rowEditValues['운영체제'] : detailTarget.fields?.['운영체제'])">
+                      <q-badge :color="(detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) ? eosStatusColor((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) as string) : 'grey'" outline>
+                        {{ (detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) ? eosStatusLabel((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) as string) : '확인 불가' }}
                       </q-badge>
                     </template>
                     <q-badge v-else color="grey" outline>확인 불가</q-badge>
                   </div>
                 </div>
                 <div class="col form-field">
-                  <div class="field-label">EoS 종료 일자</div>
-                  <div class="detail-value">{{ detailTarget.fields?.[EOS_DATE_KEY] || '확인 불가' }}</div>
+                  <div class="field-label">{{ lifecycleDateLabel((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]), 'EoS') }}</div>
+                  <div class="detail-value">{{ (detailEditing ? rowEditValues[EOS_DATE_KEY] : detailTarget.fields?.[EOS_DATE_KEY]) || '확인 불가' }}</div>
                 </div>
               </div>
             </template>
@@ -1865,16 +1939,15 @@
               <div class="col-4 form-field">
                 <div class="field-label">EoL 여부</div>
                 <div class="detail-value">
-                  <q-badge v-if="detailTarget.fields?.[EOL_STATUS_KEY]" :color="eolStatusColor(detailTarget.fields?.[EOL_STATUS_KEY])" outline>
-                    {{ eolStatusLabel(detailTarget.fields?.[EOL_STATUS_KEY]) }}
+                  <q-badge v-if="(detailEditing ? rowEditValues[EOL_STATUS_KEY] : detailTarget.fields?.[EOL_STATUS_KEY])" :color="eolStatusColor((detailEditing ? rowEditValues[EOL_STATUS_KEY] : detailTarget.fields?.[EOL_STATUS_KEY]) as string)" outline>
+                    {{ eolStatusLabel((detailEditing ? rowEditValues[EOL_STATUS_KEY] : detailTarget.fields?.[EOL_STATUS_KEY]) as string) }}
                   </q-badge>
                   <span v-else>-</span>
                 </div>
               </div>
               <div class="col form-field">
-                <div class="field-label">EoL 종료 일자</div>
-                <q-input v-if="detailEditing" v-model="rowEditValues[EOL_DATE_KEY]" borderless dense placeholder="YYYY-MM" class="field-input" />
-                <div v-else class="detail-value">{{ detailTarget.fields?.[EOL_DATE_KEY] || '-' }}</div>
+                <div class="field-label">{{ lifecycleDateLabel((detailEditing ? rowEditValues[EOL_STATUS_KEY] : detailTarget.fields?.[EOL_STATUS_KEY]), 'EoL') }}</div>
+                <div class="detail-value">{{ (detailEditing ? rowEditValues[EOL_DATE_KEY] : detailTarget.fields?.[EOL_DATE_KEY]) || '-' }}</div>
               </div>
             </div>
           </q-card-section>
@@ -2026,18 +2099,21 @@
           </q-card-section>
 
           <!-- 유지보수 -->
-          <q-card-section
-            v-if="!detailTarget.fields?.['자산유형'] || detailTarget.fields?.['자산유형'] === '서버' || detailTarget.fields?.['자산유형'] === 'VMware'"
-            class="q-py-sm"
-          >
+          <q-card-section class="q-py-sm">
             <div class="section-title-row">
               <span class="section-title">유지보수</span>
             </div>
             <div class="section-divider" />
             <div class="row q-col-gutter-x-md q-mt-xs">
               <div class="col-6 form-field">
-                <div class="field-label">유지보수 계약구분</div>
-                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수계약구분']" borderless dense class="field-input" />
+                <div class="field-label">유지보수 계약 여부</div>
+                <q-select
+                  v-if="detailEditing"
+                  v-model="rowEditValues['유지보수계약구분']"
+                  :options="maintenanceContractOptions"
+                  borderless dense emit-value map-options clearable
+                  class="field-input"
+                />
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수계약구분']) }}</div>
               </div>
               <div class="col-6 form-field">
@@ -2648,6 +2724,7 @@ const antivirusOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
 ]
+const maintenanceContractOptions = antivirusOptions
 const ismsPOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
@@ -2789,7 +2866,7 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   [EOS_STATUS_KEY]: 'EoS 여부',
   [EOS_DATE_KEY]: 'EoS 기간',
   [EOL_STATUS_KEY]: 'EoL 여부',
-  [EOL_DATE_KEY]: 'EoL 종료 일자',
+  [EOL_DATE_KEY]: 'EoL 기간',
   [ISMS_P_KEY]: 'ISMS-P 대상 여부',
   'ISMS-P비고': 'ISMS-P 비고',
   [VADA_KEY]: 'VADA 설치여부',
@@ -2808,7 +2885,7 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   '수령일': '수령일',
   '변경일': '변경일',
   '변경사항': '변경사항(신규/변경/폐기)',
-  '유지보수계약구분': '유지보수 계약구분',
+  '유지보수계약구분': '유지보수 계약 여부',
   '유지보수종료일자': '현 유지보수 종료일자',
   '유지보수업체': '유지보수 업체',
   '유지보수연락처': '유지보수 연락처',
@@ -2854,12 +2931,30 @@ type AdvancedFilterKey = keyof typeof advancedFilters | 'acquiredDate'
 type EosFilterStatus = EosActionStatus | 'UNKNOWN'
 const EOS_FILTER_OPTIONS: Array<{ label: string; value: EosFilterStatus }> = [
   { label: '지원 기간 중', value: 'ACTIVE' },
+  { label: '보안 유지보수 중', value: 'MAINTENANCE' },
+  { label: '세부 버전 확인 필요', value: 'VERSION_REQUIRED' },
   { label: 'EoS 지남', value: 'EOS' },
   { label: '확인 불가', value: 'UNKNOWN' },
 ]
 
 function eosFilterLabel(status: EosFilterStatus): string {
   return status === 'UNKNOWN' ? '확인 불가' : eosStatusLabel(status)
+}
+
+function eosBannerClass(status: unknown): string {
+  if (typeof status === 'string' && status.toUpperCase() === 'O') return 'eos-banner--eos'
+  const normalized = normalizeEosStatus(status)
+  if (normalized === 'EOS') return 'eos-banner--eos'
+  if (normalized === 'MAINTENANCE') return 'eos-banner--maintenance'
+  if (normalized === 'VERSION_REQUIRED') return 'eos-banner--warning'
+  return 'eos-banner--active'
+}
+
+function lifecycleDateLabel(status: unknown, prefix = ''): string {
+  const label = typeof status === 'string' && status.toUpperCase() === 'VERSION_REQUIRED'
+    ? '종료 일자 (메이저 버전 기준)'
+    : '종료 일자'
+  return prefix ? `${prefix} ${label}` : label
 }
 
 function filterSelectionDisplay(values: readonly string[] | null): string {
@@ -3432,9 +3527,8 @@ const filteredRows = computed(() => {
   })
 })
 
-// DB에 eos_action_status/eol_status가 없는 레코드를 on-the-fly로 보완 (표시 전용,
-// DB 미수정). 목록 새로고침 시뿐 아니라, 생성 직후 바로 상세를 열거나 하는 등
-// 이 계산을 거치지 않고 화면에 표시되는 모든 경로에서 재사용한다.
+// 라이프사이클 맵을 기준으로 화면 표시 값을 on-the-fly로 보완한다 (DB 미수정).
+// 자동 산출 값이므로 기존에 저장된 상태가 있어도 최신 판정으로 덮어쓴다.
 function enrichEosEol(row: ServerAsset): void {
   const dist = (row.fields?.['운영체제'] as string) ?? ''
   if (!dist) return
@@ -3442,21 +3536,17 @@ function enrichEosEol(row: ServerAsset): void {
   const assetType = (row.fields?.['자산유형'] as string) || category.value || '서버'
   const series = Object.keys(DBMS_TREE[dist] ?? {}).find(s =>
     (DBMS_TREE[dist]?.[s] ?? []).includes(version)) ?? ''
-  if (!row.fields?.[EOS_STATUS_KEY]) {
-    const eos = getAutoEos(dist, version)
-      ?? (series ? getAutoEos(dist, series) : null)
-      ?? (['네트워크', '정보보호시스템'].includes(assetType) ? getNetworkEos(dist) : null)
-    if (eos) {
-      row.fields[EOS_STATUS_KEY] = eos.status
-      row.fields[EOS_DATE_KEY] = eos.date
-    }
+  const eos = getAutoEos(dist, version)
+    ?? (series ? getAutoEos(dist, series) : null)
+    ?? (['네트워크', '정보보호시스템'].includes(assetType) ? getNetworkEos(dist) : null)
+  if (eos) {
+    row.fields[EOS_STATUS_KEY] = eos.status
+    row.fields[EOS_DATE_KEY] = eos.date
   }
-  if (!row.fields?.[EOL_STATUS_KEY]) {
-    const eol = getAutoEol(dist, version) ?? (series ? getAutoEol(dist, series) : null)
-    if (eol) {
-      row.fields[EOL_STATUS_KEY] = eol.status
-      row.fields[EOL_DATE_KEY] = eol.date
-    }
+  const eol = getAutoEol(dist, version) ?? (series ? getAutoEol(dist, series) : null)
+  if (eol) {
+    row.fields[EOL_STATUS_KEY] = eol.status
+    row.fields[EOL_DATE_KEY] = eol.date
   }
 }
 
@@ -3474,7 +3564,7 @@ async function load() {
   loading.value = true
   try {
     rows.value = await listServers(true, category.value || undefined)
-    // DB에 eos_action_status가 없는 기존 레코드를 on-the-fly로 보완 (표시 전용, DB 미수정)
+    // 라이프사이클 맵의 최신 판정으로 화면 표시 값을 보완 (DB 미수정)
     await fetchEosMap()
     for (const row of rows.value) {
       enrichEosEol(row)
@@ -3514,7 +3604,6 @@ const CREATE_REQUIRED_KEYS = ['구분', '자산번호', '서버명', '설명'] a
 const createOsFamily = ref('')
 const createOsMajor = ref('')
 const createDbSeries = ref('')
-const createManualEosDate = ref('')
 const createLocationSelect = ref('')
 
 const createDialog = ref(false)
@@ -3578,23 +3667,21 @@ function openCreate() {
   createOsFamily.value = ''
   createDbSeries.value = ''
   createTags.value = []
-  createManualEosDate.value = ''
   createLocationSelect.value = ''
   createEosStatusText.value = ''
   createEosDateText.value = ''
-  createEosIsEos.value = false
+  createEosStatus.value = null
   createDialog.value = true
 }
 
 const createEosStatusText = ref('')
 const createEosDateText = ref('')
-const createEosIsEos = ref(false)
+const createEosStatus = ref<EosActionStatus | null>(null)
 
 watch(
   () => [createFields.value['운영체제'], createFields.value['version'], createDbSeries.value, createOsMajor.value] as const,
   async ([dist, version, series, major]) => {
     await fetchEosMap()
-    createManualEosDate.value = ''
     const eos = getAutoEos(dist ?? '', version ?? '')
       ?? (series ? getAutoEos(dist ?? '', series) : null)
       ?? (['네트워크', '정보보호시스템'].includes(activeCreateCategory.value) ? getNetworkEos(dist ?? '') : null)
@@ -3603,13 +3690,13 @@ watch(
       createFields.value[EOS_DATE_KEY] = eos.date
       createEosStatusText.value = eosStatusLabel(eos.status)
       createEosDateText.value = eos.date
-      createEosIsEos.value = eos.status === 'EOS'
+      createEosStatus.value = eos.status
     } else {
       createFields.value[EOS_STATUS_KEY] = ''
       createFields.value[EOS_DATE_KEY] = ''
       createEosStatusText.value = ''
       createEosDateText.value = ''
-      createEosIsEos.value = false
+      createEosStatus.value = null
     }
     const eol = getAutoEol(dist ?? '', version ?? '')
       ?? (major ? getAutoEol(dist ?? '', major) : null)
@@ -3623,23 +3710,6 @@ watch(
     }
   }
 )
-
-watch(createManualEosDate, (date) => {
-  if (!date) return
-  const today = new Date().toISOString().slice(0, 7)
-  const status: EosActionStatus = date <= today ? 'EOS' : 'ACTIVE'
-  createFields.value[EOS_STATUS_KEY] = status
-  createFields.value[EOS_DATE_KEY] = date
-  createEosStatusText.value = eosStatusLabel(status)
-  createEosDateText.value = date
-  createEosIsEos.value = status === 'EOS'
-})
-
-watch(() => createFields.value[EOL_DATE_KEY], (date) => {
-  if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}$/.test(date)) return
-  const today = new Date().toISOString().slice(0, 7)
-  createFields.value[EOL_STATUS_KEY] = date <= today ? 'O' : 'X'
-})
 
 async function doCreate() {
   const ip = createIp.value.trim()
@@ -3769,6 +3839,12 @@ async function doEditBase() {
 }
 
 /** Edit field */
+const AUTO_LIFECYCLE_FIELDS = new Set<string>([
+  EOS_STATUS_KEY,
+  EOS_DATE_KEY,
+  EOL_STATUS_KEY,
+  EOL_DATE_KEY,
+])
 const editFieldDialog = ref(false)
 const editFieldKey = ref('')
 const editFieldValue = ref<EosActionStatus | null>(null)
@@ -3780,6 +3856,10 @@ const editFieldLocationSelect = ref('')
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function openEditField(row: ServerAsset, key: string) {
+  if (AUTO_LIFECYCLE_FIELDS.has(key)) {
+    $q.notify({ type: 'info', message: 'EoS/EoL 정보는 제품과 버전을 기준으로 자동 매핑됩니다.' })
+    return
+  }
   selectedRow.value = row
   editFieldKey.value = key
 
@@ -3820,6 +3900,11 @@ async function doEditField() {
   if (!selectedRow.value) return
   const key = editFieldKey.value.trim()
   if (!key) return
+  if (AUTO_LIFECYCLE_FIELDS.has(key)) {
+    editFieldDialog.value = false
+    $q.notify({ type: 'info', message: 'EoS/EoL 정보는 직접 수정할 수 없습니다.' })
+    return
+  }
 
   const value: FieldValue =
     key === EOS_STATUS_KEY ? (editFieldValue.value ?? null) : parseSmartValue(editFieldText.value)
@@ -4092,7 +4177,6 @@ const rowEditTags = ref<string[]>([])
 const rowEditSaving = ref(false)
 const rowEditOsFamily = ref('')
 const rowEditMajor = ref('')
-const rowEditManualEosDate = ref('')
 const rowEditDbSeries = ref('')
 const rowEditLocationSelect = ref('')
 
@@ -4166,15 +4250,15 @@ function prepareRowEdit(row: ServerAsset) {
   if (assetTypeVal === 'DBMS' && vals['운영체제']) {
     const dbKind = vals['운영체제'] ?? ''
     rowEditDbSeries.value = Object.keys(DBMS_TREE[dbKind] ?? {}).find(s =>
-      (DBMS_TREE[dbKind]?.[s] ?? []).includes(vals['version'] ?? '')) ?? ''
+      s === (vals['version'] ?? '') || (DBMS_TREE[dbKind]?.[s] ?? []).includes(vals['version'] ?? '')) ?? ''
   } else {
     rowEditDbSeries.value = ''
   }
-  const isNetworkAsset = ['네트워크', '정보보호시스템'].includes(assetTypeVal)
-  const autoEos = isNetworkAsset ? getNetworkEos(vals['운영체제'] ?? '') : null
-  rowEditManualEosDate.value = (!autoEos && isNetworkAsset) ? (vals[EOS_DATE_KEY] ?? '') : ''
   const locVal = vals['위치'] ?? ''
-  rowEditLocationSelect.value = LOCATION_PRESETS.value.includes(locVal) ? locVal : (locVal ? '기타' : '')
+  const locationPresets = assetTypeVal === 'DBMS'
+    ? DBMS_LOCATION_OPTIONS.filter(option => option !== '기타')
+    : LOCATION_PRESETS.value
+  rowEditLocationSelect.value = locationPresets.includes(locVal) ? locVal : (locVal ? '기타' : '')
 }
 
 function openDetailEdit() {
@@ -4192,51 +4276,42 @@ function closeDetail() {
   detailDialog.value = false
 }
 
+async function refreshRowEditLifecycle() {
+  await fetchEosMap()
+  const dist = rowEditValues.value['운영체제'] ?? ''
+  const version = rowEditValues.value['version'] ?? ''
+  const rowAssetType = (rowEditTarget.value?.fields?.['자산유형'] as string) || category.value
+  const eos = getAutoEos(dist, version)
+    ?? (['네트워크', '정보보호시스템'].includes(rowAssetType) ? getNetworkEos(dist) : null)
+  if (eos) {
+    rowEditValues.value[EOS_STATUS_KEY] = eos.status
+    rowEditValues.value[EOS_DATE_KEY] = eos.date
+  } else {
+    rowEditValues.value[EOS_STATUS_KEY] = ''
+    rowEditValues.value[EOS_DATE_KEY] = ''
+  }
+  const eol = getAutoEol(dist, version)
+    ?? (rowEditMajor.value ? getAutoEol(dist, rowEditMajor.value) : null)
+  if (eol) {
+    rowEditValues.value[EOL_STATUS_KEY] = eol.status
+    rowEditValues.value[EOL_DATE_KEY] = eol.date
+  } else {
+    rowEditValues.value[EOL_STATUS_KEY] = ''
+    rowEditValues.value[EOL_DATE_KEY] = ''
+  }
+}
+
 watch(
   () => [rowEditValues.value['운영체제'], rowEditValues.value['version'], rowEditMajor.value] as const,
-  async ([dist, version, major]) => {
-    await fetchEosMap()
-    rowEditManualEosDate.value = ''
-    const rowAssetType = (rowEditTarget.value?.fields?.['자산유형'] as string) || category.value
-    const eos = getAutoEos(dist ?? '', version ?? '')
-      ?? (['네트워크', '정보보호시스템'].includes(rowAssetType) ? getNetworkEos(dist ?? '') : null)
-    if (eos) {
-      rowEditValues.value[EOS_STATUS_KEY] = eos.status
-      rowEditValues.value[EOS_DATE_KEY] = eos.date
-    } else {
-      rowEditValues.value[EOS_STATUS_KEY] = ''
-      rowEditValues.value[EOS_DATE_KEY] = ''
-    }
-    const eol = getAutoEol(dist ?? '', version ?? '')
-      ?? (major ? getAutoEol(dist ?? '', major) : null)
-    if (eol) {
-      rowEditValues.value[EOL_STATUS_KEY] = eol.status
-      rowEditValues.value[EOL_DATE_KEY] = eol.date
-    } else {
-      rowEditValues.value[EOL_STATUS_KEY] = ''
-      rowEditValues.value[EOL_DATE_KEY] = ''
-    }
-  }
+  () => void refreshRowEditLifecycle(),
 )
-
-watch(rowEditManualEosDate, (date) => {
-  if (!date) return
-  const today = new Date().toISOString().slice(0, 7)
-  const status: EosActionStatus = date <= today ? 'EOS' : 'ACTIVE'
-  rowEditValues.value[EOS_STATUS_KEY] = status
-  rowEditValues.value[EOS_DATE_KEY] = date
-})
-
-watch(() => rowEditValues.value[EOL_DATE_KEY], (date) => {
-  if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}$/.test(date)) return
-  const today = new Date().toISOString().slice(0, 7)
-  rowEditValues.value[EOL_STATUS_KEY] = date <= today ? 'O' : 'X'
-})
 
 async function doRowEdit() {
   if (!rowEditTarget.value) return
   rowEditSaving.value = true
   try {
+    // 다른 필드만 편집하더라도 저장 시점의 최신 스냅샷으로 자동 정보를 갱신한다.
+    await refreshRowEditLifecycle()
     const row = rowEditTarget.value
     const newIp = (rowEditValues.value['__ip__'] ?? '').trim()
     const newName = (rowEditValues.value['__name__'] ?? '').trim()
@@ -4737,6 +4812,8 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       'ISMS-P비고': 'ISMS-P비고',
       'VADA비고': 'VADA비고',
       '백신비고': '백신비고',
+      '유지보수 계약 여부': '유지보수계약구분',
+      '유지보수 계약구분': '유지보수계약구분',
       'EoL여부': EOL_STATUS_KEY,
       'EoL종료일자': EOL_DATE_KEY,
       'EoS여부': EOS_STATUS_KEY,
@@ -5368,6 +5445,14 @@ tbody .sticky-actions-col {
 .eos-banner--active {
   background: #e8f5e9;
   color: #2e7d32;
+}
+.eos-banner--maintenance {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+.eos-banner--warning {
+  background: #fff3e0;
+  color: #e65100;
 }
 .eos-banner--eos {
   background: #fce4ec;

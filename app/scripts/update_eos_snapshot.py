@@ -147,7 +147,7 @@ def build_snapshot(path: Path) -> tuple[int, int]:
 
     payload = {
         "updated_at": datetime.now(timezone.utc).isoformat(),
-        "source": "endoflife.date",
+        "source": "endoflife.date + curated fallbacks",
         "successful_products": len(fetched),
         "failed_products": sorted(failures),
         "data": dict(sorted(result.items())),
