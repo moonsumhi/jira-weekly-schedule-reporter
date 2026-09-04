@@ -966,8 +966,13 @@
           <div class="section-divider" />
           <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
             <div class="col-6 form-field">
-              <div class="field-label">유지보수 계약구분</div>
-              <q-input v-model="createFields['유지보수계약구분']" borderless dense class="field-input" />
+              <div class="field-label">유지보수 계약 여부</div>
+              <q-select
+                v-model="createFields['유지보수계약구분']"
+                :options="maintenanceContractOptions"
+                borderless dense emit-value map-options clearable
+                class="field-input"
+              />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">현 유지보수 종료일자</div>
@@ -1081,6 +1086,17 @@
               :options="antivirusOptions"
               outlined dense emit-value map-options
               label="백신 여부"
+              class="q-mt-md"
+            />
+          </template>
+
+          <!-- 유지보수 계약 여부 -->
+          <template v-else-if="editFieldKey === '유지보수계약구분'">
+            <q-select
+              v-model="editFieldText"
+              :options="maintenanceContractOptions"
+              outlined dense emit-value map-options clearable
+              label="유지보수 계약 여부"
               class="q-mt-md"
             />
           </template>
@@ -1566,8 +1582,13 @@
           <div class="section-divider" />
           <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
             <div class="col-6 form-field">
-              <div class="field-label">유지보수 계약구분</div>
-              <q-input v-model="rowEditValues['유지보수계약구분']" borderless dense class="field-input" />
+              <div class="field-label">유지보수 계약 여부</div>
+              <q-select
+                v-model="rowEditValues['유지보수계약구분']"
+                :options="maintenanceContractOptions"
+                borderless dense emit-value map-options clearable
+                class="field-input"
+              />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">현 유지보수 종료일자</div>
@@ -2094,8 +2115,14 @@
             <div class="section-divider" />
             <div class="row q-col-gutter-x-md q-mt-xs">
               <div class="col-6 form-field">
-                <div class="field-label">유지보수 계약구분</div>
-                <q-input v-if="detailEditing" v-model="rowEditValues['유지보수계약구분']" borderless dense class="field-input" />
+                <div class="field-label">유지보수 계약 여부</div>
+                <q-select
+                  v-if="detailEditing"
+                  v-model="rowEditValues['유지보수계약구분']"
+                  :options="maintenanceContractOptions"
+                  borderless dense emit-value map-options clearable
+                  class="field-input"
+                />
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['유지보수계약구분']) }}</div>
               </div>
               <div class="col-6 form-field">
@@ -2706,6 +2733,7 @@ const antivirusOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
 ]
+const maintenanceContractOptions = antivirusOptions
 const ismsPOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
@@ -2866,7 +2894,7 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   '수령일': '수령일',
   '변경일': '변경일',
   '변경사항': '변경사항(신규/변경/폐기)',
-  '유지보수계약구분': '유지보수 계약구분',
+  '유지보수계약구분': '유지보수 계약 여부',
   '유지보수종료일자': '현 유지보수 종료일자',
   '유지보수업체': '유지보수 업체',
   '유지보수연락처': '유지보수 연락처',
@@ -4793,6 +4821,8 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       'ISMS-P비고': 'ISMS-P비고',
       'VADA비고': 'VADA비고',
       '백신비고': '백신비고',
+      '유지보수 계약 여부': '유지보수계약구분',
+      '유지보수 계약구분': '유지보수계약구분',
       'EoL여부': EOL_STATUS_KEY,
       'EoL종료일자': EOL_DATE_KEY,
       'EoS여부': EOS_STATUS_KEY,
