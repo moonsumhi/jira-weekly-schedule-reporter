@@ -956,10 +956,7 @@
         </q-card-section>
 
         <!-- 유지보수 섹션 -->
-        <q-card-section
-          v-if="activeCreateCategory === '서버' || activeCreateCategory === 'VMware' || !activeCreateCategory"
-          class="q-py-sm"
-        >
+        <q-card-section class="q-py-sm">
           <div class="section-title-row">
             <span class="section-title">유지보수</span>
           </div>
@@ -1572,10 +1569,7 @@
         </q-card-section>
 
         <!-- 유지보수 섹션 -->
-        <q-card-section
-          v-if="!rowEditTarget?.fields?.['자산유형'] || rowEditTarget?.fields?.['자산유형'] === '서버' || rowEditTarget?.fields?.['자산유형'] === 'VMware'"
-          class="q-py-sm"
-        >
+        <q-card-section class="q-py-sm">
           <div class="section-title-row">
             <span class="section-title">유지보수</span>
           </div>
@@ -2105,10 +2099,7 @@
           </q-card-section>
 
           <!-- 유지보수 -->
-          <q-card-section
-            v-if="!detailTarget.fields?.['자산유형'] || detailTarget.fields?.['자산유형'] === '서버' || detailTarget.fields?.['자산유형'] === 'VMware'"
-            class="q-py-sm"
-          >
+          <q-card-section class="q-py-sm">
             <div class="section-title-row">
               <span class="section-title">유지보수</span>
             </div>
