@@ -5,6 +5,8 @@ __pycache__/
 app/secret/*
 .git
 data/
+!app/data/
+!app/data/eos_map_snapshot.json
 *.bundle
 *.bundle.zip
 pilot/

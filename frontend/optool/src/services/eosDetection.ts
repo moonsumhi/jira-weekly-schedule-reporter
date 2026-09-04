@@ -1,4 +1,5 @@
 import type { EosActionStatus } from 'src/types/assets'
+import { DBMS_TREE } from 'src/constants/dbmsVersions'
 import { OS_TREE } from 'src/constants/osVersions'
 import { NETWORK_EOS_LIST, NETWORK_MANUAL_LIST } from 'src/constants/networkEos'
 import { getEosMap } from 'src/services/eosData'
@@ -73,6 +74,12 @@ export function getAutoEos(dist: string, version: string): { status: EosActionSt
   if (!eosDate) {
     const parent = version.includes('.') ? version.slice(0, version.lastIndexOf('.')) : null
     if (parent) eosDate = lookupEosDate(`${dist}|${parent}`)
+  }
+  // Oracle/SAP HANA처럼 실제 패치 버전과 지원주기 이름의 형식이 다른 DBMS는
+  // 드롭다운 트리에서 소속 시리즈를 찾아 다시 조회한다.
+  if (!eosDate) {
+    const series = Object.entries(DBMS_TREE[dist] ?? {}).find(([, patches]) => patches.includes(version))?.[0]
+    if (series) eosDate = lookupEosDate(`${dist}|${series}`)
   }
   if (!eosDate) return null
   const today = new Date().toISOString().slice(0, 7)
