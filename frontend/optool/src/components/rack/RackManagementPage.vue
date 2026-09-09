@@ -455,7 +455,7 @@ const dialogOpen = ref(false)
 const dialogMode = ref<'place' | 'move'>('place')
 const presetStartU = ref<number | null>(null)
 const presetHeight = ref<number | null>(null)
-const presetMountSide = ref<'FULL' | 'FRONT' | 'REAR'>('FULL')
+const presetMountSide = ref<MountSide>('FRONT')
 
 const STATUS_OPTIONS = ['ACTIVE', '점검', '폐기']
 const rackDialog = ref(false)
@@ -500,7 +500,7 @@ function catColor(c: string): string { return CAT_COLOR[c] || '#64748b' }
 function catIcon(c: string): string { return CAT_ICON[c] || 'memory' }
 function usageColor(r: number): string { return r >= 90 ? 'negative' : r >= 70 ? 'orange' : 'primary' }
 function statusColor(s?: string | null): string { return s === '폐기' ? 'negative' : s === '점검' ? 'orange' : 'positive' }
-function mountLabel(s: MountSide): string { return s === 'FULL' ? '전체(전·후면)' : s === 'FRONT' ? '전면' : '후면' }
+function mountLabel(s: MountSide): string { return s === 'FRONT' ? '전면' : '후면' }
 
 const FIELD_LABELS: Record<string, string> = {
   rack_no: 'RackNo.', rack_unit_no: 'Rack Unit No.', asset_id: 'Asset ID',
@@ -574,7 +574,7 @@ function selectPending(a: UnplacedAsset) {
   $q.notify({ type: 'info', message: '배치할 빈 U 를 클릭하세요.', timeout: 1500, position: 'top' })
 }
 
-function onClickEmpty(u: number, s: 'FULL' | 'FRONT' | 'REAR') {
+function onClickEmpty(u: number, s: MountSide) {
   if (!selectedRackId.value) return
   dialogMode.value = 'place'
   presetStartU.value = u
@@ -618,12 +618,10 @@ async function doRemove(p: RackPlacementAsset) {
 
 async function onMoveDrop(payload: { placement: RackPlacementAsset; startU: number; targetSide: 'FRONT' | 'REAR' }) {
   const p = payload.placement
-  // 깊이 전체(FULL) 장비는 그대로 유지, 전면/후면 장비는 드롭한 레인의 면으로 변경
-  const mountSide: MountSide = p.mountSide === 'FULL' ? 'FULL' : payload.targetSide
   try {
     await movePlacement(p.placementId, {
       rackId: selectedRackId.value, startU: payload.startU,
-      heightU: p.heightU, mountSide, expectedVersion: p.version,
+      heightU: p.heightU, mountSide: payload.targetSide, expectedVersion: p.version,
     })
     $q.notify({ type: 'positive', message: '이동했습니다.' })
     await reloadAll()
@@ -869,7 +867,7 @@ function actionColor(a: string): string { return a === 'PLACE' ? 'primary' : a =
 function actionIcon(a: string): string { return a === 'PLACE' ? 'add_location_alt' : a === 'MOVE' ? 'open_with' : a === 'REMOVE' ? 'logout' : 'circle' }
 function posLabel(pos: PlacementHistoryPos): string {
   if (!pos.rackName && pos.startU == null) return '-'
-  const s = pos.mountSide && pos.mountSide !== 'FULL' ? ` (${pos.mountSide === 'FRONT' ? '전면' : '후면'})` : ''
+  const s = pos.mountSide ? ` (${pos.mountSide === 'REAR' ? '후면' : '전면'})` : ''
   return `${pos.rackName || pos.rackId || ''} / U${pos.startU}~U${pos.endU}${s}`
 }
 function fmtDate(s: string): string { return new Date(s).toLocaleString('ko-KR') }

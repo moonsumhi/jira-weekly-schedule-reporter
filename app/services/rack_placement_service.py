@@ -35,15 +35,13 @@ def _hist():
 # ── 점유 슬롯 ────────────────────────────────────────────────────────────────
 
 def build_occupied_slots(start_u: int, height_u: int, mount_side: str) -> List[str]:
-    """점유 슬롯 문자열 목록을 생성한다. 예: FULL U18~19 → [F:18,R:18,F:19,R:19].
+    """점유 슬롯 문자열 목록을 생성한다. 예: FRONT U18~19 → [F:18,F:19].
 
     전/후면을 슬롯에 인코딩하므로 FRONT 장비와 REAR 장비가 같은 U 를 공유해도
-    충돌하지 않고, FULL 은 양면을 모두 차지한다.
+    충돌하지 않는다.
     """
     units = range(start_u, start_u + height_u)
-    if mount_side == "FULL":
-        sides = ("F", "R")
-    elif mount_side == "FRONT":
+    if mount_side == "FRONT":
         sides = ("F",)
     elif mount_side == "REAR":
         sides = ("R",)

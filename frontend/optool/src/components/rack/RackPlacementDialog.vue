@@ -127,14 +127,13 @@ const emit = defineEmits<{
 const MOUNT_OPTIONS = [
   { label: '전면', value: 'FRONT' },
   { label: '후면', value: 'REAR' },
-  { label: '전체(전·후면)', value: 'FULL' },
 ]
 
 const form = reactive<{ rackId: string; startU: number; heightU: number; mountSide: MountSide }>({
   rackId: props.rackId,
   startU: 1,
   heightU: 1,
-  mountSide: 'FULL',
+  mountSide: 'FRONT',
 })
 
 const selectedAsset = ref<UnplacedAsset | null>(null)
@@ -161,7 +160,7 @@ watch(
     form.rackId = props.mode === 'move' ? props.rackId : props.rackId
     form.startU = props.presetStartU ?? props.asset?.startU ?? 1
     form.heightU = props.presetHeight ?? props.asset?.heightU ?? 1
-    form.mountSide = props.asset?.mountSide ?? props.presetMountSide ?? 'FULL'
+    form.mountSide = props.asset?.mountSide ?? props.presetMountSide ?? 'FRONT'
     // 미배치 목록에서 고른 자산이 있으면 그대로 사용
     selectedAsset.value = props.presetAsset
       ? { assetCategory: props.presetAsset.assetCategory, assetId: props.presetAsset.assetId, name: props.presetAsset.name }
