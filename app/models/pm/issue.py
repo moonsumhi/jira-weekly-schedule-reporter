@@ -89,8 +89,12 @@ class IssueOut(BaseModel):
     reporter_name: Optional[str]
     sprint_id: Optional[str]
     epic_id: Optional[str]
+    effective_epic_id: Optional[str] = None
+    epic_number: Optional[int] = None
     epic_title: Optional[str] = None
     parent_issue_id: Optional[str] = None
+    parent_issue_number: Optional[int] = None
+    parent_issue_title: Optional[str] = None
     label_ids: List[str]
     start_date: Optional[datetime] = None
     due_date: Optional[datetime]
@@ -100,6 +104,7 @@ class IssueOut(BaseModel):
     show_on_dashboard: bool = False
     order: float
     linked_sr_id: Optional[str] = None
+    linked_sr_no: Optional[str] = None
     subtasks: List[SubtaskSummary] = []
     created_at: datetime
     updated_at: datetime

@@ -88,8 +88,12 @@ export type Issue = {
   reporterName: string
   sprintId: string | null
   epicId: string | null
+  effectiveEpicId: string | null
+  epicNumber: number | null
   epicTitle: string | null
   parentIssueId: string | null
+  parentIssueNumber: number | null
+  parentIssueTitle: string | null
   labelIds: string[]
   startDate: string | null
   dueDate: string | null
@@ -99,6 +103,7 @@ export type Issue = {
   showOnDashboard: boolean
   order: number
   linkedSrId: string | null
+  linkedSrNo: string | null
   subtasks: SubtaskSummary[]
   createdAt: string
   updatedAt: string

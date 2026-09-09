@@ -60,41 +60,61 @@
               이슈가 없습니다.
             </div>
             <!-- 행 -->
-            <div
-              v-for="issue in filteredAssigned"
-              :key="issue.id"
-              class="issue-table-row row items-center q-px-md q-py-sm cursor-pointer"
-              @click="openDetail(issue)"
-            >
+            <template v-for="row in assignedRows" :key="row.key">
+              <div
+                v-if="row.kind === 'context'"
+                class="hierarchy-context-row row items-center q-px-md q-py-xs"
+                :class="`hierarchy-level-${row.level}`"
+              >
+                <div class="ic-icon text-center">
+                  <q-icon name="account_tree" color="grey-6" size="14px" />
+                </div>
+                <div class="ic-key">
+                  <span class="text-caption text-grey-6">{{ row.projectKey }}-{{ row.number }}</span>
+                </div>
+                <div class="ic-title row items-center no-wrap">
+                  <span class="text-body2 text-weight-medium ellipsis-text">{{ row.title }}</span>
+                </div>
+              </div>
+              <div
+                v-else
+                class="issue-table-row row items-center q-px-md q-py-sm cursor-pointer"
+                :class="`hierarchy-level-${row.level}`"
+                @click="openDetail(row.issue)"
+              >
               <div class="ic-icon">
-                <q-icon :name="TYPE_ICON[issue.type]" :color="TYPE_COLOR[issue.type]" size="xs" />
+                <q-icon v-if="row.level > 0" name="subdirectory_arrow_right" color="grey-5" size="16px" />
+                <q-icon v-else :name="TYPE_ICON[row.issue.type]" :color="TYPE_COLOR[row.issue.type]" size="xs" />
               </div>
               <div class="ic-key">
                 <span class="text-caption text-primary text-weight-medium">
-                  {{ issue.projectKey }}-{{ issue.number }}
+                  {{ row.issue.projectKey }}-{{ row.issue.number }}
                 </span>
               </div>
               <div class="ic-title">
-                <span class="text-body2 ellipsis-text">{{ issue.title }}</span>
+                <div class="row items-center no-wrap">
+                  <span class="text-body2 ellipsis-text">{{ row.issue.title }}</span>
+                </div>
               </div>
               <div class="ic-priority">
                 <div class="row items-center q-gutter-xs no-wrap">
-                  <q-icon :name="PRIORITY_ICON[issue.priority]" :color="PRIORITY_COLOR[issue.priority]" size="xs" />
-                  <span class="text-caption">{{ PRIORITY_LABEL[issue.priority] }}</span>
+                  <q-icon :name="PRIORITY_ICON[row.issue.priority]" :color="PRIORITY_COLOR[row.issue.priority]" size="xs" />
+                  <span class="text-caption">{{ PRIORITY_LABEL[row.issue.priority] }}</span>
                 </div>
               </div>
               <div class="ic-status">
-                <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+                <q-badge :color="STATUS_COLOR[row.issue.status]" :label="STATUS_LABEL[row.issue.status]" />
               </div>
               <div class="ic-assignee">
-                <span class="text-caption text-grey-7">{{ issue.assigneeName ?? '미배정' }}</span>
+                <span class="text-caption text-grey-7">{{ row.issue.assigneeName ?? '미배정' }}</span>
               </div>
               <div class="ic-due text-right">
-                <span :class="dueDateClass(issue.dueDate)" class="text-caption">
-                  {{ fmtDue(issue.dueDate) }}
+                <span :class="dueDateClass(row.issue.dueDate)" class="text-caption">
+                  {{ fmtDue(row.issue.dueDate) }}
                 </span>
               </div>
-            </div>
+              </div>
+            </template>
           </div>
         </template>
       </q-card>
@@ -276,6 +296,131 @@ function matchSearch(issue: Issue): boolean {
 const filteredAssigned = computed(() => myIssues.value.filter(matchSearch))
 const filteredReported = computed(() => reportedIssues.value.filter(matchSearch))
 
+type AssignedIssueRow = {
+  kind: 'issue'
+  key: string
+  issue: Issue
+  level: 0 | 1 | 2
+}
+
+type HierarchyContextRow = {
+  kind: 'context'
+  key: string
+  projectKey: string
+  number: number
+  title: string
+  level: 0 | 1
+}
+
+type IssueBlock = {
+  epicId: string | null
+  epicNumber: number | null
+  epicTitle: string | null
+  projectKey: string
+  rows: (AssignedIssueRow | HierarchyContextRow)[]
+}
+
+const assignedRows = computed<(AssignedIssueRow | HierarchyContextRow)[]>(() => {
+  const issues = filteredAssigned.value
+  const epics = issues.filter(issue => issue.type === 'EPIC')
+  const epicById = new Map(epics.map(issue => [issue.id, issue]))
+  const mainIssues = issues.filter(issue => issue.type !== 'EPIC' && !issue.parentIssueId)
+  const mainById = new Map(mainIssues.map(issue => [issue.id, issue]))
+  const childrenByParent = new Map<string, Issue[]>()
+
+  for (const issue of issues) {
+    if (issue.parentIssueId) {
+      const children = childrenByParent.get(issue.parentIssueId) ?? []
+      children.push(issue)
+      childrenByParent.set(issue.parentIssueId, children)
+    }
+  }
+
+  const blocks: IssueBlock[] = []
+  for (const issue of mainIssues) {
+    const children = childrenByParent.get(issue.id) ?? []
+    const mainLevel = issue.effectiveEpicId ? 1 : 0
+    const rows: (AssignedIssueRow | HierarchyContextRow)[] = [
+      { kind: 'issue', key: issue.id, issue, level: mainLevel },
+    ]
+    for (const child of children) {
+      rows.push({ kind: 'issue', key: child.id, issue: child, level: mainLevel === 1 ? 2 : 1 })
+    }
+    blocks.push({
+      epicId: issue.effectiveEpicId,
+      epicNumber: issue.epicNumber,
+      epicTitle: issue.epicTitle,
+      projectKey: issue.projectKey ?? '',
+      rows,
+    })
+    childrenByParent.delete(issue.id)
+  }
+
+  for (const [parentId, children] of childrenByParent) {
+    const parent = mainById.get(parentId)
+    const firstChild = children[0]
+    const parentLevel = firstChild?.effectiveEpicId ? 1 : 0
+    const rows: (AssignedIssueRow | HierarchyContextRow)[] = []
+    if (!parent && firstChild?.parentIssueNumber && firstChild.parentIssueTitle) {
+      rows.push({
+        kind: 'context',
+        key: `parent-${parentId}`,
+        projectKey: firstChild.projectKey ?? '',
+        number: firstChild.parentIssueNumber,
+        title: firstChild.parentIssueTitle,
+        level: parentLevel,
+      })
+    }
+    for (const child of children) {
+      rows.push({ kind: 'issue', key: child.id, issue: child, level: parentLevel === 1 ? 2 : 1 })
+    }
+    blocks.push({
+      epicId: firstChild?.effectiveEpicId ?? null,
+      epicNumber: firstChild?.epicNumber ?? null,
+      epicTitle: firstChild?.epicTitle ?? null,
+      projectKey: firstChild?.projectKey ?? '',
+      rows,
+    })
+  }
+
+  const rows: (AssignedIssueRow | HierarchyContextRow)[] = []
+  const remainingBlocks = [...blocks]
+  for (const epic of epics) {
+    rows.push({ kind: 'issue', key: epic.id, issue: epic, level: 0 })
+    for (const block of remainingBlocks.filter(block => block.epicId === epic.id)) {
+      rows.push(...block.rows)
+    }
+    for (let index = remainingBlocks.length - 1; index >= 0; index--)
+      if (remainingBlocks[index]?.epicId === epic.id) remainingBlocks.splice(index, 1)
+  }
+
+  const renderedEpicIds = new Set<string>()
+  for (const block of remainingBlocks) {
+    if (!block.epicId) {
+      rows.push(...block.rows)
+      continue
+    }
+    if (renderedEpicIds.has(block.epicId)) continue
+
+    if (!epicById.has(block.epicId) && block.epicNumber && block.epicTitle) {
+      rows.push({
+        kind: 'context',
+        key: `epic-${block.epicId}`,
+        projectKey: block.projectKey,
+        number: block.epicNumber,
+        title: block.epicTitle,
+        level: 0,
+      })
+    }
+    for (const epicBlock of remainingBlocks.filter(item => item.epicId === block.epicId)) {
+      rows.push(...epicBlock.rows)
+    }
+    renderedEpicIds.add(block.epicId)
+  }
+
+  return rows
+})
+
 function fmtDue(d: string | null): string {
   if (!d) return '-'
   const date = new Date(d)
@@ -340,6 +485,31 @@ onMounted(load)
   background: rgba(0, 0, 0, 0.025);
 }
 
+.hierarchy-context-row {
+  min-height: 34px;
+  background: #f8fafc;
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.hierarchy-level-1 {
+  background: #fbfcfd;
+  border-left: 3px solid #cfd8dc;
+}
+
+.hierarchy-level-2 {
+  background: #f8fafb;
+  border-left: 6px solid #cfd8dc;
+}
+
+.hierarchy-level-2 .ic-icon {
+  padding-left: 6px;
+}
+
+.hierarchy-level-1:hover,
+.hierarchy-level-2:hover {
+  background: #f5f8fa;
+}
+
 /* 고정폭 컬럼 */
 .ic-icon     { width: 28px;  flex-shrink: 0; }
 .ic-key      { width: 96px;  flex-shrink: 0; padding-right: 8px; }
@@ -354,5 +524,10 @@ onMounted(load)
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.ic-title .row .ellipsis-text {
+  flex: 1;
+  min-width: 0;
 }
 </style>
