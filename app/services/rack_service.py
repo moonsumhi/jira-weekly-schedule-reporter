@@ -414,7 +414,7 @@ async def migrate_from_fields(dry_run: bool, actor: str) -> dict:
                 await pls.create_placement({
                     "asset_category": cat, "asset_id": str(a["_id"]),
                     "rack_id": str(rack["_id"]), "start_u": start_u,
-                    "height_u": height_u, "mount_side": "FULL",
+                    "height_u": height_u, "mount_side": "FRONT",
                 }, actor)
                 placements_created += 1
             except HTTPException:

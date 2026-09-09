@@ -12,7 +12,7 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-MountSide = Literal["FULL", "FRONT", "REAR"]
+MountSide = Literal["FRONT", "REAR"]
 
 
 class RackPlacementCreate(BaseModel):
@@ -21,7 +21,7 @@ class RackPlacementCreate(BaseModel):
     rack_id: str = Field(..., description="랙 자산의 Mongo _id (hex)")
     start_u: int = Field(..., ge=1, description="점유하는 가장 낮은 U")
     height_u: int = Field(..., ge=1, description="장비 높이(U)")
-    mount_side: MountSide = "FULL"
+    mount_side: MountSide = "FRONT"
 
 
 class RackPlacementUpdate(BaseModel):
@@ -29,7 +29,7 @@ class RackPlacementUpdate(BaseModel):
     rack_id: str
     start_u: int = Field(..., ge=1)
     height_u: int = Field(..., ge=1)
-    mount_side: MountSide = "FULL"
+    mount_side: MountSide = "FRONT"
     expected_version: Optional[int] = None
 
 

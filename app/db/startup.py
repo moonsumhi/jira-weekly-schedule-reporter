@@ -738,6 +738,26 @@ async def migrate_firewall_contact_names() -> None:
         logger.info("방화벽 담당자 항목 이름/이메일 분리 마이그레이션 완료")
 
 
+async def migrate_full_rack_placements_to_front() -> None:
+    """기존 전·후면 전체 배치를 전면 배치로 변환한다."""
+    col = MongoClientManager.get_rack_placements_collection()
+    migrated = 0
+    async for placement in col.find({"mount_side": "FULL"}, {"start_u": 1, "height_u": 1}):
+        start_u = int(placement.get("start_u") or 0)
+        height_u = int(placement.get("height_u") or 0)
+        occupied_slots = [f"F:{u}" for u in range(start_u, start_u + height_u)]
+        await col.update_one(
+            {"_id": placement["_id"], "mount_side": "FULL"},
+            {
+                "$set": {"mount_side": "FRONT", "occupied_slots": occupied_slots},
+                "$inc": {"version": 1},
+            },
+        )
+        migrated += 1
+    if migrated:
+        logger.info("랙 전체 배치 %d건을 전면 배치로 마이그레이션 완료", migrated)
+
+
 async def run_startup() -> None:
     """lifespan startup에서 호출하는 진입점."""
     await create_indexes()
@@ -757,6 +777,7 @@ async def run_startup() -> None:
     await migrate_rack_asset_type()
     await migrate_asset_status_default()
     await migrate_disposal_to_status()
+    await migrate_full_rack_placements_to_front()
 
     from app.db.rack_indexes import create_rack_indexes
     await create_rack_indexes()

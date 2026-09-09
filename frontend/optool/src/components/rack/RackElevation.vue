@@ -108,7 +108,7 @@
           <div class="rk-dev-text">
             <div class="rk-dev-name">
               {{ p.name }}
-              <span v-if="isAll && p.mountSide !== 'FULL'" class="rk-dev-side">{{ p.mountSide === 'FRONT' ? '전' : '후' }}</span>
+              <span v-if="isAll" class="rk-dev-side">{{ p.mountSide === 'FRONT' ? '전' : '후' }}</span>
             </div>
             <div class="rk-dev-sub">{{ p.assetCode || '—' }} · {{ p.assetCategory }} · U{{ p.startU }}<template v-if="p.heightU > 1">~U{{ p.endU }}</template></div>
           </div>
@@ -133,6 +133,7 @@ import { computed, ref } from 'vue'
 import type { RackLayout, RackPlacementAsset } from 'src/types/racks'
 
 type Side = 'ALL' | 'FRONT' | 'REAR'
+type MountLane = 'FRONT' | 'REAR'
 
 const props = defineProps<{
   layout: RackLayout
@@ -142,7 +143,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'select', placement: RackPlacementAsset): void
-  (e: 'clickEmpty', u: number, side: 'FULL' | 'FRONT' | 'REAR'): void
+  (e: 'clickEmpty', u: number, side: MountLane): void
   (e: 'moveDrop', payload: { placement: RackPlacementAsset; startU: number; targetSide: 'FRONT' | 'REAR' }): void
   (e: 'update:side', side: Side): void
 }>()
@@ -169,16 +170,13 @@ const usageColor = computed(() => {
   return r >= 90 ? 'negative' : r >= 70 ? 'orange' : 'primary'
 })
 
-// 전체 뷰는 모든 장비, 전면/후면 뷰는 FULL + 해당 면
 const visiblePlacements = computed<RackPlacementAsset[]>(() => {
   if (isAll.value) return props.layout.placements
-  return props.layout.placements.filter((p) => p.mountSide === 'FULL' || p.mountSide === side.value)
+  return props.layout.placements.filter((p) => p.mountSide === side.value)
 })
 
-// 전체 뷰: FULL → 두 레인, FRONT → 좌, REAR → 우 / 그 외 뷰 → 단일 레인
 function deviceCol(p: RackPlacementAsset): string {
   if (!isAll.value) return '2'
-  if (p.mountSide === 'FULL') return '2 / span 2'
   return p.mountSide === 'REAR' ? '3' : '2'
 }
 
@@ -190,25 +188,22 @@ function coveredUnits(pred: (p: RackPlacementAsset) => boolean): Set<number> {
   }
   return s
 }
-const frontOccupied = computed(() => coveredUnits((p) => p.mountSide === 'FULL' || p.mountSide === 'FRONT'))
-const rearOccupied = computed(() => coveredUnits((p) => p.mountSide === 'FULL' || p.mountSide === 'REAR'))
+const frontOccupied = computed(() => coveredUnits((p) => p.mountSide === 'FRONT'))
+const rearOccupied = computed(() => coveredUnits((p) => p.mountSide === 'REAR'))
 
 const allU = computed(() => Array.from({ length: totalU.value }, (_, i) => i + 1))
 
-// 좌측 레인 빈칸: 전체·전면 뷰는 전면 기준, 후면 뷰는 후면 기준
+// 선택한 장착면의 빈 슬롯만 표시한다.
 const col2Empties = computed(() => {
   const occ = side.value === 'REAR' ? rearOccupied.value : frontOccupied.value
   return allU.value.filter((u) => !occ.has(u))
 })
 const col2Side = computed<'FRONT' | 'REAR'>(() => (side.value === 'REAR' ? 'REAR' : 'FRONT'))
 
-// 빈 칸 클릭 시 장착면 제안: 전체 뷰에서 앞뒤 모두 비었으면 FULL, 한쪽만 비었으면 그 면
-function emitEmpty(u: number, lane: 'FRONT' | 'REAR') {
-  // 클릭한 레인/뷰의 면을 기본값으로 (전체(FULL)는 다이얼로그에서 수동 선택)
-  const s: 'FRONT' | 'REAR' = isAll.value ? lane : side.value === 'REAR' ? 'REAR' : 'FRONT'
-  emit('clickEmpty', u, s)
+function emitEmpty(u: number, lane: MountLane) {
+  emit('clickEmpty', u, lane)
 }
-// 우측(후면) 레인 빈칸: 전체 뷰에서만
+
 const col3Empties = computed(() =>
   isAll.value ? allU.value.filter((u) => !rearOccupied.value.has(u)) : [],
 )
@@ -223,7 +218,7 @@ function onDrop(u: number, laneSide: 'FRONT' | 'REAR') {
   draggingId.value = null
   if (!p) return
   // 같은 위치·같은 면이면 무시
-  if (p.startU === u && (p.mountSide === 'FULL' || p.mountSide === laneSide)) return
+  if (p.startU === u && p.mountSide === laneSide) return
   emit('moveDrop', { placement: p, startU: u, targetSide: laneSide })
 }
 

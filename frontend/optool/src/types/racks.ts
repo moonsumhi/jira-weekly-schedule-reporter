@@ -1,5 +1,5 @@
 // 랙 배치 관련 타입. 응답은 axios 인터셉터가 camelCase 로 변환한다.
-export type MountSide = 'FULL' | 'FRONT' | 'REAR'
+export type MountSide = 'FRONT' | 'REAR'
 
 export type RackSummary = {
   rackId: string
