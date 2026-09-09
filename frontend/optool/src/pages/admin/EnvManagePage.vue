@@ -118,17 +118,26 @@
       <q-card style="min-width: 420px; max-width: 90vw">
         <q-card-section class="text-h6">{{ itemEditTarget ? '항목 수정' : '항목 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">
-          <q-input
-            v-if="isDirectEmailCategory(selected?.key)"
-            ref="incidentEmailInputRef"
-            v-model="itemForm.value"
-            type="email"
-            label="이메일 *"
-            hint="예: incident@example.com"
-            outlined dense
-            autocomplete="off"
-            @keyup.enter="submitItem"
-          />
+          <template v-if="isDirectEmailCategory(selected?.key)">
+            <q-input
+              ref="itemLabelInputRef"
+              v-model="itemForm.label"
+              label="이름 *"
+              hint="대상자를 식별할 수 있는 이름을 입력하세요"
+              outlined dense
+              autocomplete="off"
+            />
+            <q-input
+              ref="incidentEmailInputRef"
+              v-model="itemForm.value"
+              type="email"
+              label="이메일 *"
+              hint="예: incident@example.com"
+              outlined dense
+              autocomplete="off"
+              @keyup.enter="submitItem"
+            />
+          </template>
           <q-select
             v-else-if="isMemberPickerCategory(selected?.key)"
             ref="firewallPickRef"
@@ -301,7 +310,7 @@ const itemLabelInputRef = ref<QInput | null>(null)
 // (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지). 입력 필드는 서로 배타적으로
 // 렌더링되므로 현재 렌더링된 쪽을 포커스한다.
 function onItemDialogShow() {
-  void nextTick(() => (incidentEmailInputRef.value ?? firewallPickRef.value ?? itemLabelInputRef.value)?.focus())
+  void nextTick(() => (itemLabelInputRef.value ?? incidentEmailInputRef.value ?? firewallPickRef.value)?.focus())
 }
 
 function openCreateItem() {
@@ -314,7 +323,8 @@ function openCreateItem() {
 
 function openEditItem(item: EnvItem) {
   itemEditTarget.value = item
-  itemForm.value = { label: item.label, value: item.value ?? '' }
+  const legacyEmailOnlyItem = isDirectEmailCategory(selected.value?.key) && item.label === item.value
+  itemForm.value = { label: legacyEmailOnlyItem ? '' : item.label, value: item.value ?? '' }
   firewallPick.value = null
   itemDialog.value = true
   if (isMemberPickerCategory(selected.value?.key)) void loadUserOptions()
@@ -335,6 +345,10 @@ async function submitItem() {
     return
   }
   if (isDirectEmail) {
+    if (!itemForm.value.label.trim()) {
+      $q.notify({ type: 'warning', message: '이름을 입력해주세요.', position: 'top' })
+      return
+    }
     if (!email) {
       $q.notify({ type: 'warning', message: '이메일을 입력해주세요.', position: 'top' })
       return
@@ -354,7 +368,7 @@ async function submitItem() {
   itemSaving.value = true
   try {
     const payload = isDirectEmail
-      ? { label: email, value: email }
+      ? { label: itemForm.value.label.trim(), value: email }
       : isMemberPicker
         ? { label: itemForm.value.label.trim(), value: email }
       : { label: itemForm.value.label.trim() }

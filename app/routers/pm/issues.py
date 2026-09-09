@@ -16,7 +16,7 @@ from app.models.pm.issue import (
 )
 from app.routers.auth import get_current_user
 from app.services.pm.permission import get_issue_or_404, require_pm_member
-from app.services.pm.issue_service import next_issue_number, record_history, enrich_issue
+from app.services.pm.issue_service import attach_linked_sr_info, next_issue_number, record_history, enrich_issue
 from app.services.notification_service import create_notification
 from app.services.mention_service import resolve_mentions, notify_mentions
 from app.models.mention import MentionedUser
@@ -59,6 +59,7 @@ async def list_issues(
         query["parent_issue_id"] = ObjectId(parent_issue_id)
 
     docs = await col.find(query).sort([("status", 1), ("order", 1)]).to_list(None)
+    await attach_linked_sr_info(docs)
     return [await enrich_issue(d) for d in docs]
 
 

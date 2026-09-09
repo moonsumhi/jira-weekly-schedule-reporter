@@ -8,6 +8,42 @@ from bson import ObjectId
 from app.db.mongo import MongoClientManager
 
 
+async def attach_linked_sr_info(docs: list[dict]) -> None:
+    """이슈 목록에 연결된 SR ID/번호를 한 번의 조회로 보강한다."""
+    if not docs:
+        return
+
+    issue_ids = [doc["_id"] for doc in docs]
+    linked_sr_ids = [
+        ObjectId(str(doc["linked_sr_id"]))
+        for doc in docs
+        if doc.get("linked_sr_id") and ObjectId.is_valid(str(doc["linked_sr_id"]))
+    ]
+    conditions: list[dict] = [
+        {"related_issue_id": {"$in": issue_ids}},
+        {"converted_issue_id": {"$in": [*issue_ids, *map(str, issue_ids)]}},
+    ]
+    if linked_sr_ids:
+        conditions.append({"_id": {"$in": linked_sr_ids}})
+
+    sr_by_id: dict[str, dict] = {}
+    sr_by_issue_id: dict[str, dict] = {}
+    sr_col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    async for sr in sr_col.find({"$or": conditions}, {"sr_no": 1, "related_issue_id": 1, "converted_issue_id": 1}):
+        sr_by_id[str(sr["_id"])] = sr
+        for field in ("related_issue_id", "converted_issue_id"):
+            if sr.get(field):
+                sr_by_issue_id[str(sr[field])] = sr
+
+    for doc in docs:
+        linked_sr_id = doc.get("linked_sr_id")
+        sr = sr_by_id.get(str(linked_sr_id)) if linked_sr_id else None
+        sr = sr or sr_by_issue_id.get(str(doc["_id"]))
+        doc["linked_sr_no"] = sr.get("sr_no") if sr else None
+        if sr and not linked_sr_id:
+            doc["linked_sr_id"] = str(sr["_id"])
+
+
 async def next_issue_number(project_id: ObjectId) -> int:
     """프로젝트 내 이슈 번호 자동 증가 (동시성 안전: find_one_and_update)."""
     col = MongoClientManager.get_pm_issues_collection()
@@ -44,7 +80,8 @@ async def enrich_issue(doc: dict) -> dict:
     """이슈 doc에 담당자/보고자 이름을 JOIN하여 반환."""
     users = MongoClientManager.get_users_collection()
     d = dict(doc)
-    d["id"] = str(d.pop("_id"))
+    issue_object_id = d.pop("_id")
+    d["id"] = str(issue_object_id)
     d["project_id"] = str(d["project_id"])
 
     # 프로젝트 키 / 이름
@@ -75,12 +112,34 @@ async def enrich_issue(doc: dict) -> dict:
         d["reporter_id"] = None
         d["reporter_name"] = None
 
-    # 상위 Epic 제목
-    if d.get("epic_id"):
-        issues_col = MongoClientManager.get_pm_issues_collection()
-        epic = await issues_col.find_one({"_id": ObjectId(d["epic_id"])}, {"title": 1})
+    # 상위 이슈 요약 (대시보드 등 목록에서 하위 관계 표시에 사용)
+    issues_col = MongoClientManager.get_pm_issues_collection()
+    parent = None
+    if d.get("parent_issue_id"):
+        parent = await issues_col.find_one(
+            {"_id": ObjectId(d["parent_issue_id"])},
+            {"number": 1, "title": 1, "epic_id": 1},
+        )
+        d["parent_issue_number"] = parent.get("number") if parent else None
+        d["parent_issue_title"] = parent.get("title") if parent else None
+    else:
+        d["parent_issue_number"] = None
+        d["parent_issue_title"] = None
+
+    # 서브 이슈는 부모가 속한 Epic까지 계층 문맥으로 사용한다.
+    effective_epic_id = d.get("epic_id") or (
+        str(parent["epic_id"]) if parent and parent.get("epic_id") else None
+    )
+    d["effective_epic_id"] = effective_epic_id
+    if effective_epic_id:
+        epic = await issues_col.find_one(
+            {"_id": ObjectId(effective_epic_id)},
+            {"number": 1, "title": 1},
+        )
+        d["epic_number"] = epic.get("number") if epic else None
         d["epic_title"] = epic.get("title") if epic else None
     else:
+        d["epic_number"] = None
         d["epic_title"] = None
 
     # story_points 기본값
@@ -91,8 +150,10 @@ async def enrich_issue(doc: dict) -> dict:
     if "attachments" not in d:
         d["attachments"] = []
 
-    # linked_sr_id (SR 연동 이슈인 경우)
-    d["linked_sr_id"] = d.get("linked_sr_id") or None
+    # 연결된 SR 정보는 목록 조회 시 batch로 보강된다.
+    linked_sr_id = d.get("linked_sr_id") or None
+    d["linked_sr_id"] = str(linked_sr_id) if linked_sr_id else None
+    d["linked_sr_no"] = d.get("linked_sr_no") or None
 
     # 남은 ObjectId 정리 — 반복업무 이슈의 recurring_template_id 등 메타 필드가
     # response_model 없는 엔드포인트(대시보드)에서 그대로 인코딩돼 500 나는 것 방지

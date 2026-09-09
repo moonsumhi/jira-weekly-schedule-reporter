@@ -113,7 +113,17 @@ async def delete_category(category_id: str, _=Depends(require_admin)):
 async def add_item(category_id: str, payload: EnvItemCreate, _=Depends(require_admin)):
     doc = await _get_category_or_404(category_id)
     items = doc.get("items", [])
-    if any(i.get("label", "").strip().lower() == payload.label.strip().lower() for i in items):
+    if doc.get("key") == "incident_notify_emails":
+        email = (payload.value or "").strip().casefold()
+        duplicated = bool(email) and any(
+            (item.get("value") or "").strip().casefold() == email for item in items
+        )
+    else:
+        duplicated = any(
+            item.get("label", "").strip().casefold() == payload.label.strip().casefold()
+            for item in items
+        )
+    if duplicated:
         raise HTTPException(status_code=400, detail="이미 존재하는 항목입니다.")
     next_order = (max((i.get("sort_order", 0) for i in items), default=-1)) + 1
     items.append({
@@ -157,6 +167,13 @@ async def patch_item(category_id: str, item_id: str, payload: EnvItemPatch, _=De
     update = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
     if not update:
         raise HTTPException(status_code=400, detail="수정할 필드가 없습니다.")
+    if doc.get("key") == "incident_notify_emails" and "value" in update:
+        email = (update["value"] or "").strip().casefold()
+        if email and any(
+            item.get("id") != item_id and (item.get("value") or "").strip().casefold() == email
+            for item in items
+        ):
+            raise HTTPException(status_code=400, detail="이미 등록된 이메일입니다.")
     found = False
     for item in items:
         if item.get("id") == item_id:

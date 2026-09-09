@@ -20,7 +20,7 @@
           v-model="filterSearch"
           dense
           outlined
-          placeholder="이슈 제목으로 검색..."
+          placeholder="이슈 제목 또는 SR 번호로 검색..."
           class="filter-search-input"
         >
           <template #prepend>
@@ -776,8 +776,8 @@ watch(allIssues, (issues) => applyOrder(issues))
 
 // ── 필터 적용 ─────────────────────────────────────────────────────────
 function matches(issue: Issue): boolean {
-  const q = (filterSearch.value ?? '').toLowerCase()
-  if (q && !(issue.title ?? '').toLowerCase().includes(q)) return false
+  const q = (filterSearch.value ?? '').trim().toLowerCase()
+  if (q && ![issue.title, issue.linkedSrNo].some(value => (value ?? '').toLowerCase().includes(q))) return false
   const includeStatuses = filterStatusTabs.value.filter(s => !s.startsWith('!'))
   const excludeStatuses = filterStatusTabs.value.filter(s => s.startsWith('!')).map(s => s.slice(1))
   if (includeStatuses.length && !includeStatuses.includes(issue.status)) return false
