@@ -619,6 +619,26 @@ const filterDateFrom  = ref<string | null>(null)
 const filterDateTo    = ref<string | null>(null)
 
 const FILTER_KEY = `backlog_filter_${projectId}`
+const VALID_PRIORITIES = new Set<IssuePriority>(['LOWEST', 'LOW', 'MEDIUM', 'HIGH', 'HIGHEST'])
+const VALID_TYPES = new Set<IssueType>(['EPIC', 'STORY', 'TASK', 'BUG', 'SUB_TASK'])
+
+function normalizeStatusTabs(value: unknown, legacyStatus: unknown): string[] {
+  const saved = Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : (typeof legacyStatus === 'string' ? [legacyStatus] : [])
+
+  // 과거 상태값(IN_REVIEW 등)은 현재 화면에서 해제할 수 없는 숨은 필터가 되므로 제거한다.
+  // 동일 상태의 포함/제외 값이 함께 저장된 비정상 데이터는 포함 조건을 우선한다.
+  return ISSUE_STATUSES.flatMap((status) => {
+    if (saved.includes(status)) return [status]
+    if (saved.includes(`!${status}`)) return [`!${status}`]
+    return []
+  })
+}
+
+function validSavedValue<T extends string>(value: unknown, allowed: ReadonlySet<T>): T | null {
+  return typeof value === 'string' && allowed.has(value as T) ? value as T : null
+}
 
 function saveFilters() {
   localStorage.setItem(FILTER_KEY, JSON.stringify({
@@ -632,16 +652,17 @@ function restoreFilters() {
   try {
     const raw = localStorage.getItem(FILTER_KEY)
     if (!raw) return
-    const s = JSON.parse(raw) as {
-      search: string; statusTabs?: string[]; status?: IssueStatus | null; priority: IssuePriority | null; type: IssueType | null
-      assigneeId: string | null; dateFrom: string | null; dateTo: string | null
-    }
-    filterSearch.value = s.search ?? ''
+    const parsed: unknown = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return
+    const s = parsed as Record<string, unknown>
+    filterSearch.value = typeof s.search === 'string' ? s.search : ''
     // statusTabs가 없으면(예전 저장분) 단일 status 값을 include 탭 하나로 이관
-    filterStatusTabs.value = s.statusTabs ?? (s.status ? [s.status] : [])
-    filterPriority.value = s.priority ?? null; filterType.value = s.type ?? null
-    filterAssigneeId.value = s.assigneeId ?? null
-    filterDateFrom.value = s.dateFrom ?? null; filterDateTo.value = s.dateTo ?? null
+    filterStatusTabs.value = normalizeStatusTabs(s.statusTabs, s.status)
+    filterPriority.value = validSavedValue(s.priority, VALID_PRIORITIES)
+    filterType.value = validSavedValue(s.type, VALID_TYPES)
+    filterAssigneeId.value = typeof s.assigneeId === 'string' && s.assigneeId ? s.assigneeId : null
+    filterDateFrom.value = typeof s.dateFrom === 'string' && s.dateFrom ? s.dateFrom : null
+    filterDateTo.value = typeof s.dateTo === 'string' && s.dateTo ? s.dateTo : null
   } catch { /* ignore */ }
 }
 
@@ -888,6 +909,10 @@ onMounted(async () => {
     project.value  = proj
     allIssues.value = issues
     members.value  = mems
+    // 탈퇴·제외된 멤버의 저장 필터도 UI에서 해제할 수 없는 숨은 조건이 되므로 제거한다.
+    if (filterAssigneeId.value && !mems.some(member => member.userId === filterAssigneeId.value)) {
+      filterAssigneeId.value = null
+    }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
   } finally {
