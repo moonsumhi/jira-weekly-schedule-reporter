@@ -71,7 +71,7 @@
                   </q-item-section>
                   <q-item-section>
                     <q-item-label :class="{ 'text-grey-5': !item.isActive }">{{ item.label }}</q-item-label>
-                    <q-item-label v-if="item.value" caption>{{ item.value }}</q-item-label>
+                    <q-item-label v-if="item.value && item.value !== item.label" caption>{{ item.value }}</q-item-label>
                   </q-item-section>
                   <q-item-section side>
                     <div class="row items-center q-gutter-xs">
@@ -118,8 +118,19 @@
       <q-card style="min-width: 420px; max-width: 90vw">
         <q-card-section class="text-h6">{{ itemEditTarget ? '항목 수정' : '항목 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">
+          <q-input
+            v-if="isDirectEmailCategory(selected?.key)"
+            ref="incidentEmailInputRef"
+            v-model="itemForm.value"
+            type="email"
+            label="이메일 *"
+            hint="예: incident@example.com"
+            outlined dense
+            autocomplete="off"
+            @keyup.enter="submitItem"
+          />
           <q-select
-            v-if="isMemberPickerCategory(selected?.key)"
+            v-else-if="isMemberPickerCategory(selected?.key)"
             ref="firewallPickRef"
             v-model="firewallPick"
             label="담당자 선택 *"
@@ -156,12 +167,16 @@ const categories = ref<EnvCategoryOut[]>([])
 const selected = ref<EnvCategoryOut | null>(null)
 const loading = ref(false)
 
-// ── 회원 목록에서 선택하는 방식을 쓰는 카테고리 전용(방화벽/장애 알림 담당자 메일 등) ──
+// ── 회원 목록에서 선택하는 방식을 쓰는 카테고리 전용(방화벽 담당자 메일 등) ──
 // label은 드롭다운에 보여줄 "이름 (이메일)" 표시 텍스트, name은 항목의 표시 이름으로
 // 저장할 순수 이름, value는 실제 메일 발송에 쓰일 이메일.
-const MEMBER_PICKER_CATEGORY_KEYS = ['firewall_notify_emails', 'incident_notify_emails']
+const MEMBER_PICKER_CATEGORY_KEYS = ['firewall_notify_emails']
+const DIRECT_EMAIL_CATEGORY_KEYS = ['incident_notify_emails']
 function isMemberPickerCategory(key: string | undefined): boolean {
   return !!key && MEMBER_PICKER_CATEGORY_KEYS.includes(key)
+}
+function isDirectEmailCategory(key: string | undefined): boolean {
+  return !!key && DIRECT_EMAIL_CATEGORY_KEYS.includes(key)
 }
 
 interface UserOption { label: string; value: string; name: string }
@@ -279,13 +294,14 @@ const itemSaving = ref(false)
 const itemEditTarget = ref<EnvItem | null>(null)
 const itemForm = ref({ label: '', value: '' })
 const firewallPickRef = ref<QSelect | null>(null)
+const incidentEmailInputRef = ref<QInput | null>(null)
 const itemLabelInputRef = ref<QInput | null>(null)
 
 // autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
-// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지). 두 필드는 서로 배타적으로
+// (동시에 걸리면 한글 IME 조합이 깨지는 문제 방지). 입력 필드는 서로 배타적으로
 // 렌더링되므로 현재 렌더링된 쪽을 포커스한다.
 function onItemDialogShow() {
-  void nextTick(() => (firewallPickRef.value ?? itemLabelInputRef.value)?.focus())
+  void nextTick(() => (incidentEmailInputRef.value ?? firewallPickRef.value ?? itemLabelInputRef.value)?.focus())
 }
 
 function openCreateItem() {
@@ -306,19 +322,41 @@ function openEditItem(item: EnvItem) {
 
 async function submitItem() {
   if (!selected.value) return
-  if (!itemForm.value.label.trim()) {
+  const isMemberPicker = isMemberPickerCategory(selected.value.key)
+  const isDirectEmail = isDirectEmailCategory(selected.value.key)
+  const email = itemForm.value.value.trim()
+
+  if (!isDirectEmail && !itemForm.value.label.trim()) {
     $q.notify({ type: 'warning', message: '이름을 입력해주세요.', position: 'top' })
     return
   }
-  const isFirewall = isMemberPickerCategory(selected.value.key)
-  if (isFirewall && !itemForm.value.value.trim()) {
+  if (isMemberPicker && !email) {
     $q.notify({ type: 'warning', message: '목록에서 담당자를 선택해주세요.', position: 'top' })
     return
   }
+  if (isDirectEmail) {
+    if (!email) {
+      $q.notify({ type: 'warning', message: '이메일을 입력해주세요.', position: 'top' })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      $q.notify({ type: 'warning', message: '올바른 이메일 형식으로 입력해주세요.', position: 'top' })
+      return
+    }
+    const duplicated = selected.value.items.some((item) =>
+      item.id !== itemEditTarget.value?.id && item.value?.trim().toLowerCase() === email.toLowerCase(),
+    )
+    if (duplicated) {
+      $q.notify({ type: 'warning', message: '이미 등록된 이메일입니다.', position: 'top' })
+      return
+    }
+  }
   itemSaving.value = true
   try {
-    const payload = isFirewall
-      ? { label: itemForm.value.label.trim(), value: itemForm.value.value.trim() }
+    const payload = isDirectEmail
+      ? { label: email, value: email }
+      : isMemberPicker
+        ? { label: itemForm.value.label.trim(), value: email }
       : { label: itemForm.value.label.trim() }
     if (itemEditTarget.value) {
       await envCategoryService.patchItem(selected.value.id, itemEditTarget.value.id, payload)
