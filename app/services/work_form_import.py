@@ -1,11 +1,13 @@
 """Map ordered document Markdown into editable template fields."""
 import re
 import unicodedata
+import logging
 from lxml import html
 from markdown_it import MarkdownIt
 from app.services.work_documents import html_markdown
 
 EXTRA = '가져온 추가 내용'
+logger = logging.getLogger(__name__)
 
 
 def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
@@ -21,15 +23,44 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                '테스트계획': '테스트케이스', '테스트결과': '테스트케이스(성공)', '테스트결과분석': '테스트케이스(실패)'}
     data = {s['title']: [] if s.get('multiple') else {} for s in sections}
     extras = []
+    logger.info('작업 문서 Import 매핑 시작: template_sections=%s', [s.get('title') for s in sections])
 
     def as_md(nodes):
         return html_markdown(''.join(html.tostring(n, encoding='unicode', with_tail=False) for n in nodes), lambda src: src).strip()
 
     def match(name, fields):
         key = norm(name)
-        alternate = {'작업시간/시작': '시작시간', '작업시간/종료': '종료시간', '회사명': '소속'}
-        return next((f for f in fields if norm(f['label']) == key), None) or next(
-            (f for f in fields if norm(f['label']) == alternate.get(key)), None)
+        alternate = {
+            '작업시작': '작업시작시간',
+            '작업시작시각': '작업시작시간',
+            '작업종료': '작업종료시간',
+            '작업종료시각': '작업종료시간',
+            '작업시간시작': '작업시작시간',
+            '작업시간종료': '작업종료시간',
+            '작업시간시작': '시작시간',
+            '작업시간종료': '종료시간',
+            '회사명': '소속',
+        }
+        exact = [f for f in fields if norm(f['label']) == key]
+        if exact:
+            return exact[0]
+        alias = alternate.get(key)
+        if alias:
+            matches = [f for f in fields if norm(f['label']) == alias]
+            if matches:
+                return matches[0]
+        # Handle labels split differently by HWP/Word table exports.
+        semantic = {
+            '작업시작시간': ('작업시작', '시작시간'),
+            '작업종료시간': ('작업종료', '종료시간'),
+            '성함직책': ('성함', '직책'),
+            '테스트결과시간': ('테스트결과', '시간'),
+        }.get(key)
+        if semantic:
+            matches = [f for f in fields if all(token in norm(f['label']) for token in semantic)]
+            if len(matches) == 1:
+                return matches[0]
+        return None
 
     def assign(row, field, nodes):
         name = field['label']
@@ -59,13 +90,20 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         blocks.append((title, nodes))
 
     for title, nodes in blocks:
-        key = aliases.get(norm(title), norm(title))
-        candidates = [s for s in sections if norm(s['title']) == key]
-        if norm(title) == '담당자':
+        source_key = norm(title)
+        # Prefer an exact section title. Legacy aliases are only a fallback
+        # for older templates that do not contain the source section name.
+        key = source_key
+        candidates = [s for s in sections if norm(s['title']) == source_key]
+        if not candidates and source_key in aliases:
+            key = aliases[source_key]
+            candidates = [s for s in sections if norm(s['title']) == key]
+        if source_key == '담당자' and not candidates:
             headings = {norm(''.join(n.itertext())) for node in nodes for n in node.xpath('.//th')}
             key = '작업자정보' if '역할' in headings else '검토/서명'
             candidates = [s for s in sections if norm(s['title']) == key]
         if not candidates:
+            logger.warning('작업 문서 Import 섹션 매핑 실패: source_title=%r normalized=%r', title, key)
             # The document title is already represented by the selected form.
             remaining = [n for n in nodes if n.tag != 'h1']
             if remaining:
@@ -73,6 +111,7 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             continue
         section = candidates[0]
         fields = section.get('fields', [])
+        logger.debug('작업 문서 Import 섹션 매핑: source_title=%r target_section=%r fields=%s', title, section.get('title'), [f.get('label') for f in fields])
         rows = []
         current = {}
         pending_field, pending_nodes = None, []
@@ -97,6 +136,7 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                 flush_field()
                 pending_field = match(heading, fields)
                 if pending_field is None:
+                    logger.warning('작업 문서 Import 필드 매핑 실패: section=%r source_field=%r', title, heading)
                     pending_nodes = [node]
                 continue
             if pending_field is not None:

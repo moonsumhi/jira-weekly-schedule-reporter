@@ -16,17 +16,26 @@ export type ImportImageGroup = {
   images: string[]
 }
 
+export type OriginalFile = {
+  url: string
+  originalName: string
+  contentType?: string | null
+  size?: number | null
+}
+
 export type ImportResult = {
   data: EntryData
   skipped: ImportSkipped[]
   images?: string[]
   imageGroups?: ImportImageGroup[]
+  originalFile?: OriginalFile | null
 }
 
 export type FormEntry = {
   id: string
   templateId: string
   data: EntryData
+  originalFile?: OriginalFile | null
   version: number
   isDeleted: boolean
   createdAt?: string | null
@@ -48,10 +57,18 @@ export const formEntryService = {
     return data
   },
 
-  async create(templateId: string, entryData: EntryData): Promise<FormEntry> {
+  async create(templateId: string, entryData: EntryData, originalFile?: OriginalFile | null): Promise<FormEntry> {
     const { data } = await api.post<FormEntry>('/form-entries', {
       template_id: templateId,
       data: entryData,
+      ...(originalFile ? {
+        original_file: {
+          url: originalFile.url,
+          original_name: originalFile.originalName,
+          content_type: originalFile.contentType,
+          size: originalFile.size,
+        },
+      } : {}),
     })
     return data
   },

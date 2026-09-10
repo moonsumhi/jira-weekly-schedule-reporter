@@ -24,7 +24,7 @@ const props = defineProps<{
   uploadUrl?:   string | undefined
 }>()
 
-const emit = defineEmits<{ 'update:modelValue': [v: string] }>()
+const emit = defineEmits<{ 'update:modelValue': [v: string]; uploading: [value: boolean] }>()
 
 const editorEl   = ref<HTMLElement>()
 let editor: Editor | null = null
@@ -49,10 +49,17 @@ async function uploadImageBlob(blob: Blob | File): Promise<string | null> {
 // 삽입되는 문제가 있었는데, 붙여넣기 방식(단일/다중, hook/직접삽입)과 무관하게
 // 모든 업로드를 하나의 체인으로 묶어 항상 이전 업로드가 끝난 뒤 다음이 시작되도록 한다.
 let uploadChain: Promise<unknown> = Promise.resolve()
+let pendingUploads = 0
 function queueUpload(blob: Blob | File): Promise<string | null> {
+  pendingUploads += 1
+  emit('uploading', true)
   const run = uploadChain.then(() => uploadImageBlob(blob))
   uploadChain = run.then(() => undefined, () => undefined)
-  return run
+  return run.finally(() => {
+    pendingUploads -= 1
+    // Keep saving disabled until the consumer has inserted the returned image.
+    setTimeout(() => emit('uploading', pendingUploads > 0), 0)
+  })
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -159,6 +166,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  emit('uploading', false)
   editorEl.value?.removeEventListener('paste', handlePaste, true)
   editorEl.value?.removeEventListener('compositionstart', () => { isComposing = true }, true)
   editorEl.value?.removeEventListener('compositionend', () => { isComposing = false }, true)

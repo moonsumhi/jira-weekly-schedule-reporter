@@ -76,6 +76,10 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true },
         children: [
           {
+            path: 'forms',
+            component: () => import('pages/jira/FormTemplatePage.vue')
+          },
+          {
             path: 'forms/:id',
             component: () => import('pages/jira/FormTemplatePage.vue')
           }

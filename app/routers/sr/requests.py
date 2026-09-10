@@ -147,8 +147,16 @@ async def list_my_srs(
     current_user: UserPublic = Depends(get_current_user),
 ):
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    requester_ids = [ObjectId(current_user.id)]
+    team = (current_user.team or "").strip()
+    if team:
+        users_col = MongoClientManager.get_users_collection()
+        team_users = await users_col.find(
+            {"team": team, "is_blocked": {"$ne": True}}, {"_id": 1}
+        ).to_list(None)
+        requester_ids.extend(user["_id"] for user in team_users if user.get("_id"))
     q: dict = {
-        "requester_id": ObjectId(current_user.id),
+        "requester_id": {"$in": list(dict.fromkeys(requester_ids))},
         "deleted_at": None,
     }
     if status:
@@ -179,14 +187,22 @@ async def get_sr(
     current_user: UserPublic = Depends(get_current_user),
 ):
     doc = await get_sr_or_404(sr_id)
-    # 요청자는 본인 SR만 열람 가능 (관리자/처리자는 예외)
+    is_same_team = False
+    team = (current_user.team or "").strip()
+    if team and str(doc["requester_id"]) != current_user.id:
+        requester = await MongoClientManager.get_users_collection().find_one(
+            {"_id": doc["requester_id"], "is_blocked": {"$ne": True}}, {"team": 1}
+        )
+        is_same_team = bool(requester and (requester.get("team") or "").strip() == team)
+    # 요청자는 본인 또는 같은 팀의 SR을 열람할 수 있다 (관리자/처리자는 예외).
     if (
         not current_user.is_admin
         and "sr_operator" not in (current_user.permissions or [])
         and "sr_manager" not in (current_user.permissions or [])
         and str(doc["requester_id"]) != current_user.id
+        and not is_same_team
     ):
-        raise HTTPException(status_code=403, detail="본인의 SR만 조회할 수 있습니다.")
+        raise HTTPException(status_code=403, detail="본인 또는 같은 팀의 SR만 조회할 수 있습니다.")
     return SROut(**sr_to_out(doc))
 
 
