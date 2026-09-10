@@ -1,4 +1,4 @@
-import type { FormSection } from '../services/formTemplates'
+import type { FormField, FormSection } from '../services/formTemplates'
 
 export function hasOriginalForm(sections: FormSection[], data: Record<string, unknown>): boolean {
   return sections.some(section => section.title !== '문서 본문' && Object.prototype.hasOwnProperty.call(data, section.title))
@@ -50,6 +50,20 @@ function markdownFieldValue(values: Record<string, unknown>, field: FormSection[
   return fieldValue(raw, field.type, field.label, origin)
 }
 
+function pairedImageLabel(section: FormSection, field: FormField): string | undefined {
+  if (field.pairedImage) return field.pairedImage
+  if (section.title.replace(/\s/g, '') !== '작업결과') return undefined
+  return ({ '작업 전': '작업 전 사진', '작업 후': '작업 후 사진' } as Record<string, string>)[field.label]
+}
+
+function pairedFieldValue(values: Record<string, unknown>, section: FormSection, field: FormField, origin: string): string {
+  const pairedLabel = pairedImageLabel(section, field)
+  if (!pairedLabel) return ''
+  const imageField = section.fields.find((candidate) => candidate.label === pairedLabel && candidate.type === 'image')
+  const pairedField: FormField = imageField ?? { label: pairedLabel, type: 'image' }
+  return markdownFieldValue(values, pairedField, origin)
+}
+
 function tableCellValue(value: string): string {
   // Keep multiline Markdown readable inside one table cell and prevent pipes
   // in user-entered text from being interpreted as additional columns.
@@ -63,12 +77,16 @@ export function formEntryMarkdown(
   origin: string,
 ): string {
   const documentRows = data['문서 본문']
+  const document = Array.isArray(documentRows) && documentRows.length === 1 ? record(documentRows[0]) : null
+  if (document?.['__markdown_override'] === 'true' && document['내용__format'] === 'markdown' && typeof document['내용'] === 'string') {
+    return document['내용'].replace(/(!\[[^\]]*\]\()<?(\/api\/uploads\/[^\s)>]+)>?(\))/g,
+      (_match, start: string, path: string, end: string) => `${start}<${new URL(path, origin).href}>${end}`)
+  }
   // Synced entries keep both the original field data and a generated Markdown
   // snapshot. Rebuild from the original data so formatting changes apply to
   // existing entries as well; legacy Markdown-only entries remain unchanged.
   if (!hasOriginalForm(sections, data) && Array.isArray(documentRows) && documentRows.length === 1) {
-    const document = record(documentRows[0])
-    if (document['내용__format'] === 'markdown' && typeof document['내용'] === 'string') {
+    if (document?.['내용__format'] === 'markdown' && typeof document['내용'] === 'string') {
       return document['내용'].replace(/(!\[[^\]]*\]\()<?(\/api\/uploads\/[^\s)>]+)>?(\))/g,
         (_match, start: string, path: string, end: string) => `${start}<${new URL(path, origin).href}>${end}`)
     }
@@ -77,14 +95,22 @@ export function formEntryMarkdown(
   for (const section of sections) {
     const displayTitle = section.title.replace(/\s/g, '') === '기본정보' ? '작업 개요' : section.title
     lines.push(`## ${escapeText(displayTitle).replace(/\n/g, ' ')}`, '')
+    // Paired photos are rendered inside their corresponding text cell instead
+    // of becoming separate Markdown table columns.
+    const pairedLabels = new Set(section.fields.map((field) => pairedImageLabel(section, field)).filter((label): label is string => Boolean(label)))
+    const visibleFields = section.fields.filter((field) => !pairedLabels.has(field.label))
+    const cellValue = (values: Record<string, unknown>, field: FormField): string => {
+      const content = markdownFieldValue(values, field, origin)
+      const paired = pairedFieldValue(values, section, field, origin)
+      return [content, paired].filter(Boolean).join('\n\n')
+    }
     if (section.multiple) {
       const value = data[section.title]
       const rows = Array.isArray(value) ? value : value ? [value] : []
-      const headers = ['No.', ...section.fields.map((field) => escapeText(field.label).replace(/\n/g, ' '))]
+      const headers = ['No.', ...visibleFields.map((field) => escapeText(field.label).replace(/\n/g, ' '))]
       lines.push(`| ${headers.join(' | ')} |`, `| ${headers.map(() => '---').join(' | ')} |`)
       rows.forEach((row, index) => {
-        const values = section.fields.map((field) =>
-          tableCellValue(markdownFieldValue(record(row), field, origin)))
+        const values = visibleFields.map((field) => tableCellValue(cellValue(record(row), field)))
         lines.push(`| ${[String(index + 1), ...values].join(' | ')} |`)
       })
       lines.push('')
@@ -93,8 +119,8 @@ export function formEntryMarkdown(
 
     const values = record(data[section.title])
     lines.push('| 항목 | 내용 |', '| --- | --- |')
-    for (const field of section.fields) {
-      const content = markdownFieldValue(values, field, origin)
+    for (const field of visibleFields) {
+      const content = cellValue(values, field)
       lines.push(`| ${escapeText(field.label).replace(/\n/g, ' ')} | ${tableCellValue(content)} |`)
     }
     lines.push('')

@@ -9,6 +9,14 @@ def original_form_markup(form: dict) -> str:
     data = form['data']
     output = [f"<h1>{escape(form['title'])}</h1>"]
 
+    def paired_image_label(section, field):
+        image_label = field.get('pairedImage') or field.get('paired_image')
+        if image_label:
+            return image_label
+        if section.get('title', '').replace(' ', '') != '작업결과':
+            return None
+        return {'작업 전': '작업 전 사진', '작업 후': '작업 후 사진'}.get(field.get('label'))
+
     def content(row, field):
         value = row.get(field['label'])
         if field.get('type') == 'image':
@@ -26,7 +34,7 @@ def original_form_markup(form: dict) -> str:
         value = data.get(section['title'], [] if section.get('multiple') else {})
         rows = value if isinstance(value, list) else [value]
         rows = [row for row in rows if isinstance(row, dict)]
-        paired = {field.get('pairedImage') or field.get('paired_image') for field in fields}
+        paired = {paired_image_label(section, field) for field in fields}
         visible = [field for field in fields if field['label'] not in paired]
         if section['title'] == '작업 대상':
             notes = [field for field in visible if field['label'] == '비고']
@@ -36,7 +44,7 @@ def original_form_markup(form: dict) -> str:
 
         def cell(row, field):
             result = content(row, field)
-            image_label = field.get('pairedImage') or field.get('paired_image')
+            image_label = paired_image_label(section, field)
             if image_label:
                 result += content(row, {'label': image_label, 'type': 'image'})
             return result

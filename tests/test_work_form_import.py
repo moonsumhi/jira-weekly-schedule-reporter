@@ -29,3 +29,43 @@ class OriginalFormImportTests(unittest.TestCase):
         data, _ = map_document(markdown, sections)
         self.assertEqual([r['IP'] for r in data['작업 대상']], ['첫번째', '두번째'])
         self.assertIn('보존', data[EXTRA][0]['내용'])
+
+    def test_legacy_review_and_test_titles_map_to_current_sections(self):
+        sections = [
+            {'title': '검토의견', 'fields': [{'label': '성함/직책', 'type': 'text'}]},
+            {'title': '테스트 케이스', 'fields': [{'label': '테스트 결과', 'type': 'textarea'}]},
+        ]
+        markdown = '''## 검토/서명
+
+### 성함/직책
+
+검토 담당자
+
+## 테스트 결과
+
+### 테스트 결과
+
+정상 처리'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['검토의견']['성함/직책'], '검토 담당자')
+        self.assertEqual(data['테스트 케이스']['테스트 결과'], '정상 처리')
+        self.assertFalse(warnings)
+
+    def test_old_success_and_failure_sections_map_to_one_test_section(self):
+        sections = [
+            {'title': '테스트 케이스', 'multiple': True, 'fields': [{'label': '테스트 결과', 'type': 'textarea'}]},
+        ]
+        markdown = '''## 테스트 케이스(성공)
+
+### 테스트 결과
+
+정상 처리
+
+## 테스트 케이스(실패)
+
+### 테스트 결과
+
+실패 재현'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual([row['테스트 결과'] for row in data['테스트 케이스']], ['정상 처리', '실패 재현'])
+        self.assertFalse(warnings)

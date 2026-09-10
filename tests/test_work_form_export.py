@@ -35,3 +35,31 @@ class OriginalFormExportTests(unittest.TestCase):
             self.assertTrue(root.xpath('//*[local-name()="tc"]//*[local-name()="tbl"]'))
             self.assertIn('완료', ''.join(root.itertext()))
         self.assertTrue(export_hwp(markup).startswith(bytes.fromhex('d0cf11e0a1b11ae1')))
+
+    def test_result_photo_fields_are_inlined_without_standalone_columns(self):
+        form = {
+            'title': '작업결과서',
+            'sections': [{
+                'title': '작업 결과',
+                'multiple': True,
+                'fields': [
+                    {'label': '작업 전', 'type': 'textarea'},
+                    {'label': '작업 후', 'type': 'textarea'},
+                    {'label': '작업 전 사진', 'type': 'image'},
+                    {'label': '작업 후 사진', 'type': 'image'},
+                ],
+            }],
+            'data': {
+                '작업 결과': [{
+                    '작업 전': '변경 전',
+                    '작업 후': '변경 후',
+                    '작업 전 사진': ['/api/uploads/before.png'],
+                    '작업 후 사진': ['/api/uploads/after.png'],
+                }],
+            },
+        }
+        markup = original_form_markup(form)
+        self.assertNotIn('<th>작업 전 사진</th>', markup)
+        self.assertNotIn('<th>작업 후 사진</th>', markup)
+        self.assertIn('/api/uploads/before.png', markup)
+        self.assertIn('/api/uploads/after.png', markup)

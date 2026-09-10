@@ -18,9 +18,17 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         value = re.sub(r'[\s\u00a0\u3000]+', '', value)
         value = re.sub(r'[\[\]():：·•/\\._-]+', '', value)
         return value
+    # Keys are normalized source titles. Values are preferred target section
+    # titles used by the current work-document templates.
     aliases = {'작업개요': '기본정보', '백업및복구방안': '백업및복구방법', '작업자': '작업자정보',
-               '검토의견': '검토/서명', '세부작업절차': '작업시간표', '사전작업': '사전점검',
-               '테스트계획': '테스트케이스', '테스트결과': '테스트케이스(성공)', '테스트결과분석': '테스트케이스(실패)'}
+               '검토서명': '검토의견', '검토의견': '검토/서명', '세부작업절차': '작업시간표', '사전작업': '사전점검',
+               '테스트계획': '테스트케이스', '테스트결과': '테스트케이스', '테스트결과분석': '테스트케이스',
+               '테스트케이스성공': '테스트케이스', '테스트케이스실패': '테스트케이스'}
+    preferred_alias_sources = {
+        '작업개요', '백업및복구방안', '작업자', '검토서명', '세부작업절차',
+        '사전작업', '테스트계획', '테스트결과', '테스트결과분석',
+        '테스트케이스성공', '테스트케이스실패',
+    }
     data = {s['title']: [] if s.get('multiple') else {} for s in sections}
     extras = []
     logger.info('작업 문서 Import 매핑 시작: template_sections=%s', [s.get('title') for s in sections])
@@ -91,13 +99,19 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
 
     for title, nodes in blocks:
         source_key = norm(title)
-        # Prefer an exact section title. Legacy aliases are only a fallback
-        # for older templates that do not contain the source section name.
+        # Prefer the canonical target for known source titles. Fall back to an
+        # exact title when a custom template does not define that target.
+        preferred_title = aliases.get(source_key) if source_key in preferred_alias_sources else None
         key = source_key
-        candidates = [s for s in sections if norm(s['title']) == source_key]
-        if not candidates and source_key in aliases:
+        if preferred_title:
+            key = preferred_title
+        candidates = [s for s in sections if norm(s['title']) == norm(key)]
+        if not candidates and preferred_title:
+            key = source_key
+            candidates = [s for s in sections if norm(s['title']) == source_key]
+        if not candidates and source_key in aliases and source_key not in preferred_alias_sources:
             key = aliases[source_key]
-            candidates = [s for s in sections if norm(s['title']) == key]
+            candidates = [s for s in sections if norm(s['title']) == norm(key)]
         if source_key == '담당자' and not candidates:
             headings = {norm(''.join(n.itertext())) for node in nodes for n in node.xpath('.//th')}
             key = '작업자정보' if '역할' in headings else '검토/서명'

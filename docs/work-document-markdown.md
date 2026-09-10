@@ -11,7 +11,9 @@
 작업관리의 신규 문서는 문서 종류를 선택한 뒤 원본 양식으로 작성한다. HWP, HWPX, DOC, DOCX, PDF Import는 `POST /form-entries/import-form`에 파일과 `template_id`를 전송한다. 변환 결과를 양식의 항목에 매핑하고 원본 양식 편집 화면에서 확인한 후 저장한다. 글·사진은 textarea 필드의 Markdown으로 순서를 유지한다. 매핑되지 않는 부분은 `가져온 추가 내용`에 보존하고 상세·수정·Markdown 생성에 포함한다. Import 자체는 문서를 생성하지 않으며 사용자가 저장할 때 생성한다.
 
 - `POST /form-entries/import-markdown`: 인증된 사용자에게 변환된 Markdown과 변환 안내를 반환한다. 파일 최대 크기는 50MB이다. Import만으로 문서 목록에 등록하지 않는다.
+- `POST /form-entries/import-form`은 Import에 사용한 원본 파일(HWP/HWPX/DOC/DOCX/PDF)을 함께 보존한다. 상세의 `원본 PDF 다운로드` 같은 버튼은 저장된 파일을 그대로 내려받으며, 수정본 HWP는 추출된 원본 필드에서 새로 생성되므로 PDF의 페이지 배치와 동일하지 않을 수 있다.
 - 기존 생성·수정 API는 `data["문서 본문"][0]`에 제목, 작업 일시, 내용, `내용__format=markdown`을 저장한다. 본문은 `/app/uploads/work_documents/markdown/<uuid>.md`에도 UTF-8로 저장하며 DB의 `markdown_file`이 해당 저장본을 가리킨다. 매 저장마다 새 파일을 만든다.
+- 상세 화면의 `Markdown 수정`은 본문을 직접 편집해 저장하며, 원본 양식 데이터는 유지한 채 `__markdown_override=true` 표시로 Markdown 버전을 우선 사용한다. 이후 원본 양식 수정으로 저장하면 다시 양식 데이터에서 Markdown을 생성한다.
 - 사진은 업로드 디렉터리에 따로 저장하고 Markdown에서 상대 URL로 참조한다. `.md` 내보내기에서는 서버의 절대 URL로 바꾼다.
 - `GET /form-entries/{entry_id}/export-hwpx`: 저장된 Markdown에서 한글 표준 문서 `.hwpx`를 생성한다. 사진은 서버 업로드 파일에서 읽어 HWPX 안에 포함한다. 외부 URL은 요청하지 않는다.
 - 기존 항목별 문서는 상세와 수정에서 원본 양식을 유지한다. 저장 시 기존 이미지도 업로드 URL로 변환하고 원본 항목과 Markdown을 함께 보존한다.

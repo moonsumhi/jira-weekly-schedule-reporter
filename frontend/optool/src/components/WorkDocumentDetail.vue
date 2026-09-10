@@ -134,10 +134,12 @@
       <footer class="document-footer">
         <span class="footer-note"><q-icon name="description" />{{ title }}</span><q-space />
         <q-btn flat no-caps label="닫기" @click="close" />
+        <q-btn outline no-caps icon="edit_note" label="Markdown 수정" :disable="loading || !entry || entry.isDeleted" @click="emit('edit-markdown')" />
         <q-btn-dropdown outline no-caps icon="download" label="내보내기" :loading="exporting" :disable="loading || !entry || exporting">
           <q-list>
             <q-item clickable v-close-popup @click="emit('export')"><q-item-section>Markdown (.md)</q-item-section></q-item>
-            <q-item clickable v-close-popup :disable="!entry?.originalFile" @click="emit('download-original')"><q-item-section>원본 파일 다운로드</q-item-section></q-item>
+            <q-item clickable v-close-popup :disable="!entry?.originalFile" @click="emit('download-original')"><q-item-section>{{ originalDownloadLabel }}</q-item-section></q-item>
+            <q-item clickable v-close-popup @click="emit('export-file', 'hwp')"><q-item-section>수정본 HWP (.hwp)</q-item-section></q-item>
             <q-item clickable v-close-popup @click="emit('export-file', 'docx')"><q-item-section>Word (.docx)</q-item-section></q-item>
           </q-list>
         </q-btn-dropdown>
@@ -164,6 +166,12 @@ const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEn
 const view = ref<'markdown'>('markdown')
 const hasOriginal = computed(() => hasOriginalForm(props.sections, props.entry?.data ?? {}))
 const markdown = computed(() => formEntryMarkdown(props.title, props.sections, props.entry?.data ?? {}, window.location.origin))
+const originalDownloadLabel = computed(() => {
+  const name = props.entry?.originalFile?.originalName ?? ''
+  const extension = name.includes('.') ? name.slice(name.lastIndexOf('.')).toLowerCase() : ''
+  const format = extension ? extension.slice(1).toUpperCase() : '파일'
+  return `원본 ${format} 다운로드`
+})
 watch(() => [props.modelValue, props.entry?.id, props.loading], () => {
   view.value = 'markdown'
 })
@@ -193,7 +201,7 @@ function tableFields(section: FormSection): FormField[] {
   ordered.splice(hostnameIndex >= 0 ? hostnameIndex + 1 : ordered.length, 0, note)
   return ordered
 }
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; edit: []; export: []; 'export-file': [format: 'docx']; 'download-original': [] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; edit: []; 'edit-markdown': []; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': [] }>()
 const scrollArea = ref<HTMLElement | null>(null)
 const activeSection = ref(0)
 const previewSource = ref('')

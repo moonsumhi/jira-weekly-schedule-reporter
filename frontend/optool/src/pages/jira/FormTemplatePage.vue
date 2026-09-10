@@ -331,6 +331,7 @@
       :title="template?.title ?? ''"
       :sections="sections"
       @edit="editDetail"
+      @edit-markdown="editMarkdownDetail"
       @export="exportDetailMarkdown"
       @export-file="exportDetailFile"
       @download-original="downloadOriginalFile"
@@ -520,6 +521,7 @@ function onFormDialogModelUpdate(val: boolean): void {
 }
 
 const documentMode = ref(false)
+const markdownEditMode = ref(false)
 const documentSections: FormSection[] = [{ title: '문서 본문', multiple: true, fields: [
   { label: '제목', type: 'text', required: true, fullWidth: true },
   { label: '작업 일시', type: 'date' },
@@ -531,8 +533,14 @@ function originalSections(data: Record<string, unknown>): FormSection[] {
 }
 const sections = computed<FormSection[]>(() => documentMode.value ? documentSections : originalSections(formDialog.value ? formValues.value : detailRow.value?.data ?? {}))
 
-function documentData(title: string, markdown: string): Record<string, SectionValue> {
-  return { '문서 본문': [{ '제목': title, '내용': markdown, '내용__format': 'markdown' }] }
+function documentData(title: string, markdown: string, editable = false): Record<string, SectionValue> {
+  return { '문서 본문': [{ '제목': title, '내용': markdown, '내용__format': 'markdown', ...(editable ? { '__markdown_override': 'true' } : {}) }] }
+}
+
+function hasMarkdownOverride(data: Record<string, unknown>): boolean {
+  const rows = data['문서 본문']
+  const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : undefined
+  return !!row && typeof row === 'object' && !Array.isArray(row) && (row as Record<string, unknown>)['__markdown_override'] === 'true'
 }
 
 const columns = computed(() => [
@@ -865,6 +873,7 @@ async function handleFileImport(event: Event) {
       if (request !== pageRequest) return
       template.value = targetTemplate
       documentMode.value = false
+      markdownEditMode.value = false
       formValues.value = data.data
       importedOriginalFile.value = data.originalFile ?? null
       for (const section of targetTemplate.sections) {
@@ -920,6 +929,7 @@ async function handleFileImport(event: Event) {
 
 function openCreate() {
   documentMode.value = false
+  markdownEditMode.value = false
   isEdit.value = false
   editingId.value = null
   importedOriginalFile.value = null
@@ -934,7 +944,7 @@ function openCreate() {
   formDialog.value = true
 }
 
-async function openEdit(row: FormEntry) {
+async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
   const selectedTemplate = entryTemplate(row)
   if (!selectedTemplate) return
   const request = pageRequest
@@ -944,9 +954,21 @@ async function openEdit(row: FormEntry) {
   if (request !== pageRequest) return
   template.value = selectedTemplate
   isEdit.value = true
-  editingId.value = row.id
-  editingVersion.value = fullEntry.version
-  documentMode.value = !!fullEntry.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, fullEntry.data)
+   editingId.value = row.id
+   editingVersion.value = fullEntry.version
+   markdownEditMode.value = mode === 'markdown'
+   if (markdownEditMode.value) {
+     documentMode.value = true
+     formValues.value = documentData(
+       selectedTemplate.title,
+       formEntryMarkdown(selectedTemplate.title, originalSections(fullEntry.data), fullEntry.data, window.location.origin),
+       true,
+     )
+     snapshotFormValues()
+     formDialog.value = true
+     return
+   }
+   documentMode.value = !!fullEntry.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, fullEntry.data)
   if (documentMode.value) {
     const legacy = structuredClone(fullEntry.data)
     if (!legacy['문서 본문']) {
@@ -1003,16 +1025,27 @@ function editDetail() {
   void openEdit(detailRow.value)
 }
 
+function editMarkdownDetail() {
+  if (detailLoading.value || !detailRow.value || detailRow.value.isDeleted) return
+  detailDialog.value = false
+  void openEdit(detailRow.value, 'markdown')
+}
+
 const exportingDocument = ref(false)
-async function exportDetailFile(format: 'docx') {
+async function exportDetailFile(format: 'hwp' | 'docx') {
   if (detailLoading.value || !detailRow.value || !template.value || exportingDocument.value) return
   const title = template.value.title
   const filename = markdownFileName(title, detailRow.value.id).replace(/\.md$/, `.${format}`)
   const markdown = formEntryMarkdown(title, sections.value, detailRow.value.data, window.location.origin)
+  const originalName = detailRow.value.originalFile?.originalName ?? ''
+  const sourceExtension = originalName.includes('.') ? originalName.slice(originalName.lastIndexOf('.')).toLowerCase() : ''
+  if (format === 'hwp' && sourceExtension === '.pdf') {
+    $q.notify({ type: 'info', timeout: 4500, message: 'PDF 원본은 원본 PDF로 다운로드할 수 있으며, HWP는 수정된 항목을 기준으로 재생성됩니다.' })
+  }
   exportingDocument.value = true
   try {
     const original = originalSections(detailRow.value.data)
-    const original_form = hasOriginalForm(original, detailRow.value.data)
+    const original_form = !hasMarkdownOverride(detailRow.value.data) && hasOriginalForm(original, detailRow.value.data)
       ? { title, sections: original, data: detailRow.value.data } : undefined
     const { data } = await api.post<Blob>('/form-entries/export-document', { markdown, format, original_form }, { responseType: 'blob', timeout: 120000 })
     if (exportFile(filename, data) !== true) throw new Error('download failed')
@@ -1048,6 +1081,7 @@ async function openDetail(row: FormEntry) {
   const selectedTemplate = entryTemplate(row)
   if (!selectedTemplate) return
   template.value = selectedTemplate
+  markdownEditMode.value = false
   documentMode.value = !!row.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, row.data)
   detailRow.value = row
   detailDialog.value = true
@@ -1093,6 +1127,11 @@ function validate(): boolean {
 }
 
 async function saveData(): Promise<Record<string, SectionValue>> {
+  if (markdownEditMode.value && template.value && detailRow.value) {
+    const merged = structuredClone(detailRow.value.data) as Record<string, SectionValue>
+    merged['문서 본문'] = structuredClone(formValues.value['문서 본문'] ?? [])
+    return merged
+  }
   if (!isJobPage.value || documentMode.value || !template.value) return formValues.value
   const original = JSON.parse(JSON.stringify(formValues.value)) as Record<string, SectionValue>
   for (const section of template.value.sections) {
