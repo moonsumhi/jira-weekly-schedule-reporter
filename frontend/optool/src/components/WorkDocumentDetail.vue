@@ -43,7 +43,7 @@
 
             <template v-if="view === 'markdown'">
               <p class="text-grey-7">{{ hasOriginal ? '원본 양식과 같은 버전입니다. 원본 양식에서 수정해 저장하면 Markdown에도 반영됩니다.' : '이 문서는 Markdown으로 저장되어 원본 양식 데이터가 없습니다.' }}</p>
-              <WorkResultContent :content="markdown" />
+              <WorkResultContent :content="markdown" :section-titles="markdownSectionTitles" />
             </template>
             <template v-else>
             <section v-for="(section, index) in sections" :key="index" :data-section-index="index" class="document-section">
@@ -139,7 +139,7 @@
           <q-list>
             <q-item clickable v-close-popup @click="emit('export')"><q-item-section>Markdown (.md)</q-item-section></q-item>
             <q-item clickable v-close-popup :disable="!entry?.originalFile" @click="emit('download-original')"><q-item-section>{{ originalDownloadLabel }}</q-item-section></q-item>
-            <q-item clickable v-close-popup @click="emit('export-file', 'hwp')"><q-item-section>수정본 HWP (.hwp)</q-item-section></q-item>
+            <q-item clickable v-close-popup @click="emit('export-file', 'hwp')"><q-item-section>HWP 내보내기</q-item-section></q-item>
             <q-item clickable v-close-popup @click="emit('export-file', 'docx')"><q-item-section>Word (.docx)</q-item-section></q-item>
           </q-list>
         </q-btn-dropdown>
@@ -166,12 +166,10 @@ const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEn
 const view = ref<'markdown'>('markdown')
 const hasOriginal = computed(() => hasOriginalForm(props.sections, props.entry?.data ?? {}))
 const markdown = computed(() => formEntryMarkdown(props.title, props.sections, props.entry?.data ?? {}, window.location.origin))
-const originalDownloadLabel = computed(() => {
-  const name = props.entry?.originalFile?.originalName ?? ''
-  const extension = name.includes('.') ? name.slice(name.lastIndexOf('.')).toLowerCase() : ''
-  const format = extension ? extension.slice(1).toUpperCase() : '파일'
-  return `원본 ${format} 다운로드`
-})
+const markdownSectionTitles = computed(() => props.sections.map((section) =>
+  section.title.replace(/\s/g, '') === '기본정보' ? '작업 개요' : section.title,
+))
+const originalDownloadLabel = '원본 파일 다운로드'
 watch(() => [props.modelValue, props.entry?.id, props.loading], () => {
   view.value = 'markdown'
 })

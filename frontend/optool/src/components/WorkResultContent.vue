@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { marked, Renderer } from 'marked'
-const props = defineProps<{ content: string }>()
+const props = defineProps<{ content: string; sectionTitles?: string[] }>()
 const previewOpen = ref(false)
 const previewSource = ref('')
 const previewAlt = ref('')
@@ -23,12 +23,24 @@ function openImage(event: MouseEvent | KeyboardEvent) {
   previewOpen.value = true
 }
 function escapeHtml(text: string) { return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
+function normalizeHeading(text: string) {
+  return text.replace(/<[^>]+>/g, '').replace(/\s/g, '').trim()
+}
 function safeUrl(href: string, image: boolean): boolean {
   if (image && /^data:image\/(png|jpeg|gif|webp);base64,/i.test(href)) return true
   try { return (image ? ['http:', 'https:'] : ['http:', 'https:', 'mailto:']).includes(new URL(href, window.location.origin).protocol) }
   catch { return false }
 }
 const renderer = new Renderer()
+renderer.heading = (text, level) => {
+  const sectionIndex = level === 2
+    ? (props.sectionTitles ?? []).findIndex(title => normalizeHeading(title) === normalizeHeading(text))
+    : -1
+  const attributes = sectionIndex >= 0
+    ? ` id="document-section-${sectionIndex}" data-section-index="${sectionIndex}"`
+    : ''
+  return `<h${level}${attributes}>${text}</h${level}>\n`
+}
 renderer.table = (header, body) => `<div class="work-table-scroll" tabindex="0" role="region" aria-label="문서 표, 가로 스크롤 가능"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`
 renderer.html = (html) => /^<br\s*\/?\s*>$/i.test(html.trim()) ? '<br>' : escapeHtml(html)
 renderer.link = (href, _title, text) => href && safeUrl(href, false) ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${text}</a>` : text
