@@ -4,7 +4,6 @@
       <div class="col-12 col-md-9">
         <div class="row items-center q-mb-sm">
           <div class="text-subtitle1 text-weight-bold col">메뉴</div>
-          <q-btn icon="add" label="추가" color="primary" size="sm" @click="openCreateMenu" />
         </div>
 
         <q-list bordered>
@@ -51,7 +50,7 @@
             <div class="q-pl-md q-pb-sm">
               <div class="row items-center q-py-xs q-px-sm">
                 <span class="text-caption text-grey col">하위 메뉴</span>
-                <q-btn v-if="!menu.isSystem && menu.slug !== 'asset'" icon="add" label="추가" size="xs" flat color="primary" @click.stop="openCreateSub(menu)" />
+                <q-btn v-if="menu.slug === 'board'" icon="add" label="게시판 추가" size="xs" flat color="primary" @click.stop="openCreateSub(menu)" />
               </div>
 
               <q-list dense separator>
@@ -187,7 +186,7 @@
       <div class="col-12 col-md-3 flex items-start">
         <div class="text-grey text-caption q-pt-xs">
           <q-icon name="fa-solid fa-info-circle" size="xs" class="q-mr-xs" />
-          메뉴를 펼치면 하위 메뉴를 관리할 수 있습니다
+          게시판 메뉴를 펼치면 하위 게시판을 추가할 수 있습니다. 시스템 메뉴는 새로 추가할 수 없습니다.
         </div>
       </div>
     </div>
@@ -195,7 +194,7 @@
     <!-- 메뉴 다이얼로그 -->
     <q-dialog v-model="menuDialog" persistent>
       <q-card style="min-width: 380px">
-        <q-card-section class="text-h6">{{ editMenuTarget ? '메뉴 수정' : '메뉴 추가' }}</q-card-section>
+        <q-card-section class="text-h6">메뉴 설정</q-card-section>
         <q-card-section class="q-gutter-sm">
           <template v-if="!editMenuTarget?.isSystem">
             <q-input v-model="menuForm.title" label="메뉴 이름" outlined dense />
@@ -212,7 +211,7 @@
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
-          <q-btn color="primary" :label="editMenuTarget ? '수정' : '추가'" @click="submitMenu" :loading="saving" />
+          <q-btn color="primary" label="저장" @click="submitMenu" :loading="saving" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -233,20 +232,57 @@
 
     <!-- 하위 메뉴 다이얼로그 -->
     <q-dialog v-model="subDialog" persistent @show="onSubDialogShow">
-      <q-card style="min-width: 380px">
-        <q-card-section class="text-h6">{{ editSubTarget ? '하위 메뉴 수정' : '하위 메뉴 추가' }}</q-card-section>
-        <q-card-section class="q-gutter-sm">
-          <q-input ref="subTitleInputRef" v-model="subForm.title" label="이름" outlined dense />
-          <q-input v-model="subForm.description" label="설명 (선택)" outlined dense />
-          <div>
-            <div class="text-caption text-grey q-mb-xs">아이콘</div>
-            <IconPicker v-model="subForm.icon" />
+      <q-card class="board-dialog">
+        <q-card-section class="row items-start no-wrap q-pb-md">
+          <q-avatar color="blue-1" text-color="primary" size="42px" class="q-mr-md">
+            <q-icon name="fa-solid fa-clipboard-list" size="20px" />
+          </q-avatar>
+          <div class="col">
+            <div class="text-subtitle1 text-weight-bold">
+              {{ editSubTarget ? '게시판 수정' : '게시판 추가' }}
+            </div>
+            <div class="text-caption text-grey-6 q-mt-xs">
+              사이드바 게시판 메뉴 아래에 표시됩니다.
+            </div>
           </div>
-          <q-input v-model="subForm.link" label="링크 (비우면 게시판으로 이동)" outlined dense />
+          <q-btn flat round dense icon="close" color="grey-6" aria-label="닫기" v-close-popup />
         </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="취소" v-close-popup />
-          <q-btn color="primary" :label="editSubTarget ? '수정' : '추가'" @click="submitSub" :loading="saving" />
+
+        <q-separator />
+
+        <q-card-section class="board-dialog__body">
+          <div class="board-dialog__field">
+            <label class="board-dialog__label">게시판 이름 <span class="text-negative">*</span></label>
+            <q-input
+              ref="subTitleInputRef"
+              v-model="subForm.title"
+              outlined
+              dense
+              maxlength="40"
+              placeholder="예: 업무 공유, 운영 공지"
+              hide-bottom-space
+            />
+          </div>
+
+          <div class="board-dialog__field">
+            <label class="board-dialog__label">메뉴 아이콘</label>
+            <div class="board-dialog__icon-box">
+              <IconPicker v-model="subForm.icon" />
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-separator />
+
+        <q-card-actions align="right" class="q-px-lg q-py-md">
+          <q-btn flat no-caps label="취소" color="grey-7" v-close-popup />
+          <q-btn
+            unelevated no-caps color="primary"
+            :label="editSubTarget ? '저장' : '추가'"
+            :disable="!subForm.title.trim()"
+            :loading="saving"
+            @click="submitSub"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -328,7 +364,7 @@ function systemSubsOf(menu: MenuOut): { title: string; icon: string; link: strin
 const subDialog = ref(false)
 const editSubTarget = ref<BoardOut | null>(null)
 const subMenuTarget = ref<MenuOut | null>(null)
-const subForm = ref({ title: '', description: '', icon: 'fa-solid fa-clipboard-list', link: '' })
+const subForm = ref({ title: '', icon: 'fa-solid fa-clipboard-list' })
 const subTitleInputRef = ref<QInput | null>(null)
 
 // autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
@@ -523,13 +559,6 @@ async function onSysSubDragEnd(menu: MenuOut) {
   }
 }
 
-// ── 메뉴 ──
-function openCreateMenu() {
-  editMenuTarget.value = null
-  menuForm.value = { title: '', icon: 'fa-solid fa-folder', is_visible: true, link: '' }
-  menuDialog.value = true
-}
-
 function openEditMenu(menu: MenuOut) {
   editMenuTarget.value = menu
   menuForm.value = { title: menu.title, icon: menu.icon, is_visible: menu.isVisible, link: menu.link ?? '' }
@@ -537,7 +566,7 @@ function openEditMenu(menu: MenuOut) {
 }
 
 async function submitMenu() {
-  if (!menuForm.value.title) return
+  if (!editMenuTarget.value || !menuForm.value.title) return
   saving.value = true
   try {
     const payload = {
@@ -546,11 +575,7 @@ async function submitMenu() {
       is_visible: menuForm.value.is_visible,
       link: menuForm.value.link || null,
     }
-    if (editMenuTarget.value) {
-      await menuService.patch(editMenuTarget.value.id, payload)
-    } else {
-      await menuService.create(payload)
-    }
+    await menuService.patch(editMenuTarget.value.id, payload)
     menuDialog.value = false
     await load()
   } catch {
@@ -596,24 +621,23 @@ function confirmDeleteMenu(menu: MenuOut) {
 function openCreateSub(menu: MenuOut) {
   subMenuTarget.value = menu
   editSubTarget.value = null
-  subForm.value = { title: '', description: '', icon: 'fa-solid fa-clipboard-list', link: '' }
+  subForm.value = { title: '', icon: 'fa-solid fa-clipboard-list' }
   subDialog.value = true
 }
 
 function openEditSub(sub: BoardOut) {
   editSubTarget.value = sub
-  subForm.value = { title: sub.title, description: sub.description, icon: sub.icon ?? 'fa-solid fa-clipboard-list', link: sub.link ?? '' }
+  subForm.value = { title: sub.title, icon: sub.icon ?? 'fa-solid fa-clipboard-list' }
   subDialog.value = true
 }
 
 async function submitSub() {
-  if (!subForm.value.title) return
+  const title = subForm.value.title.trim()
+  if (!title) return
   saving.value = true
   const payload = {
-    title: subForm.value.title,
-    description: subForm.value.description,
+    title,
     icon: subForm.value.icon || null,
-    link: subForm.value.link || null,
   }
   try {
     if (editSubTarget.value) {
@@ -660,5 +684,41 @@ onMounted(load)
 .drag-ghost {
   opacity: 0.4;
   background: #c8ebfb;
+}
+
+.board-dialog {
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  border-radius: 12px;
+}
+
+.board-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 22px 24px;
+}
+
+.board-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.board-dialog__label {
+  color: #424242;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.board-dialog__icon-box {
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.board-dialog__icon-box :deep(.text-caption) {
+  display: none;
 }
 </style>
