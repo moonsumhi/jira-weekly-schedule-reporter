@@ -156,6 +156,26 @@ async def patch_issue(
     if "label_ids" in patch:
         update["label_ids"] = [ObjectId(x) for x in patch.pop("label_ids")]
     update.update(patch)
+
+    # Task는 생성 화면과 동일하게 담당자, 상위 Epic, 시작일, 마감일이
+    # 모두 있어야 타입 변경을 허용한다.  기존 Epic을 먼저 Task로 바꾼
+    # 뒤 필수값을 나중에 채우는 부분 저장을 서버에서도 차단한다.
+    if update.get("type") == "TASK" and old.get("type") != "TASK":
+        task_required = {
+            "assignee_id": "담당자",
+            "epic_id": "상위 Epic",
+            "start_date": "시작일",
+            "due_date": "마감일",
+        }
+        missing = [
+            label for field, label in task_required.items()
+            if not update.get(field, old.get(field))
+        ]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Task 타입은 {', '.join(missing)}이(가) 필수입니다.",
+            )
     update["updated_at"] = datetime.now(timezone.utc)
 
     new_doc = await col.find_one_and_update(
