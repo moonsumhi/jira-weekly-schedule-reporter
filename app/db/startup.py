@@ -15,6 +15,7 @@ _SYSTEM_MENUS = [
     {"slug": "job",      "title": "작업 관리",   "icon": "fa-solid fa-briefcase",  "sort_order": 2},
     {"slug": "asset",    "title": "자산",        "icon": "fa-solid fa-computer",   "sort_order": 3},
     {"slug": "watch",    "title": "당직 시간표", "icon": "fa-solid fa-clock",      "sort_order": 4},
+    {"slug": "board",    "title": "게시판",      "icon": "fa-solid fa-clipboard-list", "sort_order": 5},
     {"slug": "calendar", "title": "팀캘린더",    "icon": "fa-solid fa-calendar",   "sort_order": 6},
     {"slug": "pm",           "title": "스케줄 관리",  "icon": "fa-solid fa-diagram-project",  "sort_order": 7},
     {"slug": "sr",           "title": "SR",           "icon": "fa-solid fa-paper-plane",      "sort_order": 8},
@@ -88,6 +89,19 @@ async def seed_system_menus() -> None:
     menus_col = MongoClientManager.get_menus_collection()
     for sm in _SYSTEM_MENUS:
         existing = await menus_col.find_one({"slug": sm["slug"]})
+        if not existing and sm["slug"] == "board":
+            # 과거에는 게시판 상위 메뉴도 관리자가 직접 생성했다. 같은 이름의
+            # 레거시 메뉴를 시스템 메뉴로 승격해 하위 게시판·게시글 연결을 보존한다.
+            legacy = await menus_col.find_one({
+                "title": "게시판",
+                "$or": [{"slug": {"$exists": False}}, {"slug": None}],
+            })
+            if legacy:
+                await menus_col.update_one(
+                    {"_id": legacy["_id"]},
+                    {"$set": {"slug": "board", "is_system": True}},
+                )
+                existing = legacy
         if not existing:
             await menus_col.insert_one({
                 **sm,
