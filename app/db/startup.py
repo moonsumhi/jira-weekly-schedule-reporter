@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+import re
+from copy import deepcopy
 from datetime import datetime, timezone
 
 from app.db.mongo import MongoClientManager
@@ -257,7 +259,7 @@ _RESULT_BEFORE_AFTER = {
     ],
 }
 _RESULT_TEST_SUCCESS = {
-    "title": "테스트 케이스(성공)",
+    "title": "테스트 케이스",
     "multiple": True,
     "fields": [
         {"label": "테스트 케이스 ID", "type": "text", "required": False},
@@ -265,16 +267,6 @@ _RESULT_TEST_SUCCESS = {
         {"label": "시간",            "type": "text", "required": False},
         {"label": "발견된 이슈",     "type": "text", "required": False},
         {"label": "담당자",          "type": "text", "required": False},
-    ],
-}
-_RESULT_TEST_FAIL = {
-    "title": "테스트 케이스(실패)",
-    "multiple": True,
-    "fields": [
-        {"label": "테스트 케이스 ID",       "type": "text",     "required": False},
-        {"label": "실패 원인",              "type": "textarea", "required": False},
-        {"label": "이슈 해결 방안",         "type": "textarea", "required": False},
-        {"label": "해결 방안 적용 계획 일자","type": "text",     "required": False},
     ],
 }
 
@@ -360,7 +352,6 @@ _JOB_FORM_TEMPLATES = [
             _PLAN_REVIEW,
             _RESULT_BEFORE_AFTER,
             _RESULT_TEST_SUCCESS,
-            _RESULT_TEST_FAIL,
         ],
     },
     {
@@ -654,6 +645,76 @@ async def seed_job_form_templates() -> None:
             )
 
 
+def _job_section_key(value: object) -> str:
+    return re.sub(r"[\s()]+", "", str(value or "")).lower()
+
+
+async def migrate_job_test_case_sections() -> None:
+    """작업결과서의 성공/실패 테스트 섹션을 하나의 테스트 케이스로 통합한다.
+
+    기존 템플릿은 구조만 바꾸고, 기존 결과 데이터의 성공 행은 새 섹션명으로
+    옮긴다. 실패 데이터는 삭제하지 않고 DB에 남겨 두어 원본 보존을 유지한다.
+    """
+    templates = MongoClientManager.get_form_templates_collection()
+    entries = MongoClientManager.get_form_entries_collection()
+    async for template in templates.find({"is_deleted": {"$ne": True}}):
+        if template.get("menu") not in ("Job", "job", None) or "작업" not in str(template.get("title", "")):
+            continue
+        sections = template.get("sections", [])
+        if not isinstance(sections, list):
+            continue
+
+        normalized: list[dict] = []
+        test_section: dict | None = None
+        changed = False
+        for raw_section in sections:
+            if not isinstance(raw_section, dict):
+                normalized.append(raw_section)
+                continue
+            key = _job_section_key(raw_section.get("title"))
+            if key in {"테스트케이스", "테스트케이스성공"}:
+                section = deepcopy(raw_section)
+                if section.get("title") != "테스트 케이스":
+                    section["title"] = "테스트 케이스"
+                    changed = True
+                if test_section is None:
+                    test_section = section
+                    normalized.append(test_section)
+                else:
+                    existing_labels = {str(field.get("label")) for field in test_section.get("fields", [])}
+                    for field in section.get("fields", []):
+                        if str(field.get("label")) not in existing_labels:
+                            test_section.setdefault("fields", []).append(field)
+                            existing_labels.add(str(field.get("label")))
+                            changed = True
+                continue
+            if key == "테스트케이스실패":
+                changed = True
+                continue
+            normalized.append(raw_section)
+
+        if changed:
+            await templates.update_one({"_id": template["_id"]}, {"$set": {"sections": normalized}})
+            logger.info("작업 템플릿 테스트 케이스 섹션 통합: %s", template.get("title"))
+
+        # 성공 섹션의 기존 데이터는 새 이름으로 옮겨 기존 결과서가 계속 보이게 한다.
+        template_id = str(template["_id"])
+        async for entry in entries.find({"template_id": template_id}):
+            data = entry.get("data")
+            if not isinstance(data, dict) or "테스트 케이스(성공)" not in data:
+                continue
+            legacy = data.pop("테스트 케이스(성공)")
+            current = data.get("테스트 케이스")
+            if current is None:
+                data["테스트 케이스"] = legacy
+            elif isinstance(current, list) and isinstance(legacy, list):
+                data["테스트 케이스"] = current + legacy
+            elif isinstance(current, dict) and isinstance(legacy, dict):
+                data["테스트 케이스"] = {**legacy, **current}
+            await entries.update_one({"_id": entry["_id"]}, {"$set": {"data": data}})
+            logger.info("작업 결과서 테스트 케이스 데이터 이관: %s", entry["_id"])
+
+
 async def migrate_assets() -> None:
     """assets_servers 컬렉션의 비서버 자산을 유형별 컬렉션으로 이동한다.
 
@@ -787,6 +848,7 @@ async def run_startup() -> None:
     await migrate_firewall_contact_names()
     await migrate_env_submenu()
     await seed_job_form_templates()
+    await migrate_job_test_case_sections()
     await migrate_assets()
     await migrate_rack_asset_type()
     await migrate_asset_status_default()

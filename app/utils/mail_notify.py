@@ -12,6 +12,7 @@ JSON이 아니라 Ruby `Hash#to_s` 형식 문자열(`{"key"=>"value", ...}`)로 
 """
 import asyncio
 import logging
+import re
 import urllib.parse
 from datetime import datetime
 from typing import Any
@@ -21,6 +22,27 @@ import httpx
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+_IMAGE_NOTICE = "사진 파일 첨부하였으니 상세 내용 확인 부탁드립니다"
+
+
+def _mail_description(text: str) -> str:
+    """본문의 이미지 삽입 구문을 안내 문구로 바꾸고 주변 설명은 유지한다."""
+    # 에디터의 Markdown 이미지: URL 내 괄호 및 선택적인 제목도 함께 제거한다.
+    text = re.sub(
+        r'!\[(?:\\.|[^\]\\])*\]\((?:\\.|[^()\\]|\([^()]*\))*\)',
+        lambda _: _IMAGE_NOTICE,
+        text,
+    )
+    # Import 등에서 HTML 이미지가 들어온 경우도 이미지 주소를 노출하지 않는다.
+    text = re.sub(
+        r'<img\b(?:[^>\"\']|\"[^\"]*\"|\'[^\']*\')*>',
+        lambda _: _IMAGE_NOTICE,
+        text,
+        flags=re.IGNORECASE,
+    )
+    return _sanitize_for_mail(text)
 
 
 def _sanitize_for_mail(text: str) -> str:
@@ -207,7 +229,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     # link는 issueAssign_link 템플릿 전용 신규 키(담당자 배정 메일의 바로가기 버튼).
     data_map = {
         "subject": _sanitize_for_mail(doc.get("title") or "-"),
-        "description": _sanitize_for_mail(description or "-"),
+        "description": _mail_description(description or "-"),
         "start_date": _fmt_date(doc.get("created_at")),
         "adminInfo": doc.get("assignee_name") or "-",
         "custom_field_values": doc.get("requester_name") or "-",

@@ -1,23 +1,31 @@
 <template>
   <q-page class="q-pa-md">
+    <q-tabs v-if="isJobPage" :model-value="activeJobTab" dense no-caps align="left"
+      active-color="primary" indicator-color="primary" class="job-category-tabs q-mb-md"
+      @update:model-value="selectJobTab">
+      <q-tab name="all" label="전체" />
+      <q-tab v-for="item in jobTemplates" :key="item.id" :name="item.id" :label="item.title" />
+    </q-tabs>
     <q-inner-loading :showing="loading" />
 
     <!-- 파일 선택창이 열려있는 동안 DOM에서 제거되면 브라우저가 창을 강제로 닫으므로,
          v-if 블록 밖에 항상 마운트된 상태로 둔다 -->
-    <input ref="fileInput" type="file" accept=".pdf,.hwp" style="display:none" @change="handleFileImport" />
+    <input ref="fileInput" type="file" :accept="isJobPage ? '.pdf,.hwp,.hwpx,.doc,.docx' : '.pdf,.hwp'" style="display:none" @change="handleFileImport" />
 
-    <template v-if="!loading && template">
+    <template v-if="!loading && (isAllJobs || template)">
       <!-- Header -->
       <div class="row items-center q-gutter-sm q-mb-md">
         <div>
-          <div class="text-h6">{{ template.title }}</div>
-          <div class="text-caption text-grey">{{ template.jiraIssueKey }}</div>
+          <div class="text-h6">{{ isAllJobs ? '전체 작업 관리' : template?.title }}</div>
+          <div class="text-caption text-grey">{{ isAllJobs ? `전체 문서 ${rows.length}건` : template?.jiraIssueKey }}</div>
         </div>
         <q-space />
         <q-toggle v-model="includeDeleted" label="삭제 포함" dense @update:model-value="load" />
         <q-btn outline icon="refresh" label="새로고침" :loading="tableLoading" @click="load" />
-        <q-btn outline icon="upload_file" label="Import" :loading="importing" @click="triggerImport" />
-        <q-btn color="primary" icon="add" :label="`${template.title} 추가`" @click="openCreate" />
+        <q-btn outline icon="upload_file" label="Import" :loading="importing"
+          :disable="isAllJobs && !jobTemplates.length" @click="startDocumentAction('import')" />
+        <q-btn color="primary" icon="add" :label="isAllJobs ? '파일 추가' : `${template?.title} 추가`"
+          :disable="importing || (isAllJobs && !jobTemplates.length)" @click="startDocumentAction('create')" />
       </div>
 
       <!-- Search bar -->
@@ -34,7 +42,7 @@
           v-model="searchValue"
           dense outlined clearable
           :placeholder="searchType === 'content' ? '내용 검색' : '제출자 검색'"
-          style="min-width: 220px"
+          style="min-width: 220px; width: 500px"
           @keyup.enter="void 0"
         />
         <template v-else-if="searchType === 'work_date'">
@@ -97,47 +105,39 @@
       </q-card>
     </template>
 
-    <!-- Create / Edit Dialog -->
-    <q-dialog
-      :model-value="formDialog"
+    <WorkDocumentEditor
+      :model-value="formDialog" :title="template?.title ?? ''" :sections="sections"
+      :is-edit="isEdit" :saving="editorBusy" :dirty="isFormDirty"
+      :sync-markdown="isJobPage && !documentMode"
       @update:model-value="onFormDialogModelUpdate"
-      @hide="importedImages = []; importedImageGroups = []; placedImportedIndices = new Set(); selectedPanelImage = ''; activePasteCell = null"
+      @hide="importedImages = []; importedImageGroups = []; placedImportedIndices = new Set(); selectedPanelImage = ''; activePasteCell = null; importedOriginalFile = null"
+      @save="isEdit ? doEdit() : doCreate()"
     >
-      <q-card style="width: 920px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">{{ isEdit ? `${template?.title} 수정` : `${template?.title} 추가` }}</div>
-          <q-space />
-          <q-btn flat dense icon="close" v-close-popup />
-        </q-card-section>
-        <q-separator />
-        <q-card-section class="col scroll" style="min-height: 0;">
-          <div v-for="section in sections" :key="section.title" class="q-mb-md">
-
-            <!-- Multiple section: table with header -->
-            <template v-if="section.multiple">
-              <table class="doc-table full-width">
-                <thead>
-                  <tr>
-                    <th :colspan="cellFields(section).length + 2" class="section-title-cell">{{ section.title }}</th>
-                  </tr>
-                  <tr>
-                    <th class="label-cell no-col">No.</th>
-                    <th v-for="field in cellFields(section)" :key="field.label" class="label-cell" :style="fieldColStyle(field.label)">{{ field.label }}</th>
-                    <th class="label-cell" style="width:32px"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template v-for="(row, rowIdx) in getRows(section.title)" :key="rowIdx">
-                    <tr>
-                      <td class="no-cell">{{ rowIdx + 1 }}</td>
-                      <td
-                        v-for="field in cellFields(section)"
-                        :key="field.label"
-                        class="value-cell"
-                        :style="field.type === 'image' ? 'min-width:160px; width:160px; padding:0;' : ''"
-                      >
-                        <!-- 이미지 필드 (imagesBelow가 아닌 섹션에서는 같은 행의 열로 표시) -->
-                        <template v-if="field.type === 'image'">
+      <template #section="{ section }">
+        <div class="edit-section-rows">
+          <div v-for="(row, rowIdx) in getRows(section.title)" :key="rowIdx" class="edit-row-card">
+            <div v-if="section.multiple && !documentMode" class="edit-row-heading">
+              <span class="edit-row-number">{{ String(rowIdx + 1).padStart(2, '0') }}</span>
+              <span>{{ section.title }} {{ rowIdx + 1 }}</span>
+              <q-space />
+              <q-btn flat dense round icon="delete_outline" color="grey-6" :aria-label="`${section.title} ${rowIdx + 1} 삭제`"
+                :disable="saving || getRows(section.title).length <= 1" @click="removeRow(section.title, rowIdx)" />
+            </div>
+            <div class="edit-field-groups">
+              <div v-for="group in workResultFieldGroups(section)" :key="group.label" :class="['edit-field-group', { 'comparison-side': group.label, 'whole-document': documentMode }]">
+                <div v-if="group.label" class="comparison-heading">{{ group.label }}</div>
+                <div v-if="group.label" class="comparison-editor" :inert="saving ? true : undefined">
+                  <MarkdownEditor :model-value="getRowVal(section.title, rowIdx, group.label)" :rows="8"
+                    :label="group.label" placeholder="내용을 입력하고 사진을 넣은 뒤, 이어서 내용을 작성하세요."
+                    @uploading="imageUploads[`${section.title}:${rowIdx}:${group.label}`] = $event"
+                    @update:model-value="setRowVal(section.title, rowIdx, group.label, $event)" />
+                  <q-btn v-if="selectedPanelImage" flat dense color="primary" icon="add_photo_alternate" label="선택한 Import 이미지 넣기"
+                    :disable="saving" @click="appendComparisonImage(section.title, rowIdx, group.label)" />
+                </div>
+                <div v-else class="edit-fields">
+              <div v-for="field in group.fields" :key="field.label" :class="['edit-field', { wide: editorFieldWide(field) }]">
+                <div class="edit-field-label">{{ field.label }}<span v-if="field.required" class="text-negative q-ml-xs">*</span></div>
+                <template v-if="field.type === 'image'">
                           <div
                             class="image-drop-zone"
                             :class="{
@@ -180,264 +180,29 @@
                             </div>
                           </div>
                         </template>
-                        <template v-else-if="field.type !== 'boolean' && field.type !== 'select'">
-                          <q-input
-                            :model-value="getRowVal(section.title, rowIdx, field.label)"
-                            @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
-                            :placeholder="field.placeholder"
-                            :type="tableInputType(field.type)"
-                            borderless dense autogrow
-                            class="table-input"
-                          />
-                          <!-- pairedImage로 짝지어진 필드면 같은 셀 안에 이미지도 함께 표시 -->
-                          <div
-                            v-if="pairedImageField(section, field)"
-                            class="image-drop-zone"
-                            :class="{
-                              'has-image': getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label).length > 0,
-                              'drag-over': dragOverCell === `${section.title}__${rowIdx}__${pairedImageField(section, field)!.label}`,
-                              'paste-ready': activePasteCell?.sectionTitle === section.title && activePasteCell?.rowIdx === rowIdx && activePasteCell?.fieldLabel === pairedImageField(section, field)!.label
-                            }"
-                            style="margin-top:4px;"
-                            @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${pairedImageField(section, field)!.label}`"
-                            @dragleave="dragOverCell = ''"
-                            @drop.prevent.stop="onDropImage(section.title, rowIdx, pairedImageField(section, field)!.label, $event)"
-                            @paste.stop="onPasteImage(section.title, rowIdx, pairedImageField(section, field)!.label, $event)"
-                          >
-                            <div v-if="getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label).length > 0" style="display:flex;flex-wrap:wrap;gap:4px;padding:4px;">
-                              <div
-                                v-for="(imgSrc, imgIdx) in getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label)"
-                                :key="imgIdx"
-                                style="position:relative;display:inline-block;"
-                              >
-                                <img
-                                  :src="imgSrc"
-                                  draggable="true"
-                                  style="width:72px;height:56px;object-fit:cover;cursor:grab;border:1px solid #ccc;border-radius:2px;"
-                                  @click.stop="previewImage(imgSrc)"
-                                  @dragstart="onCellImageDragStart(section.title, rowIdx, pairedImageField(section, field)!.label, imgIdx, $event)"
-                                />
-                                <q-btn
-                                  flat dense round icon="close" size="xs"
-                                  style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.45);color:white;padding:0;min-width:16px;min-height:16px;"
-                                  @click.stop="removeRowImage(section.title, rowIdx, pairedImageField(section, field)!.label, imgIdx)"
-                                />
-                              </div>
-                            </div>
-                            <div
-                              style="display:flex;align-items:center;justify-content:center;min-height:36px;cursor:pointer;padding:2px;"
-                              @click.stop="onImageCellClick(section.title, rowIdx, pairedImageField(section, field)!.label)"
-                              @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${pairedImageField(section, field)!.label}`"
-                              @drop.prevent.stop="onDropImage(section.title, rowIdx, pairedImageField(section, field)!.label, $event)"
-                            >
-                              <div class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, pairedImageField(section, field)!.label).length > 0 ? '+ 추가' : (visibleImportedImages.length > 0 ? '이미지를 맞게 넣어주세요' : '이미지 선택 후 클릭 또는 드래그')) }}</div>
-                            </div>
-                          </div>
-                        </template>
-                        <q-select
-                          v-else-if="field.type === 'select'"
-                          :model-value="getRowVal(section.title, rowIdx, field.label)"
-                          @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
-                          :options="field.options ?? []"
-                          borderless dense
-                          class="table-input"
-                        />
-                        <q-toggle
-                          v-else
-                          :model-value="getRowVal(section.title, rowIdx, field.label) === 'true'"
-                          @update:model-value="setRowVal(section.title, rowIdx, field.label, String($event))"
-                        />
-                      </td>
-                      <td class="no-cell">
-                        <q-btn
-                          v-if="getRows(section.title).length > 1"
-                          icon="remove"
-                          flat dense size="xs"
-                          color="negative"
-                          @click="removeRow(section.title, rowIdx)"
-                        />
-                      </td>
-                    </tr>
-                    <!-- imagesBelow 섹션만: 이미지 필드를 행 아래 전체 폭을 차지하는 별도 줄로 표시.
-                         이미지 필드가 여러 개면 한 줄 안에서 폭을 균등하게 나눠 나란히 배치 (예: 작업 전/후 사진) -->
-                    <tr v-if="section.imagesBelow && imageFields(section).length > 0">
-                      <td :colspan="cellFields(section).length + 2" class="value-cell" style="padding:0;">
-                        <div style="display:flex;">
-                          <div
-                            v-for="(field, fIdx) in imageFields(section)"
-                            :key="field.label"
-                            style="flex:1;min-width:0;"
-                            :style="fIdx > 0 ? 'border-left:1px solid #9e9e9e' : ''"
-                          >
-                            <div
-                              class="image-drop-zone"
-                              :class="{
-                                'has-image': getRowImages(section.title, rowIdx, field.label).length > 0,
-                                'drag-over': dragOverCell === `${section.title}__${rowIdx}__${field.label}`,
-                                'paste-ready': activePasteCell?.sectionTitle === section.title && activePasteCell?.rowIdx === rowIdx && activePasteCell?.fieldLabel === field.label
-                              }"
-                              @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
-                              @dragleave="dragOverCell = ''"
-                              @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
-                              @paste.stop="onPasteImage(section.title, rowIdx, field.label, $event)"
-                            >
-                              <div class="text-caption text-grey-6" style="width:100%;text-align:center;padding-top:2px;">{{ rowIdx + 1 }}-{{ field.label }}</div>
-                              <!-- 배치된 이미지 목록 -->
-                              <div v-if="getRowImages(section.title, rowIdx, field.label).length > 0" style="display:flex;flex-wrap:wrap;gap:4px;padding:4px;justify-content:center;">
-                                <div
-                                  v-for="(imgSrc, imgIdx) in getRowImages(section.title, rowIdx, field.label)"
-                                  :key="imgIdx"
-                                  style="position:relative;display:inline-block;"
-                                >
-                                  <img
-                                    :src="imgSrc"
-                                    draggable="true"
-                                    style="width:72px;height:56px;object-fit:cover;cursor:grab;border:1px solid #ccc;border-radius:2px;"
-                                    @click.stop="previewImage(imgSrc)"
-                                    @dragstart="onCellImageDragStart(section.title, rowIdx, field.label, imgIdx, $event)"
-                                  />
-                                  <q-btn
-                                    flat dense round icon="close" size="xs"
-                                    style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.45);color:white;padding:0;min-width:16px;min-height:16px;"
-                                    @click.stop="removeRowImage(section.title, rowIdx, field.label, imgIdx)"
-                                  />
-                                </div>
-                              </div>
-                              <!-- 이미지 추가 영역 -->
-                              <div
-                                style="display:flex;align-items:center;justify-content:center;min-height:36px;cursor:pointer;padding:2px;"
-                                @click.stop="onImageCellClick(section.title, rowIdx, field.label)"
-                                @dragover.prevent="dragOverCell = `${section.title}__${rowIdx}__${field.label}`"
-                                @drop.prevent.stop="onDropImage(section.title, rowIdx, field.label, $event)"
-                              >
-                                <div class="drop-hint">{{ selectedPanelImage ? '클릭하여 추가' : (getRowImages(section.title, rowIdx, field.label).length > 0 ? '+ 추가' : (visibleImportedImages.length > 0 ? '이미지를 맞게 넣어주세요' : '이미지 선택 후 클릭 또는 드래그')) }}</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  </template>
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td :colspan="cellFields(section).length + 2" class="add-row-cell">
-                      <q-btn icon="add" label="항목 추가" size="sm" flat color="primary" @click="addRow(section)" />
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </template>
 
-            <!-- Single section: label | value table -->
-            <template v-else>
-              <table class="doc-table full-width">
-                <thead>
-                  <tr>
-                    <th colspan="4" class="section-title-cell">{{ section.title }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template v-for="(group, gi) in groupFieldsForTable(section.fields)" :key="gi">
-                    <!-- Full-width row (textarea) -->
-                    <tr v-if="group.full">
-                      <td class="label-cell">{{ group.field1.label }}</td>
-                      <td colspan="3" class="value-cell">
-                        <q-input
-                          v-if="group.field1.type !== 'boolean' && group.field1.type !== 'select'"
-                          :model-value="getVal(section.title, group.field1.label)"
-                          @update:model-value="setVal(section.title, group.field1.label, $event)"
-                          :placeholder="group.field1.placeholder"
-                          :type="tableInputType(group.field1.type)"
-                          borderless dense autogrow
-                          class="table-input"
-                        />
-                        <q-select
-                          v-else-if="group.field1.type === 'select'"
-                          :model-value="getVal(section.title, group.field1.label)"
-                          @update:model-value="setVal(section.title, group.field1.label, $event)"
-                          :options="group.field1.options ?? []"
-                          borderless dense
-                          class="table-input"
-                        />
-                        <q-toggle
-                          v-else
-                          :model-value="getVal(section.title, group.field1.label) === 'true'"
-                          @update:model-value="setVal(section.title, group.field1.label, String($event))"
-                        />
-                      </td>
-                    </tr>
-                    <!-- Paired row (2 fields per row) -->
-                    <tr v-else>
-                      <td class="label-cell">{{ group.field1.label }}</td>
-                      <td class="value-cell">
-                        <q-input
-                          v-if="group.field1.type !== 'boolean' && group.field1.type !== 'select'"
-                          :model-value="getVal(section.title, group.field1.label)"
-                          @update:model-value="setVal(section.title, group.field1.label, $event)"
-                          :placeholder="group.field1.placeholder"
-                          :type="tableInputType(group.field1.type)"
-                          borderless dense autogrow
-                          class="table-input"
-                        />
-                        <q-select
-                          v-else-if="group.field1.type === 'select'"
-                          :model-value="getVal(section.title, group.field1.label)"
-                          @update:model-value="setVal(section.title, group.field1.label, $event)"
-                          :options="group.field1.options ?? []"
-                          borderless dense
-                          class="table-input"
-                        />
-                        <q-toggle
-                          v-else
-                          :model-value="getVal(section.title, group.field1.label) === 'true'"
-                          @update:model-value="setVal(section.title, group.field1.label, String($event))"
-                        />
-                      </td>
-                      <template v-if="group.field2">
-                        <td class="label-cell">{{ group.field2?.label }}</td>
-                        <td class="value-cell">
-                          <q-input
-                            v-if="group.field2?.type !== 'boolean' && group.field2?.type !== 'select'"
-                            :model-value="getVal(section.title, group.field2?.label ?? '')"
-                            @update:model-value="setVal(section.title, group.field2?.label ?? '', $event)"
-                            :placeholder="group.field2?.placeholder"
-                            :type="tableInputType(group.field2?.type ?? 'text')"
-                            borderless dense autogrow
-                            class="table-input"
-                          />
-                          <q-select
-                            v-else-if="group.field2?.type === 'select'"
-                            :model-value="getVal(section.title, group.field2?.label ?? '')"
-                            @update:model-value="setVal(section.title, group.field2?.label ?? '', $event)"
-                            :options="group.field2?.options ?? []"
-                            borderless dense
-                            class="table-input"
-                          />
-                          <q-toggle
-                            v-else
-                            :model-value="getVal(section.title, group.field2?.label ?? '') === 'true'"
-                            @update:model-value="setVal(section.title, group.field2?.label ?? '', String($event))"
-                          />
-                        </td>
-                      </template>
-                      <template v-else>
-                        <td class="label-cell"></td>
-                        <td class="value-cell"></td>
-                      </template>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </template>
-
+                <MarkdownEditor v-else-if="row[`${field.label}__format`] === 'markdown'" :model-value="getRowVal(section.title, rowIdx, field.label)"
+                  :label="field.label" @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
+                  @uploading="imageUploads[`${section.title}:${rowIdx}:${field.label}`] = $event" />
+                <q-select v-else-if="field.type === 'select'" :model-value="getRowVal(section.title, rowIdx, field.label)"
+                  @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)" :options="field.options ?? []"
+                  outlined dense :aria-label="field.label" :disable="saving" />
+                <q-toggle v-else-if="field.type === 'boolean'" :model-value="getRowVal(section.title, rowIdx, field.label) === 'true'"
+                  @update:model-value="setRowVal(section.title, rowIdx, field.label, String($event))" :label="field.label" :disable="saving" />
+                <q-input v-else :model-value="getRowVal(section.title, rowIdx, field.label)"
+                  @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)" :type="tableInputType(field.type)"
+                  :placeholder="field.placeholder" :aria-label="field.label" :aria-required="!!field.required"
+                  outlined dense autogrow :disable="saving" />
+              </div>
+            </div>
           </div>
-        </q-card-section>
-
-        <!-- 추출된 이미지 패널 — 자동 배치는 하지 않고(문서마다 사진-본문 연관 관습이
-             달라 신뢰할 수 없음) 원본 문서에서 감지된 캡션과 함께 보여줘서 사용자가
-             직접 드래그/클릭으로 배치하게 한다. -->
-        <template v-if="visibleImportedImages.length > 0">
+              </div>
+            </div>
+          <q-btn v-if="section.multiple && !documentMode" outline no-caps icon="add" :label="`${section.title} 항목 추가`"
+            color="primary" class="edit-add-row" :disable="saving" @click="addRow(section)" />
+        </div>
+      </template>
+              <template #images v-if="visibleImportedImages.length > 0">
           <q-separator />
           <q-card-section class="image-panel q-py-sm">
             <div class="row items-center q-mb-xs">
@@ -497,19 +262,7 @@
           </q-card-section>
         </template>
 
-        <q-separator />
-        <q-card-actions align="right">
-          <q-btn flat label="취소" v-close-popup />
-          <q-btn
-            color="primary"
-            :label="isEdit ? '수정' : '저장'"
-            :loading="saving"
-            @click="isEdit ? doEdit() : doCreate()"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
+    </WorkDocumentEditor>
     <!-- Import Skipped Dialog -->
     <q-dialog v-model="skippedDialog">
       <q-card style="width: 640px; max-width: 96vw; max-height: 80vh; display: flex; flex-direction: column">
@@ -553,196 +306,86 @@
       </q-card>
     </q-dialog>
 
-    <!-- Detail Dialog -->
-    <q-dialog v-model="detailDialog">
-      <q-card style="width: 920px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">상세 보기</div>
-          <q-space />
-          <q-btn flat dense icon="close" v-close-popup />
+    <q-dialog v-model="documentTypeDialog">
+      <q-card style="width: 400px; max-width: 92vw">
+        <q-card-section>
+          <div class="text-h6">문서 종류 선택</div>
+          <div class="text-caption text-grey q-mt-xs">{{ pendingDocumentAction === 'import' ? '가져올 파일의 문서 종류를 선택해 주세요.' : '추가할 문서 종류를 선택해 주세요.' }}</div>
         </q-card-section>
-        <q-separator />
-        <div v-if="detailLoading" class="text-center q-pa-xl">
-          <q-spinner size="40px" color="primary" /><br />
-          <span class="text-grey q-mt-sm">불러오는 중...</span>
-        </div>
-        <q-card-section v-else class="col scroll" style="min-height: 0;">
-          <div v-if="detailRow">
-            <div v-for="section in sections" :key="section.title" class="q-mb-md">
-
-              <!-- Multiple section in detail -->
-              <template v-if="section.multiple">
-                <table class="doc-table full-width">
-                  <thead>
-                    <tr>
-                      <th :colspan="cellFields(section).length + 1" class="section-title-cell">{{ section.title }}</th>
-                    </tr>
-                    <tr>
-                      <th class="label-cell no-col">No.</th>
-                      <th v-for="field in cellFields(section)" :key="field.label" class="label-cell" :style="fieldColStyle(field.label)">{{ field.label }}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template v-for="(rowData, rowIdx) in detailMultipleRows(detailRow, section.title)" :key="rowIdx">
-                      <tr>
-                        <td class="no-cell">{{ rowIdx + 1 }}</td>
-                        <td
-                          v-for="field in cellFields(section)"
-                          :key="field.label"
-                          class="value-cell"
-                          :style="field.type === 'image' ? 'min-width:160px; width:160px' : ''"
-                        >
-                          <!-- 이미지 필드 (imagesBelow가 아닌 섹션에서는 같은 행의 열로 표시) -->
-                          <template v-if="field.type === 'image'">
-                            <div v-if="toImageArray(rowData[field.label]).length > 0" style="padding:4px;display:flex;flex-wrap:wrap;gap:4px;">
-                              <img
-                                v-for="(imgSrc, imgIdx) in toImageArray(rowData[field.label])"
-                                :key="imgIdx"
-                                :src="imgSrc"
-                                style="max-width:120px;max-height:100px;cursor:pointer;border:1px solid #eee;border-radius:4px;"
-                                @click="previewImage(imgSrc)"
-                              />
-                            </div>
-                            <span v-else class="text-grey-5 text-caption" style="padding: 4px;">-</span>
-                          </template>
-                          <template v-else>
-                            <q-input
-                              :model-value="(rowData[field.label] as string) || ''"
-                              :type="field.type !== 'boolean' && field.type !== 'select' ? tableInputType(field.type) : 'text'"
-                              borderless dense readonly autogrow
-                              class="table-input"
-                            />
-                            <!-- pairedImage로 짝지어진 필드면 같은 셀 안에 이미지도 함께 표시 -->
-                            <div v-if="pairedImageField(section, field)">
-                              <div v-if="toImageArray(rowData[pairedImageField(section, field)!.label]).length > 0" style="padding:4px;display:flex;flex-wrap:wrap;gap:4px;">
-                                <img
-                                  v-for="(imgSrc, imgIdx) in toImageArray(rowData[pairedImageField(section, field)!.label])"
-                                  :key="imgIdx"
-                                  :src="imgSrc"
-                                  style="max-width:120px;max-height:100px;cursor:pointer;border:1px solid #eee;border-radius:4px;"
-                                  @click="previewImage(imgSrc)"
-                                />
-                              </div>
-                            </div>
-                          </template>
-                        </td>
-                      </tr>
-                      <!-- imagesBelow 섹션만: 이미지 필드를 행 아래 전체 폭을 차지하는 별도 줄로 표시.
-                           이미지 필드가 여러 개면 한 줄 안에서 폭을 균등하게 나눠 나란히 배치 (예: 작업 전/후 사진) -->
-                      <tr v-if="section.imagesBelow && imageFields(section).length > 0">
-                        <td :colspan="cellFields(section).length + 1" class="value-cell" style="padding:0;">
-                          <div style="display:flex;">
-                            <div
-                              v-for="(field, fIdx) in imageFields(section)"
-                              :key="field.label"
-                              style="flex:1;min-width:0;"
-                              :style="fIdx > 0 ? 'border-left:1px solid #9e9e9e' : ''"
-                            >
-                              <div class="text-caption text-grey-6" style="text-align:center;padding-top:2px;">{{ rowIdx + 1 }}-{{ field.label }}</div>
-                              <div v-if="toImageArray(rowData[field.label]).length > 0" style="padding:4px;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
-                                <img
-                                  v-for="(imgSrc, imgIdx) in toImageArray(rowData[field.label])"
-                                  :key="imgIdx"
-                                  :src="imgSrc"
-                                  style="max-width:120px;max-height:100px;cursor:pointer;border:1px solid #eee;border-radius:4px;"
-                                  @click="previewImage(imgSrc)"
-                                />
-                              </div>
-                              <span v-else class="text-grey-5 text-caption" style="padding: 4px;display:block;text-align:center;">-</span>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </template>
-
-              <!-- Single section in detail -->
-              <template v-else>
-                <table class="doc-table full-width">
-                  <thead>
-                    <tr>
-                      <th colspan="4" class="section-title-cell">{{ section.title }}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template v-for="(group, gi) in groupFieldsForTable(section.fields)" :key="gi">
-                      <tr v-if="group.full">
-                        <td class="label-cell">{{ group.field1.label }}</td>
-                        <td colspan="3" class="value-cell">
-                          <q-input
-                            :model-value="(detailRow.data[section.title] as Record<string,string>)?.[group.field1.label] || ''"
-                            :type="group.field1.type !== 'boolean' && group.field1.type !== 'select' ? tableInputType(group.field1.type) : 'text'"
-                            borderless dense readonly autogrow
-                            class="table-input"
-                          />
-                        </td>
-                      </tr>
-                      <tr v-else>
-                        <td class="label-cell">{{ group.field1.label }}</td>
-                        <td class="value-cell">
-                          <q-input
-                            :model-value="(detailRow.data[section.title] as Record<string,string>)?.[group.field1.label] || ''"
-                            :type="group.field1.type !== 'boolean' && group.field1.type !== 'select' ? tableInputType(group.field1.type) : 'text'"
-                            borderless dense readonly autogrow
-                            class="table-input"
-                          />
-                        </td>
-                        <template v-if="group.field2">
-                          <td class="label-cell">{{ group.field2?.label }}</td>
-                          <td class="value-cell">
-                            <q-input
-                              :model-value="(detailRow.data[section.title] as Record<string,string>)?.[group.field2?.label ?? ''] || ''"
-                              :type="group.field2?.type !== 'boolean' && group.field2?.type !== 'select' ? tableInputType(group.field2?.type ?? 'text') : 'text'"
-                              borderless dense readonly autogrow
-                              class="table-input"
-                            />
-                          </td>
-                        </template>
-                        <template v-else>
-                          <td class="label-cell"></td>
-                          <td class="value-cell"></td>
-                        </template>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </template>
-
-            </div>
-            <div class="text-caption text-grey q-mt-sm">
-              제출: {{ detailRow.createdBy }} · {{ toKST(detailRow.createdAt ?? '') }}
-            </div>
-          </div>
+        <q-card-section class="q-pt-none">
+          <q-select v-model="selectedDocumentType" :options="jobTemplates" option-value="id" option-label="title"
+            emit-value map-options outlined dense label="문서 종류" />
         </q-card-section>
-        <q-separator v-if="!detailLoading" />
         <q-card-actions align="right">
-          <q-btn flat label="닫기" v-close-popup />
-          <q-btn v-if="!detailLoading" outline icon="edit" label="수정" @click="detailDialog = false; openEdit(detailRow!)" />
+          <q-btn flat label="취소" v-close-popup />
+          <q-btn color="primary" :label="pendingDocumentAction === 'import' ? '파일 선택' : '작성하기'"
+            :disable="!selectedDocumentType" @click="confirmDocumentType" />
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <WorkDocumentDetail
+      v-model="detailDialog"
+      :loading="detailLoading"
+      :entry="detailRow"
+      :title="template?.title ?? ''"
+      :sections="sections"
+      @edit="editDetail"
+      @edit-markdown="editMarkdownDetail"
+      @export="exportDetailMarkdown"
+      @export-file="exportDetailFile"
+      @download-original="downloadOriginalFile"
+      :exporting="exportingDocument"
+    />
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { useRoute, useRouter } from 'vue-router'
+import { exportFile, useQuasar } from 'quasar'
+import { downloadAttachment } from 'src/utils/attachment'
+import { formEntryMarkdown, markdownFileName, hasOriginalForm, synchronizedDocument } from 'src/utils/formEntryMarkdown'
+import WorkDocumentDetail from 'src/components/WorkDocumentDetail.vue'
+import WorkDocumentEditor from 'src/components/WorkDocumentEditor.vue'
+import { comparisonFormatKey, comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
+import MarkdownEditor from 'src/components/MarkdownEditor.vue'
+import { api } from 'src/boot/axios'
 import { formTemplateService, type FormTemplate, type FormField, type FormSection } from 'src/services/formTemplates'
-import { formEntryService, type FormEntry, type ImportSkipped, type ImportImageGroup } from 'src/services/formEntries'
+import { formEntryService, type FormEntry, type ImportSkipped, type ImportImageGroup, type OriginalFile } from 'src/services/formEntries'
 
 const route = useRoute()
+const router = useRouter()
 const $q = useQuasar()
 
 const loading = ref(true)
 const tableLoading = ref(false)
 const saving = ref(false)
+const imageUploads = ref<Record<string, boolean>>({})
+const insertingImages = ref(0)
+const editorBusy = computed(() => saving.value || insertingImages.value > 0 || Object.values(imageUploads.value).some(Boolean))
 const includeDeleted = ref(false)
 
 const template = ref<FormTemplate | null>(null)
 const rows = ref<FormEntry[]>([])
+const jobTemplates = ref<FormTemplate[]>([])
+const documentTypeDialog = ref(false)
+const selectedDocumentType = ref<string | null>(null)
+const pendingDocumentAction = ref<'create' | 'import'>('create')
+const isJobPage = computed(() => route.path.startsWith('/job/'))
+const isAllJobs = computed(() => isJobPage.value && !route.params['id'])
+const activeJobTab = computed(() => isAllJobs.value ? 'all'
+  : jobTemplates.value.find((item) => item.id === route.params['id'] || item.jiraIssueKey === route.params['id'])?.id ?? '')
+
+function selectJobTab(value: string | number) {
+  const destination = value === 'all' ? '/job/forms' : `/job/forms/${value}`
+  if (route.path !== destination) void router.push(destination)
+}
+
+function entryTemplate(row: FormEntry): FormTemplate | null {
+  return jobTemplates.value.find((item) => item.id === row.templateId)
+    ?? (template.value?.id === row.templateId ? template.value : null)
+}
 
 // search
 const searchType = ref<'content' | 'created_by' | 'work_date'>('content')
@@ -792,6 +435,7 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const skippedDialog = ref(false)
 const skippedItems = ref<ImportSkipped[]>([])
 const importedImages = ref<string[]>([])
+const importedOriginalFile = ref<OriginalFile | null>(null)
 // PDF는 캡션 개념이 없어 그룹 없이 flat하게만 옴 — HWP만 캡션과 함께 그룹으로 옴.
 // importedImages와 순서가 정확히 일치해야(그룹 펼친 게 flat 리스트) 아래 오프셋 계산이 맞는다.
 const importedImageGroups = ref<ImportImageGroup[]>([])
@@ -859,6 +503,7 @@ function snapshotFormValues(): void {
 const isFormDirty = computed(() => JSON.stringify(formValues.value) !== formValuesSnapshot.value)
 
 function onFormDialogModelUpdate(val: boolean): void {
+  if (editorBusy.value) return
   if (val) {
     formDialog.value = true
     return
@@ -875,17 +520,31 @@ function onFormDialogModelUpdate(val: boolean): void {
   }).onOk(() => { formDialog.value = false })
 }
 
-const sections = computed<FormSection[]>(() =>
-  template.value ? (template.value.sections) : []
-)
+const documentMode = ref(false)
+const markdownEditMode = ref(false)
+const documentSections: FormSection[] = [{ title: '문서 본문', multiple: true, fields: [
+  { label: '제목', type: 'text', required: true, fullWidth: true },
+  { label: '작업 일시', type: 'date' },
+  { label: '내용', type: 'textarea', required: true, fullWidth: true },
+] }]
+function originalSections(data: Record<string, unknown>): FormSection[] {
+  const base = template.value?.sections ?? []
+  return data['가져온 추가 내용'] ? [...base, { title: '가져온 추가 내용', multiple: true, fields: [{ label: '내용', type: 'textarea', fullWidth: true }] }] : base
+}
+const sections = computed<FormSection[]>(() => documentMode.value ? documentSections : originalSections(formDialog.value ? formValues.value : detailRow.value?.data ?? {}))
 
-function toKST(utcStr: string): string {
-  if (!utcStr) return '-'
-  const d = new Date(utcStr)
-  return d.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16)
+function documentData(title: string, markdown: string, editable = false): Record<string, SectionValue> {
+  return { '문서 본문': [{ '제목': title, '내용': markdown, '내용__format': 'markdown', ...(editable ? { '__markdown_override': 'true' } : {}) }] }
+}
+
+function hasMarkdownOverride(data: Record<string, unknown>): boolean {
+  const rows = data['문서 본문']
+  const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : undefined
+  return !!row && typeof row === 'object' && !Array.isArray(row) && (row as Record<string, unknown>)['__markdown_override'] === 'true'
 }
 
 const columns = computed(() => [
+  ...(isAllJobs.value ? [{ name: 'document_type', label: '문서 종류', field: (row: FormEntry) => entryTemplate(row)?.title ?? '—', align: 'left' as const, sortable: true }] : []),
   { name: 'preview', label: '내용 미리보기', field: 'id', align: 'left' as const },
   { name: 'created_by', label: '제출자', field: 'createdBy', align: 'left' as const },
   { name: 'created_at', label: '작업 일시', field: 'createdAt', align: 'left' as const, sortable: true },
@@ -894,15 +553,17 @@ const columns = computed(() => [
 
 function getWorkDate(row: FormEntry): string {
   for (const sectionData of Object.values(row.data)) {
-    if (Array.isArray(sectionData)) continue
-    const d = sectionData?.['작업 일시'] ?? sectionData?.['작업 기간 (시작)']
+    const values = Array.isArray(sectionData) ? sectionData[0] : sectionData
+    const d = values?.['작업 일시'] ?? values?.['작업 기간 (시작)']
     if (d) return String(d).slice(0, 10)
   }
   return '-'
 }
 
 function entryPreview(row: FormEntry): string {
-  const firstSection = sections.value[0]
+  const document = row.data['문서 본문']
+  if (Array.isArray(document) && document[0] && !hasOriginalForm(entryTemplate(row)?.sections ?? [], row.data)) return String(document[0]['제목'] ?? '')
+  const firstSection = entryTemplate(row)?.sections[0]
   if (!firstSection) return ''
   const sectionData = row.data[firstSection.title]
   if (!sectionData) return ''
@@ -924,22 +585,10 @@ function getVal(sectionTitle: string, fieldLabel: string): string {
   return Array.isArray(v) ? '' : (v ?? '')
 }
 
-function setVal(sectionTitle: string, fieldLabel: string, val: string | number | null): void {
-  if (!formValues.value[sectionTitle] || Array.isArray(formValues.value[sectionTitle])) {
-    formValues.value[sectionTitle] = {}
-  }
-  const sec = formValues.value[sectionTitle]
-  if (!Array.isArray(sec)) {
-    sec[fieldLabel] = val == null ? '' : String(val)
-  }
-}
-
-// ── Multiple section helpers ────────────────────────────────────────────────
-
 function getRows(sectionTitle: string): RowData[] {
   const val = formValues.value[sectionTitle]
   if (Array.isArray(val)) return val
-  return []
+  return val ? [val] : []
 }
 
 function getRowVal(sectionTitle: string, rowIdx: number, fieldLabel: string): string {
@@ -957,6 +606,9 @@ function setRowVal(sectionTitle: string, rowIdx: number, fieldLabel: string, val
   const rowsArr = getRows(sectionTitle)
   if (!rowsArr[rowIdx]) rowsArr[rowIdx] = {}
   rowsArr[rowIdx][fieldLabel] = val == null ? '' : String(val)
+  if ((sectionTitle === '작업 결과' && ['작업 전', '작업 후'].includes(fieldLabel)) || (sectionTitle === '문서 본문' && fieldLabel === '내용')) {
+    rowsArr[rowIdx][comparisonFormatKey(fieldLabel)] = 'markdown'
+  }
 }
 
 function addRowImage(sectionTitle: string, rowIdx: number, fieldLabel: string, src: string): void {
@@ -1114,81 +766,50 @@ function previewImage(src: string) {
   imagePreviewOpen.value = true
 }
 
-// ── Detail dialog helper ────────────────────────────────────────────────────
-
-function detailMultipleRows(row: FormEntry, sectionTitle: string): RowData[] {
-  const val = row.data[sectionTitle]
-  if (Array.isArray(val)) return val
-  return []
+function editorFieldWide(field: FormField): boolean {
+  return !!field.fullWidth || field.type === 'textarea' || field.type === 'image'
 }
 
-// ── Table layout helper ─────────────────────────────────────────────────────
+async function resultImageUrl(src: string): Promise<string> {
+  if (!src.startsWith('data:image/')) return src
+  const response = await fetch(src)
+  const blob = await response.blob()
+  const file = new FormData()
+  file.append('file', blob, `image.${blob.type.split('/')[1] || 'png'}`)
+  const { data } = await api.post<{ url: string }>('/pm/uploads', file)
+  return data.url
+}
 
-function groupFieldsForTable(fields: FormField[]): Array<{ full: boolean; field1: FormField; field2: FormField | undefined }> {
-  const result: Array<{ full: boolean; field1: FormField; field2: FormField | undefined }> = []
-  const isFull = (f: FormField) => f.type === 'textarea' || f.fullWidth === true
-  let i = 0
-  while (i < fields.length) {
-    const f = fields[i]!
-    if (isFull(f)) {
-      result.push({ full: true, field1: f, field2: undefined })
-      i++
-    } else {
-      const next = (i + 1 < fields.length && !isFull(fields[i + 1]!)) ? fields[i + 1] : undefined
-      result.push({ full: false, field1: f, field2: next })
-      i += next ? 2 : 1
+async function prepareComparisonEditors(values: Record<string, SectionValue>, templateSections: FormSection[]) {
+  for (const section of templateSections) {
+    const stored = values[section.title]
+    const sectionRows = Array.isArray(stored) ? stored : stored ? [stored] : []
+    for (const row of sectionRows) {
+      for (const group of workResultFieldGroups(section).filter((item) => item.label)) {
+        for (const field of group.fields.filter((item) => item.type === 'image')) {
+          row[field.label] = await Promise.all(toImageArray(row[field.label]).map(resultImageUrl))
+        }
+        row[group.label] = comparisonMarkdown(row, group.fields)
+        row[comparisonFormatKey(group.label)] = 'markdown'
+        for (const field of group.fields.filter((item) => item.type === 'image')) row[field.label] = []
+      }
     }
   }
-  return result
 }
 
-// ── Form field helpers ──────────────────────────────────────────────────────
-
-// 다중 섹션 컬럼 너비 힌트
-const NARROW_COLS: Record<string, string> = {
-  '제목': '25%',
-  '테스트 케이스 ID': '13%',
-  '리스크': '60px',
-  '작업 시작 시간': '90px',
-  '작업 종료 시간': '90px',
-  '비고': '80px',
-  '점검 결과': '80px',
+async function appendComparisonImage(sectionTitle: string, rowIdx: number, label: string) {
+  const src = selectedPanelImage.value
+  if (!src) return
+  insertingImages.value += 1
+  try {
+    const url = await resultImageUrl(src)
+    setRowVal(sectionTitle, rowIdx, label, `${getRowVal(sectionTitle, rowIdx, label)}\n\n![사진](<${url}>)\n\n`)
+    markImportedIndex(importedImages.value.indexOf(src))
+    selectedPanelImage.value = ''
+  } catch { $q.notify({ type: 'negative', message: '이미지를 넣지 못했습니다. 다시 시도해 주세요.' }) }
+  finally { insertingImages.value -= 1 }
 }
 
-function fieldColStyle(label: string): string {
-  return NARROW_COLS[label] ? `width:${NARROW_COLS[label]};min-width:${NARROW_COLS[label]}` : ''
-}
-
-// 반복 섹션 테이블: imagesBelow가 true인 섹션(예: 작업 결과 전/후 비교)만 이미지 필드를
-// 같은 행의 열이 아니라 행 아래 전체 폭을 차지하는 별도 줄("N-필드명")로 렌더링한다.
-// 그 외 섹션(예: 검토/서명, 세부 작업 내용)은 이미지 필드도 그대로 같은 행의 열로 렌더링한다.
-function nonImageFields(section: FormSection): FormField[] {
-  return section.fields.filter((f) => f.type !== 'image')
-}
-
-function imageFields(section: FormSection): FormField[] {
-  return section.fields.filter((f) => f.type === 'image')
-}
-
-// 다른 필드의 pairedImage로 지정되어 자기 칸 없이 짝지어진 필드 안에 같이 그려지는 image 필드들
-function pairedAwayImageLabels(section: FormSection): Set<string> {
-  return new Set(section.fields.map((f) => f.pairedImage).filter((v): v is string => !!v))
-}
-
-// 같은 행의 열로 렌더링할 필드 목록 (imagesBelow면, 또는 다른 필드에 짝지어진 이미지 필드면 제외)
-function cellFields(section: FormSection): FormField[] {
-  if (section.imagesBelow) return nonImageFields(section)
-  const paired = pairedAwayImageLabels(section)
-  return section.fields.filter((f) => !paired.has(f.label))
-}
-
-// field.pairedImage로 지정된, 같은 셀 안에 같이 그릴 image 필드를 같은 섹션에서 찾는다
-function pairedImageField(section: FormSection, field: FormField): FormField | undefined {
-  if (!field.pairedImage) return undefined
-  return section.fields.find((f) => f.type === 'image' && f.label === field.pairedImage)
-}
-
-// 테이블 셀용: 일반 텍스트도 autogrow textarea로 렌더링해 잘림 방지
 function tableInputType(type: string): 'textarea' | 'date' | 'datetime-local' | 'time' {
   if (type === 'date') return 'date'
   if (type === 'datetime') return 'datetime-local'
@@ -1210,6 +831,28 @@ function resetForm() {
   formValues.value = init
 }
 
+function startDocumentAction(action: 'create' | 'import') {
+  if (importing.value) return
+  if (isAllJobs.value) {
+    pendingDocumentAction.value = action
+    selectedDocumentType.value = null
+    documentTypeDialog.value = true
+  } else if (action === 'import') {
+    triggerImport()
+  } else {
+    openCreate()
+  }
+}
+
+function confirmDocumentType() {
+  const selected = jobTemplates.value.find((item) => item.id === selectedDocumentType.value)
+  if (!selected) return
+  template.value = selected
+  documentTypeDialog.value = false
+  if (pendingDocumentAction.value === 'import') triggerImport()
+  else openCreate()
+}
+
 function triggerImport() {
   fileInput.value?.click()
 }
@@ -1218,9 +861,34 @@ async function handleFileImport(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file || !template.value) return
+  const targetTemplate = template.value
+  const request = pageRequest
   importing.value = true
   try {
-    const result = await formEntryService.importFromFile(template.value.id, file)
+    if (isJobPage.value) {
+      const body = new FormData()
+      body.append('file', file)
+      body.append('template_id', targetTemplate.id)
+      const { data } = await api.post<{ data: Record<string, SectionValue>; warnings: string[]; originalFile?: OriginalFile | null }>('/form-entries/import-form', body)
+      if (request !== pageRequest) return
+      template.value = targetTemplate
+      documentMode.value = false
+      markdownEditMode.value = false
+      formValues.value = data.data
+      importedOriginalFile.value = data.originalFile ?? null
+      for (const section of targetTemplate.sections) {
+        if (section.multiple && !getRows(section.title).length) formValues.value[section.title] = [emptyRow(section)]
+      }
+      formValuesSnapshot.value = '{}'
+      isEdit.value = false
+      editingId.value = null
+      formDialog.value = true
+      $q.notify({ type: 'info', message: data.warnings.join(' '), timeout: 10000 })
+      return
+    }
+    const result = await formEntryService.importFromFile(targetTemplate.id, file)
+    if (request !== pageRequest) return
+    template.value = targetTemplate
     const importedData = result.data
     const init: Record<string, SectionValue> = {}
     for (const section of sections.value) {
@@ -1235,9 +903,13 @@ async function handleFileImport(event: Event) {
         init[section.title] = { ...(imported as Record<string, string> ?? {}) }
       }
     }
+    await prepareComparisonEditors(init, targetTemplate.sections)
+    if (request !== pageRequest) return
     formValues.value = init
+    formValuesSnapshot.value = '{}'
     importedImages.value = result.images ?? []
     importedImageGroups.value = result.imageGroups ?? []
+    importedOriginalFile.value = result.originalFile ?? null
     placedImportedIndices.value = new Set()
     isEdit.value = false
     editingId.value = null
@@ -1256,23 +928,77 @@ async function handleFileImport(event: Event) {
 }
 
 function openCreate() {
+  documentMode.value = false
+  markdownEditMode.value = false
   isEdit.value = false
   editingId.value = null
+  importedOriginalFile.value = null
   resetForm()
+  if (documentMode.value) formValues.value = documentData(template.value?.title ?? '', `# ${template.value?.title ?? '새 문서'}\n\n`)
+  for (const section of sections.value) {
+    for (const row of getRows(section.title)) {
+      for (const group of workResultFieldGroups(section).filter((item) => item.label)) row[comparisonFormatKey(group.label)] = 'markdown'
+    }
+  }
   snapshotFormValues()
   formDialog.value = true
 }
 
-function openEdit(row: FormEntry) {
+async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
+  const selectedTemplate = entryTemplate(row)
+  if (!selectedTemplate) return
+  const request = pageRequest
+  tableLoading.value = true
+  try {
+  const fullEntry = await formEntryService.get(row.id)
+  if (request !== pageRequest) return
+  template.value = selectedTemplate
   isEdit.value = true
-  editingId.value = row.id
-  editingVersion.value = row.version
+   editingId.value = row.id
+   editingVersion.value = fullEntry.version
+   markdownEditMode.value = mode === 'markdown'
+   if (markdownEditMode.value) {
+     documentMode.value = true
+     formValues.value = documentData(
+       selectedTemplate.title,
+       formEntryMarkdown(selectedTemplate.title, originalSections(fullEntry.data), fullEntry.data, window.location.origin),
+       true,
+     )
+     snapshotFormValues()
+     formDialog.value = true
+     return
+   }
+   documentMode.value = !!fullEntry.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, fullEntry.data)
+  if (documentMode.value) {
+    const legacy = structuredClone(fullEntry.data)
+    if (!legacy['문서 본문']) {
+      for (const section of selectedTemplate.sections) {
+        const stored = legacy[section.title]
+        const values = Array.isArray(stored) ? stored : stored ? [stored] : []
+        for (const value of values) {
+          for (const field of section.fields.filter((item) => item.type === 'image')) {
+            value[field.label] = await Promise.all(toImageArray(value[field.label]).map(resultImageUrl))
+          }
+        }
+      }
+    }
+    if (request !== pageRequest) return
+    formValues.value = fullEntry.data['문서 본문']
+      ? structuredClone(fullEntry.data)
+      : documentData(selectedTemplate.title, formEntryMarkdown(selectedTemplate.title, selectedTemplate.sections, legacy, window.location.origin))
+    if (!fullEntry.data['문서 본문'] && getWorkDate(fullEntry) !== '-') setRowVal('문서 본문', 0, '작업 일시', getWorkDate(fullEntry))
+    snapshotFormValues()
+    formDialog.value = true
+    return
+  }
   const copy: Record<string, SectionValue> = {}
   for (const section of sections.value) {
-    const saved = row.data[section.title]
+    const saved = fullEntry.data[section.title]
     if (section.multiple) {
       if (Array.isArray(saved) && saved.length > 0) {
         copy[section.title] = saved.map((r: RowData) => ({ ...r }))
+      } else if (saved && !Array.isArray(saved)) {
+        copy[section.title] = [{ ...saved }]
       } else {
         copy[section.title] = [emptyRow(section)]
       }
@@ -1280,17 +1006,89 @@ function openEdit(row: FormEntry) {
       copy[section.title] = { ...(saved as Record<string, string> ?? {}) }
     }
   }
+  await prepareComparisonEditors(copy, selectedTemplate.sections)
+  if (fullEntry.data['가져온 추가 내용']) copy['가져온 추가 내용'] = structuredClone(fullEntry.data['가져온 추가 내용'])
+  if (request !== pageRequest) return
   formValues.value = copy
   snapshotFormValues()
   formDialog.value = true
+  } catch {
+    $q.notify({ type: 'negative', message: '수정할 문서를 불러오지 못했습니다.' })
+  } finally {
+    if (request === pageRequest) tableLoading.value = false
+  }
+}
+
+function editDetail() {
+  if (detailLoading.value || !detailRow.value || detailRow.value.isDeleted) return
+  detailDialog.value = false
+  void openEdit(detailRow.value)
+}
+
+function editMarkdownDetail() {
+  if (detailLoading.value || !detailRow.value || detailRow.value.isDeleted) return
+  detailDialog.value = false
+  void openEdit(detailRow.value, 'markdown')
+}
+
+const exportingDocument = ref(false)
+async function exportDetailFile(format: 'hwp' | 'docx') {
+  if (detailLoading.value || !detailRow.value || !template.value || exportingDocument.value) return
+  const title = template.value.title
+  const filename = markdownFileName(title, detailRow.value.id).replace(/\.md$/, `.${format}`)
+  const markdown = formEntryMarkdown(title, sections.value, detailRow.value.data, window.location.origin)
+  const originalName = detailRow.value.originalFile?.originalName ?? ''
+  const sourceExtension = originalName.includes('.') ? originalName.slice(originalName.lastIndexOf('.')).toLowerCase() : ''
+  if (format === 'hwp' && sourceExtension === '.pdf') {
+    $q.notify({ type: 'info', timeout: 4500, message: 'PDF 원본은 원본 PDF로 다운로드할 수 있으며, HWP는 수정된 항목을 기준으로 재생성됩니다.' })
+  }
+  exportingDocument.value = true
+  try {
+    const original = originalSections(detailRow.value.data)
+    const original_form = !hasMarkdownOverride(detailRow.value.data) && hasOriginalForm(original, detailRow.value.data)
+      ? { title, sections: original, data: detailRow.value.data } : undefined
+    const { data } = await api.post<Blob>('/form-entries/export-document', { markdown, format, original_form }, { responseType: 'blob', timeout: 120000 })
+    if (exportFile(filename, data) !== true) throw new Error('download failed')
+  } catch {
+    $q.notify({ type: 'negative', message: '파일 내보내기에 실패했습니다. 사진이 정상적으로 표시되는지 확인한 뒤 다시 시도해 주세요.' })
+  } finally { exportingDocument.value = false }
+}
+
+async function downloadOriginalFile() {
+  const originalFile = detailRow.value?.originalFile
+  if (!originalFile || exportingDocument.value) return
+  exportingDocument.value = true
+  try {
+    await downloadAttachment(originalFile.url, originalFile.originalName)
+  } catch {
+    $q.notify({ type: 'negative', message: '원본 파일 다운로드에 실패했습니다.' })
+  } finally {
+    exportingDocument.value = false
+  }
+}
+
+function exportDetailMarkdown() {
+  if (detailLoading.value || !detailRow.value || !template.value) return
+  const title = template.value.title
+  const markdown = formEntryMarkdown(title, sections.value, detailRow.value.data, window.location.origin)
+  const result = exportFile(markdownFileName(title, detailRow.value.id), markdown, 'text/markdown;charset=utf-8')
+  if (result !== true) {
+    $q.notify({ type: 'negative', message: '파일을 내려받지 못했습니다. 브라우저의 다운로드 설정을 확인해 주세요.' })
+  }
 }
 
 async function openDetail(row: FormEntry) {
+  const selectedTemplate = entryTemplate(row)
+  if (!selectedTemplate) return
+  template.value = selectedTemplate
+  markdownEditMode.value = false
+  documentMode.value = !!row.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, row.data)
   detailRow.value = row
   detailDialog.value = true
   detailLoading.value = true
   try {
     detailRow.value = await formEntryService.get(row.id)
+    documentMode.value = !!detailRow.value.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, detailRow.value.data)
   } catch {
     $q.notify({ type: 'negative', message: '상세 데이터를 불러오지 못했습니다.' })
     detailDialog.value = false
@@ -1328,11 +1126,32 @@ function validate(): boolean {
   return true
 }
 
+async function saveData(): Promise<Record<string, SectionValue>> {
+  if (markdownEditMode.value && template.value && detailRow.value) {
+    const merged = structuredClone(detailRow.value.data) as Record<string, SectionValue>
+    merged['문서 본문'] = structuredClone(formValues.value['문서 본문'] ?? [])
+    return merged
+  }
+  if (!isJobPage.value || documentMode.value || !template.value) return formValues.value
+  const original = JSON.parse(JSON.stringify(formValues.value)) as Record<string, SectionValue>
+  for (const section of template.value.sections) {
+    const stored = original[section.title]
+    const items = Array.isArray(stored) ? stored : stored ? [stored] : []
+    for (const item of items) {
+      for (const field of section.fields.filter(field => field.type === 'image')) {
+        item[field.label] = await Promise.all(toImageArray(item[field.label]).map(resultImageUrl))
+      }
+    }
+  }
+  return synchronizedDocument(template.value.title, originalSections(original), original, window.location.origin)
+}
+
 async function doCreate() {
+  if (editorBusy.value) return
   if (!validate() || !template.value) return
   saving.value = true
   try {
-    const entry = await formEntryService.create(template.value.id, formValues.value)
+    const entry = await formEntryService.create(template.value.id, await saveData(), importedOriginalFile.value)
     rows.value.unshift(entry)
     formDialog.value = false
     $q.notify({ type: 'positive', message: '저장됐습니다.' })
@@ -1344,10 +1163,11 @@ async function doCreate() {
 }
 
 async function doEdit() {
+  if (editorBusy.value) return
   if (!validate() || !editingId.value) return
   saving.value = true
   try {
-    const updated = await formEntryService.patch(editingId.value, formValues.value, editingVersion.value)
+    const updated = await formEntryService.patch(editingId.value, await saveData(), editingVersion.value)
     rows.value = rows.value.map((r) => (r.id === updated.id ? updated : r))
     formDialog.value = false
     $q.notify({ type: 'positive', message: '수정됐습니다.' })
@@ -1381,30 +1201,53 @@ function confirmDelete(row: FormEntry) {
 }
 
 async function load() {
-  if (!template.value) return
-  tableLoading.value = true
-  try {
-    rows.value = await formEntryService.list(template.value.id, includeDeleted.value)
-  } finally {
-    tableLoading.value = false
-  }
+  await loadPage()
 }
 
-async function loadPage(id: string) {
+let pageRequest = 0
+async function loadPage() {
+  const request = ++pageRequest
+  const id = route.params['id'] as string | undefined
+  const allJobs = isAllJobs.value
+  const jobPage = isJobPage.value
   loading.value = true
+  tableLoading.value = true
   try {
-    // id는 mongo ObjectId일 수도, 사람이 읽기 쉬운 슬러그(jira_issue_key)일 수도 있음.
-    // form-entries는 실제 template의 mongo id로 저장되므로, 템플릿을 먼저 조회해 실제 id를 확보한다.
-    const tmpl = await formTemplateService.get(id)
-    template.value = tmpl
-    rows.value = await formEntryService.list(tmpl.id)
+    const templates = jobPage ? await formTemplateService.list('job') : []
+    if (request !== pageRequest) return
+    const order = ['작업계획서(서비스)', '작업계획서(서비스외)', '작업결과서', '반입신청서']
+    const rank = (item: FormTemplate) => {
+      const index = order.indexOf(item.title.replace(/\s/g, ''))
+      return index < 0 ? order.length : index
+    }
+    jobTemplates.value = templates.sort((a, b) => rank(a) - rank(b))
+    if (allJobs) {
+      const entries = await Promise.all(templates.map((item) => formEntryService.list(item.id, includeDeleted.value)))
+      if (request !== pageRequest) return
+      template.value = null
+      rows.value = entries.flat().sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
+    } else if (id) {
+      const tmpl = templates.find((item) => item.id === id || item.jiraIssueKey === id) ?? await formTemplateService.get(id)
+      const entries = await formEntryService.list(tmpl.id, includeDeleted.value)
+      if (request !== pageRequest) return
+      template.value = tmpl
+      rows.value = entries
+    }
+  } catch {
+    if (request !== pageRequest) return
+    rows.value = []
+    template.value = null
+    $q.notify({ type: 'negative', message: '작업 목록을 불러오지 못했습니다. 다시 시도해 주세요.' })
   } finally {
-    loading.value = false
+    if (request === pageRequest) {
+      loading.value = false
+      tableLoading.value = false
+    }
   }
 }
 
 onMounted(() => {
-  void loadPage(route.params['id'] as string)
+  void loadPage()
   document.addEventListener('paste', handleGlobalPaste as EventListener)
 })
 
@@ -1412,73 +1255,46 @@ onUnmounted(() => {
   document.removeEventListener('paste', handleGlobalPaste as EventListener)
 })
 
-watch(() => route.params['id'], (id) => {
-  if (id) void loadPage(id as string)
+watch(() => route.path, () => {
+  documentTypeDialog.value = false
+  detailDialog.value = false
+  formDialog.value = false
+  resetSearch()
+  void loadPage()
 })
 </script>
 
 <style scoped>
-.doc-table {
-  border-collapse: collapse;
-  border: 1px solid #9e9e9e;
-  font-size: 13px;
-}
-.doc-table th,
-.doc-table td {
-  border: 1px solid #9e9e9e;
-}
-.section-title-cell {
-  background-color: #d6d6d6;
-  font-weight: bold;
-  text-align: center;
-  padding: 5px 10px;
-  font-size: 13px;
-}
-.label-cell {
-  background-color: #f0f0f0;
-  font-weight: 500;
-  padding: 5px 10px;
-  white-space: nowrap;
-  vertical-align: middle;
-  font-size: 12px;
-}
-.no-col {
-  width: 36px;
-  text-align: center;
-}
-.no-cell {
-  background-color: #f0f0f0;
-  text-align: center;
-  padding: 2px 6px;
-  vertical-align: middle;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.value-cell {
-  background-color: #ffffff;
-  padding: 0 4px;
-  vertical-align: middle;
-}
-.add-row-cell {
-  background-color: #fafafa;
-  text-align: center;
-  padding: 4px;
-}
-.table-input {
-  width: 100%;
-}
-.table-input :deep(.q-field__control) {
-  min-height: unset !important;
-  padding: 0;
-}
-.table-input :deep(.q-field__native) {
-  padding: 4px 2px;
-  min-height: unset !important;
-  line-height: 1.4;
-}
-.table-input :deep(.q-field__marginal) {
-  height: unset;
-}
+.edit-section-rows { display: flex; flex-direction: column; gap: 18px; }
+.edit-row-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 24px; background: #fff; }
+.edit-row-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; color: #64748b; font-size: 12px; }
+.edit-row-number { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #eff3fb; color: #4d6594; font-weight: 600; }
+.edit-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.edit-field-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.edit-field-group { grid-column: 1 / -1; min-width: 0; }
+.edit-field-group.comparison-side { grid-column: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; }
+.edit-field-group.whole-document { grid-column: 1 / -1; }
+.comparison-side .edit-fields { grid-template-columns: minmax(0, 1fr); }
+.comparison-editor { min-width: 0; }
+.comparison-editor :deep(.toastui-editor-defaultUI-toolbar) { flex-wrap: wrap; height: auto; min-height: 45px; padding: 4px; }
+.comparison-editor :deep(.toastui-editor-toolbar-group) { margin: 0; }
+.comparison-editor :deep(.toastui-editor-contents img) { max-width: 100%; height: auto; }
+.comparison-editor :deep(.toastui-editor-contents) { overflow-x: auto; }
+.comparison-editor :deep(.toastui-editor-contents table) { width: 100%; table-layout: auto; }
+.comparison-editor :deep(.toastui-editor-contents td), .comparison-editor :deep(.toastui-editor-contents th) { min-width: 180px; vertical-align: top; word-break: keep-all; overflow-wrap: anywhere; }
+.comparison-heading { font-size: 15px; font-weight: 650; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 2px solid #94a3b8; }
+.comparison-side:nth-child(2) .comparison-heading { border-bottom-color: var(--q-primary); color: var(--q-primary); }
+@media (max-width: 700px) { .edit-field-groups { grid-template-columns: minmax(0, 1fr); } }
+.edit-field { min-width: 0; }.edit-field.wide { grid-column: 1 / -1; }
+.edit-field-label { font-size: 12px; font-weight: 500; color: #64748b; margin-bottom: 8px; }
+.edit-field :deep(.q-field__control) { border-radius: 7px; }
+.edit-field :deep(.q-field__native) { line-height: 1.8; font-size: 14px; }
+.edit-add-row { align-self: flex-start; border-radius: 7px; }
+.edit-field .image-drop-zone { border: 1px dashed #cbd5e1; border-radius: 8px; min-height: 100px; height: auto; padding: 8px; }
+:global(body.body--dark) .edit-row-card { background: #182334; border-color: #334155; }
+:global(body.body--dark) .edit-field-label { color: #94a3b8; }
+@media (max-width: 600px) { .edit-fields { grid-template-columns: 1fr; }.edit-row-card { padding: 18px; } }
+.job-category-tabs { border-bottom: 1px solid #e0e0e0; }
 .image-drop-zone {
   min-height: 80px;
   width: 100%;

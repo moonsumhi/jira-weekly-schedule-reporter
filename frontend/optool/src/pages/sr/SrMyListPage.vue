@@ -5,11 +5,62 @@
     <div class="row items-center q-mb-lg">
       <div class="col">
         <div class="text-h5 text-weight-bold">내 SR 목록</div>
-        <div class="text-caption text-grey-6">내가 요청한 SR 현황을 확인합니다.</div>
+        <div class="text-caption text-grey-6">내가 등록했거나 같은 팀에서 등록한 SR 현황을 확인합니다.</div>
       </div>
       <HelpButton feature="sr-my" guide-path="/pm/sr/guide" class="q-mr-sm" />
       <q-btn color="primary" icon="add" label="SR 접수" to="/pm/sr/new" unelevated />
     </div>
+
+    <div class="row items-center q-mb-sm" style="gap: 6px;">
+      <span class="text-caption text-grey-6 q-mr-xs">등록자</span>
+      <q-chip
+        v-for="scope in ownerTabs" :key="scope.key"
+        :color="ownerScope === scope.key ? 'primary' : 'grey-3'"
+        :text-color="ownerScope === scope.key ? 'white' : 'grey-7'"
+        clickable dense
+        @click="ownerScope = scope.key"
+      >
+        {{ scope.label }}
+        <span class="q-ml-xs" :class="ownerScope === scope.key ? 'text-white' : 'text-grey-5'" style="font-size:0.72rem">{{ scope.count }}</span>
+      </q-chip>
+      <q-space />
+      <q-btn
+        flat dense size="sm" no-caps icon="tune" label="상세 필터"
+        :class="detailFiltersExpanded ? 'text-indigo-7' : 'text-grey-6'"
+        class="q-px-xs" @click="detailFiltersExpanded = !detailFiltersExpanded"
+      >
+        <q-badge v-if="activeFilterCount" color="indigo-7" :label="activeFilterCount" class="q-ml-xs" />
+      </q-btn>
+      <q-btn v-if="activeFilterCount" flat dense size="sm" no-caps color="grey-6" icon="refresh" label="필터 초기화" @click="resetDetailFilters" />
+    </div>
+
+    <q-slide-transition>
+      <div v-show="detailFiltersExpanded" class="sr-advanced-panel q-mb-sm">
+        <q-separator class="q-mb-md" />
+        <div class="row q-col-gutter-sm">
+          <div class="col-12 col-sm-6 col-md-3">
+            <q-select v-model="categoryFilter" :options="categoryOptions" label="카테고리" dense outlined clearable emit-value map-options bg-color="white">
+              <template #prepend><q-icon name="category" size="16px" color="grey-5" /></template>
+            </q-select>
+          </div>
+          <div class="col-12 col-sm-6 col-md-3">
+            <q-select v-model="requesterFilter" :options="requesterOptions" label="접수자" dense outlined clearable emit-value map-options bg-color="white">
+              <template #prepend><q-icon name="person" size="16px" color="grey-5" /></template>
+            </q-select>
+          </div>
+          <div class="col-12 col-sm-6 col-md-3">
+            <q-select v-model="assigneeFilter" :options="assigneeOptions" label="담당자" dense outlined clearable emit-value map-options bg-color="white">
+              <template #prepend><q-icon name="manage_accounts" size="16px" color="grey-5" /></template>
+            </q-select>
+          </div>
+          <div class="col-12 col-sm-6 col-md-3">
+            <q-select v-model="statusFilter" :options="statusOptions" label="현재 상황" dense outlined clearable emit-value map-options bg-color="white">
+              <template #prepend><q-icon name="task_alt" size="16px" color="grey-5" /></template>
+            </q-select>
+          </div>
+        </div>
+      </div>
+    </q-slide-transition>
 
     <!-- 탭 + 검색 -->
     <div class="row items-center q-mb-sm" style="gap: 8px;">
@@ -30,8 +81,8 @@
       <q-input
         v-model="search"
         dense outlined clearable
-        placeholder="제목 · 시스템 · SR번호 검색"
-        style="min-width:220px; max-width:280px"
+        placeholder="제목 · 시스템 · SR번호 · 요청자 검색"
+        style="width: min(440px, 100%); min-width: 320px"
       >
         <template #prepend><q-icon name="search" size="18px" color="grey-5" /></template>
       </q-input>
@@ -83,6 +134,9 @@
             <div class="text-caption text-grey-5 q-mb-xs">
               {{ row.assigneeName ? `담당: ${row.assigneeName}` : `접수 ${fmtDate(row.createdAt)}` }}
             </div>
+            <div v-if="row.requesterId !== currentUserId" class="text-caption text-primary q-mb-xs">
+              요청자 {{ row.requesterName }}<span v-if="row.requesterDepartment"> · {{ row.requesterDepartment }}</span>
+            </div>
             <div v-if="row.plannedDueDate"
               class="text-caption"
               :class="row.isDelayed ? 'text-negative text-weight-medium' : 'text-grey-5'">
@@ -131,6 +185,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useAuthStore } from 'src/stores/auth'
 import { fmtDateKst } from 'src/utils/time/kst'
 import {
   listMySRs, cancelSR,
@@ -140,6 +195,7 @@ import {
 } from 'src/services/sr'
 
 const $q = useQuasar()
+const authStore = useAuthStore()
 const loading      = ref(false)
 const rows         = ref<SRListItem[]>([])
 const cancelDialog = ref(false)
@@ -147,7 +203,59 @@ const cancelReason = ref('')
 const cancelling   = ref(false)
 const selectedSR   = ref<SRListItem | null>(null)
 const activeTab    = ref('all')
+const ownerScope   = ref<'all' | 'mine' | 'team'>('mine')
+const detailFiltersExpanded = ref(false)
 const search       = ref('')
+const categoryFilter = ref<string | null>(null)
+const requesterFilter = ref<string | null>(null)
+const assigneeFilter = ref<string | null>(null)
+const statusFilter = ref<string | null>(null)
+const currentUserId = computed(() => String(authStore.me?.id ?? ''))
+const activeFilterCount = computed(() => [categoryFilter.value, requesterFilter.value, assigneeFilter.value, statusFilter.value].filter(Boolean).length)
+
+function resetDetailFilters() {
+  categoryFilter.value = null
+  requesterFilter.value = null
+  assigneeFilter.value = null
+  statusFilter.value = null
+}
+
+const ownerTabs = computed(() => {
+  const mine = rows.value.filter(row => row.requesterId === currentUserId.value).length
+  return [
+    { key: 'all' as const, label: '전체', count: rows.value.length },
+    { key: 'mine' as const, label: '내가 등록', count: mine },
+    { key: 'team' as const, label: '팀원 등록', count: rows.value.length - mine },
+  ]
+})
+
+const ownerRows = computed(() => {
+  if (ownerScope.value === 'mine') return rows.value.filter(row => row.requesterId === currentUserId.value)
+  if (ownerScope.value === 'team') return rows.value.filter(row => row.requesterId !== currentUserId.value)
+  return rows.value
+})
+
+const categoryOptions = computed(() => Array.from(new Set(ownerRows.value.map(row => row.requestType)))
+  .map(value => ({ value, label: requestTypeLabel(value) }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'ko')))
+
+const requesterOptions = computed(() => {
+  const options = new Map<string, string>()
+  ownerRows.value.forEach(row => options.set(row.requesterId, row.requesterName))
+  return Array.from(options, ([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'ko'))
+})
+
+const assigneeOptions = computed(() => {
+  const options = new Map<string, string>()
+  ownerRows.value.forEach(row => options.set(row.assigneeId ?? '__unassigned__', row.assigneeName ?? '미지정'))
+  return Array.from(options, ([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'ko'))
+})
+
+const statusOptions = computed(() => Array.from(new Set(ownerRows.value.map(row => row.status)))
+  .map(value => ({ value, label: statusLabel(value) }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'ko')))
 
 const GROUP_MAP: Record<string, string> = {
   DRAFT: 'draft',
@@ -168,17 +276,23 @@ const GROUP_META = [
 
 const statusTabs = computed(() => {
   const counts: Record<string, number> = {}
-  rows.value.forEach(r => {
+  ownerRows.value.forEach(r => {
     const g = GROUP_MAP[r.status] ?? 'ended'
     counts[g] = (counts[g] ?? 0) + 1
   })
   return GROUP_META
     .filter(m => m.key === 'all' || (counts[m.key] ?? 0) > 0)
-    .map(m => ({ ...m, count: m.key === 'all' ? rows.value.length : (counts[m.key] ?? 0) }))
+    .map(m => ({ ...m, count: m.key === 'all' ? ownerRows.value.length : (counts[m.key] ?? 0) }))
 })
 
 const filteredRows = computed(() => {
-  let list = rows.value
+  let list = ownerRows.value
+  if (categoryFilter.value) list = list.filter(row => row.requestType === categoryFilter.value)
+  if (requesterFilter.value) list = list.filter(row => row.requesterId === requesterFilter.value)
+  if (assigneeFilter.value) {
+    list = list.filter(row => (row.assigneeId ?? '__unassigned__') === assigneeFilter.value)
+  }
+  if (statusFilter.value) list = list.filter(row => row.status === statusFilter.value)
   if (activeTab.value !== 'all') {
     list = list.filter(r => GROUP_MAP[r.status] === activeTab.value)
   }
@@ -187,7 +301,8 @@ const filteredRows = computed(() => {
     list = list.filter(r =>
       r.title.toLowerCase().includes(q) ||
       (r.relatedSystem ?? '').toLowerCase().includes(q) ||
-      r.srNo.toLowerCase().includes(q)
+      r.srNo.toLowerCase().includes(q) ||
+      r.requesterName.toLowerCase().includes(q)
     )
   }
   return list
@@ -209,7 +324,7 @@ function priorityLabel(s: string)    { return (SR_PRIORITY_LABEL as Record<strin
 function priorityColor(s: string)    { return (SR_PRIORITY_COLOR as Record<string,string>)[s] ?? 'grey' }
 function requestTypeLabel(s: string) { return (REQUEST_TYPE_LABEL as Record<string,string>)[s] ?? s }
 function fmtDate(d: string | null)   { return fmtDateKst(d) }
-function canCancel(row: SRListItem)  { return !['CLOSED','CANCELLED','REJECTED'].includes(row.status) }
+function canCancel(row: SRListItem)  { return row.requesterId === currentUserId.value && !['CLOSED','CANCELLED','REJECTED'].includes(row.status) }
 
 async function fetchList() {
   loading.value = true
@@ -252,6 +367,7 @@ onMounted(fetchList)
 
 <style scoped>
 .sr-list-card { overflow: hidden; }
+.sr-advanced-panel { padding-bottom: 4px; }
 
 .sr-row {
   display: flex;

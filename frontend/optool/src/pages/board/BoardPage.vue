@@ -19,6 +19,7 @@
     </div>
 
     <q-table
+      v-if="ready"
       :rows="posts"
       :columns="columns"
       :filter="tableFilter"
@@ -62,12 +63,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { boardService, type PostOut } from 'src/services/boards'
 import { envCategoryService } from 'src/services/envCategory'
 import { useAuthStore } from 'stores/auth'
 import { formatKst } from 'src/utils/time/kst'
+import { readBoardListState, writeBoardListState } from 'src/utils/boardListState'
 
 const route = useRoute()
 const router = useRouter()
@@ -78,11 +80,20 @@ const boardId = ref(route.params.boardId as string)
 const boardTitle = ref('')
 const posts = ref<PostOut[]>([])
 const loading = ref(false)
-const filterText = ref('')
-const categoryFilter = ref<string | null>(null)
+const initialState = readBoardListState(boardId.value, window.sessionStorage)
+const ready = ref(false)
+const filterText = ref<string | null>(initialState.search)
+const categoryFilter = ref<string | null>(initialState.category)
 const categoryOptions = ref<{ label: string; value: string }[]>([])
 const tableFilter = computed(() => `${filterText.value}||${categoryFilter.value ?? ''}`)
-const pagination = ref({ page: 1, rowsPerPage: 15 })
+const pagination = ref(initialState.pagination)
+
+function rememberList() {
+  if (!ready.value) return
+  writeBoardListState(boardId.value, { search: filterText.value ?? '', category: categoryFilter.value, pagination: { ...pagination.value } }, window.sessionStorage)
+}
+watch([filterText, categoryFilter, pagination], rememberList, { deep: true, flush: 'sync' })
+onBeforeRouteLeave(rememberList)
 
 const columns = [
   { name: 'title', label: '제목', field: 'title', align: 'left' as const, classes: 'cursor-pointer', sortable: true },
@@ -98,7 +109,7 @@ const columns = [
 ]
 
 function filterPosts(rows: readonly PostOut[]): PostOut[] {
-  const needle = filterText.value.toLowerCase()
+  const needle = (filterText.value ?? '').toLowerCase()
   return rows.filter((r) => {
     if (categoryFilter.value && r.category !== categoryFilter.value) return false
     if (!needle) return true
@@ -125,24 +136,30 @@ function canDelete(row: PostOut) {
   return auth.me?.isAdmin || String(row.authorId) === String(auth.me?.id)
 }
 
+let loadRequest = 0
 async function load() {
+  const request = ++loadRequest
+  const requestedBoard = boardId.value
   loading.value = true
   try {
     const [allBoards, allPosts] = await Promise.all([
       boardService.listBoards(),
-      boardService.listPosts(boardId.value),
+      boardService.listPosts(requestedBoard),
     ])
-    const board = allBoards.find((b) => b.id === boardId.value)
+    if (request !== loadRequest) return
+    const board = allBoards.find((b) => b.id === requestedBoard)
     boardTitle.value = board?.title ?? '게시판'
     posts.value = allPosts
   } catch {
+    if (request !== loadRequest) return
     $q.notify({ type: 'negative', message: '게시판을 불러오는데 실패했습니다' })
   } finally {
-    loading.value = false
+    if (request === loadRequest) { loading.value = false; ready.value = true }
   }
 
   try {
     const items = await envCategoryService.itemsByKey('board_post_categories')
+    if (request !== loadRequest) return
     categoryOptions.value = items.map((i) => ({ label: i.label, value: i.label }))
   } catch { /* 카테고리 목록 조회 실패는 무시 (선택 항목) */ }
 }
@@ -168,7 +185,15 @@ function confirmDelete(row: PostOut) {
 }
 
 watch(() => route.params.boardId, (id) => {
+  if (typeof id !== 'string' || id === boardId.value) return
+  rememberList()
+  ready.value = false
   boardId.value = id as string
+  const restored = readBoardListState(boardId.value, window.sessionStorage)
+  filterText.value = restored.search
+  categoryFilter.value = restored.category
+  pagination.value = restored.pagination
+  posts.value = []
   void load()
 })
 
