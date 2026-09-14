@@ -402,7 +402,7 @@
             <div>
               <div class="sidebar-label">타입</div>
               <q-select v-model="localType" :options="typeOptions" dense outlined emit-value map-options
-                @update:model-value="patchField('type', $event)" />
+                @update:model-value="onTypeChange" />
             </div>
 
             <div>
@@ -414,7 +414,7 @@
             <q-separator />
 
             <div>
-              <div class="sidebar-label">담당자</div>
+              <div class="sidebar-label">담당자<span v-if="localType === 'TASK'" class="text-negative"> *</span></div>
               <q-select v-model="localAssigneeId" :options="memberOptions" dense outlined emit-value map-options clearable
                 @update:model-value="patchField('assignee_id', $event)">
                 <template #prepend>
@@ -436,8 +436,8 @@
                 @update:model-value="patchField('sprint_id', $event)" />
             </div>
 
-            <div v-if="localIssue?.type !== 'EPIC'">
-              <div class="sidebar-label">상위 Epic</div>
+            <div v-if="localType !== 'EPIC'">
+              <div class="sidebar-label">상위 Epic<span v-if="localType === 'TASK'" class="text-negative"> *</span></div>
               <q-select v-model="localEpicId" :options="epicOptions" dense outlined emit-value map-options clearable
                 @update:model-value="patchField('epic_id', $event)">
                 <template #prepend>
@@ -446,7 +446,7 @@
               </q-select>
             </div>
 
-            <div v-if="localIssue?.type !== 'EPIC'">
+            <div v-if="localType !== 'EPIC'">
               <div class="sidebar-label">스토리 포인트</div>
               <q-input v-model.number="localStoryPoints" dense outlined type="number" :min="0" :max="999"
                 @blur="patchField('story_points', localStoryPoints)" />
@@ -461,13 +461,13 @@
             <q-separator />
 
             <div>
-              <div class="sidebar-label">시작일</div>
+              <div class="sidebar-label">시작일<span v-if="localType === 'TASK'" class="text-negative"> *</span></div>
               <q-input v-model="localStartDate" dense outlined type="date" stack-label
                 @blur="patchField('start_date', localStartDate ? new Date(localStartDate).toISOString() : null)" />
             </div>
 
             <div>
-              <div class="sidebar-label">마감일</div>
+              <div class="sidebar-label">마감일<span v-if="localType === 'TASK'" class="text-negative"> *</span></div>
               <q-input v-model="localDueDate" dense outlined type="date" stack-label
                 @blur="patchField('due_date', localDueDate ? new Date(localDueDate).toISOString() : null)" />
             </div>
@@ -736,6 +736,7 @@ const localEffortValue = ref<number | null>(null)
 const localStartDate = ref('')
 const localDueDate = ref('')
 const localShowOnDashboard = ref(false)
+const pendingTaskType = ref(false)
 
 // 하위 작업
 const subIssues = ref<Issue[]>([])
@@ -815,6 +816,7 @@ function parseEffortToDays(effortMd: string | null | undefined): number | null {
 
 async function loadIssueContent(issue: Issue) {
   localIssue.value = { ...issue }
+  pendingTaskType.value = false
   localStatus.value = issue.status
   localType.value = issue.type
   localPriority.value = issue.priority
@@ -1015,6 +1017,45 @@ function saveEffort() {
   void patchField('effort_md', val)
 }
 
+function taskRequiredFields(): string[] {
+  const missing: string[] = []
+  if (!localAssigneeId.value) missing.push('담당자')
+  if (!localEpicId.value) missing.push('상위 Epic')
+  if (!localStartDate.value) missing.push('시작일')
+  if (!localDueDate.value) missing.push('마감일')
+  return missing
+}
+
+async function persistPendingTaskType(showNotice = false) {
+  if (!pendingTaskType.value || !localIssue.value || localType.value !== 'TASK' || localIssue.value.type === 'TASK') return
+  const missing = taskRequiredFields()
+  if (missing.length) {
+    if (showNotice) {
+      Notify.create({
+        type: 'warning',
+        message: `Task 타입으로 저장하려면 ${missing.join(', ')}을(를) 입력해 주세요.`,
+        caption: '필수값을 모두 입력하면 자동으로 저장됩니다.',
+        timeout: 5000,
+      })
+    }
+    return
+  }
+  pendingTaskType.value = false
+  await patchField('type', 'TASK')
+}
+
+async function onTypeChange(nextType: IssueType) {
+  if (!localIssue.value) return
+  localType.value = nextType
+  if (nextType === 'TASK' && localIssue.value.type !== 'TASK') {
+    pendingTaskType.value = true
+    await persistPendingTaskType(true)
+    return
+  }
+  pendingTaskType.value = false
+  if (nextType !== localIssue.value.type) await patchField('type', nextType)
+}
+
 async function patchField(field: string, value: unknown) {
   if (!localIssue.value) return
   try {
@@ -1022,6 +1063,7 @@ async function patchField(field: string, value: unknown) {
     localIssue.value = updated
     emit('updated', updated)
     void reloadHistory()
+    if (field !== 'type') await persistPendingTaskType()
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '변경 실패') })
     if (localIssue.value) {
@@ -1030,6 +1072,11 @@ async function patchField(field: string, value: unknown) {
       localPriority.value = localIssue.value.priority
       localSprintId.value = localIssue.value.sprintId
       localAssigneeId.value = localIssue.value.assigneeId
+      localEpicId.value = localIssue.value.epicId
+      localStartDate.value = localIssue.value.startDate?.slice(0, 10) ?? ''
+      localDueDate.value = localIssue.value.dueDate?.slice(0, 10) ?? ''
+      localType.value = localIssue.value.type
+      pendingTaskType.value = false
     }
   }
 }
