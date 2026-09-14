@@ -69,6 +69,41 @@ class OriginalFormExportTests(unittest.TestCase):
         markup = original_form_markup(form)
         self.assertIn('data-role="section-heading">세부 작업 절차</th>', markup)
 
+    def test_imported_assignee_block_follows_worker_section(self):
+        form = {
+            'title': '작업계획서',
+            'sections': [
+                {
+                    'title': '작업자 정보', 'multiple': True,
+                    'fields': [{'label': '회사명', 'type': 'text'}],
+                },
+                {
+                    'title': '검토/서명', 'multiple': True,
+                    'fields': [{'label': '검토의견', 'type': 'textarea'}],
+                },
+                {
+                    'title': '가져온 추가 내용', 'multiple': True,
+                    'fields': [{'label': '내용', 'type': 'textarea'}],
+                },
+            ],
+            'data': {
+                '작업자 정보': [{'회사명': 'SM파트'}],
+                '검토/서명': [{'검토의견': '검토'}],
+                '가져온 추가 내용': [{
+                    '내용': '### 담당자\n\n| 소속 | 성함 | 검토의견 | 서명 |\n| --- | --- | --- | --- |\n| SM파트 | 구도형 | 확인 |  |',
+                    '내용__format': 'markdown',
+                }],
+            },
+        }
+        markup = original_form_markup(form)
+        worker_index = markup.index('>작업자 정보</th>')
+        assignee_index = markup.index('>담당자</th>')
+        review_index = markup.index('>검토/서명</th>')
+        self.assertLess(worker_index, assignee_index)
+        self.assertLess(assignee_index, review_index)
+        self.assertIn('<th>소속</th>', markup[assignee_index:])
+        self.assertNotIn('>가져온 추가 내용</th>', markup)
+
     def test_result_photo_fields_are_inlined_without_standalone_columns(self):
         form = {
             'title': '작업결과서',

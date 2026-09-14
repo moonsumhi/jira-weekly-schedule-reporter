@@ -5,8 +5,10 @@ semantic. Both the DOCX and HWPX exporters consume it, so keeping section
 titles, column spans, and column width hints in this layer makes the two
 formats follow the same report layout.
 """
+import re
 from html import escape
 
+from lxml import html as lxml_html
 from markdown_it import MarkdownIt
 
 
@@ -86,11 +88,89 @@ def original_form_markup(form: dict) -> str:
         return (f' class="work-section-table" data-column-widths="{escape(weights, quote=True)}"'
                 f' data-column-count="{columns}"')
 
+    def normalized(value):
+        return re.sub(r'\s+', '', str(value or ''))
+
+    def split_extra_blocks(source):
+        blocks = []
+        for part in re.split(r'(?=^###\s+)', source, flags=re.MULTILINE):
+            value = part.strip()
+            if not value:
+                continue
+            heading = re.match(r'^###\s+(.+?)(?:\r?\n|$)', value)
+            if heading:
+                blocks.append((heading.group(1).strip(), value[heading.end():].strip()))
+            else:
+                blocks.append(('', value))
+        return blocks
+
+    def extra_block_data():
+        """Split imported Markdown extras so 담당자 can follow 작업자 정보."""
+        extra_section = next(
+            (section for section in form['sections'] if normalized(section.get('title')) == '가져온추가내용'),
+            None,
+        )
+        if not extra_section:
+            return None, [], []
+        extra_field = next(
+            (field for field in extra_section.get('fields', []) if normalized(field.get('label')) == '내용'),
+            extra_section.get('fields', [None])[0],
+        )
+        if not extra_field:
+            return extra_section, [], []
+        value = data.get(extra_section['title'], [])
+        rows = value if isinstance(value, list) else [value]
+        moved, remaining = [], []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            raw = row.get(extra_field['label'])
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            for title, content in split_extra_blocks(raw):
+                if normalized(title) == '담당자':
+                    moved.append((title, content))
+                else:
+                    remaining.append((title, content))
+        return extra_section, moved, remaining
+
+    extra_section, moved_extra_blocks, remaining_extra_blocks = extra_block_data()
+    remaining_extra_markdown = '\n\n'.join(
+        (f'### {title}\n\n' if title else '') + content
+        for title, content in remaining_extra_blocks if content
+    )
+
+    def append_moved_markdown_section(title, source):
+        """Render a moved Markdown table as a normal top-level report section."""
+        rendered = renderer.render(source.strip())
+        fragment = lxml_html.fragment_fromstring(rendered, create_parent='div')
+        for node in fragment:
+            if node.tag != 'table':
+                output.append(lxml_html.tostring(node, encoding='unicode'))
+                continue
+            rows = node.xpath('./tr|./thead/tr|./tbody/tr|./tfoot/tr')
+            if not rows:
+                continue
+            columns = max(sum(max(1, int(cell.get('colspan', '1'))) for cell in row.xpath('./td|./th'))
+                           for row in rows)
+            widths = [100 / columns] * columns
+            output.append(f'<table{attrs(columns, widths)}>')
+            output.append(f'<tr><th colspan="{columns}" data-role="section-heading">{escape(title)}</th></tr>')
+            output.extend(lxml_html.tostring(row, encoding='unicode') for row in rows)
+            output.append('</table>')
+
     for section in form['sections']:
         if section['title'] == '문서 본문':
             continue
         fields = section['fields']
-        value = data.get(section['title'], [] if section.get('multiple') else {})
+        if extra_section is section:
+            if not remaining_extra_markdown:
+                continue
+            extra_field = fields[0]
+            value = [{extra_field['label']: remaining_extra_markdown,
+                      extra_field['label'] + '__format': 'markdown'}]
+        else:
+            value = data.get(section['title'], [] if section.get('multiple') else {})
         rows = value if isinstance(value, list) else [value]
         rows = [row for row in rows if isinstance(row, dict)]
         paired = {paired_image_label(section, field) for field in fields}
@@ -155,4 +235,11 @@ def original_form_markup(form: dict) -> str:
                 output.append(f'<tr><th>{escape(only["label"])}</th><td>{cell(row, only)}</td>'
                               '<th></th><td></td></tr>')
         output.append('</table>')
+        if (normalized(section.get('title')) in {'작업자', '작업자정보'}
+                and moved_extra_blocks):
+            for moved_title, moved_content in moved_extra_blocks:
+                if moved_content:
+                    if any(item.startswith('<table') for item in output):
+                        output.append('<p class="section-gap">&#160;</p>')
+                    append_moved_markdown_section(moved_title, moved_content)
     return '<div>' + ''.join(output).replace('\n', '&#10;') + '</div>'

@@ -31,6 +31,67 @@ function safeUrl(href: string, image: boolean): boolean {
   try { return (image ? ['http:', 'https:'] : ['http:', 'https:', 'mailto:']).includes(new URL(href, window.location.origin).protocol) }
   catch { return false }
 }
+function lineText(line: string): string {
+  const template = document.createElement('template')
+  template.innerHTML = line
+  return (template.content.textContent ?? '').replace(/\\\|/g, '|').trim()
+}
+function pipeRow(line: string): string[] | null {
+  const text = lineText(line)
+  if (!text.startsWith('|') || !text.endsWith('|')) return null
+  return text.slice(1, -1).split('|').map(cell => cell.trim())
+}
+function isPipeSeparator(cells: string[] | null): cells is string[] {
+  return cells !== null && cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell))
+}
+function nestedTableHtml(rows: string[][]): string {
+  const columns = Math.max(...rows.map(row => row.length))
+  const normalize = (row: string[]) => {
+    if (row.length > columns) {
+      return [...row.slice(0, columns - 1), row.slice(columns - 1).join(' | ')]
+    }
+    return [...row, ...Array.from({ length: columns - row.length }, () => '')]
+  }
+  const renderRow = (row: string[], tag: 'th' | 'td') => `<tr>${normalize(row).map(value => `<${tag}>${escapeHtml(value)}</${tag}>`).join('')}</tr>`
+  return `<div class="work-table-scroll work-table-scroll--nested" tabindex="0" role="region" aria-label="상세 내용 표, 가로 스크롤 가능"><table><thead>${renderRow(rows[0] ?? [], 'th')}</thead><tbody>${rows.slice(1).map(row => renderRow(row, 'td')).join('')}</tbody></table></div>`
+}
+function renderNestedTables(body: string): string {
+  if (!body.includes('<br')) return body
+  const root = document.createElement('tbody')
+  root.innerHTML = body
+  root.querySelectorAll<HTMLElement>('td, th').forEach(cell => {
+    let lines = cell.innerHTML.split(/<br\s*\/?\s*>/i)
+    let offset = 0
+    while (offset < lines.length - 1) {
+      const header = pipeRow(lines[offset] ?? '')
+      const separator = pipeRow(lines[offset + 1] ?? '')
+      if (!header || !isPipeSeparator(separator)) {
+        offset += 1
+        continue
+      }
+      const tableLines: string[] = [lines[offset] ?? '']
+      let end = offset + 2
+      while (end < lines.length) {
+        const row = pipeRow(lines[end] ?? '')
+        if (!row) break
+        tableLines.push(lines[end] ?? '')
+        end += 1
+      }
+      if (tableLines.length < 2) {
+        offset += 1
+        continue
+      }
+      const parsedRows = tableLines.map(line => pipeRow(line)).filter((row): row is string[] => Boolean(row))
+      const before = lines.slice(0, offset).filter(line => line.trim())
+      const after = lines.slice(end).filter(line => line.trim())
+      const nested = nestedTableHtml(parsedRows)
+      cell.innerHTML = [...before, nested, ...after].join('<br>')
+      lines = cell.innerHTML.split(/<br\s*\/?\s*>/i)
+      offset = before.length + 1
+    }
+  })
+  return root.innerHTML
+}
 const renderer = new Renderer()
 renderer.heading = (text, level) => {
   const sectionIndex = level === 2
@@ -41,7 +102,7 @@ renderer.heading = (text, level) => {
     : ''
   return `<h${level}${attributes}>${text}</h${level}>\n`
 }
-renderer.table = (header, body) => `<div class="work-table-scroll" tabindex="0" role="region" aria-label="문서 표, 가로 스크롤 가능"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`
+renderer.table = (header, body) => `<div class="work-table-scroll" tabindex="0" role="region" aria-label="문서 표, 가로 스크롤 가능"><table><thead>${header}</thead><tbody>${renderNestedTables(body)}</tbody></table></div>`
 renderer.html = (html) => /^<br\s*\/?\s*>$/i.test(html.trim()) ? '<br>' : escapeHtml(html)
 renderer.link = (href, _title, text) => href && safeUrl(href, false) ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${text}</a>` : text
 renderer.image = (href, _title, text) => href && safeUrl(href, true) ? `<img src="${escapeHtml(href)}" alt="${escapeHtml(text)}" loading="lazy" role="button" tabindex="0" aria-label="${escapeHtml(text || '문서 이미지')} 크게 보기" title="클릭하여 크게 보기">` : escapeHtml(text)
@@ -60,6 +121,7 @@ const rendered = computed(() => marked(props.content, { renderer, breaks: true }
 .work-result-content :deep(h3) { font-size: 18px; line-height: 1.5; margin: 20px 0 10px; text-align: center; }
 .work-result-content :deep(h4), .work-result-content :deep(h5), .work-result-content :deep(h6) { text-align: center; }
 .work-result-content :deep(.work-table-scroll) { display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: auto; overflow-y: hidden; margin: 16px 0; border: 1px solid #cbd5e1; border-radius: 8px; }
+.work-result-content :deep(.work-table-scroll--nested) { margin: 10px 0; border-color: #94a3b8; }
 .work-result-content :deep(.work-table-scroll:focus-visible) { outline: 2px solid var(--q-primary); outline-offset: 3px; }
 .work-result-content :deep(table) { width: max-content; min-width: 100%; border-collapse: collapse; table-layout: auto; }
 .work-result-content :deep(td), .work-result-content :deep(th) { min-width: 0; border: 1px solid #cbd5e1; padding: 12px 16px; vertical-align: top; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
