@@ -2,3 +2,8 @@
 
 *.sh text eol=lf
 Dockerfile* text eol=lf
+
+# Python wheels are ZIP archives and must never be newline-normalized.
+*.whl binary
+*.hwpx binary
+scripts/hwp binary

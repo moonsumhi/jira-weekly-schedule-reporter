@@ -20,13 +20,16 @@ logger.setLevel(logging.DEBUG)
 MAX_IMPORT_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 IMAGE_UPLOAD_DIR = "/app/uploads/form_entries"
+ORIGINAL_FILE_UPLOAD_DIR = "/app/uploads/form_entries/originals"
 _DATA_URL_RE = re.compile(r"^data:image/(?P<ext>[a-zA-Z0-9.+-]+);base64,(?P<b64>.+)$", re.DOTALL)
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
+from app.services.work_documents import import_document, markdown_from_data, save_markdown_snapshot, export_hwpx, export_hwp, export_docx
 
 from app.db.mongo import MongoClientManager
-from app.models.form_entry import FormEntryCreate, FormEntryOut, FormEntryPatch
+from app.models.form_entry import FormEntryCreate, FormEntryOut, FormEntryPatch, FormDocumentExport, FormOriginalFile
 from app.models.user import UserPublic
 from app.routers.auth import get_current_user
 from app.utils.mongo import fmt_dt, oid as parse_oid
@@ -43,6 +46,7 @@ def _to_out(doc: dict) -> FormEntryOut:
         id=str(doc["_id"]),
         template_id=doc.get("template_id", ""),
         data=doc.get("data", {}),
+        original_file=doc.get("original_file"),
         version=doc.get("version", 1),
         is_deleted=doc.get("is_deleted", False),
         created_at=fmt_dt(doc.get("created_at")),
@@ -1280,7 +1284,14 @@ async def import_entry_from_file(
                 image_groups.append({"caption": cap, "images": imgs})
         images = [img for grp in image_groups for img in grp["images"]]
 
-    return {"data": extracted, "skipped": skipped, "images": images, "image_groups": image_groups}
+    original_file = _save_original_file(content, file.filename or "", file.content_type)
+    return {
+        "data": extracted,
+        "skipped": skipped,
+        "images": images,
+        "image_groups": image_groups,
+        "original_file": original_file,
+    }
 
 
 async def _email_to_name_map() -> dict[str, str]:
@@ -1361,6 +1372,24 @@ def _persist_images(data: Any) -> Any:
     return data
 
 
+def _save_original_file(content: bytes, filename: str, content_type: str | None) -> dict[str, Any]:
+    """Persist the uploaded source document so an imported entry can download it later."""
+    os.makedirs(ORIGINAL_FILE_UPLOAD_DIR, exist_ok=True)
+    original_name = os.path.basename(filename).strip() or "original-document"
+    suffix = os.path.splitext(original_name)[1].lower()
+    if not re.fullmatch(r"\.[a-z0-9]{1,10}", suffix):
+        suffix = ""
+    stored_name = f"{uuid.uuid4().hex}{suffix}"
+    with open(os.path.join(ORIGINAL_FILE_UPLOAD_DIR, stored_name), "wb") as stream:
+        stream.write(content)
+    return FormOriginalFile(
+        url=f"/api/uploads/form_entries/originals/{stored_name}",
+        original_name=original_name,
+        content_type=content_type or "application/octet-stream",
+        size=len(content),
+    ).model_dump()
+
+
 @router.get("", response_model=list[FormEntryOut])
 async def list_entries(
     template_id: str = Query(...),
@@ -1386,6 +1415,98 @@ async def list_entries(
         doc["data"] = _strip_images(doc.get("data", {}))
 
     return [_to_out(doc) for doc in docs]
+
+
+@router.post("/import-markdown")
+async def import_markdown_file(
+    file: UploadFile = File(...),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    content = await file.read(MAX_IMPORT_FILE_SIZE + 1)
+    if len(content) > MAX_IMPORT_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="파일 크기가 50MB를 초과합니다.")
+    try:
+        markdown, warnings = await asyncio.to_thread(import_document, content, file.filename or '')
+    except Exception as exc:
+        logger.warning('Markdown import failed: %s', type(exc).__name__)
+        raise HTTPException(status_code=422, detail="문서 변환에 실패했습니다. HWP, HWPX, DOC, DOCX, PDF 파일을 확인해 주세요.") from exc
+    if not markdown.strip():
+        raise HTTPException(status_code=422, detail="문서에서 내용을 추출하지 못했습니다.")
+    return {"markdown": markdown, "warnings": warnings}
+
+
+@router.post('/import-form')
+async def import_original_form(file: UploadFile = File(...), template_id: str = Form(...), current_user: UserPublic = Depends(get_current_user)):
+    from app.services.work_form_import import map_document
+    template = await MongoClientManager.get_form_templates_collection().find_one({'_id': parse_oid(template_id)})
+    if not template:
+        raise HTTPException(status_code=404, detail='양식을 찾을 수 없습니다.')
+    content = await file.read()
+    if len(content) > MAX_IMPORT_FILE_SIZE:
+        raise HTTPException(status_code=413, detail='파일 크기가 50MB를 초과합니다.')
+    try:
+        markdown, warnings = await asyncio.to_thread(import_document, content, file.filename or '')
+        data, mapping_warnings = await asyncio.to_thread(map_document, markdown, template.get('sections', []))
+    except Exception as exc:
+        logger.warning('Original form import failed: %s', type(exc).__name__)
+        raise HTTPException(status_code=422, detail='양식 변환에 실패했습니다. 파일을 확인해 주세요.') from exc
+    original_file = _save_original_file(content, file.filename or "", file.content_type)
+    return {
+        'data': data,
+        'warnings': warnings + mapping_warnings,
+        'original_file': original_file,
+    }
+
+
+@router.post('/export-document')
+async def export_document(payload: FormDocumentExport, current_user: UserPublic = Depends(get_current_user)):
+    try:
+        from app.services.work_form_export import original_form_markup
+        markup = original_form_markup(payload.original_form.model_dump()) if payload.original_form else payload.markdown
+        content = await asyncio.to_thread(export_hwp if payload.format == 'hwp' else export_docx, markup)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.warning('Document export failed: %s', type(exc).__name__)
+        raise HTTPException(status_code=503, detail='문서 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.') from exc
+    mime = 'application/x-hwp' if payload.format == 'hwp' else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    return Response(content, media_type=mime, headers={'Content-Disposition': f'attachment; filename="work-document.{payload.format}"'})
+
+
+# Legacy helpers retained for recovery; the UI uses export-document.
+async def export_entry_hwpx(entry_id: str, current_user: UserPublic = Depends(get_current_user)):
+    doc = await MongoClientManager.get_form_entries_collection().find_one({"_id": parse_oid(entry_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    markdown = markdown_from_data(doc.get('data', {}))
+    if markdown is None:
+        raise HTTPException(status_code=422, detail="수정 화면에서 Markdown 문서로 저장한 후 내보내 주세요.")
+    try:
+        content = await asyncio.to_thread(export_hwpx, markdown)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return Response(content, media_type='application/hwp+zip', headers={
+        'Content-Disposition': f'attachment; filename="work-document-{entry_id}.hwpx"',
+    })
+
+
+async def export_entry_hwp(entry_id: str, current_user: UserPublic = Depends(get_current_user)):
+    doc = await MongoClientManager.get_form_entries_collection().find_one({"_id": parse_oid(entry_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다.")
+    markdown = markdown_from_data(doc.get('data', {}))
+    if markdown is None:
+        raise HTTPException(status_code=422, detail="수정 화면에서 Markdown 문서로 저장한 후 내보내 주세요.")
+    try:
+        content = await asyncio.to_thread(export_hwp, markdown)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (FileNotFoundError, subprocess.SubprocessError) as exc:
+        logger.warning('HWP export failed: %s', type(exc).__name__)
+        raise HTTPException(status_code=503, detail="한글 문서 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.") from exc
+    return Response(content, media_type='application/x-hwp', headers={
+        'Content-Disposition': f'attachment; filename="work-document-{entry_id}.hwp"',
+    })
 
 
 @router.get("/{entry_id}", response_model=FormEntryOut)
@@ -1414,6 +1535,7 @@ async def create_entry(
     doc = {
         "template_id": payload.template_id,
         "data": _persist_images(payload.data),
+        **save_markdown_snapshot(payload.data),
         "version": 1,
         "is_deleted": False,
         "created_at": now,
@@ -1421,6 +1543,8 @@ async def create_entry(
         "updated_at": now,
         "updated_by": current_user.full_name or current_user.email,
     }
+    if payload.original_file is not None:
+        doc["original_file"] = payload.original_file.model_dump()
     result = await col.insert_one(doc)
     doc["_id"] = result.inserted_id
     return _to_out(doc)
@@ -1436,9 +1560,17 @@ async def patch_entry(
     entry_oid = parse_oid(entry_id, "잘못된 항목 ID입니다.")
 
     now = _now()
+    set_fields: dict[str, Any] = {
+        "data": _persist_images(payload.data),
+        **save_markdown_snapshot(payload.data),
+        "updated_at": now,
+        "updated_by": current_user.full_name or current_user.email,
+    }
+    if "original_file" in payload.model_fields_set:
+        set_fields["original_file"] = payload.original_file.model_dump() if payload.original_file else None
     result = await col.find_one_and_update(
         {"_id": entry_oid, "version": payload.version, "is_deleted": {"$ne": True}},
-        {"$set": {"data": _persist_images(payload.data), "updated_at": now, "updated_by": current_user.full_name or current_user.email},
+        {"$set": set_fields,
          "$inc": {"version": 1}},
         return_document=True,
     )

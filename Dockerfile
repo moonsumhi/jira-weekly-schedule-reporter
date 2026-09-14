@@ -17,12 +17,24 @@ fi
 WORKDIR /app
 
 ARG PIP_INDEX_URL=https://pypi.org/simple/
+ARG SKIP_PIP_INSTALL=false
 
+COPY vendor /app/vendor
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir --index-url ${PIP_INDEX_URL} -r requirements.txt
+RUN if [ "$SKIP_PIP_INSTALL" = "false" ]; then \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --index-url ${PIP_INDEX_URL} -r requirements.txt; \
+fi
+
+# Install the vendored pure-Python HWPX library without invoking pip's build isolation.
+RUN cp -r /app/vendor/python_hwpx-6.3.0/hwpx /usr/local/lib/python3.12/site-packages/hwpx \
+ && cp -r /app/vendor/python_hwpx-6.3.0/python_hwpx-6.3.0.dist-info /usr/local/lib/python3.12/site-packages/
 
 COPY app /app/app
+COPY scripts/hwp /usr/local/bin/hwp
+COPY docs/third-party/hwp-cli-LICENSE.txt /usr/local/share/licenses/hwp-cli/LICENSE
+RUN chmod +x /usr/local/bin/hwp
+ENV HWP_FONT_DIR=/usr/share/fonts/opentype/noto
 
 RUN useradd -m appuser
 USER appuser
