@@ -177,10 +177,6 @@ const markdown = computed(() => withoutDocumentTitle(formEntryMarkdown(
   props.sections,
   props.entry?.data ?? {},
   window.location.origin,
-  {
-    excludeField: (section, field) => section.title.replace(/\s/g, '') === '개발내용'
-      && field.label.replace(/\s/g, '') === '세부작업내용',
-  },
 )))
 function displaySectionTitle(section: FormSection): string {
   const normalized = section.title.replace(/\s/g, '')

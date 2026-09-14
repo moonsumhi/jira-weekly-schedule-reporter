@@ -137,8 +137,34 @@ export function formEntryMarkdown(
         (_match, start: string, path: string, end: string) => `${start}<${new URL(path, origin).href}>${end}`)
     }
   }
+  const extraSection = sections.find(section => section.title.replace(/\s/g, '') === '가져온추가내용')
+  const extraValue = extraSection ? data[extraSection.title] : undefined
+  const extraRows: unknown[] = (Array.isArray(extraValue) ? extraValue : extraValue ? [extraValue] : [])
+    .filter((row: unknown) => hasMeaningfulValue(row))
+  const extraField = extraSection?.fields.find(field => field.label.replace(/\s/g, '') === '내용') ?? extraSection?.fields[0]
+  const splitExtraBlocks = (source: string): Array<{ title: string; content: string }> => {
+    const blocks: Array<{ title: string; content: string }> = []
+    const parts = source.split(/(?=^###\s+)/m)
+    for (const part of parts) {
+      const trimmed = part.trim()
+      if (!trimmed) continue
+      const heading = trimmed.match(/^###\s+(.+?)(?:\r?\n|$)/)
+      if (heading) {
+        blocks.push({ title: heading[1]?.trim() ?? '', content: trimmed.slice(heading[0].length).trim() })
+      } else {
+        blocks.push({ title: '', content: trimmed })
+      }
+    }
+    return blocks
+  }
+  const extraBlocks: Array<{ title: string; content: string }> = extraField
+    ? extraRows.flatMap((row: unknown) => splitExtraBlocks(markdownFieldValue(record(row), extraField, origin)))
+    : []
+  const movedExtraBlocks = extraBlocks.filter((block) => block.title.replace(/\s/g, '') === '담당자')
+  const remainingExtraBlocks = extraBlocks.filter((block) => block.title.replace(/\s/g, '') !== '담당자')
   const lines = [`# ${escapeText(title).replace(/\n/g, ' ')}`, '']
   for (const section of sections) {
+    if (section.title.replace(/\s/g, '') === '가져온추가내용') continue
     const displayTitle = displaySectionTitle(section)
     lines.push(`## ${escapeText(displayTitle).replace(/\n/g, ' ')}`, '')
     // Paired photos are rendered inside their corresponding text cell instead
@@ -165,6 +191,12 @@ export function formEntryMarkdown(
         lines.push(`| ${[String(index + 1), ...values].join(' | ')} |`)
       })
       lines.push('')
+      if (['작업자정보', '작업자'].includes(section.title.replace(/\s/g, '')) && movedExtraBlocks.length) {
+        for (const block of movedExtraBlocks) {
+          lines.push(`## ${escapeText(block.title).replace(/\n/g, ' ')}`, '')
+          if (block.content) lines.push(block.content, '')
+        }
+      }
       continue
     }
 
@@ -175,6 +207,13 @@ export function formEntryMarkdown(
       lines.push(`| ${escapeText(field.label).replace(/\n/g, ' ')} | ${tableCellValue(content)} |`)
     }
     lines.push('')
+  }
+  if (remainingExtraBlocks.length) {
+    lines.push('## 가져온 추가 내용', '')
+    for (const block of remainingExtraBlocks) {
+      if (block.title) lines.push(`### ${escapeText(block.title).replace(/\n/g, ' ')}`, '')
+      if (block.content) lines.push(block.content, '')
+    }
   }
   return `${lines.join('\n').trimEnd()}\n`
 }

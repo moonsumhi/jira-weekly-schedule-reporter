@@ -23,9 +23,33 @@ assert.ok(markdown.includes('![사진](<https://example.com/after.png>)'))
 assert.equal((markdown.match(/!\[사진\]/g) || []).length, 2)
 assert.ok(!markdown.includes('<script>'))
 assert.ok(!formEntryMarkdown('빈 문서', sections, {}, 'http://localhost:9000').includes('undefined'))
-assert.ok(formEntryMarkdown('구형 단일 행', [sections[1]], { '작업 절차': { '설명': '보존' } }, 'http://localhost:9000').includes('| No. | 설명 | 사진 |'))
+assert.ok(formEntryMarkdown('구형 단일 행', [sections[1]], { '작업 절차': { '설명': '보존' } }, 'http://localhost:9000').includes('| No. | 설명 |'))
 assert.equal(markdownFileName('점검:/계획?\n', 'abc123'), '점검__계획___abc123.md')
 console.log('Markdown export checks passed: Korean text, line breaks, tables, images, false/zero, empty and legacy data, filenames.')
+
+const workerSection = { title: '작업자 정보', multiple: true, fields: [{ label: '회사명', type: 'text' }] }
+const extraSection = { title: '가져온 추가 내용', multiple: true, fields: [{ label: '내용', type: 'textarea' }] }
+const extraContent = '### 담당자\n\n| 소속 | 성함 |\n| --- | --- |\n| SM파트 | 구도형 |'
+const extraMarkdown = formEntryMarkdown('가져온 문서', [workerSection, extraSection], {
+  '작업자 정보': [{ '회사명': '굿모닝아이텍(주)' }],
+  '가져온 추가 내용': [{ '내용': extraContent, '내용__format': 'markdown' }],
+}, 'http://localhost:9000')
+assert.ok(extraMarkdown.includes('## 담당자\n\n| 소속 | 성함 |'))
+assert.ok(extraMarkdown.indexOf('## 작업자 정보') < extraMarkdown.indexOf('## 담당자'))
+assert.ok(!extraMarkdown.includes('## 가져온 추가 내용'))
+assert.ok(!extraMarkdown.includes('| No. | 내용 |'))
+console.log('Imported extra Markdown tables remain block-level tables and 담당자 follows 작업자 정보.')
+
+const developmentSection = { title: '개발 내용', multiple: true, fields: [
+  { label: '제목', type: 'text' }, { label: '리스크', type: 'select' },
+  { label: '세부 작업 내용', type: 'textarea' },
+] }
+const developmentMarkdown = formEntryMarkdown('작업계획서', [developmentSection], {
+  '개발 내용': [{ '제목': '웹 보안 조치', '리스크': '상', '세부 작업 내용': '작업 목적\n\n작업 절차', '세부 작업 내용__format': 'markdown' }],
+}, 'http://localhost:9000')
+assert.ok(developmentMarkdown.includes('작업 목적'))
+assert.ok(developmentMarkdown.includes('작업 절차'))
+console.log('Development content remains in the saved Markdown snapshot.')
 
 const resultSection = { title: '작업 결과', multiple: true, fields: [
   { label: '작업 전', type: 'textarea', pairedImage: '작업 전 사진' },
