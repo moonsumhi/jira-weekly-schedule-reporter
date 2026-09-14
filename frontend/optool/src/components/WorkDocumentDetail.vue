@@ -42,7 +42,6 @@
             </header>
 
             <template v-if="view === 'markdown'">
-              <p class="text-grey-7">{{ hasOriginal ? '원본 양식과 같은 버전입니다. 원본 양식에서 수정해 저장하면 Markdown에도 반영됩니다.' : '이 문서는 Markdown으로 저장되어 원본 양식 데이터가 없습니다.' }}</p>
               <WorkResultContent :content="markdown" :section-titles="markdownSectionTitles" />
             </template>
             <template v-else>
@@ -134,7 +133,7 @@
       <footer class="document-footer">
         <span class="footer-note"><q-icon name="description" />{{ title }}</span><q-space />
         <q-btn flat no-caps label="닫기" @click="close" />
-        <q-btn outline no-caps icon="edit_note" label="Markdown 수정" :disable="loading || !entry || entry.isDeleted" @click="emit('edit-markdown')" />
+        <q-btn outline no-caps icon="edit_note" label="수정" :disable="loading || !entry || entry.isDeleted" @click="emit('edit-markdown')" />
         <q-btn-dropdown outline no-caps icon="download" label="내보내기" :loading="exporting" :disable="loading || !entry || exporting">
           <q-list>
             <q-item clickable v-close-popup @click="emit('export')"><q-item-section>Markdown (.md)</q-item-section></q-item>
@@ -159,11 +158,10 @@ import type { FormEntry } from 'src/services/formEntries'
 import type { FormField, FormSection } from 'src/services/formTemplates'
 import { comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
 import WorkResultContent from './WorkResultContent.vue'
-import { formEntryMarkdown, hasOriginalForm } from 'src/utils/formEntryMarkdown'
+import { formEntryMarkdown } from 'src/utils/formEntryMarkdown'
 
 const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; exporting?: boolean }>()
 const view = ref<'markdown'>('markdown')
-const hasOriginal = computed(() => hasOriginalForm(props.sections, props.entry?.data ?? {}))
 function withoutDocumentTitle(source: string): string {
   const lines = source.split('\n')
   if (/^\s*#\s+/.test(lines[0] ?? '')) {

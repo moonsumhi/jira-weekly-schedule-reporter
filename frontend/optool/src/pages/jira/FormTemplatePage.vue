@@ -81,9 +81,9 @@
                 <div class="row items-center justify-end q-gutter-xs">
                   <q-btn dense outline icon="visibility" label="상세" @click="void openDetail(props.row)" />
                   <q-btn
-                    dense outline icon="edit_note" label="Markdown 수정"
+                    dense outline icon="edit_note" label="수정"
                     :disable="props.row.isDeleted"
-                    @click="openEdit(props.row, 'markdown')"
+                    @click="openEdit(props.row)"
                   />
                   <q-btn
                     dense color="negative" icon="delete" label="삭제"
@@ -110,8 +110,7 @@
       :is-edit="isEdit" :saving="editorBusy" :dirty="isFormDirty"
       :sync-markdown="isJobPage && !documentMode"
       @update:model-value="onFormDialogModelUpdate"
-      :show-markdown-edit="!documentMode"
-      @edit-markdown="switchToMarkdownEdit"
+      :show-markdown-edit="false"
       @hide="importedImages = []; importedImageGroups = []; placedImportedIndices = new Set(); selectedPanelImage = ''; activePasteCell = null; importedOriginalFile = null; markdownSourceData = null"
       @save="isEdit ? doEdit() : doCreate()"
     >
@@ -838,18 +837,6 @@ function tableInputType(type: string): 'textarea' | 'date' | 'datetime-local' | 
 
 // ── Form state management ───────────────────────────────────────────────────
 
-function resetForm() {
-  const init: Record<string, SectionValue> = {}
-  for (const section of sections.value) {
-    if (section.multiple) {
-      init[section.title] = [emptyRow(section)]
-    } else {
-      init[section.title] = Object.fromEntries(section.fields.map((f) => [f.label, '']))
-    }
-  }
-  formValues.value = init
-}
-
 function startDocumentAction(action: 'create' | 'import') {
   if (importing.value) return
   if (isAllJobs.value) {
@@ -891,19 +878,26 @@ async function handleFileImport(event: Event) {
       const { data } = await api.post<{ data: Record<string, SectionValue>; warnings: string[]; originalFile?: OriginalFile | null }>('/form-entries/import-form', body)
       if (request !== pageRequest) return
       template.value = targetTemplate
-      documentMode.value = false
-      markdownEditMode.value = false
-      markdownSourceData.value = null
-      formValues.value = data.data
+      const importedData = cloneFormData(data.data)
+      const markdown = formEntryMarkdown(
+        targetTemplate.title,
+        originalSections(importedData),
+        importedData,
+        window.location.origin,
+      )
+      // Imported work documents open directly in Markdown editing mode. Keep
+      // the mapped original fields as the source so saving Markdown preserves
+      // the original data alongside the edited document body.
+      documentMode.value = true
+      markdownEditMode.value = true
+      markdownSourceData.value = importedData
+      formValues.value = documentData(targetTemplate.title, markdown, true)
       importedOriginalFile.value = data.originalFile ?? null
-      for (const section of targetTemplate.sections) {
-        if (section.multiple && !getRows(section.title).length) formValues.value[section.title] = [emptyRow(section)]
-      }
-      formValuesSnapshot.value = '{}'
+      snapshotFormValues()
       isEdit.value = false
       editingId.value = null
       formDialog.value = true
-      $q.notify({ type: 'info', message: data.warnings.join(' '), timeout: 10000 })
+      $q.notify({ type: 'info', message: `Import 완료. Markdown 형식으로 내용을 확인하고 저장해주세요. ${data.warnings.join(' ')}`.trim(), timeout: 10000 })
       return
     }
     const result = await formEntryService.importFromFile(targetTemplate.id, file)
@@ -948,42 +942,21 @@ async function handleFileImport(event: Event) {
   }
 }
 
-async function switchToMarkdownEdit() {
-  if (editorBusy.value || documentMode.value || !template.value) return
-  try {
-    // 현재 입력값과 Import 이미지 URL을 먼저 정규화한 뒤 Markdown 초안을 만든다.
-    const source = await saveData()
-    const title = template.value.title
-    const markdown = formEntryMarkdown(title, originalSections(source), source, window.location.origin)
-    markdownSourceData.value = cloneFormData(source)
-    documentMode.value = true
-    markdownEditMode.value = true
-    formValues.value = documentData(title, markdown, true)
-    snapshotFormValues()
-  } catch {
-    $q.notify({ type: 'negative', message: 'Markdown 편집 화면으로 전환하지 못했습니다.' })
-  }
-}
-
 function openCreate() {
-  documentMode.value = false
-  markdownEditMode.value = false
+  // New documents are authored in Markdown as well, so the original
+  // field-by-field form is not shown for the add flow.
+  documentMode.value = true
+  markdownEditMode.value = true
   markdownSourceData.value = null
   isEdit.value = false
   editingId.value = null
   importedOriginalFile.value = null
-  resetForm()
-  if (documentMode.value) formValues.value = documentData(template.value?.title ?? '', `# ${template.value?.title ?? '새 문서'}\n\n`)
-  for (const section of sections.value) {
-    for (const row of getRows(section.title)) {
-      for (const group of workResultFieldGroups(section).filter((item) => item.label)) row[comparisonFormatKey(group.label)] = 'markdown'
-    }
-  }
+  formValues.value = documentData(template.value?.title ?? '', `# ${template.value?.title ?? '새 문서'}\n\n`, true)
   snapshotFormValues()
   formDialog.value = true
 }
 
-async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
+async function openEdit(row: FormEntry) {
   const selectedTemplate = entryTemplate(row)
   if (!selectedTemplate) return
   const request = pageRequest
@@ -995,63 +968,20 @@ async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
   isEdit.value = true
    editingId.value = row.id
    editingVersion.value = fullEntry.version
-   markdownSourceData.value = mode === 'markdown' ? cloneFormData(fullEntry.data) : null
-   markdownEditMode.value = mode === 'markdown'
-   if (markdownEditMode.value) {
-     documentMode.value = true
-     formValues.value = documentData(
-       selectedTemplate.title,
-       formEntryMarkdown(selectedTemplate.title, originalSections(fullEntry.data), fullEntry.data, window.location.origin),
-       true,
-     )
-     snapshotFormValues()
-     formDialog.value = true
-     return
-   }
-   documentMode.value = !!fullEntry.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, fullEntry.data)
-  if (documentMode.value) {
-    const legacy = cloneFormData(fullEntry.data)
-    if (!legacy['문서 본문']) {
-      for (const section of selectedTemplate.sections) {
-        const stored = legacy[section.title]
-        const values = Array.isArray(stored) ? stored : stored ? [stored] : []
-        for (const value of values) {
-          for (const field of section.fields.filter((item) => item.type === 'image')) {
-            value[field.label] = await Promise.all(toImageArray(value[field.label]).map(resultImageUrl))
-          }
-        }
-      }
-    }
-    if (request !== pageRequest) return
-    formValues.value = fullEntry.data['문서 본문']
-      ? cloneFormData(fullEntry.data)
-      : documentData(selectedTemplate.title, formEntryMarkdown(selectedTemplate.title, selectedTemplate.sections, legacy, window.location.origin))
-    if (!fullEntry.data['문서 본문'] && getWorkDate(fullEntry) !== '-') setRowVal('문서 본문', 0, '작업 일시', getWorkDate(fullEntry))
-    snapshotFormValues()
-    formDialog.value = true
-    return
-  }
-  const copy: Record<string, SectionValue> = {}
-  for (const section of sections.value) {
-    const saved = fullEntry.data[section.title]
-    if (section.multiple) {
-      if (Array.isArray(saved) && saved.length > 0) {
-        copy[section.title] = saved.map((r: RowData) => ({ ...r }))
-      } else if (saved && !Array.isArray(saved)) {
-        copy[section.title] = [{ ...saved }]
-      } else {
-        copy[section.title] = [emptyRow(section)]
-      }
-    } else {
-      copy[section.title] = { ...(saved as Record<string, string> ?? {}) }
-    }
-  }
-  await prepareComparisonEditors(copy, selectedTemplate.sections)
-  if (fullEntry.data['가져온 추가 내용']) copy['가져온 추가 내용'] = cloneFormData(fullEntry.data['가져온 추가 내용'])
-  if (request !== pageRequest) return
-  formValues.value = copy
-  snapshotFormValues()
-  formDialog.value = true
+   // Existing documents are edited only as Markdown. Keep the stored mapped
+   // fields as the source so saving Markdown preserves the original data too.
+   markdownSourceData.value = cloneFormData(fullEntry.data)
+   markdownEditMode.value = true
+   documentMode.value = true
+   formValues.value = documentData(
+     selectedTemplate.title,
+     formEntryMarkdown(selectedTemplate.title, originalSections(fullEntry.data), fullEntry.data, window.location.origin),
+     true,
+   )
+   snapshotFormValues()
+   formDialog.value = true
+   return
+
   } catch {
     $q.notify({ type: 'negative', message: '수정할 문서를 불러오지 못했습니다.' })
   } finally {
@@ -1062,7 +992,7 @@ async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
 function editMarkdownDetail() {
   if (detailLoading.value || !detailRow.value || detailRow.value.isDeleted) return
   detailDialog.value = false
-  void openEdit(detailRow.value, 'markdown')
+  void openEdit(detailRow.value)
 }
 
 const exportingDocument = ref(false)

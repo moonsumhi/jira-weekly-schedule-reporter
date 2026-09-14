@@ -123,7 +123,7 @@ const rendered = computed(() => marked(props.content, { renderer, breaks: true }
 .work-result-content :deep(.work-table-scroll) { display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: auto; overflow-y: hidden; margin: 16px 0; border: 1px solid #cbd5e1; border-radius: 8px; }
 .work-result-content :deep(.work-table-scroll--nested) { margin: 10px 0; border-color: #94a3b8; }
 .work-result-content :deep(.work-table-scroll:focus-visible) { outline: 2px solid var(--q-primary); outline-offset: 3px; }
-.work-result-content :deep(table) { width: max-content; min-width: 100%; border-collapse: collapse; table-layout: auto; }
-.work-result-content :deep(td), .work-result-content :deep(th) { min-width: 0; border: 1px solid #cbd5e1; padding: 12px 16px; vertical-align: top; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+.work-result-content :deep(table) { width: 100%; max-width: 100%; min-width: 100%; border-collapse: collapse; table-layout: auto; }
+.work-result-content :deep(td), .work-result-content :deep(th) { min-width: 0; border: 1px solid #cbd5e1; padding: 12px 16px; vertical-align: top; white-space: normal; word-break: normal; overflow-wrap: anywhere; }
 .work-result-content :deep(th) { background: #64748b0d; font-weight: 600; text-align: center; }
 </style>

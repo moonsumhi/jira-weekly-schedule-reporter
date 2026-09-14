@@ -6,7 +6,7 @@
         <q-btn flat round dense icon="arrow_back" aria-label="작성 화면 닫기" :disable="saving" @click="close" />
         <div class="document-breadcrumb"><span>작업 관리</span><q-icon name="chevron_right" size="16px" /><strong>{{ title }}</strong></div>
         <q-space />
-        <q-btn v-if="props.showMarkdownEdit" flat dense icon="edit_note" label="Markdown으로 수정" :disable="saving" @click="emit('edit-markdown')" />
+        <q-btn v-if="props.showMarkdownEdit" flat dense icon="edit_note" label="수정" :disable="saving" @click="emit('edit-markdown')" />
         <span class="reading-badge"><span />{{ isEdit ? '문서 수정' : '새 문서 작성' }}</span>
         <q-btn flat round dense icon="close" aria-label="작성 화면 닫기" :disable="saving" @click="close" />
       </header>
@@ -43,7 +43,7 @@
       </div>
       <div v-if="$slots.images" class="editor-image-panel"><slot name="images" /></div>
       <footer class="document-footer"><span class="footer-note"><q-icon name="edit_note" />{{ dirty ? '저장하지 않은 변경사항' : title }}</span><q-space />
-        <q-btn v-if="props.showMarkdownEdit" flat no-caps icon="edit_note" label="Markdown으로 수정" :disable="saving" @click="emit('edit-markdown')" />
+        <q-btn v-if="props.showMarkdownEdit" flat no-caps icon="edit_note" label="수정" :disable="saving" @click="emit('edit-markdown')" />
         <q-btn flat label="취소" :disable="saving" @click="close" />
         <q-btn unelevated color="primary" icon="save" :label="isEdit ? '수정 저장' : '저장'" :loading="saving" @click="emit('save')" />
       </footer>

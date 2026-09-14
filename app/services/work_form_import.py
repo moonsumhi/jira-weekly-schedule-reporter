@@ -124,7 +124,10 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         if source_key == '담당자' and not candidates:
             headings = {norm(''.join(n.itertext())) for node in nodes for n in node.xpath('.//th')}
             key = '작업자정보' if '역할' in headings else '검토/서명'
-            candidates = [s for s in sections if norm(s['title']) == key]
+            # ``검토/서명`` contains a separator that ``norm`` removes. Use
+            # the normalized key here as well, otherwise 담당자 blocks fall
+            # through to 가져온 추가 내용 even when the review section exists.
+            candidates = [s for s in sections if norm(s['title']) == norm(key)]
         if not candidates:
             logger.warning('작업 문서 Import 섹션 매핑 실패: source_title=%r normalized=%r', title, key)
             # The document title is already represented by the selected form.

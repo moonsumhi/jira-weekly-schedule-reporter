@@ -84,3 +84,28 @@ class OriginalFormImportTests(unittest.TestCase):
         self.assertEqual(data['세부 작업 절차'][0]['시작 시간'], '17:00')
         self.assertEqual(data['세부 작업 절차'][0]['종료 시간'], '18:00')
         self.assertFalse(warnings)
+
+    def test_assignee_title_maps_to_review_section_instead_of_extra_content(self):
+        sections = [
+            {
+                'title': '작업자 정보', 'multiple': True,
+                'fields': [{'label': '회사명', 'type': 'text'}, {'label': '역할', 'type': 'text'}],
+            },
+            {
+                'title': '검토/서명', 'multiple': True,
+                'fields': [
+                    {'label': '소속', 'type': 'text'}, {'label': '성함', 'type': 'text'},
+                    {'label': '검토의견', 'type': 'textarea'}, {'label': '서명', 'type': 'image'},
+                ],
+            },
+        ]
+        markdown = '''## 담당자
+
+| No. | 소속 | 성함 | 검토의견 | 서명 |
+| --- | --- | --- | --- | --- |
+| 1 | 데이터활용팀 | 홍길동 | 확인 |  |'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['검토/서명'][0]['소속'], '데이터활용팀')
+        self.assertEqual(data['검토/서명'][0]['성함'], '홍길동')
+        self.assertNotIn(EXTRA, data)
+        self.assertFalse(warnings)
