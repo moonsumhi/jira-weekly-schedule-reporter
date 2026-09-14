@@ -1,6 +1,7 @@
 """Work documents: ordered Markdown import, durable snapshots and HWPX export."""
 import base64
 import io
+import logging
 import re
 import subprocess
 import tempfile
@@ -15,6 +16,7 @@ from markdown_it import MarkdownIt
 from PIL import Image
 
 UPLOAD_ROOT = Path('/app/uploads')
+logger = logging.getLogger(__name__)
 DOCUMENT_SECTION = '문서 본문'
 
 
@@ -317,13 +319,80 @@ def local_image(src: str) -> bytes:
     return target.read_bytes()
 
 
+def _table_widths_for_export(node, rows, cols, nested=False):
+    """Resolve explicit table widths and compact selected nested columns.
+
+    Work-form tables carry their widths in ``data-column-widths``. Markdown
+    tables embedded inside a cell do not, so use their header labels to keep
+    short ``구분``/``테스트 항목`` columns compact and give the saved width to
+    ``비고`` when it is present.
+    """
+    raw_widths = node.get('data-column-widths', '')
+    try:
+        parsed_widths = [float(value.strip()) for value in raw_widths.split(',') if value.strip()]
+        if len(parsed_widths) == cols and any(parsed_widths):
+            return parsed_widths
+    except (TypeError, ValueError):
+        logger.debug('Ignoring invalid table width hint: %r', raw_widths)
+
+    widths = [100.0 / cols] * cols
+    if not nested or not rows:
+        return widths
+
+    header = rows[0].xpath('./td|./th')
+    labels = [re.sub(r'\s+', '', ''.join(cell.itertext())) for cell in header]
+    # Keep these close to the width of their short headers. The saved width
+    # is handed to 비고, which is usually the long free-text column.
+    targets = {'구분': 10.0, '테스트항목': 19.0}
+    compacted = []
+    for label, target_width in targets.items():
+        try:
+            index = labels.index(label)
+        except ValueError:
+            continue
+        if widths[index] > target_width:
+            compacted.append((index, widths[index] - target_width))
+            widths[index] = target_width
+    if not compacted:
+        return widths
+
+    receiver = next((index for index, label in enumerate(labels) if label == '비고'), None)
+    if receiver is None:
+        # Keep the table at 100% even when a nested table has no 비고 column.
+        receiver = max((index for index in range(cols)
+                        if index not in {item[0] for item in compacted}),
+                       key=lambda index: widths[index], default=None)
+    if receiver is not None:
+        widths[receiver] += sum(amount for _, amount in compacted)
+    return widths
+
+
 def export_hwpx(markdown: str) -> bytes:
     from hwpx import HwpxDocument
     document = HwpxDocument.new()
     rendered = MarkdownIt('commonmark', {'html': True}).enable('table').render(markdown)
     root = html.fragment_fromstring(rendered, create_parent='div')
+    initial_paragraph = document.paragraphs[0] if document.paragraphs else None
+    # Keep the document title and all table headings centered while leaving
+    # table values in their default left alignment.  Reuse the same paragraph
+    # properties for every heading so HWPX and the generated HWP stay
+    # consistent across sections and nested tables.
+    center_para_pr_ref = None
+    if initial_paragraph is not None:
+        document.styles.apply_paragraph_format(paragraph_index=0, alignment='CENTER')
+        center_para_pr_ref = document.paragraphs[0].para_pr_id_ref
+    first_paragraph = True
 
-    def emit(node, add_paragraph, width_mm=150):
+    def add_document_paragraph(text='', **kwargs):
+        """Reuse the skeleton paragraph so exported titles start at the top."""
+        nonlocal first_paragraph
+        if first_paragraph and initial_paragraph is not None:
+            first_paragraph = False
+            return initial_paragraph
+        first_paragraph = False
+        return document.add_paragraph(text, **kwargs)
+
+    def emit(node, add_paragraph, width_mm=170, font_size=None):
         tag = node.tag.lower() if isinstance(node.tag, str) else ''
         if tag in ('script', 'style'):
             return
@@ -331,11 +400,64 @@ def export_hwpx(markdown: str) -> bytes:
             rows = node.xpath('./tr|./thead/tr|./tbody/tr|./tfoot/tr')
             if not rows:
                 return
-            cols = max(len(row.xpath('./td|./th')) for row in rows)
-            table = add_paragraph('').add_table(rows=len(rows), cols=cols, width=round(width_mm * 7200 / 25.4))
+            def span(cell, name='colspan'):
+                try:
+                    return max(1, int(cell.get(name, '1')))
+                except (TypeError, ValueError):
+                    return 1
+
+            cols = max(sum(span(cell) for cell in row.xpath('./td|./th')) for row in rows)
+            # The HWPX library's default row height is 3600 HWP units, which
+            # leaves a large blank band above and below one-line values. Use a
+            # compact one-line baseline; rows with longer content can still
+            # expand when Hancom lays the table out.
+            table = add_paragraph('').add_table(
+                rows=len(rows), cols=cols,
+                width=round(width_mm * 7200 / 25.4),
+                height=2200 * len(rows),
+            )
+            widths = _table_widths_for_export(node, rows, cols, nested=font_size is not None)
+            table.set_column_widths(widths)
+            total_weight = sum(widths)
+
+            def cell_width(start, span):
+                weight = sum(widths[start:min(start + span, cols)])
+                return max(10, width_mm * weight / total_weight - 4)
+
             for r, row in enumerate(rows):
-                for c, cell in enumerate(row.xpath('./td|./th')):
-                    emit(cell, table.cell(r, c).add_paragraph, width_mm / cols - 4)
+                c = 0
+                for cell in row.xpath('./td|./th'):
+                    colspan = span(cell)
+                    if colspan > 1:
+                        table.merge_cells(r, c, r, min(cols - 1, c + colspan - 1))
+                    target = table.cell(r, c)
+                    role = cell.get('data-role', '')
+                    if role == 'section-heading':
+                        table.set_cell_shading(r, c, 'D9D9D9')
+                    elif cell.tag.lower() == 'th':
+                        table.set_cell_shading(r, c, 'F2F2F2')
+                    # A new HWPX table cell contains one empty paragraph by
+                    # default. Remove it before emitting the first header or
+                    # value so the content does not start one line too low.
+                    has_content = bool(''.join(cell.itertext()).strip() or cell.xpath('.//img|.//table'))
+                    if has_content:
+                        for paragraph in target.paragraphs:
+                            if not paragraph.text and not paragraph.tables:
+                                parent = paragraph.element.getparent()
+                                if parent is not None:
+                                    parent.remove(paragraph.element)
+                                break
+                    # Tables nested inside a detailed-work cell use a compact
+                    # 9pt header / 8pt data scale; top-level report tables
+                    # remain 10pt / 9pt.
+                    nested = font_size is not None
+                    emit(cell, target.add_paragraph, cell_width(c, colspan),
+                         font_size=(9 if nested else 10)
+                         if cell.tag.lower() == 'th' else (8 if nested else 9))
+                    if cell.tag.lower() == 'th' and center_para_pr_ref is not None:
+                        for paragraph in target.paragraphs:
+                            paragraph.para_pr_id_ref = center_para_pr_ref
+                    c += colspan
             return
         paragraph = None
         def text(value, bold=False, italic=False):
@@ -343,9 +465,12 @@ def export_hwpx(markdown: str) -> bytes:
             if value:
                 if paragraph is None:
                     paragraph = add_paragraph('')
+                    if center_para_pr_ref is not None and re.fullmatch(r'h[1-6]', tag):
+                        paragraph.para_pr_id_ref = center_para_pr_ref
                 heading = int(tag[1]) if re.fullmatch(r'h[1-6]', tag) else 0
+                size = font_size if font_size is not None else (max(12, 22 - heading * 2) if heading else 10)
                 style = document.styles.ensure_run(bold=bold or bool(heading), italic=italic,
-                                                   size=max(12, 22 - heading * 2) if heading else 10)
+                                                   size=size)
                 paragraph.add_run(value, char_pr_id_ref=style)
         def inline(element, bold=False, italic=False):
             nonlocal paragraph
@@ -385,12 +510,12 @@ def export_hwpx(markdown: str) -> bytes:
             if node.text and node.text.strip():
                 add_paragraph(node.text)
             for child in node:
-                emit(child, add_paragraph, width_mm)
+                emit(child, add_paragraph, width_mm, font_size=font_size)
             return
         inline(node)
 
     for child in root:
-        emit(child, document.add_paragraph)
+        emit(child, add_document_paragraph)
     stream = io.BytesIO()
     document.save_to_stream(stream)
     return stream.getvalue()
@@ -402,6 +527,10 @@ def export_hwp(markdown: str) -> bytes:
         source = Path(temporary) / 'document.hwpx'
         target = Path(temporary) / 'document.hwp'
         source.write_bytes(export_hwpx(markdown))
+        # The HWPX already contains the report styling and explicit column
+        # widths.  Running hwp edit --style-tables here would recalculate
+        # widths from the current values and shrink empty columns such as
+        # "비고" to one or two characters.
         subprocess.run(['hwp', 'convert', str(source), '-o', str(target)],
                        check=True, capture_output=True, timeout=90)
         output = target.read_bytes()
@@ -412,6 +541,7 @@ def export_hwp(markdown: str) -> bytes:
 
 def export_docx(markdown: str) -> bytes:
     from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.shared import Mm, Pt
     from docx.oxml.ns import qn
     document = Document()
@@ -423,7 +553,7 @@ def export_docx(markdown: str) -> bytes:
     normal.element.get_or_add_rPr().get_or_add_rFonts().set(qn('w:eastAsia'), 'Noto Sans CJK KR')
     root = html.fragment_fromstring(MarkdownIt('commonmark', {'html': True}).enable('table').render(markdown), create_parent='div')
 
-    def emit(node, container, width=170):
+    def emit(node, container, width=170, font_size=None):
         tag = node.tag.lower() if isinstance(node.tag, str) else ''
         if tag in ('script', 'style'):
             return
@@ -431,22 +561,60 @@ def export_docx(markdown: str) -> bytes:
             rows = node.xpath('./tr|./thead/tr|./tbody/tr|./tfoot/tr')
             if not rows:
                 return
-            cols = max(len(row.xpath('./td|./th')) for row in rows)
+            def span(cell, name='colspan'):
+                try:
+                    return max(1, int(cell.get(name, '1')))
+                except (TypeError, ValueError):
+                    return 1
+
+            cols = max(sum(span(cell) for cell in row.xpath('./td|./th')) for row in rows)
             table = container.add_table(rows=len(rows), cols=cols)
             table.style = 'Table Grid'
             table.autofit = True
+            from docx.oxml import OxmlElement
+            widths = _table_widths_for_export(node, rows, cols, nested=font_size is not None)
+            total_weight = sum(widths)
+
+            def cell_width(start, span):
+                weight = sum(widths[start:min(start + span, cols)])
+                return max(10, width * weight / total_weight - 4)
+
             for r, row in enumerate(rows):
-                for c, cell in enumerate(row.xpath('./td|./th')):
-                    emit(cell, table.cell(r, c), max(10, width / cols - 4))
+                c = 0
+                for cell in row.xpath('./td|./th'):
+                    colspan = span(cell)
+                    target = table.cell(r, c)
+                    if colspan > 1:
+                        target = target.merge(table.cell(r, min(cols - 1, c + colspan - 1)))
+                    role = cell.get('data-role', '')
+                    if role == 'section-heading' or cell.tag.lower() == 'th':
+                        shading = OxmlElement('w:shd')
+                        shading.set(qn('w:fill'), 'D9D9D9' if role == 'section-heading' else 'F2F2F2')
+                        target._tc.get_or_add_tcPr().append(shading)
+                    has_content = bool(''.join(cell.itertext()).strip() or cell.xpath('.//img|.//table'))
+                    if has_content:
+                        paragraphs = target.paragraphs
+                        if paragraphs and not paragraphs[0].text and not paragraphs[0]._element.xpath('.//w:tbl'):
+                            paragraphs[0]._element.getparent().remove(paragraphs[0]._element)
+                    nested = font_size is not None
+                    emit(cell, target, cell_width(c, colspan),
+                         font_size=(9 if nested else 10)
+                         if cell.tag.lower() == 'th' else (8 if nested else 9))
+                    if cell.tag.lower() == 'th':
+                        for paragraph in target.paragraphs:
+                            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    c += colspan
             return
         if tag in ('div', 'ul', 'ol', 'blockquote') or (tag in ('td', 'th') and any(child.tag in ('p', 'table', 'div', 'ul', 'ol') for child in node)):
             if node.text and node.text.strip():
                 container.add_paragraph(node.text)
             for child in node:
-                emit(child, container, width)
+                emit(child, container, width, font_size=font_size)
             return
         heading = int(tag[1]) if re.fullmatch(r'h[1-6]', tag) else 0
         paragraph = container.add_paragraph(style=f'Heading {heading}' if heading else None)
+        if heading:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
         def inline(element, bold=False, italic=False):
             if element.tag in ('script', 'style'):
@@ -469,6 +637,8 @@ def export_docx(markdown: str) -> bytes:
                 if value:
                     run = paragraph.add_run(value)
                     run.bold, run.italic = bold, italic
+                    if font_size is not None:
+                        run.font.size = Pt(font_size)
             if element.tag == 'li':
                 text('• ')
             text(element.text)

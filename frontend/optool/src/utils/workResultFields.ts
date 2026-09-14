@@ -2,12 +2,21 @@ import type { FormField, FormSection } from '../services/formTemplates'
 
 export function comparisonFormatKey(label: string): string { return `${label}__format` }
 
+function looksLikeMarkdownTable(value: string): boolean {
+  const lines = value.split(/\r?\n/)
+  return lines.some((line, index) => {
+    const separator = lines[index + 1] ?? ''
+    return /^\s*\|.*\|\s*$/.test(line)
+      && /^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(separator)
+  })
+}
+
 export function comparisonMarkdown(row: Record<string, unknown>, fields: FormField[]): string {
   const textField = fields.find((field) => field.type !== 'image')
   if (!textField) return ''
   const value = row[textField.label]
   const text = typeof value === 'string' ? value : ''
-  const markdown = row[comparisonFormatKey(textField.label)] === 'markdown' ? text
+  const markdown = row[comparisonFormatKey(textField.label)] === 'markdown' || looksLikeMarkdownTable(text) ? text
     : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/([\\`*_{}[\]()#+.!|~-])/g, '\\$1')
   const photos = fields.filter((field) => field.type === 'image').flatMap((field) => {

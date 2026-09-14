@@ -21,13 +21,13 @@
 .document-paper { width: 100%; max-width: 1320px; margin: 0 auto; padding: 44px 56px 28px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 4px 20px #1e293b04; }
 .document-hero { padding-bottom: 32px; border-bottom: 1px solid var(--line); margin-bottom: 36px; }
 .document-kind { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #4d6594; background: #eff3fb; border-radius: 6px; padding: 6px 10px; }
-.document-hero h1 { font-size: 28px; line-height: 1.5; letter-spacing: -.7px; font-weight: 700; margin: 18px 0 14px; overflow-wrap: anywhere; }
+.document-hero h1 { font-size: 28px; line-height: 1.5; letter-spacing: -.7px; font-weight: 700; margin: 18px 0 14px; overflow-wrap: anywhere; text-align: center; }
 .document-byline { display: flex; flex-wrap: wrap; gap: 18px; color: var(--muted); font-size: 12px; }
 .document-byline span { display: inline-flex; gap: 6px; align-items: center; }
 .document-section { margin-bottom: 40px; scroll-margin-top: 28px; }
 .section-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .section-number { font-size: 11px; font-weight: 700; color: #6782ac; background: #f1f5fa; border-radius: 6px; padding: 5px 7px; }
-.section-heading h2 { font-size: 17px; line-height: 1.6; font-weight: 650; margin: 0; letter-spacing: -.3px; }
+.section-heading h2 { flex: 1; font-size: 17px; line-height: 1.6; font-weight: 650; margin: 0; letter-spacing: -.3px; text-align: center; }
 .section-count { margin-left: auto; color: #94a3b8; font-size: 11px; white-space: nowrap; }
 .document-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 32px; }
 .document-field-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
@@ -35,7 +35,7 @@
 .document-field-group.comparison-side { grid-column: auto; padding: 18px; border: 1px solid var(--line); border-radius: 8px; }
 .document-field-group.whole-document { grid-column: 1 / -1; }
 .comparison-side .document-fields { grid-template-columns: minmax(0, 1fr); }
-.comparison-heading { font-size: 15px; font-weight: 650; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 2px solid #94a3b8; }
+.comparison-heading { font-size: 15px; font-weight: 650; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 2px solid #94a3b8; text-align: center; }
 .comparison-side:nth-child(2) .comparison-heading { border-bottom-color: var(--q-primary); color: var(--q-primary); }
 .comparison-side .document-image { width: 100%; height: 200px; }
 @media (max-width: 700px) { .document-field-groups { grid-template-columns: minmax(0, 1fr); } }
@@ -49,7 +49,7 @@
 .document-table-scroll:focus-visible { outline: 2px solid var(--q-primary); outline-offset: 3px; }
 .document-work-table { width: 100%; table-layout: auto; border-collapse: collapse; text-align: left; }
 .document-work-table th, .document-work-table td { min-width: 0; padding: 16px; vertical-align: top; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.document-work-table thead th { background: #f1f5f9; color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.document-work-table thead th { background: #f1f5f9; color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; text-align: center; }
 .document-work-table .row-number { min-width: 52px; width: 52px; text-align: center; color: var(--muted); font-size: 12px; }
 .document-work-table .title-column { min-width: 200px; width: 22%; }
 .document-work-table td.title-column { word-break: keep-all; overflow-wrap: break-word; }
@@ -57,6 +57,7 @@
 .document-work-table tbody tr:last-child > * { border-bottom: 0; }
 .document-work-table tbody tr:hover { background: #64748b06; }
 .document-work-table .field-value { word-break: keep-all; overflow-wrap: anywhere; }
+.document-work-table .work-result-content { min-width: 0; max-width: 100%; }
 :global(body.body--dark) .document-work-table thead th { background: #223047; }
 .document-step { display: flex; gap: 16px; }
 .step-rail { position: relative; flex: 0 0 28px; padding-top: 18px; }

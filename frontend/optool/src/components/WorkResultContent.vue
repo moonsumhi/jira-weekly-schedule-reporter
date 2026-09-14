@@ -48,17 +48,20 @@ renderer.image = (href, _title, text) => href && safeUrl(href, true) ? `<img src
 const rendered = computed(() => marked(props.content, { renderer, breaks: true }))
 </script>
 <style scoped>
-.work-result-content { overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; min-width: 0; }
+.work-result-content { overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; min-width: 0; max-width: 100%; }
 .work-result-content :deep(img) { display: block; max-width: 100%; height: auto; margin: 12px 0; border-radius: 6px; cursor: zoom-in; }
 .work-result-content :deep(img:focus-visible) { outline: 2px solid var(--q-primary); outline-offset: 4px; }
 .image-preview-card { width: 94vw; max-width: 94vw; max-height: 94vh; }
 .image-preview-full { display: block; width: 100%; height: calc(90vh - 40px); object-fit: contain; }
 .work-result-content :deep(p) { margin: 0 0 14px; white-space: pre-wrap; }
 .work-result-content :deep(pre) { overflow: auto; padding: 12px; background: #f1f5f9; color: #1e293b; border-radius: 6px; }
-.work-result-content :deep(h1), .work-result-content :deep(h2), .work-result-content :deep(h3) { font-size: 18px; line-height: 1.5; margin: 16px 0 8px; }
-.work-result-content :deep(.work-table-scroll) { max-width: 100%; overflow-x: auto; margin: 16px 0; border: 1px solid #cbd5e1; border-radius: 8px; }
+.work-result-content :deep(h1) { font-size: 18px; line-height: 1.5; margin: 16px 0 8px; text-align: center; }
+.work-result-content :deep(h2) { font-size: 24px; line-height: 1.45; margin: 32px 0 14px; text-align: center; font-weight: 700; }
+.work-result-content :deep(h3) { font-size: 18px; line-height: 1.5; margin: 20px 0 10px; text-align: center; }
+.work-result-content :deep(h4), .work-result-content :deep(h5), .work-result-content :deep(h6) { text-align: center; }
+.work-result-content :deep(.work-table-scroll) { display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: auto; overflow-y: hidden; margin: 16px 0; border: 1px solid #cbd5e1; border-radius: 8px; }
 .work-result-content :deep(.work-table-scroll:focus-visible) { outline: 2px solid var(--q-primary); outline-offset: 3px; }
-.work-result-content :deep(table) { width: 100%; border-collapse: collapse; }
-.work-result-content :deep(td), .work-result-content :deep(th) { min-width: 180px; border: 1px solid #cbd5e1; padding: 12px 16px; vertical-align: top; word-break: keep-all; overflow-wrap: anywhere; }
-.work-result-content :deep(th) { background: #64748b0d; font-weight: 600; }
+.work-result-content :deep(table) { width: max-content; min-width: 100%; border-collapse: collapse; table-layout: auto; }
+.work-result-content :deep(td), .work-result-content :deep(th) { min-width: 0; border: 1px solid #cbd5e1; padding: 12px 16px; vertical-align: top; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+.work-result-content :deep(th) { background: #64748b0d; font-weight: 600; text-align: center; }
 </style>

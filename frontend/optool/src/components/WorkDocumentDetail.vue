@@ -18,7 +18,7 @@
             <button v-for="(section, index) in sections" :key="index" type="button"
               :class="['document-nav-item', { active: activeSection === index }]"
               :aria-current="activeSection === index ? 'location' : undefined" @click="goToSection(index)">
-              <span class="nav-number">{{ String(index + 1).padStart(2, '0') }}</span><span>{{ section.title }}</span>
+              <span class="nav-number">{{ String(index + 1).padStart(2, '0') }}</span><span>{{ displaySectionTitle(section) }}</span>
             </button>
           </nav>
           <div class="sidebar-metadata">
@@ -48,9 +48,9 @@
             <template v-else>
             <section v-for="(section, index) in sections" :key="index" :data-section-index="index" class="document-section">
               <div class="section-heading"><span class="section-number">{{ String(index + 1).padStart(2, '0') }}</span>
-                <h2>{{ section.title }}</h2><span v-if="section.multiple" class="section-count">{{ sectionRows(section).length }}개 항목</span></div>
+                <h2>{{ displaySectionTitle(section) }}</h2><span v-if="section.multiple" class="section-count">{{ sectionRows(section).length }}개 항목</span></div>
 
-              <div v-if="isWorkTable(section)" class="document-table-scroll" tabindex="0" role="region" :aria-label="`${section.title} 표, 가로 스크롤 가능`">
+              <div v-if="isWorkTable(section)" class="document-table-scroll" tabindex="0" role="region" :aria-label="`${displaySectionTitle(section)} 표, 가로 스크롤 가능`">
                 <table class="document-work-table">
                   <thead><tr><th scope="col" class="row-number">No.</th><th v-for="field in tableFields(section)" :key="field.label" scope="col" :class="fieldColumnClass(field)">{{ field.label }}</th></tr></thead>
                   <tbody>
@@ -67,7 +67,7 @@
                           </div><div v-else class="field-empty">—</div>
                         </template>
                         <WorkResultContent v-else-if="developmentImages(section, field).length" :content="comparisonMarkdown(row, [field, ...developmentImages(section, field)])" />
-                        <WorkResultContent v-else-if="row[`${field.label}__format`] === 'markdown'" :content="String(row[field.label] ?? '')" />
+                        <WorkResultContent v-else-if="isMarkdownValue(row[field.label], row[`${field.label}__format`])" :content="String(row[field.label] ?? '')" />
                         <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayValue(row[field.label]) }}</div>
                       </td>
                     </tr>
@@ -97,7 +97,7 @@
                           </button>
                         </div><div v-else class="field-empty">등록된 이미지가 없습니다</div>
                       </template>
-                      <WorkResultContent v-else-if="row[`${field.label}__format`] === 'markdown'" :content="String(row[field.label] ?? '')" />
+                      <WorkResultContent v-else-if="isMarkdownValue(row[field.label], row[`${field.label}__format`])" :content="String(row[field.label] ?? '')" />
                       <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayValue(row[field.label]) }}</div>
                     </div>
                       </div>
@@ -118,7 +118,7 @@
                       </button>
                     </div><div v-else class="field-empty">등록된 이미지가 없습니다</div>
                   </template>
-                  <WorkResultContent v-else-if="sectionRecord(section)[`${field.label}__format`] === 'markdown'" :content="String(sectionRecord(section)[field.label] ?? '')" />
+                  <WorkResultContent v-else-if="isMarkdownValue(sectionRecord(section)[field.label], sectionRecord(section)[`${field.label}__format`])" :content="String(sectionRecord(section)[field.label] ?? '')" />
                   <div v-else :class="['field-value', { 'field-empty': isEmpty(sectionRecord(section)[field.label]) }]">{{ displayValue(sectionRecord(section)[field.label]) }}</div>
                 </div>
               </div>
@@ -143,7 +143,6 @@
             <q-item clickable v-close-popup @click="emit('export-file', 'docx')"><q-item-section>Word (.docx)</q-item-section></q-item>
           </q-list>
         </q-btn-dropdown>
-        <q-btn unelevated no-caps color="primary" icon="edit" label="수정" :disable="loading || !entry || entry.isDeleted" @click="emit('edit')" />
       </footer>
 
       <q-dialog :model-value="!!previewSource" @update:model-value="previewSource = ''">
@@ -165,10 +164,33 @@ import { formEntryMarkdown, hasOriginalForm } from 'src/utils/formEntryMarkdown'
 const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; exporting?: boolean }>()
 const view = ref<'markdown'>('markdown')
 const hasOriginal = computed(() => hasOriginalForm(props.sections, props.entry?.data ?? {}))
-const markdown = computed(() => formEntryMarkdown(props.title, props.sections, props.entry?.data ?? {}, window.location.origin))
-const markdownSectionTitles = computed(() => props.sections.map((section) =>
-  section.title.replace(/\s/g, '') === '기본정보' ? '작업 개요' : section.title,
-))
+function withoutDocumentTitle(source: string): string {
+  const lines = source.split('\n')
+  if (/^\s*#\s+/.test(lines[0] ?? '')) {
+    lines.shift()
+    while (lines[0]?.trim() === '') lines.shift()
+  }
+  return lines.join('\n')
+}
+const markdown = computed(() => withoutDocumentTitle(formEntryMarkdown(
+  props.title,
+  props.sections,
+  props.entry?.data ?? {},
+  window.location.origin,
+  {
+    excludeField: (section, field) => section.title.replace(/\s/g, '') === '개발내용'
+      && field.label.replace(/\s/g, '') === '세부작업내용',
+  },
+)))
+function displaySectionTitle(section: FormSection): string {
+  const normalized = section.title.replace(/\s/g, '')
+  if (normalized === '기본정보') return '작업 개요'
+  if (normalized === '작업시간표') return '세부 작업 절차'
+  const fields = section.fields.map((field) => field.label.replace(/\s/g, ''))
+  if (normalized === '담당자' && fields.some((label) => ['검토의견', '서명', '검토내용'].includes(label))) return '검토/서명'
+  return section.title
+}
+const markdownSectionTitles = computed(() => props.sections.map(displaySectionTitle))
 const originalDownloadLabel = '원본 파일 다운로드'
 watch(() => [props.modelValue, props.entry?.id, props.loading], () => {
   view.value = 'markdown'
@@ -199,7 +221,7 @@ function tableFields(section: FormSection): FormField[] {
   ordered.splice(hostnameIndex >= 0 ? hostnameIndex + 1 : ordered.length, 0, note)
   return ordered
 }
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; edit: []; 'edit-markdown': []; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': [] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; 'edit-markdown': []; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': [] }>()
 const scrollArea = ref<HTMLElement | null>(null)
 const activeSection = ref(0)
 const previewSource = ref('')
@@ -218,6 +240,16 @@ function displayValue(value: unknown): string {
 }
 function isEmpty(value: unknown) { return value == null || value === '' || (Array.isArray(value) && !value.length) }
 function images(value: unknown): string[] { return (Array.isArray(value) ? value : [value]).filter((item): item is string => typeof item === 'string' && !!item.trim()) }
+function isMarkdownValue(value: unknown, format?: unknown): boolean {
+  if (typeof value !== 'string' || !value.trim()) return false
+  if (format === 'markdown') return true
+  const lines = value.split(/\r?\n/)
+  return lines.some((line, index) => {
+    const separator = lines[index + 1] ?? ''
+    return /^\s*\|.*\|\s*$/.test(line)
+      && /^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(separator)
+  })
+}
 function isWide(field: FormField, value: unknown) { return field.fullWidth || field.type === 'textarea' || field.type === 'image' || displayValue(value).length > 90 || displayValue(value).includes('\n') }
 function findField(labels: string[]): string {
   for (const section of props.sections.filter((item) => !item.multiple)) {

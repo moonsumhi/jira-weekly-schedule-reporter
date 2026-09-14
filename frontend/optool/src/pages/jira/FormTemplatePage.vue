@@ -81,9 +81,9 @@
                 <div class="row items-center justify-end q-gutter-xs">
                   <q-btn dense outline icon="visibility" label="상세" @click="void openDetail(props.row)" />
                   <q-btn
-                    dense outline icon="edit" label="수정"
+                    dense outline icon="edit_note" label="Markdown 수정"
                     :disable="props.row.isDeleted"
-                    @click="openEdit(props.row)"
+                    @click="openEdit(props.row, 'markdown')"
                   />
                   <q-btn
                     dense color="negative" icon="delete" label="삭제"
@@ -110,7 +110,9 @@
       :is-edit="isEdit" :saving="editorBusy" :dirty="isFormDirty"
       :sync-markdown="isJobPage && !documentMode"
       @update:model-value="onFormDialogModelUpdate"
-      @hide="importedImages = []; importedImageGroups = []; placedImportedIndices = new Set(); selectedPanelImage = ''; activePasteCell = null; importedOriginalFile = null"
+      :show-markdown-edit="!documentMode"
+      @edit-markdown="switchToMarkdownEdit"
+      @hide="importedImages = []; importedImageGroups = []; placedImportedIndices = new Set(); selectedPanelImage = ''; activePasteCell = null; importedOriginalFile = null; markdownSourceData = null"
       @save="isEdit ? doEdit() : doCreate()"
     >
       <template #section="{ section }">
@@ -330,7 +332,6 @@
       :entry="detailRow"
       :title="template?.title ?? ''"
       :sections="sections"
-      @edit="editDetail"
       @edit-markdown="editMarkdownDetail"
       @export="exportDetailMarkdown"
       @export-file="exportDetailFile"
@@ -341,7 +342,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, toRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { exportFile, useQuasar } from 'quasar'
 import { downloadAttachment } from 'src/utils/attachment'
@@ -494,6 +495,21 @@ type RowData = Record<string, string | string[]>
 type SectionValue = RowData | RowData[]
 const formValues = ref<Record<string, SectionValue>>({})
 
+// `structuredClone` cannot clone Vue reactive proxies. Form data is edited
+// through reactive objects, so unwrap proxies recursively before keeping a
+// snapshot or sending Markdown edits back to the API.
+function cloneFormData<T>(value: T): T {
+  if (value === null || typeof value !== 'object') return value
+  const raw = toRaw(value as object)
+  if (raw instanceof Date) return new Date(raw.getTime()) as T
+  if (Array.isArray(raw)) return raw.map((item) => cloneFormData(item)) as T
+  const result: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(raw as Record<string, unknown>)) {
+    result[key] = cloneFormData(item)
+  }
+  return result as T
+}
+
 // 다이얼로그를 열 때(생성/수정 진입 시)의 스냅샷과 비교해 변경 여부를 판단.
 // 변경이 없으면 ESC/바깥 클릭 시 바로 닫고, 변경이 있으면 확인을 받는다.
 const formValuesSnapshot = ref('')
@@ -522,6 +538,9 @@ function onFormDialogModelUpdate(val: boolean): void {
 
 const documentMode = ref(false)
 const markdownEditMode = ref(false)
+// Markdown 편집으로 전환할 때 원본 필드 데이터도 함께 보존해 원본 양식과
+// Markdown 버전을 모두 유지한다.
+const markdownSourceData = ref<Record<string, SectionValue> | null>(null)
 const documentSections: FormSection[] = [{ title: '문서 본문', multiple: true, fields: [
   { label: '제목', type: 'text', required: true, fullWidth: true },
   { label: '작업 일시', type: 'date' },
@@ -874,6 +893,7 @@ async function handleFileImport(event: Event) {
       template.value = targetTemplate
       documentMode.value = false
       markdownEditMode.value = false
+      markdownSourceData.value = null
       formValues.value = data.data
       importedOriginalFile.value = data.originalFile ?? null
       for (const section of targetTemplate.sections) {
@@ -906,6 +926,7 @@ async function handleFileImport(event: Event) {
     await prepareComparisonEditors(init, targetTemplate.sections)
     if (request !== pageRequest) return
     formValues.value = init
+    markdownSourceData.value = null
     formValuesSnapshot.value = '{}'
     importedImages.value = result.images ?? []
     importedImageGroups.value = result.imageGroups ?? []
@@ -927,9 +948,27 @@ async function handleFileImport(event: Event) {
   }
 }
 
+async function switchToMarkdownEdit() {
+  if (editorBusy.value || documentMode.value || !template.value) return
+  try {
+    // 현재 입력값과 Import 이미지 URL을 먼저 정규화한 뒤 Markdown 초안을 만든다.
+    const source = await saveData()
+    const title = template.value.title
+    const markdown = formEntryMarkdown(title, originalSections(source), source, window.location.origin)
+    markdownSourceData.value = cloneFormData(source)
+    documentMode.value = true
+    markdownEditMode.value = true
+    formValues.value = documentData(title, markdown, true)
+    snapshotFormValues()
+  } catch {
+    $q.notify({ type: 'negative', message: 'Markdown 편집 화면으로 전환하지 못했습니다.' })
+  }
+}
+
 function openCreate() {
   documentMode.value = false
   markdownEditMode.value = false
+  markdownSourceData.value = null
   isEdit.value = false
   editingId.value = null
   importedOriginalFile.value = null
@@ -956,6 +995,7 @@ async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
   isEdit.value = true
    editingId.value = row.id
    editingVersion.value = fullEntry.version
+   markdownSourceData.value = mode === 'markdown' ? cloneFormData(fullEntry.data) : null
    markdownEditMode.value = mode === 'markdown'
    if (markdownEditMode.value) {
      documentMode.value = true
@@ -970,7 +1010,7 @@ async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
    }
    documentMode.value = !!fullEntry.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, fullEntry.data)
   if (documentMode.value) {
-    const legacy = structuredClone(fullEntry.data)
+    const legacy = cloneFormData(fullEntry.data)
     if (!legacy['문서 본문']) {
       for (const section of selectedTemplate.sections) {
         const stored = legacy[section.title]
@@ -984,7 +1024,7 @@ async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
     }
     if (request !== pageRequest) return
     formValues.value = fullEntry.data['문서 본문']
-      ? structuredClone(fullEntry.data)
+      ? cloneFormData(fullEntry.data)
       : documentData(selectedTemplate.title, formEntryMarkdown(selectedTemplate.title, selectedTemplate.sections, legacy, window.location.origin))
     if (!fullEntry.data['문서 본문'] && getWorkDate(fullEntry) !== '-') setRowVal('문서 본문', 0, '작업 일시', getWorkDate(fullEntry))
     snapshotFormValues()
@@ -1007,7 +1047,7 @@ async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
     }
   }
   await prepareComparisonEditors(copy, selectedTemplate.sections)
-  if (fullEntry.data['가져온 추가 내용']) copy['가져온 추가 내용'] = structuredClone(fullEntry.data['가져온 추가 내용'])
+  if (fullEntry.data['가져온 추가 내용']) copy['가져온 추가 내용'] = cloneFormData(fullEntry.data['가져온 추가 내용'])
   if (request !== pageRequest) return
   formValues.value = copy
   snapshotFormValues()
@@ -1017,12 +1057,6 @@ async function openEdit(row: FormEntry, mode: 'form' | 'markdown' = 'form') {
   } finally {
     if (request === pageRequest) tableLoading.value = false
   }
-}
-
-function editDetail() {
-  if (detailLoading.value || !detailRow.value || detailRow.value.isDeleted) return
-  detailDialog.value = false
-  void openEdit(detailRow.value)
 }
 
 function editMarkdownDetail() {
@@ -1126,10 +1160,20 @@ function validate(): boolean {
   return true
 }
 
+function apiErrorDetail(error: unknown): string {
+  const response = (error as { response?: { data?: unknown } } | null)?.response
+  const data = response?.data
+  if (data && typeof data === 'object' && 'detail' in data) {
+    const detail = (data as { detail?: unknown }).detail
+    if (typeof detail === 'string' && detail.trim()) return detail
+  }
+  return error instanceof Error && error.message ? error.message : ''
+}
+
 async function saveData(): Promise<Record<string, SectionValue>> {
-  if (markdownEditMode.value && template.value && detailRow.value) {
-    const merged = structuredClone(detailRow.value.data) as Record<string, SectionValue>
-    merged['문서 본문'] = structuredClone(formValues.value['문서 본문'] ?? [])
+  if (markdownEditMode.value && template.value) {
+    const merged = cloneFormData(markdownSourceData.value ?? detailRow.value?.data ?? {}) as Record<string, SectionValue>
+    merged['문서 본문'] = cloneFormData(formValues.value['문서 본문'] ?? [])
     return merged
   }
   if (!isJobPage.value || documentMode.value || !template.value) return formValues.value
@@ -1155,8 +1199,10 @@ async function doCreate() {
     rows.value.unshift(entry)
     formDialog.value = false
     $q.notify({ type: 'positive', message: '저장됐습니다.' })
-  } catch {
-    $q.notify({ type: 'negative', message: '저장 실패' })
+  } catch (error: unknown) {
+    console.error('작업 문서 저장 실패', error)
+    const detail = apiErrorDetail(error)
+    $q.notify({ type: 'negative', message: detail ? `저장 실패: ${detail}` : '저장 실패' })
   } finally {
     saving.value = false
   }
@@ -1171,8 +1217,10 @@ async function doEdit() {
     rows.value = rows.value.map((r) => (r.id === updated.id ? updated : r))
     formDialog.value = false
     $q.notify({ type: 'positive', message: '수정됐습니다.' })
-  } catch {
-    $q.notify({ type: 'negative', message: '수정 실패' })
+  } catch (error: unknown) {
+    console.error('작업 문서 수정 실패', error)
+    const detail = apiErrorDetail(error)
+    $q.notify({ type: 'negative', message: detail ? `수정 실패: ${detail}` : '수정 실패' })
   } finally {
     saving.value = false
   }

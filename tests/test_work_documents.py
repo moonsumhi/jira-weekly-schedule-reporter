@@ -136,6 +136,14 @@ class WorkDocumentTests(unittest.TestCase):
         self.assertIn(title, reimported)
         self.assertIn(body, reimported)
 
+    def test_hwpx_title_starts_in_the_first_paragraph(self):
+        output = documents.export_hwpx('# 작업계획서\n\n본문')
+        with ZipFile(io.BytesIO(output)) as archive:
+            root = etree.fromstring(archive.read('Contents/section0.xml'))
+        paragraphs = root.xpath('./*[local-name()="p"]')
+        self.assertTrue(paragraphs)
+        self.assertIn('작업계획서', ''.join(paragraphs[0].itertext()))
+
     def test_hwp_binary_preserves_korean_table_and_image(self):
         src = documents.store_image(self.photo())
         output = documents.export_hwp(f'# 한글 호환성\n\n| 작업 내용 | 비고 |\n| --- | --- |\n| 작업 전 ![사진](<{src}>) 작업 후 | 정상 |')

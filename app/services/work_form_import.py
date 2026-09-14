@@ -112,6 +112,15 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         if not candidates and source_key in aliases and source_key not in preferred_alias_sources:
             key = aliases[source_key]
             candidates = [s for s in sections if norm(s['title']) == norm(key)]
+        # The schedule section has two names in deployed templates. Treat
+        # them as the same section so imports keep working after the display
+        # title is standardized to "세부 작업 절차".
+        if not candidates and norm(key) == '작업시간표':
+            key = '세부 작업 절차'
+            candidates = [s for s in sections if norm(s['title']) == norm(key)]
+        if not candidates and norm(key) == '세부작업절차':
+            key = '작업 시간표'
+            candidates = [s for s in sections if norm(s['title']) == norm(key)]
         if source_key == '담당자' and not candidates:
             headings = {norm(''.join(n.itertext())) for node in nodes for n in node.xpath('.//th')}
             key = '작업자정보' if '역할' in headings else '검토/서명'

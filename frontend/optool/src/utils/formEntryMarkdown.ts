@@ -70,16 +70,62 @@ function tableCellValue(value: string): string {
   return value.replace(/\r?\n/g, '<br>').replace(/(^|[^\\])\|/g, '$1\\|')
 }
 
+function displaySectionTitle(section: FormSection): string {
+  const normalized = section.title.replace(/\s/g, '')
+  if (normalized === '기본정보') return '작업 개요'
+  if (normalized === '작업시간표') return '세부 작업 절차'
+  const fields = section.fields.map((field) => field.label.replace(/\s/g, ''))
+  if (normalized === '담당자' && fields.some((label) => ['검토의견', '서명', '검토내용'].includes(label))) return '검토/서명'
+  return section.title
+}
+
+function hasMeaningfulValue(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(hasMeaningfulValue)
+  if (value && typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .some(([key, item]) => !key.endsWith('__format') && hasMeaningfulValue(item))
+  }
+  if (typeof value === 'string') return value.trim() !== ''
+  return typeof value === 'number' || typeof value === 'boolean'
+}
+
+function normalizeStoredMarkdown(markdown: string): string {
+  const renamed = markdown.split('\n').map((line) => {
+    if (/^\s*(#{1,6}\s+|\*{2})작업\s*시간표(?:\s*\*{2})?\s*$/.test(line)) {
+      return line.replace(/작업\s*시간표/, '세부 작업 절차')
+    }
+    return line
+  })
+  const cleaned: string[] = []
+  let index = 0
+  const isPipeRow = (line: string) => /^\s*\|.*\|\s*$/.test(line)
+  const cells = (line: string) => line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim())
+  const isSeparator = (line: string) => isPipeRow(line) && cells(line).every((cell) => /^:?-+:?$/.test(cell))
+  const isEmptyRow = (line: string) => isPipeRow(line) && cells(line).every((cell) => cell === '')
+  while (index < renamed.length) {
+    const line = renamed[index] ?? ''
+    if (isEmptyRow(line) && isSeparator(renamed[index + 1] ?? '')) {
+      index += 2
+      while (isEmptyRow(renamed[index] ?? '')) index += 1
+      continue
+    }
+    cleaned.push(line)
+    index += 1
+  }
+  return cleaned.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n'
+}
+
 export function formEntryMarkdown(
   title: string,
   sections: FormSection[],
   data: Record<string, unknown>,
   origin: string,
+  options: { excludeField?: (section: FormSection, field: FormSection['fields'][number]) => boolean } = {},
 ): string {
   const documentRows = data['문서 본문']
   const document = Array.isArray(documentRows) && documentRows.length === 1 ? record(documentRows[0]) : null
   if (document?.['__markdown_override'] === 'true' && document['내용__format'] === 'markdown' && typeof document['내용'] === 'string') {
-    return document['내용'].replace(/(!\[[^\]]*\]\()<?(\/api\/uploads\/[^\s)>]+)>?(\))/g,
+    return normalizeStoredMarkdown(document['내용']).replace(/(!\[[^\]]*\]\()<?(\/api\/uploads\/[^\s)>]+)>?(\))/g,
       (_match, start: string, path: string, end: string) => `${start}<${new URL(path, origin).href}>${end}`)
   }
   // Synced entries keep both the original field data and a generated Markdown
@@ -87,18 +133,18 @@ export function formEntryMarkdown(
   // existing entries as well; legacy Markdown-only entries remain unchanged.
   if (!hasOriginalForm(sections, data) && Array.isArray(documentRows) && documentRows.length === 1) {
     if (document?.['내용__format'] === 'markdown' && typeof document['내용'] === 'string') {
-      return document['내용'].replace(/(!\[[^\]]*\]\()<?(\/api\/uploads\/[^\s)>]+)>?(\))/g,
+      return normalizeStoredMarkdown(document['내용']).replace(/(!\[[^\]]*\]\()<?(\/api\/uploads\/[^\s)>]+)>?(\))/g,
         (_match, start: string, path: string, end: string) => `${start}<${new URL(path, origin).href}>${end}`)
     }
   }
   const lines = [`# ${escapeText(title).replace(/\n/g, ' ')}`, '']
   for (const section of sections) {
-    const displayTitle = section.title.replace(/\s/g, '') === '기본정보' ? '작업 개요' : section.title
+    const displayTitle = displaySectionTitle(section)
     lines.push(`## ${escapeText(displayTitle).replace(/\n/g, ' ')}`, '')
     // Paired photos are rendered inside their corresponding text cell instead
     // of becoming separate Markdown table columns.
     const pairedLabels = new Set(section.fields.map((field) => pairedImageLabel(section, field)).filter((label): label is string => Boolean(label)))
-    const visibleFields = section.fields.filter((field) => !pairedLabels.has(field.label))
+    const visibleFields = section.fields.filter((field) => !pairedLabels.has(field.label) && !options.excludeField?.(section, field))
     const cellValue = (values: Record<string, unknown>, field: FormField): string => {
       const content = markdownFieldValue(values, field, origin)
       const paired = pairedFieldValue(values, section, field, origin)
@@ -106,7 +152,12 @@ export function formEntryMarkdown(
     }
     if (section.multiple) {
       const value = data[section.title]
-      const rows = Array.isArray(value) ? value : value ? [value] : []
+      const rows = (Array.isArray(value) ? value : value ? [value] : [])
+        .filter((row) => hasMeaningfulValue(row))
+      if (rows.length === 0) {
+        lines.splice(lines.length - 2, 2)
+        continue
+      }
       const headers = ['No.', ...visibleFields.map((field) => escapeText(field.label).replace(/\n/g, ' '))]
       lines.push(`| ${headers.join(' | ')} |`, `| ${headers.map(() => '---').join(' | ')} |`)
       rows.forEach((row, index) => {

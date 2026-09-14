@@ -69,3 +69,18 @@ class OriginalFormImportTests(unittest.TestCase):
         data, warnings = map_document(markdown, sections)
         self.assertEqual([row['테스트 결과'] for row in data['테스트 케이스']], ['정상 처리', '실패 재현'])
         self.assertFalse(warnings)
+
+    def test_schedule_title_alias_maps_to_detail_procedure_section(self):
+        sections = [{
+            'title': '세부 작업 절차', 'multiple': True,
+            'fields': [{'label': '시작 시간', 'type': 'text'}, {'label': '종료 시간', 'type': 'text'}],
+        }]
+        markdown = '''## 작업 시간표
+
+| 시작 시간 | 종료 시간 |
+| --- | --- |
+| 17:00 | 18:00 |'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['세부 작업 절차'][0]['시작 시간'], '17:00')
+        self.assertEqual(data['세부 작업 절차'][0]['종료 시간'], '18:00')
+        self.assertFalse(warnings)

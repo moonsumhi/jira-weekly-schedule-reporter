@@ -5,7 +5,9 @@
       <header class="document-topbar">
         <q-btn flat round dense icon="arrow_back" aria-label="작성 화면 닫기" :disable="saving" @click="close" />
         <div class="document-breadcrumb"><span>작업 관리</span><q-icon name="chevron_right" size="16px" /><strong>{{ title }}</strong></div>
-        <q-space /><span class="reading-badge"><span />{{ isEdit ? '문서 수정' : '새 문서 작성' }}</span>
+        <q-space />
+        <q-btn v-if="props.showMarkdownEdit" flat dense icon="edit_note" label="Markdown으로 수정" :disable="saving" @click="emit('edit-markdown')" />
+        <span class="reading-badge"><span />{{ isEdit ? '문서 수정' : '새 문서 작성' }}</span>
         <q-btn flat round dense icon="close" aria-label="작성 화면 닫기" :disable="saving" @click="close" />
       </header>
       <div class="document-layout">
@@ -15,7 +17,7 @@
             <button v-for="(section, index) in sections" :key="index" type="button"
               :class="['document-nav-item', { active: activeSection === index }]"
               :aria-current="activeSection === index ? 'location' : undefined" @click="goToSection(index)">
-              <span class="nav-number">{{ String(index + 1).padStart(2, '0') }}</span><span>{{ section.title }}</span>
+              <span class="nav-number">{{ String(index + 1).padStart(2, '0') }}</span><span>{{ displaySectionTitle(section) }}</span>
             </button>
           </nav>
           <div class="sidebar-metadata"><q-icon name="edit_note" size="24px" /><div class="sidebar-meta-title">{{ isEdit ? '문서를 수정하고 있습니다' : '새 문서를 작성하고 있습니다' }}</div>
@@ -31,7 +33,7 @@
             </header>
             <fieldset :disabled="saving" class="editor-fieldset">
               <section v-for="(section, index) in sections" :key="index" :data-section-index="index" class="document-section">
-                <div class="section-heading"><span class="section-number">{{ String(index + 1).padStart(2, '0') }}</span><h2>{{ section.title }}</h2></div>
+                <div class="section-heading"><span class="section-number">{{ String(index + 1).padStart(2, '0') }}</span><h2>{{ displaySectionTitle(section) }}</h2></div>
                 <slot name="section" :section="section" />
               </section>
             </fieldset>
@@ -41,6 +43,7 @@
       </div>
       <div v-if="$slots.images" class="editor-image-panel"><slot name="images" /></div>
       <footer class="document-footer"><span class="footer-note"><q-icon name="edit_note" />{{ dirty ? '저장하지 않은 변경사항' : title }}</span><q-space />
+        <q-btn v-if="props.showMarkdownEdit" flat no-caps icon="edit_note" label="Markdown으로 수정" :disable="saving" @click="emit('edit-markdown')" />
         <q-btn flat label="취소" :disable="saving" @click="close" />
         <q-btn unelevated color="primary" icon="save" :label="isEdit ? '수정 저장' : '저장'" :loading="saving" @click="emit('save')" />
       </footer>
@@ -51,9 +54,17 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
 import type { FormSection } from 'src/services/formTemplates'
-const props = defineProps<{ modelValue: boolean; title: string; sections: FormSection[]; isEdit: boolean; saving: boolean; dirty: boolean; syncMarkdown?: boolean }>()
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; hide: []; save: [] }>()
+const props = defineProps<{ modelValue: boolean; title: string; sections: FormSection[]; isEdit: boolean; saving: boolean; dirty: boolean; syncMarkdown?: boolean; showMarkdownEdit?: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; hide: []; save: []; 'edit-markdown': [] }>()
 defineSlots<{ section(props: { section: FormSection }): unknown; images(): unknown }>()
+function displaySectionTitle(section: FormSection): string {
+  const normalized = section.title.replace(/\s/g, '')
+  if (normalized === '기본정보') return '작업 개요'
+  if (normalized === '작업시간표') return '세부 작업 절차'
+  const fields = section.fields.map((field) => field.label.replace(/\s/g, ''))
+  if (normalized === '담당자' && fields.some((label) => ['검토의견', '서명', '검토내용'].includes(label))) return '검토/서명'
+  return section.title
+}
 const scrollArea = ref<HTMLElement | null>(null)
 const activeSection = ref(0)
 function close() { if (!props.saving) emit('update:modelValue', false) }
