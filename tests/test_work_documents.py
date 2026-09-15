@@ -160,14 +160,14 @@ class WorkDocumentTests(unittest.TestCase):
         self.assertTrue(root.xpath('.//TableControl'))
         self.assertTrue(root.xpath('.//PictureInfo'))
 
-    def test_pdf_scan_preserved(self):
-        import fitz
-        doc = fitz.open()
-        page = doc.new_page()
-        page.insert_image(page.rect, stream=self.photo())
-        markdown, warnings = documents.import_document(doc.tobytes(), 'scan.pdf')
-        self.assertIn('![페이지 1]', markdown)
-        self.assertTrue(any('페이지 이미지' in warning for warning in warnings))
+    def test_pdf_import_is_not_supported(self):
+        with self.assertRaisesRegex(ValueError, 'HWP, HWPX, DOC, DOCX'):
+            documents.import_document(b'%PDF-1.7', 'scan.pdf')
+        from app.routers.form_entries import _ensure_work_document_import_format
+        from fastapi import HTTPException
+        with self.assertRaises(HTTPException) as error:
+            _ensure_work_document_import_format('scan.pdf')
+        self.assertEqual(error.exception.status_code, 415)
 
     def test_docx_export_preserves_korean_table_picture_order(self):
         src = documents.store_image(self.photo())

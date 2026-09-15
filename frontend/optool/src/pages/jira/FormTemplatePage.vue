@@ -10,7 +10,7 @@
 
     <!-- 파일 선택창이 열려있는 동안 DOM에서 제거되면 브라우저가 창을 강제로 닫으므로,
          v-if 블록 밖에 항상 마운트된 상태로 둔다 -->
-    <input ref="fileInput" type="file" :accept="isJobPage ? '.pdf,.hwp,.hwpx,.doc,.docx' : '.pdf,.hwp'" style="display:none" @change="handleFileImport" />
+    <input ref="fileInput" type="file" :accept="isJobPage ? '.hwp,.hwpx,.doc,.docx' : '.hwp'" style="display:none" @change="handleFileImport" />
 
     <template v-if="!loading && (isAllJobs || template)">
       <!-- Header -->
@@ -81,11 +81,6 @@
                 <div class="row items-center justify-end q-gutter-xs">
                   <q-btn dense outline icon="visibility" label="상세" @click="void openDetail(props.row)" />
                   <q-btn
-                    dense outline icon="edit_note" label="수정"
-                    :disable="props.row.isDeleted"
-                    @click="openEdit(props.row)"
-                  />
-                  <q-btn
                     dense color="negative" icon="delete" label="삭제"
                     :disable="props.row.isDeleted"
                     :loading="actingId === props.row.id"
@@ -107,12 +102,12 @@
 
     <WorkDocumentEditor
       :model-value="formDialog" :title="template?.title ?? ''" :sections="sections"
-      :is-edit="isEdit" :saving="editorBusy" :dirty="isFormDirty"
+      :is-edit="false" :saving="editorBusy" :dirty="isFormDirty"
       :sync-markdown="isJobPage && !documentMode"
       @update:model-value="onFormDialogModelUpdate"
       :show-markdown-edit="false"
       @hide="importedImages = []; importedImageGroups = []; placedImportedIndices = new Set(); selectedPanelImage = ''; activePasteCell = null; importedOriginalFile = null; markdownSourceData = null"
-      @save="isEdit ? doEdit() : doCreate()"
+      @save="doCreate"
     >
       <template #section="{ section }">
         <div class="edit-section-rows">
@@ -244,7 +239,7 @@
               </div>
             </template>
 
-            <!-- PDF 등 캡션 그룹 정보가 없는 경우: 기존처럼 flat하게 표시. 이미 칸에 배치된 이미지는 빠진다 -->
+            <!-- 캡션 그룹 정보가 없는 가져온 사진은 기존처럼 flat하게 표시한다. 이미 칸에 배치된 이미지는 빠진다. -->
             <div v-else class="image-panel-scroll row q-gutter-sm">
               <div
                 v-for="item in visibleImportedImages"
@@ -331,7 +326,9 @@
       :entry="detailRow"
       :title="template?.title ?? ''"
       :sections="sections"
+      :creating="creatingDetail"
       :saving="detailSaving"
+      @update:model-value="onDetailDialogUpdate"
       @save="saveDetailForm"
       @export="exportDetailMarkdown"
       @export-file="exportDetailFile"
@@ -437,7 +434,7 @@ const skippedDialog = ref(false)
 const skippedItems = ref<ImportSkipped[]>([])
 const importedImages = ref<string[]>([])
 const importedOriginalFile = ref<OriginalFile | null>(null)
-// PDF는 캡션 개념이 없어 그룹 없이 flat하게만 옴 — HWP만 캡션과 함께 그룹으로 옴.
+// 캡션을 추출할 수 없는 문서는 그룹 없이 flat하게 표시한다.
 // importedImages와 순서가 정확히 일치해야(그룹 펼친 게 flat 리스트) 아래 오프셋 계산이 맞는다.
 const importedImageGroups = ref<ImportImageGroup[]>([])
 // 이미 칸에 배치된 importedImages 원본 인덱스 — 패널에서는 숨기고, 칸에서 빼면 다시 보이게 함
@@ -471,7 +468,7 @@ const importedImageGroupsWithOffset = computed(() => {
     .filter((g) => g.images.length > 0)
 })
 
-// 캡션 그룹 정보가 없는 경우(PDF)의 flat 패널 목록 — 이미 배치된 이미지는 숨긴다.
+// 캡션 그룹 정보가 없는 경우의 flat 패널 목록 — 이미 배치된 이미지는 숨긴다.
 const visibleImportedImages = computed(() =>
   importedImages.value
     .map((img, idx) => ({ img, idx }))
@@ -486,11 +483,9 @@ const formDialog = ref(false)
 const detailDialog = ref(false)
 const detailLoading = ref(false)
 const detailSaving = ref(false)
-const isEdit = ref(false)
+const creatingDetail = ref(false)
 const detailRow = ref<FormEntry | null>(null)
 const actingId = ref<string | null>(null)
-const editingId = ref<string | null>(null)
-const editingVersion = ref(1)
 
 type RowData = Record<string, string | string[]>
 type SectionValue = RowData | RowData[]
@@ -514,9 +509,6 @@ function cloneFormData<T>(value: T): T {
 // 다이얼로그를 열 때(생성/수정 진입 시)의 스냅샷과 비교해 변경 여부를 판단.
 // 변경이 없으면 ESC/바깥 클릭 시 바로 닫고, 변경이 있으면 확인을 받는다.
 const formValuesSnapshot = ref('')
-function snapshotFormValues(): void {
-  formValuesSnapshot.value = JSON.stringify(formValues.value)
-}
 const isFormDirty = computed(() => JSON.stringify(formValues.value) !== formValuesSnapshot.value)
 
 function onFormDialogModelUpdate(val: boolean): void {
@@ -551,10 +543,6 @@ function originalSections(data: Record<string, unknown>): FormSection[] {
   return data['가져온 추가 내용'] ? [...base, { title: '가져온 추가 내용', multiple: true, fields: [{ label: '내용', type: 'textarea', fullWidth: true }] }] : base
 }
 const sections = computed<FormSection[]>(() => documentMode.value ? documentSections : originalSections(formDialog.value ? formValues.value : detailRow.value?.data ?? {}))
-
-function documentData(title: string, markdown: string, editable = false): Record<string, SectionValue> {
-  return { '문서 본문': [{ '제목': title, '내용': markdown, '내용__format': 'markdown', ...(editable ? { '__markdown_override': 'true' } : {}) }] }
-}
 
 function hasMarkdownOverride(data: Record<string, unknown>): boolean {
   const rows = data['문서 본문']
@@ -880,25 +868,8 @@ async function handleFileImport(event: Event) {
       if (request !== pageRequest) return
       template.value = targetTemplate
       const importedData = cloneFormData(data.data)
-      const markdown = formEntryMarkdown(
-        targetTemplate.title,
-        originalSections(importedData),
-        importedData,
-        window.location.origin,
-      )
-      // Imported work documents open directly in Markdown editing mode. Keep
-      // the mapped original fields as the source so saving Markdown preserves
-      // the original data alongside the edited document body.
-      documentMode.value = true
-      markdownEditMode.value = true
-      markdownSourceData.value = importedData
-      formValues.value = documentData(targetTemplate.title, markdown, true)
-      importedOriginalFile.value = data.originalFile ?? null
-      snapshotFormValues()
-      isEdit.value = false
-      editingId.value = null
-      formDialog.value = true
-      $q.notify({ type: 'info', message: `Import 완료. Markdown 형식으로 내용을 확인하고 저장해주세요. ${data.warnings.join(' ')}`.trim(), timeout: 10000 })
+      openDetailCreate(importedData, data.originalFile ?? null)
+      $q.notify({ type: 'info', message: `Import 완료. 표 형식으로 내용을 확인하고 저장해주세요. ${data.warnings.join(' ')}`.trim(), timeout: 10000 })
       return
     }
     const result = await formEntryService.importFromFile(targetTemplate.id, file)
@@ -927,8 +898,6 @@ async function handleFileImport(event: Event) {
     importedImageGroups.value = result.imageGroups ?? []
     importedOriginalFile.value = result.originalFile ?? null
     placedImportedIndices.value = new Set()
-    isEdit.value = false
-    editingId.value = null
     formDialog.value = true
     if (result.skipped && result.skipped.length > 0) {
       skippedItems.value = result.skipped
@@ -944,60 +913,34 @@ async function handleFileImport(event: Event) {
 }
 
 function openCreate() {
-  // New documents are authored in Markdown as well, so the original
-  // field-by-field form is not shown for the add flow.
-  documentMode.value = true
-  markdownEditMode.value = true
-  markdownSourceData.value = null
-  isEdit.value = false
-  editingId.value = null
-  importedOriginalFile.value = null
-  formValues.value = documentData(template.value?.title ?? '', `# ${template.value?.title ?? '새 문서'}\n\n`, true)
-  snapshotFormValues()
-  formDialog.value = true
+  if (!template.value) return
+  const data = Object.fromEntries(template.value.sections.map((section) => {
+    const row = Object.fromEntries(section.fields.map((field) => [field.label, field.type === 'image' ? [] : '']))
+    return [section.title, section.multiple ? [row] : row]
+  })) as Record<string, SectionValue>
+  openDetailCreate(data)
 }
 
-async function openEdit(row: FormEntry) {
-  const selectedTemplate = entryTemplate(row)
-  if (!selectedTemplate) return
-  const request = pageRequest
-  tableLoading.value = true
-  try {
-  const fullEntry = await formEntryService.get(row.id)
-  if (request !== pageRequest) return
-   template.value = selectedTemplate
-   isEdit.value = true
-    editingId.value = row.id
-    editingVersion.value = fullEntry.version
-    const original = originalSections(fullEntry.data)
-    const canEditAsForm = hasOriginalForm(original, fullEntry.data)
-    if (canEditAsForm) {
-      // Markdown snapshots generated from mapped work documents are opened in
-      // the original section/table form so users can edit cells directly.
-      markdownSourceData.value = null
-      markdownEditMode.value = false
-      documentMode.value = false
-      formValues.value = cloneFormData(fullEntry.data)
-    } else {
-      // Markdown-only documents, or documents without a table, keep the raw
-      // Markdown editor so their free-form content is not reshaped.
-      markdownSourceData.value = cloneFormData(fullEntry.data)
-      markdownEditMode.value = true
-      documentMode.value = true
-      formValues.value = documentData(
-        selectedTemplate.title,
-        formEntryMarkdown(selectedTemplate.title, original, fullEntry.data, window.location.origin),
-        true,
-      )
-    }
-    snapshotFormValues()
-   formDialog.value = true
-   return
+function openDetailCreate(data: Record<string, SectionValue>, originalFile: OriginalFile | null = null): void {
+  if (!template.value) return
+  importedOriginalFile.value = originalFile
+  creatingDetail.value = true
+  detailRow.value = {
+    id: `new-${Date.now()}`,
+    templateId: template.value.id,
+    data: cloneFormData(data),
+    version: 0,
+    isDeleted: false,
+  }
+  detailDialog.value = true
+}
 
-  } catch {
-    $q.notify({ type: 'negative', message: '수정할 문서를 불러오지 못했습니다.' })
-  } finally {
-    if (request === pageRequest) tableLoading.value = false
+function onDetailDialogUpdate(open: boolean): void {
+  detailDialog.value = open
+  if (!open && creatingDetail.value) {
+    creatingDetail.value = false
+    detailRow.value = null
+    importedOriginalFile.value = null
   }
 }
 
@@ -1028,10 +971,20 @@ async function saveDetailForm(values: Record<string, Record<string, unknown> | R
     const payload = hasOriginalForm(original, data)
       ? synchronizedDocument(template.value.title, original, data, window.location.origin)
       : data
-    const updated = await formEntryService.patch(detailRow.value.id, payload, detailRow.value.version)
-    rows.value = rows.value.map(row => row.id === updated.id ? updated : row)
-    detailRow.value = updated
-    $q.notify({ type: 'positive', message: '수정됐습니다.' })
+    if (creatingDetail.value) {
+      const created = await formEntryService.create(template.value.id, payload, importedOriginalFile.value)
+      rows.value.unshift(created)
+      detailRow.value = created
+      detailDialog.value = false
+      creatingDetail.value = false
+      importedOriginalFile.value = null
+      $q.notify({ type: 'positive', message: '저장됐습니다.' })
+    } else {
+      const updated = await formEntryService.patch(detailRow.value.id, payload, detailRow.value.version)
+      rows.value = rows.value.map(row => row.id === updated.id ? updated : row)
+      detailRow.value = updated
+      $q.notify({ type: 'positive', message: '수정됐습니다.' })
+    }
   } catch (error: unknown) {
     console.error('작업 문서 상세 수정 실패', error)
     const detail = apiErrorDetail(error)
@@ -1186,24 +1139,6 @@ async function doCreate() {
     console.error('작업 문서 저장 실패', error)
     const detail = apiErrorDetail(error)
     $q.notify({ type: 'negative', message: detail ? `저장 실패: ${detail}` : '저장 실패' })
-  } finally {
-    saving.value = false
-  }
-}
-
-async function doEdit() {
-  if (editorBusy.value) return
-  if (!validate() || !editingId.value) return
-  saving.value = true
-  try {
-    const updated = await formEntryService.patch(editingId.value, await saveData(), editingVersion.value)
-    rows.value = rows.value.map((r) => (r.id === updated.id ? updated : r))
-    formDialog.value = false
-    $q.notify({ type: 'positive', message: '수정됐습니다.' })
-  } catch (error: unknown) {
-    console.error('작업 문서 수정 실패', error)
-    const detail = apiErrorDetail(error)
-    $q.notify({ type: 'negative', message: detail ? `수정 실패: ${detail}` : '수정 실패' })
   } finally {
     saving.value = false
   }

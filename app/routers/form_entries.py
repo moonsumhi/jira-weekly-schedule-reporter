@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 MAX_IMPORT_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+WORK_DOCUMENT_IMPORT_SUFFIXES = {".hwp", ".hwpx", ".doc", ".docx"}
 
 IMAGE_UPLOAD_DIR = "/app/uploads/form_entries"
 ORIGINAL_FILE_UPLOAD_DIR = "/app/uploads/form_entries/originals"
@@ -41,6 +42,15 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _ensure_work_document_import_format(filename: str | None) -> None:
+    suffix = os.path.splitext(filename or "")[1].lower()
+    if suffix not in WORK_DOCUMENT_IMPORT_SUFFIXES:
+        raise HTTPException(
+            status_code=415,
+            detail="지원하지 않는 파일 형식입니다. HWP, HWPX, DOC, DOCX 파일을 업로드하세요.",
+        )
+
+
 def _to_out(doc: dict) -> FormEntryOut:
     return FormEntryOut(
         id=str(doc["_id"]),
@@ -54,38 +64,6 @@ def _to_out(doc: dict) -> FormEntryOut:
         updated_at=fmt_dt(doc.get("updated_at")),
         updated_by=doc.get("updated_by"),
     )
-
-
-def _extract_pdf_text(content: bytes) -> str:
-    import pypdf
-    reader = pypdf.PdfReader(io.BytesIO(content))
-    pages = []
-    for page in reader.pages:
-        t = page.extract_text() or ""
-        pages.append(t)
-    text = "\n".join(pages)
-    logger.info("PDF extracted text length: %d", len(text))
-    logger.debug("PDF text preview: %s", text[:500])
-    return text
-
-
-def _extract_pdf_images(content: bytes) -> list[str]:
-    """PDF에서 이미지를 추출해 base64 data URL 리스트로 반환."""
-    import fitz  # PyMuPDF
-    doc = fitz.open(stream=content, filetype="pdf")
-    images = []
-    for page in doc:
-        for img in page.get_images():
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            ext = base_image["ext"]
-            img_bytes = base_image["image"]
-            if len(img_bytes) < 1_000:  # 아이콘/라인 등 소형 이미지 제외
-                continue
-            b64 = base64.b64encode(img_bytes).decode()
-            images.append(f"data:image/{ext};base64,{b64}")
-    logger.info("PDF extracted %d image(s)", len(images))
-    return images
 
 
 def _extract_hwp_images(content: bytes) -> tuple[list[str], dict[str, str]]:
@@ -326,7 +304,7 @@ async def _extract_hwp_text(content: bytes) -> str:
 
 
 def _normalize_text(text: str) -> str:
-    """HWP/PDF 추출 텍스트 정규화."""
+    """HWP 추출 텍스트 정규화."""
     # 2자 이상 단독 한글 글자 간격 패턴 제거 (예: "작 업 명" → "작업명", "직 책" → "직책")
     # 정상 단어 경계 공백은 유지 (예: "작업 일시", "서비스 명" 유지)
     text = re.sub(
@@ -364,7 +342,7 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
     all_titles = [s.get("title", "") for s in sections]
 
     def sec_pattern(title: str) -> str:
-        # HWP: "[\n작업 개요\n]" / PDF: "[작업 개요]" 두 형태 모두 매칭
+        # HWP 변환 결과의 "[\n작업 개요\n]" 표기까지 함께 매칭한다.
         return r'\[\s*' + re.escape(title) + r'\s*\]'
 
     def _section_scope_bounds(title: str) -> tuple[int, int] | None:
@@ -476,7 +454,7 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
         return re.sub(r'\s+', '', s)
 
     def extract_table_rows(title: str, fields: list, scope: str) -> list[dict]:
-        """표 섹션: 행 마커 기반(HWP) 또는 레거시(PDF/fallback) 방식으로 데이터 행 추출."""
+        """표 섹션: 행 마커 기반(HWP) 또는 레거시 폴백으로 데이터 행을 추출한다."""
         labels = [f.get("label", "") for f in fields]
         # 공백 제거 정규화: HWP 개별 글자 공백 제거 후에도 매칭되도록
         labels_norm = {norm_key(lbl): lbl for lbl in labels}
@@ -1165,7 +1143,7 @@ async def import_entry_from_file(
     template_id: str = Form(...),
     current_user: UserPublic = Depends(get_current_user),
 ) -> dict:
-    """Parse a HWP/PDF file and extract form data using Claude AI."""
+    """Parse a HWP file and extract form data."""
     tmpl_col = MongoClientManager.get_form_templates_collection()
     try:
         tmpl_oid = ObjectId(template_id)
@@ -1183,14 +1161,11 @@ async def import_entry_from_file(
 
     images: list[str] = []
     hwp_bindata_map: dict[str, str] = {}
-    if filename.endswith(".pdf"):
-        text = _extract_pdf_text(content)
-        images = _extract_pdf_images(content)
-    elif filename.endswith(".hwp"):
+    if filename.endswith(".hwp"):
         text = await _extract_hwp_text(content)
         images, hwp_bindata_map = _extract_hwp_images(content)
     else:
-        raise HTTPException(status_code=415, detail="지원하지 않는 파일 형식입니다. PDF 또는 HWP 파일을 업로드하세요.")
+        raise HTTPException(status_code=415, detail="지원하지 않는 파일 형식입니다. HWP 파일을 업로드하세요.")
 
     if not text.strip():
         raise HTTPException(status_code=422, detail="파일에서 텍스트를 추출할 수 없습니다.")
@@ -1422,6 +1397,7 @@ async def import_markdown_file(
     file: UploadFile = File(...),
     current_user: UserPublic = Depends(get_current_user),
 ):
+    _ensure_work_document_import_format(file.filename)
     content = await file.read(MAX_IMPORT_FILE_SIZE + 1)
     if len(content) > MAX_IMPORT_FILE_SIZE:
         raise HTTPException(status_code=413, detail="파일 크기가 50MB를 초과합니다.")
@@ -1429,7 +1405,7 @@ async def import_markdown_file(
         markdown, warnings = await asyncio.to_thread(import_document, content, file.filename or '')
     except Exception as exc:
         logger.warning('Markdown import failed: %s', type(exc).__name__)
-        raise HTTPException(status_code=422, detail="문서 변환에 실패했습니다. HWP, HWPX, DOC, DOCX, PDF 파일을 확인해 주세요.") from exc
+        raise HTTPException(status_code=422, detail="문서 변환에 실패했습니다. HWP, HWPX, DOC, DOCX 파일을 확인해 주세요.") from exc
     if not markdown.strip():
         raise HTTPException(status_code=422, detail="문서에서 내용을 추출하지 못했습니다.")
     return {"markdown": markdown, "warnings": warnings}
@@ -1441,6 +1417,7 @@ async def import_original_form(file: UploadFile = File(...), template_id: str = 
     template = await MongoClientManager.get_form_templates_collection().find_one({'_id': parse_oid(template_id)})
     if not template:
         raise HTTPException(status_code=404, detail='양식을 찾을 수 없습니다.')
+    _ensure_work_document_import_format(file.filename)
     content = await file.read()
     if len(content) > MAX_IMPORT_FILE_SIZE:
         raise HTTPException(status_code=413, detail='파일 크기가 50MB를 초과합니다.')
