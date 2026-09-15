@@ -305,6 +305,8 @@ const categoryOptions = [
   { label: '당직', value: '당직' },
   { label: '로그인', value: '로그인' },
   { label: '활동', value: '활동' },
+  { label: 'SR', value: 'SR' },
+  { label: '스케줄 관리', value: '스케줄 관리' },
 ]
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
