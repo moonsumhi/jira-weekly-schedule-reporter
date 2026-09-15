@@ -542,7 +542,6 @@ const markdownEditMode = ref(false)
 const markdownSourceData = ref<Record<string, SectionValue> | null>(null)
 const documentSections: FormSection[] = [{ title: '문서 본문', multiple: true, fields: [
   { label: '제목', type: 'text', required: true, fullWidth: true },
-  { label: '작업 일시', type: 'date' },
   { label: '내용', type: 'textarea', required: true, fullWidth: true },
 ] }]
 function originalSections(data: Record<string, unknown>): FormSection[] {

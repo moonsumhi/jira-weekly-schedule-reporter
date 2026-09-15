@@ -43,10 +43,6 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             '작업시작시각': '작업시작시간',
             '작업종료': '작업종료시간',
             '작업종료시각': '작업종료시간',
-            '작업시간시작': '작업시작시간',
-            '작업시간종료': '작업종료시간',
-            '작업시간시작': '시작시간',
-            '작업시간종료': '종료시간',
             '회사명': '소속',
         }
         exact = [f for f in fields if norm(f['label']) == key]
@@ -56,6 +52,25 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         if alias:
             matches = [f for f in fields if norm(f['label']) == alias]
             if matches:
+                return matches[0]
+        # Deployed templates use both legacy labels (시작 시간/종료 시간)
+        # and canonical labels (작업 시작 시간/작업 종료 시간). HWP and
+        # Word exports may also reorder the words to 작업 시간 시작/종료.
+        time_aliases = {
+            '작업시작': {'작업시작시간', '시작시간'},
+            '작업시작시각': {'작업시작시간', '시작시간'},
+            '작업시작시간': {'작업시작시간', '시작시간'},
+            '작업시간시작': {'작업시작시간', '시작시간'},
+            '시작시간': {'작업시작시간', '시작시간'},
+            '작업종료': {'작업종료시간', '종료시간'},
+            '작업종료시각': {'작업종료시간', '종료시간'},
+            '작업종료시간': {'작업종료시간', '종료시간'},
+            '작업시간종료': {'작업종료시간', '종료시간'},
+            '종료시간': {'작업종료시간', '종료시간'},
+        }.get(key)
+        if time_aliases:
+            matches = [f for f in fields if norm(f['label']) in time_aliases]
+            if len(matches) == 1:
                 return matches[0]
         # Handle labels split differently by HWP/Word table exports.
         semantic = {
