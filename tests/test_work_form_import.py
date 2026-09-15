@@ -85,6 +85,24 @@ class OriginalFormImportTests(unittest.TestCase):
         self.assertEqual(data['세부 작업 절차'][0]['종료 시간'], '18:00')
         self.assertFalse(warnings)
 
+    def test_schedule_time_labels_with_reordered_words_map_to_canonical_fields(self):
+        sections = [{
+            'title': '세부 작업 절차', 'multiple': True,
+            'fields': [
+                {'label': '작업 시작 시간', 'type': 'text'},
+                {'label': '작업 종료 시간', 'type': 'text'},
+            ],
+        }]
+        markdown = '''## 세부 작업 절차
+
+| 작업 시간 시작 | 작업 시간 종료 |
+| --- | --- |
+| 17:00 | 18:00 |'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['세부 작업 절차'][0]['작업 시작 시간'], '17:00')
+        self.assertEqual(data['세부 작업 절차'][0]['작업 종료 시간'], '18:00')
+        self.assertFalse(warnings)
+
     def test_assignee_title_maps_to_review_section_instead_of_extra_content(self):
         sections = [
             {
