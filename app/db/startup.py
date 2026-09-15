@@ -130,7 +130,8 @@ _PLAN_BASIC_INFO = {
     "title": "기본 정보",
     "fields": [
         {"label": "작업명",           "type": "text",     "required": True,  "placeholder": "작업명을 입력하세요"},
-        {"label": "작업 일시",        "type": "text",     "required": True,  "placeholder": "YYYY.MM.DD HH:MM-HH:MM"},
+        {"label": "작업 기간 (시작)", "type": "datetime", "required": True},
+        {"label": "작업 기간 (종료)", "type": "datetime", "required": True},
         {"label": "서비스 명",        "type": "text",     "required": True},
         {"label": "회사명/성함/직책", "type": "text",     "required": True},
         {"label": "중요도",           "type": "select",   "required": True,  "options": ["상", "중", "하"]},
@@ -182,8 +183,7 @@ _PLAN_DEV_CONTENT = {
     "fields": [
         {"label": "제목",        "type": "text",     "required": False},
         {"label": "리스크",      "type": "select",   "required": False, "options": ["상", "중", "하"]},
-        {"label": "세부 작업 내용", "type": "textarea", "required": False, "paired_image": "개발이미지"},
-        {"label": "개발이미지",  "type": "image",    "required": False},
+        {"label": "세부 작업 내용", "type": "textarea", "required": False},
     ],
 }
 _PLAN_STEPS = {
@@ -715,6 +715,148 @@ async def migrate_job_test_case_sections() -> None:
             logger.info("작업 결과서 테스트 케이스 데이터 이관: %s", entry["_id"])
 
 
+def _split_result_work_period(value: object) -> tuple[str, str]:
+    """기존 작업 일시 문자열을 작업결과서 시작/종료 datetime으로 분리한다."""
+    source = ' '.join(str(value or '').split())
+    times = list(re.finditer(r'(\d{1,2}):(\d{2})', source))
+    if not times:
+        return '', ''
+    date = re.search(r'(\d{4})[./-](\d{1,2})[./-](\d{1,2})', source)
+    prefix = ''
+    if date:
+        year, month, day = date.groups()
+        prefix = f'{year}-{month.zfill(2)}-{day.zfill(2)}T'
+    start = f'{prefix}{times[0].group(1).zfill(2)}:{times[0].group(2)}'
+    if len(times) < 2:
+        return start, ''
+    end = f'{prefix}{times[1].group(1).zfill(2)}:{times[1].group(2)}'
+    return start, end
+
+
+async def migrate_result_work_period_fields() -> None:
+    """작업결과서의 구 작업 일시를 시작/종료 필드로 바꾼다 (멱등).
+
+    Import 대상 양식과 저장된 결과서를 함께 갱신해 원본의 한 칸짜리 작업 일시가
+    작업 기간 (시작)·작업 기간 (종료)로 일관되게 저장되도록 한다.
+    """
+    templates = MongoClientManager.get_form_templates_collection()
+    entries = MongoClientManager.get_form_entries_collection()
+    start_label, end_label, legacy_label = '작업 기간 (시작)', '작업 기간 (종료)', '작업 일시'
+    desired_fields = [
+        {"label": start_label, "type": "datetime", "required": True},
+        {"label": end_label, "type": "datetime", "required": True},
+    ]
+
+    async for template in templates.find({"is_deleted": {"$ne": True}, "title": "작업결과서"}):
+        sections = deepcopy(template.get('sections', []))
+        basic = next((section for section in sections if _job_section_key(section.get('title')) in {'기본정보', '작업개요'}), None)
+        if not basic:
+            continue
+        fields = basic.get('fields', [])
+        labels = [str(field.get('label', '')) for field in fields]
+        changed = False
+        if start_label not in labels or end_label not in labels:
+            legacy_index = next((index for index, field in enumerate(fields) if field.get('label') == legacy_label), None)
+            if legacy_index is not None:
+                fields[legacy_index:legacy_index + 1] = deepcopy(desired_fields)
+                changed = True
+        if changed:
+            await templates.update_one({"_id": template["_id"]}, {"$set": {"sections": sections}})
+            logger.info("작업결과서 작업 기간 필드 이관: %s", template["_id"])
+
+        section_title = basic.get('title', '기본 정보')
+        async for entry in entries.find({"template_id": str(template["_id"])}):
+            data = entry.get('data')
+            if not isinstance(data, dict):
+                continue
+            values = data.get(section_title)
+            if not isinstance(values, dict) or not values.get(legacy_label):
+                continue
+            start, end = _split_result_work_period(values[legacy_label])
+            if not start and not end:
+                continue
+            if start and not values.get(start_label):
+                values[start_label] = start
+            if end and not values.get(end_label):
+                values[end_label] = end
+            if values.get(start_label) and values.get(end_label):
+                values.pop(legacy_label, None)
+            await entries.update_one({"_id": entry["_id"]}, {"$set": {"data": data}})
+            logger.info("작업결과서 작업 기간 데이터 이관: %s", entry["_id"])
+
+
+async def migrate_remove_development_image_field() -> None:
+    """개발 내용의 별도 개발 이미지 컬럼을 제거한다 (멱등).
+
+    이미 생성된 템플릿에도 해당 컬럼이 남아 있을 수 있으므로 템플릿 구조와
+    기존 작업 문서의 레거시 데이터 키를 함께 정리한다. 세부 작업 내용에
+    저장된 Markdown과 나머지 필드는 그대로 보존한다.
+    """
+    templates = MongoClientManager.get_form_templates_collection()
+    entries = MongoClientManager.get_form_entries_collection()
+    template_ids: list[str] = []
+
+    async for template in templates.find({"is_deleted": {"$ne": True}}):
+        if template.get("menu") not in ("Job", "job", None) or "작업" not in str(template.get("title", "")):
+            continue
+        sections = template.get("sections", [])
+        if not isinstance(sections, list):
+            continue
+        normalized_sections: list[dict] = []
+        changed = False
+        for raw_section in sections:
+            if not isinstance(raw_section, dict):
+                normalized_sections.append(raw_section)
+                continue
+            section = deepcopy(raw_section)
+            if _job_section_key(section.get("title")) == "개발내용":
+                fields = section.get("fields", [])
+                if isinstance(fields, list):
+                    filtered_fields: list[dict] = []
+                    for raw_field in fields:
+                        if not isinstance(raw_field, dict):
+                            filtered_fields.append(raw_field)
+                            continue
+                        field = deepcopy(raw_field)
+                        field_label = _job_section_key(field.get("label"))
+                        paired_label = _job_section_key(field.get("paired_image") or field.get("pairedImage"))
+                        if field_label == "개발이미지":
+                            changed = True
+                            continue
+                        if paired_label == "개발이미지":
+                            field.pop("paired_image", None)
+                            field.pop("pairedImage", None)
+                            changed = True
+                        filtered_fields.append(field)
+                    section["fields"] = filtered_fields
+            normalized_sections.append(section)
+        template_ids.append(str(template["_id"]))
+        if changed:
+            await templates.update_one({"_id": template["_id"]}, {"$set": {"sections": normalized_sections}})
+            logger.info("작업 템플릿 개발 이미지 컬럼 제거: %s", template.get("title"))
+
+    # 기존 항목의 이미지 값은 더 이상 표시·내보내기 대상이 아니므로 제거한다.
+    for template_id in template_ids:
+        result = await entries.update_many(
+            {"template_id": template_id, "data.개발 내용": {"$type": "array"}},
+            {"$unset": {
+                "data.개발 내용.$[].개발이미지": "",
+                "data.개발 내용.$[].개발 이미지": "",
+            }},
+        )
+        if result.modified_count:
+            logger.info("작업 문서 개발 이미지 데이터 제거: template=%s count=%d", template_id, result.modified_count)
+        result = await entries.update_many(
+            {"template_id": template_id, "data.개발 내용": {"$type": "object"}},
+            {"$unset": {
+                "data.개발 내용.개발이미지": "",
+                "data.개발 내용.개발 이미지": "",
+            }},
+        )
+        if result.modified_count:
+            logger.info("작업 문서 개발 이미지 데이터 제거(단일 행): template=%s count=%d", template_id, result.modified_count)
+
+
 async def migrate_assets() -> None:
     """assets_servers 컬렉션의 비서버 자산을 유형별 컬렉션으로 이동한다.
 
@@ -849,6 +991,8 @@ async def run_startup() -> None:
     await migrate_env_submenu()
     await seed_job_form_templates()
     await migrate_job_test_case_sections()
+    await migrate_result_work_period_fields()
+    await migrate_remove_development_image_field()
     await migrate_assets()
     await migrate_rack_asset_type()
     await migrate_asset_status_default()

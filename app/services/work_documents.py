@@ -232,24 +232,6 @@ def import_document(content: bytes, filename: str) -> tuple[str, list[str]]:
                            key=lambda name: int(re.search(r'\d+', name).group()))
             source = ''.join(convert(etree.fromstring(archive.read(name), parser)) for name in names)
             return html_markdown(source, lambda src: src), warnings
-    if suffix == '.pdf':
-        import fitz
-        parts = []
-        with fitz.open(stream=content, filetype='pdf') as document:
-            for index, page in enumerate(document):
-                parts.append(f'## {index + 1}페이지\n')
-                if not page.get_text().strip():
-                    src = store_image(page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5)).tobytes('png'))
-                    parts.append(f'![페이지 {index + 1}](<{src}>)\n')
-                    warnings.append(f'{index + 1}페이지는 텍스트가 없어 페이지 이미지로 보존했습니다.')
-                    continue
-                for block in page.get_text('dict', sort=True)['blocks']:
-                    if block['type'] == 1:
-                        parts.append(f"![사진](<{store_image(block['image'])}>)\n")
-                    else:
-                        parts.append('\n'.join(escape(''.join(span['text'] for span in line['spans']))
-                                               for line in block.get('lines', [])) + '\n')
-        return '\n'.join(parts), warnings
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         source = root / ('source' + suffix)
@@ -284,7 +266,7 @@ def import_document(content: bytes, filename: str) -> tuple[str, list[str]]:
                     raise ValueError('잘못된 이미지 경로입니다.')
                 return store_image(path.read_bytes())
             return html_markdown(index.read_text(encoding='utf-8'), read_image), warnings
-    raise ValueError('HWP, HWPX, DOC, DOCX, PDF 파일을 선택해 주세요.')
+    raise ValueError('HWP, HWPX, DOC, DOCX 파일을 선택해 주세요.')
 
 
 def markdown_from_data(data: dict) -> str | None:

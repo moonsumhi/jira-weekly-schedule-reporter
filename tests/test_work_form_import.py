@@ -109,3 +109,41 @@ class OriginalFormImportTests(unittest.TestCase):
         self.assertEqual(data['검토/서명'][0]['성함'], '홍길동')
         self.assertNotIn(EXTRA, data)
         self.assertFalse(warnings)
+
+    def test_result_time_and_work_period_map_to_current_result_template_fields(self):
+        sections = [
+            {
+                'title': '기본 정보',
+                'fields': [
+                    {'label': '작업명', 'type': 'text'},
+                    {'label': '작업 기간 (시작)', 'type': 'datetime'},
+                    {'label': '작업 기간 (종료)', 'type': 'datetime'},
+                ],
+            },
+            {
+                'title': '테스트 케이스', 'multiple': True,
+                'fields': [
+                    {'label': '테스트 케이스 ID', 'type': 'text'},
+                    {'label': '시간', 'type': 'text'},
+                ],
+            },
+        ]
+        markdown = '''## 작업 개요
+
+| 항목 | 내용 |
+| --- | --- |
+| 작업명 | 결과서 점검 |
+| 작업 일시 | 2026.09.16 17:30-18:00 |
+
+## 테스트 결과
+
+| 테스트 케이스 ID | 테스트 결과 / 시간 |
+| --- | --- |
+| TC-01 | 17:42 |'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['기본 정보']['작업명'], '결과서 점검')
+        self.assertEqual(data['기본 정보']['작업 기간 (시작)'], '2026-09-16T17:30')
+        self.assertEqual(data['기본 정보']['작업 기간 (종료)'], '2026-09-16T18:00')
+        self.assertEqual(data['테스트 케이스'][0]['테스트 케이스 ID'], 'TC-01')
+        self.assertEqual(data['테스트 케이스'][0]['시간'], '17:42')
+        self.assertFalse(warnings)
