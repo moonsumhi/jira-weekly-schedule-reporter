@@ -331,7 +331,8 @@
       :entry="detailRow"
       :title="template?.title ?? ''"
       :sections="sections"
-      @edit-markdown="editMarkdownDetail"
+      :saving="detailSaving"
+      @save="saveDetailForm"
       @export="exportDetailMarkdown"
       @export-file="exportDetailFile"
       @download-original="downloadOriginalFile"
@@ -484,6 +485,7 @@ const selectedPanelImage = ref<string>('')  // 패널에서 선택된 이미지 
 const formDialog = ref(false)
 const detailDialog = ref(false)
 const detailLoading = ref(false)
+const detailSaving = ref(false)
 const isEdit = ref(false)
 const detailRow = ref<FormEntry | null>(null)
 const actingId = ref<string | null>(null)
@@ -999,10 +1001,51 @@ async function openEdit(row: FormEntry) {
   }
 }
 
-function editMarkdownDetail() {
-  if (detailLoading.value || !detailRow.value || detailRow.value.isDeleted) return
-  detailDialog.value = false
-  void openEdit(detailRow.value)
+async function saveDetailForm(values: Record<string, Record<string, unknown> | Record<string, unknown>[]>) {
+  if (!detailRow.value || !template.value || detailSaving.value) return
+  const data = cloneFormData(values) as Record<string, SectionValue>
+  for (const section of template.value.sections) {
+    const stored = data[section.title]
+    const items = Array.isArray(stored) ? stored : stored ? [stored] : []
+    for (let rowIndex = 0; rowIndex < items.length; rowIndex += 1) {
+      const row = items[rowIndex]
+      if (!row) continue
+      for (const field of section.fields) {
+        const value = row[field.label]
+        if (field.required && (!value || (Array.isArray(value) && value.length === 0))) {
+          const position = section.multiple ? ` ${rowIndex + 1}번째 행의` : ''
+          $q.notify({ type: 'negative', message: `[${section.title}]${position} "${field.label}"은(는) 필수 입력입니다.` })
+          return
+        }
+        if (field.type === 'image') row[field.label] = await Promise.all(toImageArray(value).map(resultImageUrl))
+        else if (typeof value === 'string') row[field.label] = await uploadEmbeddedDataImages(value)
+      }
+    }
+  }
+  detailSaving.value = true
+  try {
+    const original = originalSections(data)
+    const payload = hasOriginalForm(original, data)
+      ? synchronizedDocument(template.value.title, original, data, window.location.origin)
+      : data
+    const updated = await formEntryService.patch(detailRow.value.id, payload, detailRow.value.version)
+    rows.value = rows.value.map(row => row.id === updated.id ? updated : row)
+    detailRow.value = updated
+    $q.notify({ type: 'positive', message: '수정됐습니다.' })
+  } catch (error: unknown) {
+    console.error('작업 문서 상세 수정 실패', error)
+    const detail = apiErrorDetail(error)
+    $q.notify({ type: 'negative', message: detail ? `수정 실패: ${detail}` : '수정 실패' })
+  } finally {
+    detailSaving.value = false
+  }
+}
+
+async function uploadEmbeddedDataImages(value: string): Promise<string> {
+  const sources = [...new Set(value.match(/data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=]+/g) ?? [])]
+  let result = value
+  for (const source of sources) result = result.replaceAll(source, await resultImageUrl(source))
+  return result
 }
 
 const exportingDocument = ref(false)

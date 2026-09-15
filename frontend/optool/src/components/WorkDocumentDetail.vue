@@ -6,7 +6,7 @@
         <q-btn flat round dense icon="arrow_back" aria-label="목록으로 돌아가기" @click="close" />
         <div class="document-breadcrumb"><span>작업 관리</span><q-icon name="chevron_right" size="16px" /><strong>{{ title }}</strong></div>
         <q-space />
-        <span class="reading-badge"><span />읽기 모드</span>
+        <span class="reading-badge"><span />{{ editing ? '수정 모드' : '읽기 모드' }}</span>
         <q-btn flat round dense icon="close" aria-label="상세 닫기" @click="close" />
       </header>
 
@@ -41,7 +41,10 @@
               </div>
             </header>
 
-            <template v-if="view === 'markdown'">
+            <template v-if="editing">
+              <InlineDocumentEditor v-model="editableData" :sections="sections" />
+            </template>
+            <template v-else-if="view === 'markdown'">
               <WorkResultContent :content="markdown" :section-titles="markdownSectionTitles" />
             </template>
             <template v-else>
@@ -132,9 +135,10 @@
 
       <footer class="document-footer">
         <span class="footer-note"><q-icon name="description" />{{ title }}</span><q-space />
-        <q-btn flat no-caps label="닫기" @click="close" />
-        <q-btn outline no-caps icon="edit_note" label="수정" :disable="loading || !entry || entry.isDeleted" @click="emit('edit-markdown')" />
-        <q-btn-dropdown outline no-caps icon="download" label="내보내기" :loading="exporting" :disable="loading || !entry || exporting">
+        <q-btn flat no-caps :label="editing ? '수정 취소' : '닫기'" :disable="saving" @click="editing ? cancelEdit() : close()" />
+        <q-btn v-if="editing" color="primary" no-caps icon="save" label="저장" :loading="saving" @click="emit('save', editableData)" />
+        <q-btn v-else outline no-caps icon="edit_note" label="수정" :disable="loading || !entry || entry.isDeleted" @click="startEdit" />
+        <q-btn-dropdown v-if="!editing" outline no-caps icon="download" label="내보내기" :loading="exporting" :disable="loading || !entry || exporting">
           <q-list>
             <q-item clickable v-close-popup @click="emit('export')"><q-item-section>Markdown (.md)</q-item-section></q-item>
             <q-item clickable v-close-popup :disable="!entry?.originalFile" @click="emit('download-original')"><q-item-section>{{ originalDownloadLabel }}</q-item-section></q-item>
@@ -158,10 +162,17 @@ import type { FormEntry } from 'src/services/formEntries'
 import type { FormField, FormSection } from 'src/services/formTemplates'
 import { comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
 import WorkResultContent from './WorkResultContent.vue'
+import InlineDocumentEditor from './InlineDocumentEditor.vue'
 import { formEntryMarkdown } from 'src/utils/formEntryMarkdown'
 
-const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; exporting?: boolean }>()
+type EditableData = Record<string, Record<string, unknown> | Record<string, unknown>[]>
+const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; exporting?: boolean; saving?: boolean }>()
 const view = ref<'markdown'>('markdown')
+const editing = ref(false)
+const editableData = ref<EditableData>({})
+function cloneEntryData(): EditableData { return JSON.parse(JSON.stringify(props.entry?.data ?? {})) as EditableData }
+function startEdit() { editableData.value = cloneEntryData(); editing.value = true }
+function cancelEdit() { editableData.value = cloneEntryData(); editing.value = false }
 function withoutDocumentTitle(source: string): string {
   const lines = source.split('\n')
   if (/^\s*#\s+/.test(lines[0] ?? '')) {
@@ -186,8 +197,10 @@ function displaySectionTitle(section: FormSection): string {
 }
 const markdownSectionTitles = computed(() => props.sections.map(displaySectionTitle))
 const originalDownloadLabel = '원본 파일 다운로드'
-watch(() => [props.modelValue, props.entry?.id, props.loading], () => {
+watch(() => [props.modelValue, props.entry?.id, props.entry?.version, props.loading], () => {
   view.value = 'markdown'
+  editing.value = false
+  editableData.value = cloneEntryData()
 })
 function isWorkTable(section: FormSection): boolean {
   const title = section.title.replace(/\s/g, '')
@@ -215,7 +228,7 @@ function tableFields(section: FormSection): FormField[] {
   ordered.splice(hostnameIndex >= 0 ? hostnameIndex + 1 : ordered.length, 0, note)
   return ordered
 }
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; 'edit-markdown': []; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': [] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; save: [value: EditableData]; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': [] }>()
 const scrollArea = ref<HTMLElement | null>(null)
 const activeSection = ref(0)
 const previewSource = ref('')
