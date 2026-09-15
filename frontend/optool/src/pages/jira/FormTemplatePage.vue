@@ -129,7 +129,7 @@
                 <div v-if="group.label" class="comparison-heading">{{ group.label }}</div>
                 <div v-if="group.label" class="comparison-editor" :inert="saving ? true : undefined">
                   <MarkdownEditor :model-value="getRowVal(section.title, rowIdx, group.label)" :rows="8"
-                    :label="group.label" placeholder="내용을 입력하고 사진을 넣은 뒤, 이어서 내용을 작성하세요."
+                    placeholder="내용을 입력하고 사진을 넣은 뒤, 이어서 내용을 작성하세요."
                     @uploading="imageUploads[`${section.title}:${rowIdx}:${group.label}`] = $event"
                     @update:model-value="setRowVal(section.title, rowIdx, group.label, $event)" />
                   <q-btn v-if="selectedPanelImage" flat dense color="primary" icon="add_photo_alternate" label="선택한 Import 이미지 넣기"
@@ -183,7 +183,7 @@
                         </template>
 
                 <MarkdownEditor v-else-if="row[`${field.label}__format`] === 'markdown'" :model-value="getRowVal(section.title, rowIdx, field.label)"
-                  :label="field.label" @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
+                  @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)"
                   @uploading="imageUploads[`${section.title}:${rowIdx}:${field.label}`] = $event" />
                 <q-select v-else-if="field.type === 'select'" :model-value="getRowVal(section.title, rowIdx, field.label)"
                   @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)" :options="field.options ?? []"
@@ -963,21 +963,32 @@ async function openEdit(row: FormEntry) {
   try {
   const fullEntry = await formEntryService.get(row.id)
   if (request !== pageRequest) return
-  template.value = selectedTemplate
-  isEdit.value = true
-   editingId.value = row.id
-   editingVersion.value = fullEntry.version
-   // Existing documents are edited only as Markdown. Keep the stored mapped
-   // fields as the source so saving Markdown preserves the original data too.
-   markdownSourceData.value = cloneFormData(fullEntry.data)
-   markdownEditMode.value = true
-   documentMode.value = true
-   formValues.value = documentData(
-     selectedTemplate.title,
-     formEntryMarkdown(selectedTemplate.title, originalSections(fullEntry.data), fullEntry.data, window.location.origin),
-     true,
-   )
-   snapshotFormValues()
+   template.value = selectedTemplate
+   isEdit.value = true
+    editingId.value = row.id
+    editingVersion.value = fullEntry.version
+    const original = originalSections(fullEntry.data)
+    const canEditAsForm = hasOriginalForm(original, fullEntry.data)
+    if (canEditAsForm) {
+      // Markdown snapshots generated from mapped work documents are opened in
+      // the original section/table form so users can edit cells directly.
+      markdownSourceData.value = null
+      markdownEditMode.value = false
+      documentMode.value = false
+      formValues.value = cloneFormData(fullEntry.data)
+    } else {
+      // Markdown-only documents, or documents without a table, keep the raw
+      // Markdown editor so their free-form content is not reshaped.
+      markdownSourceData.value = cloneFormData(fullEntry.data)
+      markdownEditMode.value = true
+      documentMode.value = true
+      formValues.value = documentData(
+        selectedTemplate.title,
+        formEntryMarkdown(selectedTemplate.title, original, fullEntry.data, window.location.origin),
+        true,
+      )
+    }
+    snapshotFormValues()
    formDialog.value = true
    return
 

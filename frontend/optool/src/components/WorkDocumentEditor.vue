@@ -31,7 +31,6 @@
           <article class="document-paper">
             <header class="document-hero"><div class="document-kind"><q-icon name="edit_note" size="16px" />{{ isEdit ? '문서 수정' : '새 문서' }}</div>
               <h1>{{ title }}</h1><div class="document-byline">별표(*)가 표시된 항목은 필수 입력입니다.</div>
-              <p v-if="syncMarkdown" class="text-grey-7">원본 양식을 수정하고 있습니다. 저장하면 Markdown 보기와 .md 파일에도 반영됩니다.</p>
             </header>
             <fieldset :disabled="saving" class="editor-fieldset">
               <section v-for="(section, index) in sections" :key="index" :data-section-index="index" class="document-section">
