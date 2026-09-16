@@ -453,7 +453,13 @@
             </div>
 
             <div>
-              <div class="sidebar-label">공수 (일)</div>
+              <div class="sidebar-label">예상 공수</div>
+              <q-input v-model.number="localEstimatedEffortValue" dense outlined type="number" :min="0" step="0.001"
+                @blur="saveEstimatedEffort" />
+            </div>
+
+            <div>
+              <div class="sidebar-label">실 공수</div>
               <q-input v-model.number="localEffortValue" dense outlined type="number" :min="0" step="0.001"
                 @blur="saveEffort" />
             </div>
@@ -732,6 +738,7 @@ const localLabelIds = ref<string[]>([])
 const localAssigneeId = ref<string | null>(null)
 const localEpicId = ref<string | null>(null)
 const localStoryPoints = ref<number | null>(null)
+const localEstimatedEffortValue = ref<number | null>(null)
 const localEffortValue = ref<number | null>(null)
 const localStartDate = ref('')
 const localDueDate = ref('')
@@ -761,7 +768,8 @@ const FIELD_LABEL: Record<string, string> = {
   start_date: '시작일',
   due_date: '마감일',
   story_points: '스토리 포인트',
-  effort_md: '공수',
+  estimated_effort_md: '예상 공수',
+  effort_md: '실 공수',
   comment: '댓글',
 }
 
@@ -825,6 +833,7 @@ async function loadIssueContent(issue: Issue) {
   localAssigneeId.value = issue.assigneeId
   localEpicId.value = issue.epicId
   localStoryPoints.value = issue.storyPoints
+  localEstimatedEffortValue.value = parseEffortToDays(issue.estimatedEffortMd)
   localEffortValue.value = parseEffortToDays(issue.effortMd)
   localStartDate.value = issue.startDate?.slice(0, 10) ?? ''
   localDueDate.value = issue.dueDate?.slice(0, 10) ?? ''
@@ -1015,6 +1024,13 @@ function historyAction(h: IssueHistory): string {
 function saveEffort() {
   const val = localEffortValue.value != null ? `${localEffortValue.value} 일` : null
   void patchField('effort_md', val)
+}
+
+function saveEstimatedEffort() {
+  const val = localEstimatedEffortValue.value != null
+    ? String(localEstimatedEffortValue.value) + ' 일'
+    : null
+  void patchField('estimated_effort_md', val)
 }
 
 function taskRequiredFields(): string[] {
