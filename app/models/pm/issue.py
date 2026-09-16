@@ -38,6 +38,7 @@ class IssueCreate(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
     story_points: Optional[int] = Field(None, ge=0, le=999)
+    estimated_effort_md: Optional[str] = None
     effort_md: Optional[str] = None
     attachments: List[Attachment] = []
     show_on_dashboard: bool = False
@@ -57,6 +58,7 @@ class IssuePatch(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime] = None
     story_points: Optional[int] = Field(None, ge=0, le=999)
+    estimated_effort_md: Optional[str] = None
     effort_md: Optional[str] = None
     attachments: Optional[List[Attachment]] = None
     order: Optional[float] = None
@@ -99,6 +101,7 @@ class IssueOut(BaseModel):
     start_date: Optional[datetime] = None
     due_date: Optional[datetime]
     story_points: Optional[int] = None
+    estimated_effort_md: Optional[str] = None
     effort_md: Optional[str] = None
     attachments: List[Attachment] = []
     show_on_dashboard: bool = False

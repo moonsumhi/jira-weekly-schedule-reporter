@@ -98,6 +98,7 @@ export type Issue = {
   startDate: string | null
   dueDate: string | null
   storyPoints: number | null
+  estimatedEffortMd: string | null
   effortMd: string | null
   attachments: { fileId: string; originalName: string; url: string; size: number; contentType: string }[]
   showOnDashboard: boolean
@@ -131,6 +132,7 @@ export type IssueCreate = {
   start_date?: string | null
   due_date?: string | null
   story_points?: number | null
+  estimated_effort_md?: string | null
   effort_md?: string | null
   attachments?: { file_id: string; original_name: string; url: string; size: number; content_type: string }[]
   show_on_dashboard?: boolean
