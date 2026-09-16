@@ -1,6 +1,6 @@
 <template>
   <q-dialog :model-value="modelValue" maximized transition-show="slide-up" transition-hide="slide-down"
-    @update:model-value="emit('update:modelValue', $event)">
+    @update:model-value="handleDialogUpdate">
     <q-card class="work-document">
       <header class="document-topbar">
         <q-btn flat round dense icon="arrow_back" aria-label="목록으로 돌아가기" @click="close" />
@@ -11,7 +11,7 @@
       </header>
 
       <div v-if="loading" class="document-loading"><q-spinner size="36px" color="primary" /><span>문서를 불러오고 있습니다</span></div>
-      <div v-else-if="entry" class="document-layout">
+      <div v-else-if="entry" :class="['document-layout', { 'is-editing': editing }]">
         <aside class="document-sidebar">
           <div class="sidebar-label">문서 목차 <span>{{ sections.length }}</span></div>
           <nav class="document-nav" aria-label="문서 목차">
@@ -158,6 +158,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import type { FormEntry } from 'src/services/formEntries'
 import type { FormField, FormSection } from 'src/services/formTemplates'
 import { comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
@@ -170,12 +171,38 @@ const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEn
 const view = ref<'markdown'>('markdown')
 const editing = ref(false)
 const editableData = ref<EditableData>({})
+const editSnapshot = ref('')
+const $q = useQuasar()
 function cloneEntryData(): EditableData { return JSON.parse(JSON.stringify(props.entry?.data ?? {})) as EditableData }
-function startEdit() { editableData.value = cloneEntryData(); editing.value = true }
-function cancelEdit() {
+function snapshot(value: EditableData): string { return JSON.stringify(value) }
+const isEditDirty = computed(() => editing.value && snapshot(editableData.value) !== editSnapshot.value)
+function startEdit() {
   editableData.value = cloneEntryData()
-  if (props.creating) close()
-  else editing.value = false
+  editSnapshot.value = snapshot(editableData.value)
+  editing.value = true
+}
+function discardEdit() {
+  editableData.value = cloneEntryData()
+  editSnapshot.value = snapshot(editableData.value)
+  editing.value = false
+}
+function confirmDiscard(onOk: () => void): void {
+  if (!isEditDirty.value) {
+    onOk()
+    return
+  }
+  $q.dialog({
+    title: '저장하지 않은 변경사항이 있습니다',
+    message: '저장하지 않고 닫으시겠습니까?',
+    cancel: { label: '취소', flat: true },
+    ok: { label: '닫기', color: 'negative' },
+  }).onOk(onOk)
+}
+function cancelEdit() {
+  confirmDiscard(() => {
+    discardEdit()
+    if (props.creating) closeImmediately()
+  })
 }
 function withoutDocumentTitle(source: string): string {
   const lines = source.split('\n')
@@ -205,6 +232,7 @@ watch(() => [props.modelValue, props.entry?.id, props.entry?.version, props.load
   view.value = 'markdown'
   editing.value = Boolean(props.creating && props.modelValue && props.entry)
   editableData.value = cloneEntryData()
+  editSnapshot.value = snapshot(editableData.value)
 })
 function isWorkTable(section: FormSection): boolean {
   const title = section.title.replace(/\s/g, '')
@@ -276,7 +304,12 @@ function formatDate(value?: string | null) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16)
 }
-function close() { emit('update:modelValue', false) }
+function closeImmediately() { emit('update:modelValue', false) }
+function close() { confirmDiscard(closeImmediately) }
+function handleDialogUpdate(open: boolean) {
+  if (open) emit('update:modelValue', true)
+  else close()
+}
 function goToSection(index: number) {
   const element = scrollArea.value?.querySelector<HTMLElement>(`[data-section-index="${index}"]`)
   element?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })

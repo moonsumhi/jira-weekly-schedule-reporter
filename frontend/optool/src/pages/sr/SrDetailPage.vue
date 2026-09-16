@@ -1766,6 +1766,12 @@ function fmtDate(d: string | null | undefined)     { return fmtDateKst(d) }
 function fmtDateTime(d: string | null | undefined) { return d ? formatKst(d) : '-' }
 
 const FIELD_LABELS: Record<string, string> = {
+  request_type: '요청 유형',
+  impact_if_not_processed: '미처리 시 영향',
+  compliance_related: '규정 관련 여부',
+  reviewer_name: '검토자',
+  attachments: '첨부파일',
+  type_detail: '유형별 상세 내용',
   requester_id:        '요청자 계정',
   requester_name:      '요청자',
   requester_department: '요청자 부서',

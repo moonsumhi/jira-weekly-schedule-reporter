@@ -16,7 +16,7 @@ from app.models.comment_reaction import CommentReactionToggle
 from app.routers.auth import get_current_user
 from app.services.sr.sr_service import (
     next_sr_number, get_sr_or_404, record_sr_history,
-    record_status_history, sr_to_out, is_sr_requester,
+    record_status_history, record_due_date_history, sr_to_out, is_sr_requester,
 )
 from app.services.notification_service import create_notification, notify_users, get_sr_operator_ids
 from app.services.mention_service import resolve_mentions, notify_mentions
@@ -144,11 +144,20 @@ async def list_my_srs(
     priority: Optional[str] = Query(None),
     desired_due_date_from: Optional[str] = Query(None),
     desired_due_date_to: Optional[str] = Query(None),
+    mine_only: bool = Query(False),
     current_user: UserPublic = Depends(get_current_user),
 ):
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    requester_ids = [ObjectId(current_user.id)]
+    team = (current_user.team or "").strip()
+    if not mine_only and team:
+        users_col = MongoClientManager.get_users_collection()
+        team_users = await users_col.find(
+            {"team": team, "is_blocked": {"$ne": True}}, {"_id": 1}
+        ).to_list(None)
+        requester_ids.extend(user["_id"] for user in team_users if user.get("_id"))
     q: dict = {
-        "requester_id": ObjectId(current_user.id),
+        "requester_id": {"$in": list(dict.fromkeys(requester_ids))},
         "deleted_at": None,
     }
     if status:
@@ -179,14 +188,22 @@ async def get_sr(
     current_user: UserPublic = Depends(get_current_user),
 ):
     doc = await get_sr_or_404(sr_id)
-    # 요청자는 본인 SR만 열람 가능 (관리자/처리자는 예외)
+    is_same_team = False
+    team = (current_user.team or "").strip()
+    if team and str(doc["requester_id"]) != current_user.id:
+        requester = await MongoClientManager.get_users_collection().find_one(
+            {"_id": doc["requester_id"], "is_blocked": {"$ne": True}}, {"team": 1}
+        )
+        is_same_team = bool(requester and (requester.get("team") or "").strip() == team)
+    # 요청자는 본인 또는 같은 팀의 SR을 열람할 수 있다 (관리자/처리자는 예외).
     if (
         not current_user.is_admin
         and "sr_operator" not in (current_user.permissions or [])
         and "sr_manager" not in (current_user.permissions or [])
         and str(doc["requester_id"]) != current_user.id
+        and not is_same_team
     ):
-        raise HTTPException(status_code=403, detail="본인의 SR만 조회할 수 있습니다.")
+        raise HTTPException(status_code=403, detail="본인 또는 같은 팀의 SR만 조회할 수 있습니다.")
     return SROut(**sr_to_out(doc))
 
 
@@ -209,21 +226,16 @@ async def update_sr(
 
     now = datetime.now(timezone.utc)
     updates: dict = {"updated_at": now, "updated_by": _user_label(current_user)}
-    track_fields = (
-        "title", "description", "background", "purpose",
-        "desired_deploy_date",
-        "priority", "impact_scope", "is_urgent", "urgent_reason",
-        "related_system", "related_menu", "related_url",
-        "completion_criteria", "note",
-    )
 
-    patch_data = body.model_dump(exclude_none=True)
+    # exclude_unset keeps explicitly supplied null values so optional fields
+    # can be cleared and still receive a history entry.
+    patch_data = body.model_dump(exclude_unset=True)
     do_submit = patch_data.pop("submit", None)
 
     for field, value in patch_data.items():
         old_val = doc.get(field)
         updates[field] = value
-        if field in track_fields and str(old_val) != str(value):
+        if field != "desired_due_date" and old_val != value:
             await record_sr_history(sr_id, f"FIELD_CHANGE:{field}", str(old_val), str(value), _user_label(current_user))
 
     if do_submit:
@@ -235,9 +247,11 @@ async def update_sr(
             await record_status_history(sr_id, "PENDING_INFO", "SUBMITTED", None, _user_label(current_user))
 
     # desired_due_date 변경은 sr_due_date_histories 에만 기록 (sr_histories 이중 기록 방지)
-    if body.desired_due_date is not None and body.desired_due_date != doc.get("desired_due_date"):
-        from app.services.sr.sr_service import record_due_date_history
-        await record_due_date_history(sr_id, doc.get("desired_due_date"), body.desired_due_date, None, _user_label(current_user))
+    if "desired_due_date" in patch_data and body.desired_due_date != doc.get("desired_due_date"):
+        await record_due_date_history(
+            sr_id, doc.get("desired_due_date"), body.desired_due_date,
+            None, _user_label(current_user),
+        )
 
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
     await col.update_one({"_id": ObjectId(sr_id)}, {"$set": updates})
@@ -492,5 +506,14 @@ async def list_history(
             changed_at=d["changed_at"],
         ))
 
+    # 희망 완료일은 별도 컬렉션에 저장되지만 통합 이력에도 표시한다.
+    async for d in db[MongoClientManager.SR_DUE_DATE_HISTORIES].find({"sr_id": sr_id}):
+        result.append(SRHistoryOut(
+            id=str(d["_id"]), sr_id=sr_id,
+            action_type="FIELD_CHANGE:desired_due_date",
+            before_value=str(d["previous_due_date"]) if d.get("previous_due_date") else None,
+            after_value=str(d["new_due_date"]) if d.get("new_due_date") else None,
+            changed_by=d.get("changed_by", ""), changed_at=d["changed_at"],
+        ))
     result.sort(key=lambda x: x.changed_at)
     return result

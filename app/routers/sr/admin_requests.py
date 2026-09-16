@@ -210,12 +210,22 @@ async def patch_sr_inline(
     now = datetime.now(timezone.utc)
     updates: dict = {"updated_at": now, "updated_by": _user_label(current_user)}
 
-    patch = body.model_dump(exclude_none=True)
+    # Keep explicitly supplied null values so inline edits can clear fields.
+    patch = body.model_dump(exclude_unset=True)
     for field, value in patch.items():
         old_val = doc.get(field)
-        updates[field] = ObjectId(value) if field == "assignee_id" else value
-        if str(old_val) != str(value):
-            await record_sr_history(sr_id, f"FIELD_CHANGE:{field}", str(old_val), str(value), _user_label(current_user))
+        db_value = ObjectId(value) if field == "assignee_id" and value else value
+        updates[field] = db_value
+        if field == "desired_due_date":
+            if old_val != db_value:
+                await record_due_date_history(
+                    sr_id, old_val, db_value, None, _user_label(current_user),
+                )
+        elif str(old_val or "") != str(db_value or ""):
+            await record_sr_history(
+                sr_id, f"FIELD_CHANGE:{field}",
+                str(old_val or ""), str(db_value or ""), _user_label(current_user),
+            )
 
     await col.update_one({"_id": ObjectId(sr_id)}, {"$set": updates})
     updated = await col.find_one({"_id": ObjectId(sr_id)})
@@ -315,19 +325,13 @@ async def update_sr_admin(
     doc = await get_sr_or_404(sr_id)
     now = datetime.now(timezone.utc)
     updates: dict = {"updated_at": now, "updated_by": _user_label(current_user)}
-    _admin_track_fields = (
-        "title", "description", "background", "purpose",
-        "desired_due_date", "desired_deploy_date",
-        "priority", "impact_scope", "is_urgent", "urgent_reason",
-        "related_system", "related_menu", "related_url",
-        "completion_criteria", "note",
-    )
-    patch_data = body.model_dump(exclude_none=True)
+    # Keep explicitly supplied null values so optional fields can be cleared.
+    patch_data = body.model_dump(exclude_unset=True)
     patch_data.pop("submit", None)
     for field, value in patch_data.items():
         old_val = doc.get(field)
         updates[field] = value
-        if field in _admin_track_fields and str(old_val) != str(value):
+        if old_val != value:
             await record_sr_history(sr_id, f"FIELD_CHANGE:{field}", str(old_val), str(value), _user_label(current_user))
 
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]

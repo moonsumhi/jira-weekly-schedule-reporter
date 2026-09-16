@@ -1,5 +1,5 @@
 <template>
-  <div class="inline-editor" @keydown="handleKeydown">
+  <div ref="editorRoot" class="inline-editor" @keydown="handleKeydown">
   <section v-for="(section, sectionIndex) in sections" :key="section.title" :data-section-index="sectionIndex" class="inline-section">
     <h2>{{ displaySectionTitle(section) }}</h2>
 
@@ -11,7 +11,9 @@
         <tbody>
           <tr v-for="(row, rowIndex) in rows(section)" :key="rowIndex">
             <td class="number-cell">{{ rowIndex + 1 }}</td>
-            <td v-for="field in visibleFields(section)" :key="field.label" tabindex="0" @paste="pasteCellImage(section, rowIndex, field, $event)">
+            <td v-for="field in visibleFields(section)" :key="field.label"
+              :class="{ 'editor-cell': row[`${field.label}__format`] === 'markdown' }"
+              tabindex="0" @paste="pasteCellImage(section, rowIndex, field, $event)">
               <q-select v-if="field.type === 'select'" :model-value="row[field.label]" :options="field.options ?? []" borderless dense options-dense @update:model-value="updateField(row, field.label, $event)" />
               <q-checkbox v-else-if="field.type === 'boolean'" :model-value="Boolean(row[field.label])" dense @update:model-value="updateField(row, field.label, $event)" />
               <div v-else-if="field.type === 'image'" class="image-cell">
@@ -37,7 +39,8 @@
         <tbody>
           <tr v-for="field in visibleFields(section)" :key="field.label">
             <th class="field-label">{{ field.label }}</th>
-            <td tabindex="0" @paste="pasteCellImage(section, 0, field, $event)">
+            <td :class="{ 'editor-cell': record(section)[`${field.label}__format`] === 'markdown' }"
+              tabindex="0" @paste="pasteCellImage(section, 0, field, $event)">
               <q-select v-if="field.type === 'select'" :model-value="record(section)[field.label]" :options="field.options ?? []" borderless dense options-dense @update:model-value="updateField(record(section), field.label, $event)" />
               <q-checkbox v-else-if="field.type === 'boolean'" :model-value="Boolean(record(section)[field.label])" dense @update:model-value="updateField(record(section), field.label, $event)" />
               <div v-else-if="field.type === 'image'" class="image-cell">
@@ -64,13 +67,50 @@
 <script setup lang="ts">
 import type { FormField, FormSection } from 'src/services/formTemplates'
 import MarkdownEditor from './MarkdownEditor.vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 type Row = Record<string, unknown>
 type FormData = Record<string, Row | Row[]>
 defineProps<{ sections: FormSection[] }>()
 const model = defineModel<FormData>({ required: true })
+const editorRoot = ref<HTMLElement | null>(null)
 const undoHistory: FormData[] = []
 const redoHistory: FormData[] = []
+let editorHeightFrame: number | null = null
+let layoutObserver: ResizeObserver | null = null
+
+function syncEditorHeights() {
+  const root = editorRoot.value
+  if (!root) return
+
+  const rows = Array.from(root.querySelectorAll<HTMLTableRowElement>('tbody tr'))
+  for (const row of rows) {
+    const cells = Array.from(row.querySelectorAll<HTMLElement>('td'))
+      .filter(cell => cell.querySelector('.toastui-editor-defaultUI'))
+    if (cells.length < 2) continue
+
+    const editors = cells
+      .map(cell => cell.querySelector<HTMLElement>('.toastui-editor-defaultUI'))
+      .filter((editor): editor is HTMLElement => editor !== null)
+    if (editors.length < 2) continue
+
+    cells.forEach(cell => cell.style.removeProperty('--editor-row-height'))
+    editors.forEach(editor => editor.style.setProperty('height', 'auto', 'important'))
+    const maxHeight = Math.max(...editors.map(editor => editor.getBoundingClientRect().height))
+    if (!Number.isFinite(maxHeight) || maxHeight <= 0) continue
+    const rowHeight = `${Math.ceil(maxHeight)}px`
+    cells.forEach(cell => cell.style.setProperty('--editor-row-height', rowHeight))
+    editors.forEach(editor => editor.style.setProperty('height', rowHeight, 'important'))
+  }
+}
+
+function queueEditorHeightSync() {
+  if (editorHeightFrame !== null) cancelAnimationFrame(editorHeightFrame)
+  editorHeightFrame = requestAnimationFrame(() => {
+    editorHeightFrame = null
+    syncEditorHeights()
+  })
+}
 function snapshot(): FormData { return JSON.parse(JSON.stringify(model.value)) as FormData }
 function checkpoint() {
   undoHistory.push(snapshot())
@@ -213,6 +253,29 @@ function pasteCellImage(section: FormSection, rowIndex: number, field: FormField
   if (field.type === 'image') appendImageSources(target, field.label, sources)
   else appendContentImageSources(target, field.label, sources)
 }
+
+watch(model, async () => {
+  await nextTick()
+  queueEditorHeightSync()
+}, { deep: true })
+
+onMounted(async () => {
+  await nextTick()
+  queueEditorHeightSync()
+  window.addEventListener('resize', queueEditorHeightSync)
+  if (editorRoot.value) {
+    layoutObserver = new ResizeObserver(queueEditorHeightSync)
+    layoutObserver.observe(editorRoot.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', queueEditorHeightSync)
+  layoutObserver?.disconnect()
+  layoutObserver = null
+  if (editorHeightFrame !== null) cancelAnimationFrame(editorHeightFrame)
+  editorHeightFrame = null
+})
 </script>
 
 <style scoped>
@@ -234,4 +297,49 @@ thead th { background: #64748b0d; font-weight: 600; text-align: center; padding:
 .content-cell { min-width: 160px; }
 .paste-hint { color: #94a3b8; font-size: 12px; }
 td:focus-visible { outline: 2px solid var(--q-primary); outline-offset: -2px; }
+
+/* Keep the Toast UI editor inside its table cell so the document sidebar stays visible. */
+.inline-table-scroll :deep(.toastui-editor-defaultUI),
+.inline-table-scroll :deep(.toastui-editor-main),
+.inline-table-scroll :deep(.toastui-editor-main-container),
+.inline-table-scroll :deep(.toastui-editor-ww-container),
+.inline-table-scroll :deep(.toastui-editor-contents) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.inline-table-scroll :deep(.toastui-editor-defaultUI-toolbar) {
+  display: flex;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 45px;
+  max-width: 100%;
+  padding: 0 8px;
+  overflow: hidden;
+}
+.inline-table-scroll :deep(.toastui-editor-toolbar) { height: auto; max-width: 100%; }
+.inline-table-scroll :deep(.toastui-editor-toolbar-group) { flex-shrink: 0; }
+.inline-table-scroll :deep(.toastui-editor .ProseMirror) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.inline-table-scroll td.editor-cell { vertical-align: stretch; }
+.inline-table-scroll td.editor-cell > div {
+  height: var(--editor-row-height, auto);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.inline-table-scroll td.editor-cell :deep(.toastui-editor-defaultUI) {
+  height: 100% !important;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+}
+.inline-table-scroll td.editor-cell :deep(.toastui-editor-main) {
+  flex: 1 1 auto;
+}
 </style>

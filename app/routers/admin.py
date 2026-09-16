@@ -364,6 +364,8 @@ async def get_audit_log(
         "당직": MongoClientManager.WATCH_HISTORY,
         "로그인": MongoClientManager.AUTH_LOGS,
         "활동": MongoClientManager.ACTIVITY_LOGS,
+        "SR": MongoClientManager.ACTIVITY_LOGS,
+        "스케줄 관리": MongoClientManager.ACTIVITY_LOGS,
     }
 
     if category and category in category_map:
@@ -373,10 +375,24 @@ async def get_audit_log(
     else:
         target_categories = category_map
 
+    # Build email→name lookup for display and actor filtering.  Older audit
+    # records use either the user's email or their display name, so selecting
+    # an actor must match both representations.
+    users_col = MongoClientManager.get_users_collection()
+    email_to_name: dict[str, str] = {
+        doc["email"]: doc.get("full_name") or doc["email"]
+        async for doc in users_col.find({}, {"email": 1, "full_name": 1})
+    }
+
     # 공통 필터 조건
     query: dict = {}
     if actor:
-        query["changed_by"] = {"$regex": actor, "$options": "i"}
+        actor_key = actor.casefold()
+        actor_values = {actor}
+        for email, name in email_to_name.items():
+            if email.casefold() == actor_key or name.casefold() == actor_key:
+                actor_values.update((email, name))
+        query["changed_by"] = {"$in": list(actor_values)}
     if action:
         query["action"] = action.upper()
     if from_date or to_date:
@@ -387,17 +403,15 @@ async def get_audit_log(
             dt_filter["$lte"] = datetime.fromisoformat(to_date)
         query["changed_at"] = dt_filter
 
-    # Build email→name lookup for display
-    users_col = MongoClientManager.get_users_collection()
-    email_to_name: dict[str, str] = {
-        doc["email"]: doc.get("full_name") or doc["email"]
-        async for doc in users_col.find({}, {"email": 1, "full_name": 1})
-    }
-
     all_items: list[dict] = []
     for cat_name, col_name in target_categories.items():
         col = db[col_name]
-        async for doc in col.find(query):
+        category_query = dict(query)
+        if col_name == MongoClientManager.ACTIVITY_LOGS:
+            category_query["category"] = (
+                {"$nin": ["SR", "스케줄 관리"]} if cat_name == "활동" else cat_name
+            )
+        async for doc in col.find(category_query):
             raw_by = doc.get("changed_by", "")
             all_items.append({
                 "id": str(doc["_id"]),
