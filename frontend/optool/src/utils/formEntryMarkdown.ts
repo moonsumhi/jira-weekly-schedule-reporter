@@ -41,10 +41,33 @@ function fieldValue(value: unknown, type: string, label: string, origin: string)
     }).filter(Boolean).join('\n\n')
 }
 
+function markdownHeadingKey(line: string): string {
+  const trimmed = line.trim()
+  const atx = trimmed.match(/^#{1,6}\s+(.+?)\s*#*$/)
+  const bold = trimmed.match(/^\*\*(.+?)\*\*$/)
+  const text = atx?.[1] ?? bold?.[1]
+  return text ? text.replace(/[\s*_`~]/g, '').toLocaleLowerCase() : ''
+}
+
+function removeDuplicateHeadingLines(markdown: string): string {
+  const lines = markdown.replace(/\r\n?/g, '\n').split('\n')
+  const cleaned: string[] = []
+  for (const line of lines) {
+    const key = markdownHeadingKey(line)
+    if (key) {
+      let previous = cleaned.length - 1
+      while (previous >= 0 && !cleaned[previous]?.trim()) previous -= 1
+      if (previous >= 0 && markdownHeadingKey(cleaned[previous] ?? '') === key) continue
+    }
+    cleaned.push(line)
+  }
+  return cleaned.join('\n').replace(/\n{3,}/g, '\n\n')
+}
+
 function markdownFieldValue(values: Record<string, unknown>, field: FormSection['fields'][number], origin: string): string {
   const raw = values[field.label]
   if (values[`${field.label}__format`] === 'markdown' && typeof raw === 'string') {
-    return raw.replace(/(!\[[^\]]*\]\()<?(\/api\/uploads\/[^\s)>]+)>?(\))/g,
+    return removeDuplicateHeadingLines(raw).replace(/(!\[[^\]]*\]\()<?(\/api\/uploads\/[^\s)>]+)>?(\))/g,
       (_match, start: string, path: string, end: string) => `${start}<${new URL(path, origin).href}>${end}`)
   }
   return fieldValue(raw, field.type, field.label, origin)
@@ -112,7 +135,7 @@ function normalizeStoredMarkdown(markdown: string): string {
     cleaned.push(line)
     index += 1
   }
-  return cleaned.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n'
+  return removeDuplicateHeadingLines(cleaned.join('\n')).trim() + '\n'
 }
 
 export function formEntryMarkdown(

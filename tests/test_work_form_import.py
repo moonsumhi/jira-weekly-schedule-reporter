@@ -165,3 +165,95 @@ class OriginalFormImportTests(unittest.TestCase):
         self.assertEqual(data['테스트 케이스'][0]['테스트 케이스 ID'], 'TC-01')
         self.assertEqual(data['테스트 케이스'][0]['시간'], '17:42')
         self.assertFalse(warnings)
+
+    def test_operational_assignee_compound_name_and_role_maps_to_separate_fields(self):
+        sections = [
+            {
+                'title': '검토/서명', 'multiple': True,
+                'fields': [
+                    {'label': '소속', 'type': 'text'},
+                    {'label': '성함', 'type': 'text'},
+                    {'label': '직책', 'type': 'text'},
+                    {'label': '검토의견', 'type': 'textarea'},
+                ],
+            },
+        ]
+        markdown = '''## 담당자
+
+| No. | 소속 | 성함 / 직책 | 검토의견 |
+| --- | --- | --- | --- |
+| 1 | 데이터운영팀 | 홍길동 / 선임 | 확인 완료 |'''
+        data, warnings = map_document(markdown, sections)
+        row = data['검토/서명'][0]
+        self.assertEqual(row['소속'], '데이터운영팀')
+        self.assertEqual(row['성함'], '홍길동')
+        self.assertEqual(row['직책'], '선임')
+        self.assertEqual(row['검토의견'], '확인 완료')
+        self.assertFalse(warnings)
+
+    def test_operational_assignee_title_with_name_and_role_maps_to_worker_info(self):
+        sections = [
+            {
+                'title': '작업자 정보', 'multiple': True,
+                'fields': [
+                    {'label': '회사명', 'type': 'text'},
+                    {'label': '성함/직책', 'type': 'text'},
+                    {'label': '역할', 'type': 'text'},
+                    {'label': '연락처', 'type': 'text'},
+                ],
+            },
+            {
+                'title': '검토/서명', 'multiple': True,
+                'fields': [{'label': '소속', 'type': 'text'}, {'label': '성함', 'type': 'text'}],
+            },
+        ]
+        markdown = '''## 담당자
+
+| No. | 회사명 | 성함 / 직책 |
+| --- | --- | --- |
+| 1 | 데이터운영팀 | 홍길동 / 선임 |'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['작업자 정보'][0]['회사명'], '데이터운영팀')
+        self.assertEqual(data['작업자 정보'][0]['성함/직책'], '홍길동 / 선임')
+        self.assertFalse(warnings)
+
+    def test_operational_assignee_separate_name_and_role_columns_are_combined(self):
+        sections = [{
+            'title': '작업자 정보', 'multiple': True,
+            'fields': [
+                {'label': '회사명', 'type': 'text'},
+                {'label': '성함/직책', 'type': 'text'},
+                {'label': '역할', 'type': 'text'},
+            ],
+        }]
+        markdown = '''## 담당자
+
+| No. | 회사명 | 성함 | 직책 | 역할 |
+| --- | --- | --- | --- | --- |
+| 1 | 데이터운영팀 | 홍길동 | 선임 | 서비스 배포 |'''
+        data, warnings = map_document(markdown, sections)
+        row = data['작업자 정보'][0]
+        self.assertEqual(row['회사명'], '데이터운영팀')
+        self.assertEqual(row['성함/직책'], '홍길동 / 선임')
+        self.assertEqual(row['역할'], '서비스 배포')
+        self.assertFalse(warnings)
+
+    def test_operational_result_time_maps_to_result_time_label(self):
+        sections = [
+            {
+                'title': '테스트 결과', 'multiple': True,
+                'fields': [
+                    {'label': '테스트 케이스 ID', 'type': 'text'},
+                    {'label': '결과 시간', 'type': 'text'},
+                ],
+            },
+        ]
+        markdown = '''## 테스트 결과
+
+| 테스트 케이스 ID | 테스트 결과 / 시간 |
+| --- | --- |
+| TC-02 | 18:05 |'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['테스트 결과'][0]['테스트 케이스 ID'], 'TC-02')
+        self.assertEqual(data['테스트 결과'][0]['결과 시간'], '18:05')
+        self.assertFalse(warnings)

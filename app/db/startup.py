@@ -857,6 +857,91 @@ async def migrate_remove_development_image_field() -> None:
             logger.info("작업 문서 개발 이미지 데이터 제거(단일 행): template=%s count=%d", template_id, result.modified_count)
 
 
+async def migrate_remove_result_work_image_field() -> None:
+    """작업결과서의 작업 내용에서 별도 작업 이미지 컬럼을 제거한다 (멱등).
+
+    과거 결과서 템플릿에는 ``작업 내용`` 표에 ``작업 이미지`` 컬럼이
+    추가된 적이 있다. 현재 결과서는 작업 내용 본문만 사용하므로 템플릿의
+    필드와 이미 저장된 레거시 값까지 함께 정리한다.
+    """
+    templates = MongoClientManager.get_form_templates_collection()
+    entries = MongoClientManager.get_form_entries_collection()
+
+    async for template in templates.find({"is_deleted": {"$ne": True}}):
+        title = str(template.get("title", ""))
+        if template.get("menu") not in ("Job", "job", None) or "작업" not in title:
+            continue
+        sections = template.get("sections", [])
+        if not isinstance(sections, list):
+            continue
+
+        changed = False
+        section_titles: list[str] = []
+        normalized_sections: list[dict] = []
+        for raw_section in sections:
+            if not isinstance(raw_section, dict):
+                normalized_sections.append(raw_section)
+                continue
+            section = deepcopy(raw_section)
+            if _job_section_key(section.get("title")) != "작업내용":
+                normalized_sections.append(section)
+                continue
+            section_title = str(section.get("title") or "작업 내용")
+            section_titles.append(section_title)
+            fields = section.get("fields", [])
+            if isinstance(fields, list):
+                filtered_fields: list[dict] = []
+                for raw_field in fields:
+                    if not isinstance(raw_field, dict):
+                        filtered_fields.append(raw_field)
+                        continue
+                    field = deepcopy(raw_field)
+                    label_key = _job_section_key(field.get("label"))
+                    paired_key = _job_section_key(field.get("paired_image") or field.get("pairedImage"))
+                    if label_key == "작업이미지":
+                        changed = True
+                        continue
+                    if paired_key == "작업이미지":
+                        field.pop("paired_image", None)
+                        field.pop("pairedImage", None)
+                        changed = True
+                    filtered_fields.append(field)
+                section["fields"] = filtered_fields
+            normalized_sections.append(section)
+
+        template_id = str(template["_id"])
+        if changed:
+            await templates.update_one(
+                {"_id": template["_id"]},
+                {"$set": {"sections": normalized_sections}},
+            )
+            logger.info("작업결과서 작업 이미지 컬럼 제거: %s", template.get("title"))
+
+        # 템플릿의 실제 섹션 제목(공백 포함)을 사용해 레거시 데이터도 정리한다.
+        for section_title in section_titles:
+            for label in ("작업 이미지", "작업이미지"):
+                result = await entries.update_many(
+                    {"template_id": template_id, f"data.{section_title}": {"$type": "array"}},
+                    {"$unset": {f"data.{section_title}.$[].{label}": ""}},
+                )
+                if result.modified_count:
+                    logger.info(
+                        "작업결과서 작업 이미지 데이터 제거: template=%s count=%d",
+                        template_id,
+                        result.modified_count,
+                    )
+                result = await entries.update_many(
+                    {"template_id": template_id, f"data.{section_title}": {"$type": "object"}},
+                    {"$unset": {f"data.{section_title}.{label}": ""}},
+                )
+                if result.modified_count:
+                    logger.info(
+                        "작업결과서 작업 이미지 데이터 제거(단일 행): template=%s count=%d",
+                        template_id,
+                        result.modified_count,
+                    )
+
+
 async def migrate_assets() -> None:
     """assets_servers 컬렉션의 비서버 자산을 유형별 컬렉션으로 이동한다.
 
@@ -993,6 +1078,7 @@ async def run_startup() -> None:
     await migrate_job_test_case_sections()
     await migrate_result_work_period_fields()
     await migrate_remove_development_image_field()
+    await migrate_remove_result_work_image_field()
     await migrate_assets()
     await migrate_rack_asset_type()
     await migrate_asset_status_default()
