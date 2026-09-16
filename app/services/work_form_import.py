@@ -89,9 +89,14 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             '작업종료시각': '작업종료시간',
             '회사명': '소속',
             # 작업결과서 원본의 "테스트 결과 / 시간"은 새 템플릿의
-            # 테스트 케이스 "시간"(또는 "결과 시간") 필드에 저장한다.
-            '테스트결과시간': '시간',
-            '결과시간': '시간',
+            # 테스트 케이스 "결과 시간"(또는 레거시 "시간") 필드에 저장한다.
+            '테스트결과시간': '결과시간',
+            '테스트결과시각': '결과시간',
+            '테스트결과결과시간': '결과시간',
+            '테스트결과결과시각': '결과시간',
+            '결과시간': '결과시간',
+            '결과시각': '결과시간',
+            '시간': '결과시간',
         }
         exact = [f for f in fields if norm(f['label']) == key]
         if exact:
@@ -101,11 +106,12 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             matches = [f for f in fields if norm(f['label']) == alias]
             if matches:
                 return matches[0]
-            # 일부 결과서 템플릿은 시간 필드를 "결과 시간"으로 표시한다.
-            if alias == '시간':
-                matches = [f for f in fields if norm(f['label']) == '결과시간']
+            # 결과서 템플릿 버전에 따라 "시간" 또는 "결과 시간"을 사용한다.
+            if alias == '결과시간':
+                matches = [f for f in fields if norm(f['label']) in {'결과시간', '시간'}]
                 if matches:
-                    return matches[0]
+                    # 현재 양식인 "결과 시간"을 레거시 "시간"보다 우선한다.
+                    return next((f for f in matches if norm(f['label']) == '결과시간'), matches[0])
         # Deployed templates use both legacy labels (시작 시간/종료 시간)
         # and canonical labels (작업 시작 시간/작업 종료 시간). HWP and
         # Word exports may also reorder the words to 작업 시간 시작/종료.
@@ -131,12 +137,79 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             '작업종료시간': ('작업종료', '종료시간'),
             '성함직책': ('성함', '직책'),
             '테스트결과시간': ('테스트결과', '시간'),
+            '테스트결과시각': ('테스트결과', '시각'),
+            '테스트결과결과시간': ('테스트결과', '결과시간'),
         }.get(key)
         if semantic:
             matches = [f for f in fields if all(token in norm(f['label']) for token in semantic)]
             if len(matches) == 1:
                 return matches[0]
         return None
+
+    def compound_fields(name, fields):
+        """헤더 하나에 합쳐진 필드(예: ``성함/직책``)를 분리한다.
+
+        운영계 일부 결과서는 담당자 표에서 ``성함 / 직책``을 하나의
+        헤더로 내보내지만, 저장 템플릿은 ``성함``과 ``직책``을 별도
+        필드로 갖는다. 이 경우 표 셀의 값도 같은 구분자로 나눠 각
+        필드에 넣을 수 있도록 반환한다.
+        """
+        raw_name = str(name or '')
+        parts = [part.strip() for part in re.split(r'[/／\n]', raw_name) if part.strip()]
+        if len(parts) < 2:
+            # HWP 표의 줄바꿈은 Markdown HTML 변환 과정에서 사라져
+            # ``성함직책``처럼 붙을 수 있다. 대상 필드 레이블을 순서대로
+            # 이어 붙인 형태인지도 확인한다.
+            key = norm(raw_name)
+            labels = [(norm(field.get('label')), field) for field in fields if norm(field.get('label'))]
+            for left_key, left_field in labels:
+                if not key.startswith(left_key) or key == left_key:
+                    continue
+                rest = key[len(left_key):]
+                right = next((field for label_key, field in labels if label_key == rest), None)
+                if right is not None and right is not left_field:
+                    return [left_field, right]
+            return []
+        matched = []
+        for part in parts:
+            field = match(part, fields)
+            if field is not None and field not in matched:
+                matched.append(field)
+        return matched
+
+    def compound_values(cell):
+        """표 셀에서 ``성함/직책``처럼 합쳐진 값을 순서대로 분리한다."""
+        def text_with_breaks(node):
+            chunks = []
+
+            def walk(element):
+                if element.text:
+                    chunks.append(element.text)
+                for child in element:
+                    if isinstance(child.tag, str) and child.tag.lower() == 'br':
+                        chunks.append('\n')
+                    else:
+                        walk(child)
+                    if child.tail:
+                        chunks.append(child.tail)
+
+            walk(node)
+            return ''.join(chunks)
+
+        plain = text_with_breaks(cell).strip()
+        return [part.strip() for part in re.split(r'[/／\n]', plain) if part.strip()]
+
+    def assign_plain(row, field, value):
+        """compound 헤더에서 분리한 일반 텍스트 값을 필드에 저장한다."""
+        name = field['label']
+        plain = str(value or '').strip()
+        if field.get('type') == 'textarea':
+            row[name], row[name + '__format'] = plain, 'markdown'
+            return
+        if field.get('type') == 'select' and '■' in plain:
+            selected = re.findall(r'[■●✔✓]\s*([^□■●✔✓]+)', plain)
+            plain = ', '.join(s.strip() for s in selected) or plain
+        row[name] = plain
 
     def assign(row, field, nodes):
         name = field['label']
@@ -191,11 +264,52 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             candidates = [s for s in sections if norm(s['title']) == norm(key)]
         if source_key == '담당자' and not candidates:
             headings = {norm(''.join(n.itertext())) for node in nodes for n in node.xpath('.//th')}
-            key = '작업자정보' if '역할' in headings else '검토/서명'
+            # 운영계 담당자 표는 ``성함/직책``만으로 구성된 경우도
+            # 있으므로 역할 열이 없더라도 작업자 정보로 판단한다.
+            worker_headings = {'회사명', '성함직책', '역할', '연락처'}
+            key = '작업자정보' if headings & worker_headings else '검토/서명'
             # ``검토/서명`` contains a separator that ``norm`` removes. Use
             # the normalized key here as well, otherwise 담당자 blocks fall
             # through to 가져온 추가 내용 even when the review section exists.
             candidates = [s for s in sections if norm(s['title']) == norm(key)]
+        if not candidates:
+            # 운영계에서 섹션 제목은 ``담당자``로 유지하면서 실제 저장
+            # 템플릿은 ``작업자 정보`` 또는 ``검토/서명``으로 바뀐 경우가
+            # 있다. 표 헤더와 대상 필드의 겹치는 정도로 가장 알맞은
+            # 섹션을 선택해 담당자 표가 추가 내용으로 빠지지 않게 한다.
+            source_labels = set()
+            for node in nodes:
+                for header_node in node.xpath('.//th'):
+                    raw_header = ''.join(header_node.itertext()).strip()
+                    if not raw_header:
+                        continue
+                    source_labels.add(norm(raw_header))
+                    # ``성함/직책``을 별도 필드로 저장하는 템플릿도
+                    # 섹션 선택 단계에서 후보로 인식할 수 있게 한다.
+                    source_labels.update(norm(part) for part in re.split(r'[/／]', raw_header) if part.strip())
+            scored = []
+            for candidate in sections:
+                target_labels = {norm(field.get('label')) for field in candidate.get('fields', [])}
+                overlap = source_labels & target_labels
+                if not overlap:
+                    continue
+                score = len(overlap)
+                if source_key == '담당자' and '성함직책' in source_labels:
+                    if '성함직책' in target_labels:
+                        score += 3
+                    if '성함' in target_labels or '직책' in target_labels:
+                        score += 1
+                if source_key == '담당자':
+                    candidate_key = norm(candidate.get('title'))
+                    review_hint = source_labels & {'소속', '성함', '검토의견', '서명'}
+                    worker_hint = source_labels & {'회사명', '역할', '연락처'}
+                    if candidate_key in {'검토서명', '검토의견'}:
+                        score += 4 * len(review_hint)
+                    if candidate_key in {'작업자정보', '작업자'}:
+                        score += 4 * len(worker_hint)
+                scored.append((score, candidate))
+            if scored:
+                candidates = [max(scored, key=lambda item: item[0])[1]]
         if not candidates:
             logger.warning('작업 문서 Import 섹션 매핑 실패: source_title=%r normalized=%r', title, key)
             # The document title is already represented by the selected form.
@@ -249,8 +363,30 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                 table_rows = node.xpath('./thead/tr|./tbody/tr|./tr')
                 if not table_rows:
                     continue
-                headers = [''.join(c.itertext()).strip() for c in table_rows[0]]
+                def cell_text(cell):
+                    chunks = []
+
+                    def walk(element):
+                        if element.text:
+                            chunks.append(element.text)
+                        for child in element:
+                            if isinstance(child.tag, str) and child.tag.lower() == 'br':
+                                chunks.append('\n')
+                            else:
+                                walk(child)
+                            if child.tail:
+                                chunks.append(child.tail)
+
+                    walk(cell)
+                    return ''.join(chunks).strip()
+
+                headers = [cell_text(c) for c in table_rows[0]]
                 mapped = [match(h, fields) for h in headers]
+                compound_mapped = {
+                    index: compound_fields(header, fields)
+                    for index, header in enumerate(headers)
+                    if mapped[index] is None and compound_fields(header, fields)
+                }
                 # "항목 | 내용" 형태의 기본 정보 표는 첫 열이 실제 필드명이다.
                 # 이 형식은 Markdown/HWP 변환 결과에서 자주 사용된다.
                 key_value_table = (
@@ -264,21 +400,30 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                         cells = list(tr)
                         if len(cells) < 2:
                             continue
-                        source_label = ''.join(cells[0].itertext()).strip()
+                        source_label = cell_text(cells[0])
                         field = match(source_label, fields)
                         if field:
                             assign(parsed_row, field, [cells[1]])
-                        elif norm(source_label) == '작업일시':
-                            assign_work_period(parsed_row, fields, [cells[1]])
-                        elif source_label and ''.join(cells[1].itertext()).strip():
-                            extras.append((title + ' / ' + source_label, as_md([cells[1]])))
+                        else:
+                            split_fields = compound_fields(source_label, fields)
+                            if split_fields:
+                                values = compound_values(cells[1])
+                                if len(split_fields) == 1:
+                                    assign_plain(parsed_row, split_fields[0], cell_text(cells[1]))
+                                else:
+                                    for split_field, value in zip(split_fields, values):
+                                        assign_plain(parsed_row, split_field, value)
+                            elif norm(source_label) == '작업일시':
+                                assign_work_period(parsed_row, fields, [cells[1]])
+                            elif source_label and ''.join(cells[1].itertext()).strip():
+                                extras.append((title + ' / ' + source_label, as_md([cells[1]])))
                     if parsed_row:
                         if set(current) & set(parsed_row):
                             rows.append(current)
                             current = {}
                         current.update(parsed_row)
                     continue
-                if not any(mapped):
+                if not any(mapped) and not compound_mapped:
                     extras.append((title, as_md([node])))
                     continue
                 parsed = []
@@ -288,9 +433,17 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                         field = mapped[i] if i < len(mapped) else None
                         if field:
                             assign(row, field, [cell])
+                        elif i in compound_mapped:
+                            split_fields = compound_mapped[i]
+                            values = compound_values(cell)
+                            if len(split_fields) == 1:
+                                assign_plain(row, split_fields[0], ''.join(cell.itertext()))
+                            else:
+                                for split_field, value in zip(split_fields, values):
+                                    assign_plain(row, split_field, value)
                         elif i < len(headers) and norm(headers[i]) == '작업일시':
                             assign_work_period(row, fields, [cell])
-                        elif i < len(headers) and norm(headers[i]).lower() not in ('no.', 'no', '번호') and ''.join(cell.itertext()).strip():
+                        elif i < len(headers) and norm(headers[i]).lower() not in ('no.', 'no', '번호') and cell_text(cell):
                             extras.append((title + ' / ' + headers[i], as_md([cell])))
                     if row:
                         parsed.append(row)
