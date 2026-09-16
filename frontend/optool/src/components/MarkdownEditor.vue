@@ -71,6 +71,35 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mime })
 }
 
+function usableImageSource(source: string): boolean {
+  try {
+    const url = new URL(source, window.location.origin)
+    return ['http:', 'https:'].includes(url.protocol)
+      || /^data:image\/[a-z0-9.+-]+;base64,/i.test(source)
+  } catch {
+    return false
+  }
+}
+
+function htmlImageSources(html: string): string[] {
+  if (!html || !/<img\b/i.test(html)) return []
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+  return Array.from(parsed.images)
+    .map(image => image.getAttribute('src')?.trim() ?? '')
+    .filter((source, index, sources) => usableImageSource(source) && sources.indexOf(source) === index)
+}
+
+function insertImageSource(source: string) {
+  if (!editor || !usableImageSource(source)) return
+  if (/^data:image\//i.test(source)) {
+    void queueUpload(dataUrlToBlob(source)).then(url => {
+      if (url && editor) editor.exec('addImage', { imageUrl: url, altText: '' })
+    })
+    return
+  }
+  editor.exec('addImage', { imageUrl: source, altText: '' })
+}
+
 function handlePaste(e: Event) {
   const ce = e as ClipboardEvent
   if (!ce.clipboardData) return
@@ -82,7 +111,7 @@ function handlePaste(e: Event) {
   // 이미지 여러 장을 한 번에 붙여넣으면 addImageBlobHook이 비동기로 동시에 여러 번
   // 호출되면서 완료 순서가 뒤섞여, 일부가 이미지가 아니라 빈 링크로 삽입되는 문제가
   // 있었다. 2장 이상이면 직접 순서대로 업로드 → 삽입해서 순서를 보장한다.
-  if (imageItems.length > 1) {
+  if (imageItems.length > 0) {
     ce.preventDefault()
     ce.stopImmediatePropagation()
     const blobs = imageItems.map(item => item.getAsFile()).filter((f): f is File => !!f)
@@ -101,6 +130,13 @@ function handlePaste(e: Event) {
 
   // HTML clipboard with <img> (HWP, Word, etc.) — block alt-text insertion
   const html = ce.clipboardData.getData('text/html')
+  const sources = htmlImageSources(html)
+  if (sources.length) {
+    ce.preventDefault()
+    ce.stopImmediatePropagation()
+    sources.forEach(insertImageSource)
+    return
+  }
   if (html && /<img/i.test(html)) {
     ce.preventDefault()
     ce.stopImmediatePropagation()

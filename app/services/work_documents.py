@@ -352,6 +352,18 @@ def _table_widths_for_export(node, rows, cols, nested=False):
 def export_hwpx(markdown: str) -> bytes:
     from hwpx import HwpxDocument
     document = HwpxDocument.new()
+    # Match the document layout used by the work-document editor.  The HWPX
+    # skeleton otherwise keeps its wider default margins (about 3 cm), which
+    # leaves too little room for the exported tables.  Set all page margins to
+    # 20 mm so the table width below (170 mm on A4) fits the usable page area.
+    document.page.setup(
+        margins_mm={
+            'left': 20,
+            'right': 20,
+            'top': 20,
+            'bottom': 20,
+        }
+    )
     rendered = MarkdownIt('commonmark', {'html': True}).enable('table').render(markdown)
     root = html.fragment_fromstring(rendered, create_parent='div')
     initial_paragraph = document.paragraphs[0] if document.paragraphs else None
@@ -398,6 +410,24 @@ def export_hwpx(markdown: str) -> bytes:
                 width=round(width_mm * 7200 / 25.4),
                 height=2200 * len(rows),
             )
+            # HWP's default table object is marked "글자처럼 취급"
+            # (treatAsChar=1), which makes a long table behave like one very
+            # wide character. Use a flowing table anchor so Hancom can keep
+            # the table inside the page/column layout and split it naturally
+            # across pages when the content grows.
+            table_pos = table.element.find(
+                '{http://www.hancom.co.kr/hwpml/2011/paragraph}pos'
+            )
+            if table_pos is not None:
+                table_pos.set('treatAsChar', '0')
+                table_pos.set('flowWithText', '1')
+                table_pos.set('allowOverlap', '0')
+                table_pos.set('vertRelTo', 'PARA')
+                table_pos.set('horzRelTo', 'COLUMN')
+                table_pos.set('vertAlign', 'TOP')
+                table_pos.set('horzAlign', 'LEFT')
+                table_pos.set('vertOffset', '0')
+                table_pos.set('horzOffset', '0')
             widths = _table_widths_for_export(node, rows, cols, nested=font_size is not None)
             table.set_column_widths(widths)
             total_weight = sum(widths)

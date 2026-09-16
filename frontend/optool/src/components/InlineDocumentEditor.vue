@@ -18,6 +18,10 @@
                 <img v-for="(src, imageIndex) in imageValues(row[field.label])" :key="imageIndex" :src="src" :alt="field.label" />
                 <span v-if="!imageValues(row[field.label]).length" class="paste-hint">이미지를 붙여넣을 수 있습니다.</span>
               </div>
+              <MarkdownEditor v-else-if="row[`${field.label}__format`] === 'markdown'"
+                :model-value="scalarValue(row[field.label])?.toString() ?? ''"
+                :placeholder="`${field.label}`"
+                @update:model-value="updateField(row, field.label, $event)" />
               <div v-else class="content-cell">
                 <q-input :model-value="scalarValue(row[field.label])" borderless dense autogrow :type="inputType(field)" :placeholder="`${field.label} 입력`" @update:model-value="updateField(row, field.label, $event ?? '')" />
               </div>
@@ -40,6 +44,10 @@
                 <img v-for="(src, imageIndex) in imageValues(record(section)[field.label])" :key="imageIndex" :src="src" :alt="field.label" />
                 <span v-if="!imageValues(record(section)[field.label]).length" class="paste-hint">이미지를 붙여넣을 수 있습니다.</span>
               </div>
+              <MarkdownEditor v-else-if="record(section)[`${field.label}__format`] === 'markdown'"
+                :model-value="scalarValue(record(section)[field.label])?.toString() ?? ''"
+                :placeholder="`${field.label}`"
+                @update:model-value="updateField(record(section), field.label, $event)" />
               <div v-else class="content-cell">
                 <q-input :model-value="scalarValue(record(section)[field.label])" borderless dense autogrow :type="inputType(field)" :placeholder="`${field.label} 입력`" @update:model-value="updateField(record(section), field.label, $event ?? '')" />
               </div>
@@ -55,6 +63,7 @@
 
 <script setup lang="ts">
 import type { FormField, FormSection } from 'src/services/formTemplates'
+import MarkdownEditor from './MarkdownEditor.vue'
 
 type Row = Record<string, unknown>
 type FormData = Record<string, Row | Row[]>
@@ -153,17 +162,56 @@ function appendContentImages(target: Row, field: string, files: File[]) {
     reader.readAsDataURL(file)
   }
 }
+function isUsableImageSource(source: string): boolean {
+  try {
+    const url = new URL(source, window.location.origin)
+    return ['http:', 'https:'].includes(url.protocol)
+      || /^data:image\/[a-z0-9.+-]+;base64,/i.test(source)
+  } catch {
+    return false
+  }
+}
+function clipboardImageSources(event: ClipboardEvent): string[] {
+  const html = event.clipboardData?.getData('text/html') ?? ''
+  if (!html || !/<img\b/i.test(html)) return []
+  const parsed = new DOMParser().parseFromString(html, 'text/html')
+  return Array.from(parsed.images)
+    .map(image => image.getAttribute('src')?.trim() ?? '')
+    .filter((source, index, sources) => isUsableImageSource(source) && sources.indexOf(source) === index)
+}
+function appendContentImageSources(target: Row, field: string, sources: string[]) {
+  const current = scalarValue(target[field]) ?? ''
+  const images = sources.map(source => `![붙여넣은 이미지](<${source}>)`).join('\n\n')
+  checkpoint()
+  target[field] = `${current}${current ? '\n\n' : ''}${images}`
+  target[`${field}__format`] = 'markdown'
+}
+function appendImageSources(target: Row, field: string, sources: string[]) {
+  const current = imageValues(target[field])
+  checkpoint()
+  target[field] = [...current, ...sources]
+}
 function pasteCellImage(section: FormSection, rowIndex: number, field: FormField, event: ClipboardEvent) {
   const files = Array.from(event.clipboardData?.items ?? [])
     .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
     .map(item => item.getAsFile())
     .filter((file): file is File => file !== null)
-  if (!files.length) return
-  event.preventDefault()
   const target = section.multiple ? rows(section)[rowIndex] : record(section)
   if (!target) return
-  if (field.type === 'image') appendImageField(target, field.label, files)
-  else appendContentImages(target, field.label, files)
+  if (files.length) {
+    event.preventDefault()
+    if (field.type === 'image') appendImageField(target, field.label, files)
+    else appendContentImages(target, field.label, files)
+    return
+  }
+
+  // Browsers often copy an image element as HTML instead of a File item.
+  // Handle its <img src> so the input does not receive only the image URL.
+  const sources = clipboardImageSources(event)
+  if (!sources.length) return
+  event.preventDefault()
+  if (field.type === 'image') appendImageSources(target, field.label, sources)
+  else appendContentImageSources(target, field.label, sources)
 }
 </script>
 

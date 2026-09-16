@@ -567,6 +567,59 @@ function getWorkDate(row: FormEntry): string {
   return '-'
 }
 
+function normalizedFileLabel(value: string): string {
+  return value.replace(/[\s_*/\\()]/g, '').toLocaleLowerCase()
+}
+
+function detailValueForLabels(labels: string[]): string {
+  const wanted = new Set(labels.map(normalizedFileLabel))
+  for (const sectionData of Object.values(detailRow.value?.data ?? {})) {
+    const records = Array.isArray(sectionData) ? sectionData : [sectionData]
+    for (const record of records) {
+      if (!record || typeof record !== 'object' || Array.isArray(record)) continue
+      for (const [label, value] of Object.entries(record as Record<string, unknown>)) {
+        if (label.endsWith('__format') || !wanted.has(normalizedFileLabel(label))) continue
+        if (typeof value === 'string' || typeof value === 'number') {
+          if (String(value).trim()) return String(value).trim()
+        }
+      }
+    }
+  }
+  return ''
+}
+
+function exportDatePart(value: string): string {
+  const numeric = value.match(/(20\d{2})[./-](\d{1,2})[./-](\d{1,2})/)
+  const korean = value.match(/(20\d{2})년\s*(\d{1,2})월\s*(\d{1,2})일/)
+  const [, year, month, day] = numeric ?? korean ?? []
+  if (year && month && day) return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(parsed)
+  const dateYear = parts.find(part => part.type === 'year')?.value
+  const dateMonth = parts.find(part => part.type === 'month')?.value
+  const dateDay = parts.find(part => part.type === 'day')?.value
+  return dateYear && dateMonth && dateDay ? `${dateYear}-${dateMonth}-${dateDay}` : ''
+}
+
+function exportDocumentFileName(format: 'hwp' | 'docx'): string {
+  const taskName = detailValueForLabels(['작업명', '작업 제목', '제목']) || template.value?.title || '작업문서'
+  const workDate = detailValueForLabels(['작업 일시', '작업 기간 (시작)', '작업기간 시작'])
+  const date = exportDatePart(workDate || detailRow.value?.createdAt || '') || '날짜미상'
+  const safePart = (value: string, fallback: string) => value
+    .replace(/[<>:"|?*]/g, '_')
+    .replaceAll('/', '_')
+    .replaceAll('\\', '_')
+    .split('').map(character => character.charCodeAt(0) < 32 ? '_' : character).join('')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 100)
+    .replace(/[. ]+$/, '') || fallback
+  return `${safePart(taskName, '작업문서')}_${date}.${format}`
+}
+
 function entryPreview(row: FormEntry): string {
   const document = row.data['문서 본문']
   if (Array.isArray(document) && document[0] && !hasOriginalForm(entryTemplate(row)?.sections ?? [], row.data)) return String(document[0]['제목'] ?? '')
@@ -1005,7 +1058,7 @@ const exportingDocument = ref(false)
 async function exportDetailFile(format: 'hwp' | 'docx') {
   if (detailLoading.value || !detailRow.value || !template.value || exportingDocument.value) return
   const title = template.value.title
-  const filename = markdownFileName(title, detailRow.value.id).replace(/\.md$/, `.${format}`)
+  const filename = exportDocumentFileName(format)
   const markdown = formEntryMarkdown(title, sections.value, detailRow.value.data, window.location.origin)
   const originalName = detailRow.value.originalFile?.originalName ?? ''
   const sourceExtension = originalName.includes('.') ? originalName.slice(originalName.lastIndexOf('.')).toLowerCase() : ''
