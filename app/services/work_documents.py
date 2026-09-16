@@ -355,13 +355,14 @@ def export_hwpx(markdown: str) -> bytes:
     # Match the document layout used by the work-document editor.  The HWPX
     # skeleton otherwise keeps its wider default margins (about 3 cm), which
     # leaves too little room for the exported tables.  Set all page margins to
-    # 20 mm so the table width below (170 mm on A4) fits the usable page area.
+    # 0 mm vertically and 20 mm horizontally so the table width below
+    # (170 mm on A4) fits the usable page area without wasting vertical space.
     document.page.setup(
         margins_mm={
             'left': 20,
             'right': 20,
-            'top': 20,
-            'bottom': 20,
+            'top': 0,
+            'bottom': 0,
         }
     )
     rendered = MarkdownIt('commonmark', {'html': True}).enable('table').render(markdown)
