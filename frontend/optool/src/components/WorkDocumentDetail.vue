@@ -11,7 +11,7 @@
       </header>
 
       <div v-if="loading" class="document-loading"><q-spinner size="36px" color="primary" /><span>문서를 불러오고 있습니다</span></div>
-      <div v-else-if="entry" class="document-layout">
+      <div v-else-if="entry" :class="['document-layout', { 'is-editing': editing }]">
         <aside class="document-sidebar">
           <div class="sidebar-label">문서 목차 <span>{{ sections.length }}</span></div>
           <nav class="document-nav" aria-label="문서 목차">
