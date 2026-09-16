@@ -606,7 +606,7 @@ function exportDatePart(value: string): string {
 
 function exportDocumentFileName(format: 'hwp' | 'docx'): string {
   const templateName = template.value?.title || '작업템플릿'
-  const taskName = detailValueForLabels(['작업명', '작업 제목', '제목']) || '작업문서'
+  const serviceName = detailValueForLabels(['서비스 명', '서비스명']) || '서비스'
   const workDate = detailValueForLabels(['작업 일시', '작업 기간 (시작)', '작업기간 시작'])
   const date = exportDatePart(workDate || detailRow.value?.createdAt || '') || '날짜미상'
   const safePart = (value: string, fallback: string) => value
@@ -618,7 +618,7 @@ function exportDocumentFileName(format: 'hwp' | 'docx'): string {
     .trim()
     .slice(0, 100)
     .replace(/[. ]+$/, '') || fallback
-  return `${safePart(templateName, '작업템플릿')}_${safePart(taskName, '작업문서')}_${date}.${format}`
+  return `${safePart(templateName, '작업템플릿')}_${safePart(serviceName, '서비스')}_${date}.${format}`
 }
 
 function entryPreview(row: FormEntry): string {
