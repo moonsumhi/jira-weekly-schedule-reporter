@@ -211,6 +211,40 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             plain = ', '.join(s.strip() for s in selected) or plain
         row[name] = plain
 
+    def combined_header_groups(headers, mapped, fields):
+        """여러 표 열을 템플릿의 복합 필드 하나로 묶는다.
+
+        운영계 작업자 표는 ``성함``과 ``직책``을 별도 열로 내보내지만,
+        현재 템플릿은 ``성함/직책`` 한 필드로 저장한다. 헤더 순서와
+        레이블을 기준으로 이 변환을 안전하게 수행한다.
+        """
+        groups = {}
+        used = set()
+        for field in fields:
+            label = str(field.get('label') or '')
+            parts = [part.strip() for part in re.split(r'[/／]', label) if part.strip()]
+            if len(parts) < 2:
+                continue
+            indices = []
+            for part in parts:
+                index = next(
+                    (
+                        i for i, header in enumerate(headers)
+                        if i not in used
+                        and mapped[i] is None
+                        and norm(header) == norm(part)
+                    ),
+                    None,
+                )
+                if index is None:
+                    indices = []
+                    break
+                indices.append(index)
+            if len(indices) == len(parts):
+                groups[indices[0]] = (field, indices)
+                used.update(indices)
+        return groups, {index for _, indices in groups.values() for index in indices}
+
     def assign(row, field, nodes):
         name = field['label']
         value = as_md(nodes)
@@ -387,6 +421,7 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                     for index, header in enumerate(headers)
                     if mapped[index] is None and compound_fields(header, fields)
                 }
+                combined_mapped, combined_indices = combined_header_groups(headers, mapped, fields)
                 # "항목 | 내용" 형태의 기본 정보 표는 첫 열이 실제 필드명이다.
                 # 이 형식은 Markdown/HWP 변환 결과에서 자주 사용된다.
                 key_value_table = (
@@ -396,6 +431,7 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                 )
                 if key_value_table:
                     parsed_row = {}
+                    key_value_values = {}
                     for tr in table_rows[1:]:
                         cells = list(tr)
                         if len(cells) < 2:
@@ -416,14 +452,26 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                             elif norm(source_label) == '작업일시':
                                 assign_work_period(parsed_row, fields, [cells[1]])
                             elif source_label and ''.join(cells[1].itertext()).strip():
-                                extras.append((title + ' / ' + source_label, as_md([cells[1]])))
+                                key_value_values[norm(source_label)] = cell_text(cells[1])
+                    # ``항목 | 내용`` 표에서도 성함·직책이 별도 행으로
+                    # 내려오는 운영계 변형을 복합 필드 하나로 합친다.
+                    for field in fields:
+                        parts = [part.strip() for part in re.split(r'[/／]', str(field.get('label') or '')) if part.strip()]
+                        values = [key_value_values.get(norm(part), '') for part in parts]
+                        if len(parts) >= 2 and all(values):
+                            assign_plain(parsed_row, field, ' / '.join(values))
+                            for part in parts:
+                                key_value_values.pop(norm(part), None)
+                    for source_label, value in key_value_values.items():
+                        if value:
+                            extras.append((title + ' / ' + source_label, value))
                     if parsed_row:
                         if set(current) & set(parsed_row):
                             rows.append(current)
                             current = {}
                         current.update(parsed_row)
                     continue
-                if not any(mapped) and not compound_mapped:
+                if not any(mapped) and not compound_mapped and not combined_mapped:
                     extras.append((title, as_md([node])))
                     continue
                 parsed = []
@@ -433,6 +481,12 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                         field = mapped[i] if i < len(mapped) else None
                         if field:
                             assign(row, field, [cell])
+                        elif i in combined_mapped:
+                            combined_field, indices = combined_mapped[i]
+                            values = [cell_text(tr[index]) for index in indices]
+                            assign_plain(row, combined_field, ' / '.join(value for value in values if value))
+                        elif i in combined_indices:
+                            continue
                         elif i in compound_mapped:
                             split_fields = compound_mapped[i]
                             values = compound_values(cell)

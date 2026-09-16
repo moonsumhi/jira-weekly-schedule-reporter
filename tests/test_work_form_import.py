@@ -217,6 +217,27 @@ class OriginalFormImportTests(unittest.TestCase):
         self.assertEqual(data['작업자 정보'][0]['성함/직책'], '홍길동 / 선임')
         self.assertFalse(warnings)
 
+    def test_operational_assignee_separate_name_and_role_columns_are_combined(self):
+        sections = [{
+            'title': '작업자 정보', 'multiple': True,
+            'fields': [
+                {'label': '회사명', 'type': 'text'},
+                {'label': '성함/직책', 'type': 'text'},
+                {'label': '역할', 'type': 'text'},
+            ],
+        }]
+        markdown = '''## 담당자
+
+| No. | 회사명 | 성함 | 직책 | 역할 |
+| --- | --- | --- | --- | --- |
+| 1 | 데이터운영팀 | 홍길동 | 선임 | 서비스 배포 |'''
+        data, warnings = map_document(markdown, sections)
+        row = data['작업자 정보'][0]
+        self.assertEqual(row['회사명'], '데이터운영팀')
+        self.assertEqual(row['성함/직책'], '홍길동 / 선임')
+        self.assertEqual(row['역할'], '서비스 배포')
+        self.assertFalse(warnings)
+
     def test_operational_result_time_maps_to_result_time_label(self):
         sections = [
             {
