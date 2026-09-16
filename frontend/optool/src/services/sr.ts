@@ -345,6 +345,7 @@ export async function listMySRs(params?: {
   priority?: string
   desired_due_date_from?: string
   desired_due_date_to?: string
+  mine_only?: boolean
 }) {
   const { data } = await api.get<SRListItem[]>('/schedule/service-requests/my', { params })
   return data

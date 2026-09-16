@@ -717,7 +717,7 @@ const DASHBOARD_HIDDEN_SR_STATUSES = new Set(['COMPLETED', 'CLOSED'])
 async function loadMySrList() {
   srLoading.value = true
   try {
-    const list = await listMySRs()
+    const list = await listMySRs({ mine_only: true })
     mySrList.value = list.filter((sr) => !DASHBOARD_HIDDEN_SR_STATUSES.has(sr.status))
   } catch {
     mySrList.value = []

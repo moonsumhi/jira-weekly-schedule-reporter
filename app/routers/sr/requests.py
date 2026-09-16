@@ -144,12 +144,13 @@ async def list_my_srs(
     priority: Optional[str] = Query(None),
     desired_due_date_from: Optional[str] = Query(None),
     desired_due_date_to: Optional[str] = Query(None),
+    mine_only: bool = Query(False),
     current_user: UserPublic = Depends(get_current_user),
 ):
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
     requester_ids = [ObjectId(current_user.id)]
     team = (current_user.team or "").strip()
-    if team:
+    if not mine_only and team:
         users_col = MongoClientManager.get_users_collection()
         team_users = await users_col.find(
             {"team": team, "is_blocked": {"$ne": True}}, {"_id": 1}
