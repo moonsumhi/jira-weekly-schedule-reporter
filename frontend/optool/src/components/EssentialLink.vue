@@ -2,8 +2,8 @@
   <!-- If has children -> render as expansion -->
   <q-expansion-item
     v-if="children && children.length"
+    class="sidebar-expansion-item"
     :icon="icon"
-    :label="title"
     expand-separator
   >
     <template #header>
@@ -27,6 +27,7 @@
   <!-- If no children -> render as clickable item -->
   <q-item
     v-else
+    class="sidebar-link-item"
     clickable
     :active="isActive"
     active-color="primary"
@@ -38,8 +39,8 @@
     </q-item-section>
 
     <q-item-section>
-      <q-item-label>{{ title }}</q-item-label>
-      <q-item-label caption>{{ caption }}</q-item-label>
+      <span class="sidebar-link-title">{{ title }}</span>
+      <span v-if="caption" class="sidebar-link-caption">{{ caption }}</span>
     </q-item-section>
 
     <q-item-section side v-if="badge && badge > 0">
@@ -104,7 +105,33 @@ function navigate() {
   font-size: 12px;
 }
 
-.child-item :deep(.q-item__label) {
+.child-item .sidebar-link-title {
   font-size: 12px;
+}
+
+.sidebar-link-caption {
+  margin-top: 4px;
+  color: rgba(0, 0, 0, 0.54);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.sidebar-expansion-item,
+.sidebar-expansion-item :deep(.q-expansion-item__header),
+.sidebar-link-item {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  align-items: center;
+}
+
+.sidebar-expansion-item :deep(.q-item__section--main),
+.sidebar-link-item :deep(.q-item__section--main) {
+  justify-content: center;
+}
+
+.sidebar-expansion-item :deep(.q-item__label),
+.sidebar-link-title {
+  line-height: 1.25;
 }
 </style>
