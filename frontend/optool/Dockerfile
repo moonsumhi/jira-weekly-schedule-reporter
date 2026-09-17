@@ -10,6 +10,8 @@ ARG VITE_LIBRECHAT_URL=""
 ENV VITE_LIBRECHAT_URL=$VITE_LIBRECHAT_URL
 
 WORKDIR /app
+# 내부망 베이스 이미지에 남은 이전 소스를 제거하고 설치된 node_modules는 재사용한다.
+RUN rm -rf /app/src
 COPY frontend/optool/ .
 # 빌드 전 드롭다운과 EoS/EoL 스냅샷의 누락 여부를 검증하기 위해 함께 복사한다.
 COPY app/data/eos_map_snapshot.json ./data/eos_map_snapshot.json
