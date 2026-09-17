@@ -67,7 +67,7 @@
       </div>
     </template>
     <div v-else-if="!editing" class="action-feedback">
-      <q-icon name="assignment_outlined" size="30px" color="grey-5" />
+      <q-icon name="assignment" size="30px" color="grey-5" />
       <span>등록된 조치 내역이 없습니다.</span>
       <q-btn
         v-if="isInternal"

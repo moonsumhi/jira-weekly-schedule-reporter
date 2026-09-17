@@ -47,7 +47,7 @@
                 />
               </h3>
               <p>
-                {{ issueId ? '이 이슈' : workPlanId ? '이 작업계획서' : '이 서버' }}에 연결된
+                {{ issueId ? '이 이슈' : workPlanId ? '이 작업계획서' : '이 자산' }}에 연결된
                 작업<span v-if="hasLoaded" class="inspection-link-total">
                   {{ tasks.length }}건</span
                 >
@@ -215,9 +215,9 @@ function statusClass(task: InspectionTask) {
 function targetLabel(task: InspectionTask) {
   if (task.common) return '공통 작업';
   const first = task.assets[0];
-  if (!first) return '대상 서버 없음';
+  if (!first) return '대상 자산 없음';
   const name = first.current?.name || first.name;
-  return `${name}${task.assets.length > 1 ? ` 외 ${task.assets.length - 1}대` : ''}`;
+  return `${name}${task.assets.length > 1 ? ` 외 ${task.assets.length - 1}개` : ''}`;
 }
 let request = 0;
 let pendingLoad: Promise<void> | undefined;

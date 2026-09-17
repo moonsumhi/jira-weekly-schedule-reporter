@@ -414,7 +414,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'stores/auth'
 import RackElevation from './RackElevation.vue'
@@ -432,6 +433,7 @@ import type {
 } from 'src/types/racks'
 
 const $q = useQuasar()
+const route = useRoute()
 const auth = useAuthStore()
 const isAdmin = computed(() => !!auth.me?.isAdmin)
 
@@ -529,6 +531,11 @@ async function openAssetInfo() {
 }
 
 const SELECTED_RACK_KEY = 'rackMgmt:selectedRackId'
+watch(() => route.query.assetId, (id) => {
+  if (typeof id === 'string' && id !== selectedRackId.value && racks.value.some(r => r.rackId === id)) {
+    void selectRack(id)
+  }
+})
 
 async function loadRacks() {
   loading.value = true
@@ -536,7 +543,7 @@ async function loadRacks() {
     racks.value = await listRacks()
     if (!selectedRackId.value && racks.value.length) {
       // 새로고침 시 마지막으로 보던 랙 복원(없으면 첫 번째)
-      const saved = localStorage.getItem(SELECTED_RACK_KEY)
+      const saved = typeof route.query.assetId === 'string' ? route.query.assetId : localStorage.getItem(SELECTED_RACK_KEY)
       const target = racks.value.find((r) => r.rackId === saved) ?? racks.value[0]!
       await selectRack(target.rackId)
     }

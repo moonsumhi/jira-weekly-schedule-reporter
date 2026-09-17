@@ -57,14 +57,18 @@
       >
       <template v-else>
         <div v-for="a in task.assets.slice(0, 1)" :key="a.id" class="asset-summary">
-          <q-icon name="dns" size="15px" />
+          <q-icon name="inventory_2" size="15px" />
           <div>
             <router-link v-if="!a.isDeleted && canViewAssets" :to="assetLink(a)">{{
               displayAsset(a).name
             }}</router-link
             ><span v-else>{{ displayAsset(a).name }}</span>
             <div class="asset-ip">
-              {{ displayAsset(a).ip }}<span v-if="a.isDeleted"> · 삭제됨</span>
+              {{
+                [displayAsset(a).category || '서버', displayAsset(a).ip]
+                  .filter(Boolean)
+                  .join(' · ')
+              }}<span v-if="a.isDeleted"> · 삭제됨</span>
             </div>
           </div>
         </div>
@@ -74,27 +78,35 @@
           dense
           no-caps
           class="asset-more"
-          :label="`외 ${task.assets.length - 1}대`"
-          :aria-label="`${task.issue.title} 대상 서버 정보`"
+          :label="`외 ${task.assets.length - 1}개`"
+          :aria-label="`${task.issue.title} 대상 자산 정보`"
         >
           <q-menu
             ><q-list class="asset-popover">
-              <q-item-label header>대상 서버 {{ task.assets.length }}대</q-item-label>
+              <q-item-label header>대상 자산 {{ task.assets.length }}개</q-item-label>
               <q-item
                 v-for="a in task.assets"
                 :key="a.id"
                 :clickable="!a.isDeleted && canViewAssets"
                 :to="!a.isDeleted && canViewAssets ? assetLink(a) : undefined"
               >
-                <q-item-section avatar><q-icon name="dns" color="blue-grey-5" /></q-item-section>
+                <q-item-section avatar
+                  ><q-icon name="inventory_2" color="blue-grey-5"
+                /></q-item-section>
                 <q-item-section
                   ><q-item-label
                     >{{ displayAsset(a).name }}
                     <span v-if="a.isDeleted" class="text-negative">(삭제됨)</span></q-item-label
                   >
-                  <q-item-label caption
-                    >{{ displayAsset(a).assetName }} · {{ displayAsset(a).ip }}</q-item-label
-                  >
+                  <q-item-label caption>{{
+                    [
+                      displayAsset(a).category || '서버',
+                      displayAsset(a).assetName,
+                      displayAsset(a).ip,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  }}</q-item-label>
                   <q-item-label
                     v-if="a.current && (a.current.name !== a.name || a.current.ip !== a.ip)"
                     caption
@@ -172,9 +184,9 @@
               <q-item-section>작업계획서 연결</q-item-section>
             </q-item>
             <q-item v-if="!pastCompleted" clickable v-close-popup @click="emit('targets')"
-              ><q-item-section avatar><q-icon name="dns" size="18px" /></q-item-section
+              ><q-item-section avatar><q-icon name="inventory_2" size="18px" /></q-item-section
               ><q-item-section>{{
-                task.sourceType === 'WORK_PLAN' ? '점검 작업 수정' : '대상 서버 변경'
+                task.sourceType === 'WORK_PLAN' ? '점검 작업 수정' : '대상 자산 변경'
               }}</q-item-section></q-item
             >
             <q-item
@@ -221,7 +233,7 @@ const displayAsset = (a: InspectionAsset) =>
   props.task.month < thisMonth() || props.task.state !== 'ACTIVE' ? a : a.current || a;
 const assetLink = (a: InspectionAsset) => ({
   path: '/asset/list',
-  query: { category: '서버', assetId: a.id },
+  query: { category: a.current?.category || a.category || '서버', assetId: a.id },
 });
 </script>
 <style scoped>

@@ -53,7 +53,7 @@ async def get_targets(user: User):
 
 @router.put('/targets')
 async def save_targets(body: Targets, user: User):
-    assets = await tasks.resolve_assets(body.asset_ids)
+    assets = await tasks.resolve_assets(body.asset_ids, category='서버')
     values = {'asset_ids': body.asset_ids, 'version': body.version + 1,
               'updated_at': reports.now(), 'updated_by': user.id}
     col = M.get_db()[M.APP_SETTINGS]

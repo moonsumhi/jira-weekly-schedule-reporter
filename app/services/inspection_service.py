@@ -11,6 +11,7 @@ from pymongo.errors import DuplicateKeyError
 
 from app.db.mongo import MongoClientManager as M
 from app.services.pm.permission import require_pm_member
+from app.services.inspection_assets import asset_map, asset_snapshot
 from app.utils.mongo import oid
 
 KST = ZoneInfo('Asia/Seoul')
@@ -73,19 +74,11 @@ async def issue_for_user(issue_id, user):
     return issue
 
 
-def asset_snapshot(d):
-    fields = d.get('fields') or {}
-    return {'id': str(d['_id']), 'name': d.get('name', ''), 'ip': d.get('ip', ''),
-            'asset_name': str(fields.get('서버명') or d.get('asset_no') or ''),
-            'status': str(fields.get('상태') or ''), 'is_deleted': bool(d.get('is_deleted'))}
-
-
-async def resolve_assets(ids):
-    docs = await M.get_assets_servers_collection().find({'_id': {'$in': [oid(i) for i in ids]}, 'is_deleted': {'$ne': True}}).to_list(None)
-    by_id = {str(d['_id']): d for d in docs}
+async def resolve_assets(ids, *, category=None):
+    by_id = await asset_map(ids, include_deleted=False, category=category)
     if len(by_id) != len(ids):
-        raise HTTPException(422, '삭제되었거나 존재하지 않는 서버가 포함되어 있습니다.')
-    return [asset_snapshot(by_id[i]) for i in ids]
+        raise HTTPException(422, '삭제되었거나 선택할 수 없는 자산이 포함되어 있습니다.')
+    return [by_id[i] for i in ids]
 
 
 async def issue_snapshot(issue):
@@ -200,8 +193,7 @@ async def hydrate_tasks(docs, month, include_overdue=True, asset_id=None, all_mo
     live_issues = {d['_id']: d for d in issues}
     snapshots = {issue_id: await issue_snapshot(issue) for issue_id, issue in live_issues.items()}
     asset_ids = {a['id'] for d in docs for o in d['occurrences'] for a in o['assets']}
-    assets = await M.get_assets_servers_collection().find({'_id': {'$in': [oid(i) for i in asset_ids]}}).to_list(None)
-    asset_map = {str(a['_id']): asset_snapshot(a) for a in assets}
+    current_assets = await asset_map(asset_ids)
     from app.services.inspection_work_plans import plan_map
     from app.services.inspection_plan_tasks import display_snapshot
     plans = await plan_map({d['work_plan_id'] for d in docs if is_plan_task(d)})
@@ -225,7 +217,7 @@ async def hydrate_tasks(docs, month, include_overdue=True, asset_id=None, all_mo
             if work_plan_id and doc.get('work_plan_id') != work_plan_id and not any(p['id'] == work_plan_id for p in o.get('work_plans', [])):
                 continue
             for a in o['assets']:
-                current = asset_map.get(a['id'])
+                current = current_assets.get(a['id'])
                 a['current'] = current
                 a['is_deleted'] = not current or current['is_deleted']
             row = {**o, 'issue': info, 'issue_id': str(doc['_id']), 'task_version': doc['version'],

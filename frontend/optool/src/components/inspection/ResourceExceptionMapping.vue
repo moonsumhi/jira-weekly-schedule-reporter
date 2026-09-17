@@ -61,7 +61,7 @@ async function search(value: string, update: (fn: () => void) => void) {
   const request = ++generation;
   error.value = '';
   try {
-    const data = await searchInspectionAssets(value);
+    const data = await searchInspectionAssets(value, [], '서버');
     if (request === generation)
       update(() => {
         options.value = data;

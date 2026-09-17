@@ -4,6 +4,7 @@ import type { InspectionWorkPlan } from './inspectionWorkPlans';
 
 export interface InspectionAsset {
   id: string;
+  category?: InspectionAssetCategory;
   name: string;
   ip: string;
   assetName: string;
@@ -11,6 +12,15 @@ export interface InspectionAsset {
   isDeleted: boolean;
   current?: InspectionAsset | null;
 }
+export const inspectionAssetCategories = [
+  '서버',
+  '네트워크',
+  '정보보호시스템',
+  'DBMS',
+  'VMware',
+  '랙',
+] as const;
+export type InspectionAssetCategory = (typeof inspectionAssetCategories)[number];
 export interface InspectionResult {
   content: string;
   performedOn: string | null;
@@ -109,10 +119,14 @@ export async function getInspectionTasks(
     })
   ).data;
 }
-export async function searchInspectionAssets(search = '', ids: string[] = []) {
+export async function searchInspectionAssets(
+  search = '',
+  ids: string[] = [],
+  category?: InspectionAssetCategory,
+) {
   return (
     await api.get<InspectionAsset[]>('/inspection-tasks/assets', {
-      params: { search, ids: ids.join(',') },
+      params: { search, ids: ids.join(','), category },
     })
   ).data;
 }

@@ -145,11 +145,18 @@ async def get_report(report_id, user):
         raise HTTPException(404, '점검 보고서를 찾을 수 없습니다.')
     if doc['state'] == 'DRAFT':
         doc['participants'] = sync_participant_assignments(doc)
+    doc.setdefault('kind', 'RESULT')
     doc['additional_notes'] = report_notes(doc)
     return doc
 
 
+def require_result(doc):
+    if doc.get('kind') == 'PLAN':
+        raise HTTPException(422, '작업 결과와 조치 내역은 점검 결과서에서 작성해 주세요.')
+
+
 async def report_task(report, issue_id, month):
+    require_result(report)
     canonical_id = str(oid(issue_id))
     included = report['snapshot']['tasks'] + report['snapshot']['carryover']
     if not any(t['issue_id'] == canonical_id and t['month'] == month for t in included):
@@ -422,6 +429,32 @@ async def resource_snapshot(source, comparison=None, include_images=True, mappin
     return rows, unmatched_actions
 
 
+async def task_snapshot(month, ids):
+    task_docs = await tasks.collection().find(tasks.project_scope([oid(i) for i in ids])).to_list(None)
+    all_tasks = sorted(await tasks.hydrate_tasks(task_docs, month),
+                       key=lambda t: (not t['overdue'], t['month'], t['issue']['title']))
+    live = {str(i['_id']): i for i in await M.get_pm_issues_collection().find({'_id': {'$in': [oid(t['issue_id']) for t in all_tasks]}}).to_list(None)}
+    for t in all_tasks:
+        issue = live.get(t['issue_id'], {})
+        t['planned_start'] = t.get('planned_on') if tasks.is_plan_task(t) else clean(issue.get('start_date'))
+        t['planned_end'] = t.get('planned_on') if tasks.is_plan_task(t) else clean(issue.get('due_date'))
+        # Hydration includes current asset data; copy the selected period's visible identity.
+        t['assets'] = [deepcopy(a if month < tasks.current_month() or t['state'] != 'ACTIVE' else a.get('current') or a) for a in t['assets']]
+        for a in t['assets']:
+            a.pop('current', None)
+        t['work_plans'] = [deepcopy(p if month < tasks.current_month() or t['state'] != 'ACTIVE' else p.get('current') or p)
+                           for p in t.get('work_plans', [])]
+        for plan in t['work_plans']:
+            plan.pop('current', None)
+        if t.get('work_plan'):
+            plan = t['work_plan']
+            historical = t['state'] != 'ACTIVE' or (t['month'] < tasks.current_month() and t.get('completed_snapshot'))
+            t['work_plan'] = deepcopy(plan if historical else plan.get('current') or plan)
+            t['work_plan'].pop('current', None)
+        t.pop('history', None)
+    return all_tasks
+
+
 async def snapshot(body, projects=None, previous_snapshot=None):
     projects = await report_projects(body.project_ids) if projects is None else projects
     ids = [p['id'] for p in projects]
@@ -439,30 +472,10 @@ async def snapshot(body, projects=None, previous_snapshot=None):
     rows, unmatched_actions = await resource_snapshot(source, comparison, include_images=body.include_images,
         mappings_input=body.mappings, fallback_snapshot=previous_snapshot if 'mappings' not in body.model_fields_set else None)
     # Reports are shared under server_check permission; PM membership must not drop rows on refresh.
-    task_docs = await tasks.collection().find(tasks.project_scope([oid(i) for i in ids])).to_list(None)
-    all_tasks = sorted(await tasks.hydrate_tasks(task_docs, body.month),
-                       key=lambda t: (not t['overdue'], t['month'], t['issue']['title']))
-    live = {str(i['_id']): i for i in await M.get_pm_issues_collection().find({'_id': {'$in': [oid(t['issue_id']) for t in all_tasks]}}).to_list(None)}
-    for t in all_tasks:
-        issue = live.get(t['issue_id'], {})
-        t['planned_start'] = t.get('planned_on') if tasks.is_plan_task(t) else clean(issue.get('start_date'))
-        t['planned_end'] = t.get('planned_on') if tasks.is_plan_task(t) else clean(issue.get('due_date'))
-        # Hydration includes current asset data; copy the selected period's visible identity.
-        t['assets'] = [deepcopy(a if body.month < tasks.current_month() or t['state'] != 'ACTIVE' else a.get('current') or a) for a in t['assets']]
-        for a in t['assets']:
-            a.pop('current', None)
-        t['work_plans'] = [deepcopy(p if body.month < tasks.current_month() or t['state'] != 'ACTIVE' else p.get('current') or p)
-                           for p in t.get('work_plans', [])]
-        for plan in t['work_plans']:
-            plan.pop('current', None)
-        if t.get('work_plan'):
-            plan = t['work_plan']
-            historical = t['state'] != 'ACTIVE' or (t['month'] < tasks.current_month() and t.get('completed_snapshot'))
-            t['work_plan'] = deepcopy(plan if historical else plan.get('current') or plan)
-            t['work_plan'].pop('current', None)
-        t.pop('history', None)
+    all_tasks = await task_snapshot(body.month, ids)
     current = [t for t in all_tasks if t['month'] == body.month]
-    target_assets = {a['id']: a for t in current if t['state'] != 'EXCLUDED' for a in t['assets']}
+    target_assets = {a['id']: a for t in current if t['state'] != 'EXCLUDED' for a in t['assets']
+                     if a.get('category', '서버') == '서버'}
     mapped_ids = {r['asset']['id'] for r in rows if r['asset']}
     result = clean({'source': source_info(source), 'comparison': source_info(comparison), 'captured_at': now(),
                     'historical_reconstruction': body.month < tasks.current_month(),
@@ -470,6 +483,8 @@ async def snapshot(body, projects=None, previous_snapshot=None):
                     'servers': rows, 'tasks': current, 'carryover': [t for t in all_tasks if t['month'] < body.month],
                     'missing_asset_resources': [a for i, a in target_assets.items() if i not in mapped_ids],
                     'unmatched_actions': unmatched_actions})
+    from app.services.inspection_plan_reports import linked_plan
+    result['plan'] = await linked_plan(body.month, previous_snapshot)
     update_stats(result)
     size_guard(result)
     return projects, result
@@ -481,12 +496,18 @@ async def preview(user, body):
     if body.report_id:
         report = await get_report(body.report_id, user)
         draft_version(report, body.version)
+        if body.kind != report.get('kind', 'RESULT'):
+            raise HTTPException(422, '계획서와 결과서의 종류는 변경할 수 없습니다.')
         if body.month != report['month'] or sorted(body.project_ids or []) != sorted(report['project_ids']):
             raise HTTPException(422, '기존 보고서의 월과 포함 프로젝트는 변경할 수 없습니다.')
         projects = report['projects']
         previous_snapshot = report['snapshot']
-    projects, data = await snapshot(body, projects, previous_snapshot)
-    doc = {'_id': ObjectId(), 'owner': user.id, 'month': body.month, 'projects': projects,
+    if body.kind == 'PLAN':
+        from app.services.inspection_plan_reports import planning_snapshot
+        projects, data = await planning_snapshot(body, projects)
+    else:
+        projects, data = await snapshot(body, projects, previous_snapshot)
+    doc = {'_id': ObjectId(), 'owner': user.id, 'month': body.month, 'kind': body.kind, 'projects': projects,
            'report_id': body.report_id, 'report_version': body.version, 'snapshot': data,
            'include_images': body.include_images, 'expires_at': now() + timedelta(minutes=30)}
     await M.get_db()[PREVIEWS].insert_one(doc)
@@ -511,14 +532,24 @@ async def create_report(user, preview_id, client_id):
     if p['report_id']:
         raise HTTPException(422, '기존 보고서를 불러온 상태에서는 새 보고서를 만들 수 없습니다.')
     project_ids = sorted(x['id'] for x in p['projects'])
-    scope_key = hashlib.sha256(','.join(project_ids).encode()).hexdigest()
-    doc = {'month': p['month'], 'project_ids': project_ids, 'projects': p['projects'], 'scope_key': scope_key,
-           'revision': 1, 'state': 'DRAFT', 'version': 1, 'title': f"{p['month'][:4]}년 {int(p['month'][5:])}월 서버 점검 보고서",
+    kind = p.get('kind', 'RESULT')
+    scope_key = ('plan:' if kind == 'PLAN' else '') + hashlib.sha256(','.join(project_ids).encode()).hexdigest()
+    doc = {'month': p['month'], 'kind': kind, 'project_ids': project_ids, 'projects': p['projects'], 'scope_key': scope_key,
+           'revision': 1, 'state': 'DRAFT', 'version': 1, 'title': f"{p['month'][:4]}년 {int(p['month'][5:])}월 서버 점검 {'계획서' if kind == 'PLAN' else '결과서'}",
            'inspection_date': (p['snapshot']['source'] or {}).get('report_date') or (await tasks.inspection_date(p['month'])).isoformat(),
            'purpose': '서버 자원 사용량과 운영 상태를 확인하고, 월간 작업 결과와 추가 조치 계획을 기록합니다.',
            'overview': '', 'limitations': '', 'additional_notes': [], 'participants': [], 'include_appendix': False, 'include_images': p['include_images'],
            'snapshot': p['snapshot'], 'create_key': key, 'used_preview_id': str(p['_id']), 'creation_preview_id': str(p['_id']),
            'created_by': user.full_name or user.email, 'created_by_id': user.id, 'created_at': now(), 'updated_at': now()}
+    if kind == 'PLAN':
+        from app.services.inspection_plan_reports import initial_participants, DEFAULT_CHECKS
+        doc.update(purpose='서버 운영 상태를 점검하고, 예정된 월간 작업을 수행합니다.',
+                   planned_time='', resource_checks=DEFAULT_CHECKS,
+                   participants=await initial_participants(doc))
+    elif p['snapshot'].get('plan'):
+        doc['participants'] = [{**deepcopy(person), 'work_summary': ''}
+                               for person in p['snapshot']['plan'].get('participants', [])]
+        doc['participants'] = sync_participant_assignments(doc)
     size_guard(doc)
     try:
         await M.get_db()[REPORTS].insert_one(doc)
@@ -553,6 +584,7 @@ async def refresh_report(doc, user, preview_id):
 
 
 async def sync_results(doc, user):
+    require_result(doc)
     data = deepcopy(doc['snapshot'])
     for t in data['tasks'] + data['carryover']:
         source = await tasks.collection().find_one({'_id': oid(t['issue_id'])})
@@ -565,6 +597,7 @@ async def sync_results(doc, user):
 
 async def report_action(doc, row_key=None, action_id=None):
     """Resolve the target from the report, never from a caller-supplied source/hostname."""
+    require_result(doc)
     source = doc['snapshot'].get('source')
     if not source:
         raise HTTPException(422, '보고서에 점검 데이터가 없습니다.')

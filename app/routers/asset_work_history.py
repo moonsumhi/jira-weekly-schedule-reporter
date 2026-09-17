@@ -10,15 +10,17 @@ from app.models.asset_note import AssetNoteCreate, AssetNotePatch, AssetNoteDele
 from app.models.user import UserPublic
 from app.routers.permissions import require_asset_access
 from app.services import inspection_service, work_document_assets
+from app.services.inspection_assets import asset_documents
 from app.utils.mongo import oid, fmt_dt
 
 router = APIRouter()
 
 
-async def server_asset(asset_id, *, writing=False):
-    asset = await M.get_assets_servers_collection().find_one({'_id': oid(asset_id)})
-    if not asset or ((asset.get('fields') or {}).get('자산유형') or '서버') != '서버':
-        raise HTTPException(404, '서버 자산을 찾을 수 없습니다.')
+async def registered_asset(asset_id, *, writing=False):
+    matches = await asset_documents({'_id': oid(asset_id)})
+    if len(matches) != 1:
+        raise HTTPException(404, '자산을 찾을 수 없습니다.')
+    _, asset = matches[0]
     if writing and asset.get('is_deleted'):
         raise HTTPException(409, '삭제된 자산에는 운영 메모를 추가하거나 변경할 수 없습니다.')
     return asset
@@ -33,7 +35,7 @@ def note_out(note, user, asset):
 
 
 async def existing_note(asset_id, note_id, user, *, writing=False):
-    asset = await server_asset(asset_id, writing=writing)
+    asset = await registered_asset(asset_id, writing=writing)
     note = await M.get_asset_notes_collection().find_one({
         '_id': oid(note_id), 'asset_id': str(asset['_id']), 'is_deleted': {'$ne': True}})
     if not note:
@@ -46,7 +48,7 @@ async def existing_note(asset_id, note_id, user, *, writing=False):
 @router.get('/{asset_id}/work-history')
 async def work_history(asset_id: str, offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100),
                        user: UserPublic = Depends(require_asset_access)):
-    asset = await server_asset(asset_id)
+    asset = await registered_asset(asset_id)
     pipeline = [
         {'$match': {'asset_id': str(asset['_id']), 'is_deleted': {'$ne': True}}},
         {'$set': {'entry_type': 'note'}},
@@ -118,7 +120,7 @@ async def work_history(asset_id: str, offset: int = Query(0, ge=0), limit: int =
 
 @router.post('/{asset_id}/notes', status_code=201)
 async def create_note(asset_id: str, body: AssetNoteCreate, user: UserPublic = Depends(require_asset_access)):
-    asset = await server_asset(asset_id, writing=True)
+    asset = await registered_asset(asset_id, writing=True)
     now = datetime.now(timezone.utc)
     actor = user.full_name or user.email
     values = {'asset_id': str(asset['_id']), 'content': body.content, 'occurred_on': body.occurred_on.isoformat(),
