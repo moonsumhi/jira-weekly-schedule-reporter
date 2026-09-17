@@ -25,6 +25,7 @@ class Mapping(BaseModel):
 
 class Preview(BaseModel):
     month: Month
+    kind: Literal['PLAN', 'RESULT'] = 'RESULT'
     project_ids: list[str] | None = Field(default=None, max_length=500)
     source_id: str | None = None
     comparison_id: str | None = None
@@ -94,6 +95,8 @@ class Edit(Version):
     overview: str = Field(default='', max_length=10000)
     limitations: str = Field(default='', max_length=5000)
     include_appendix: bool = False
+    planned_time: str = Field(default='', max_length=100)
+    resource_checks: str = Field(default='', max_length=3000)
 
 
 class ReportNote(BaseModel):
@@ -147,8 +150,9 @@ async def participant_options(user: User, q: str = Query('', max_length=100)):
 
 
 @router.get('')
-async def list_reports(month: Month, user: User):
-    docs = await svc.M.get_db()[svc.REPORTS].find({'month': month}, {'snapshot': 0}).sort('revision', -1).to_list(None)
+async def list_reports(month: Month, user: User, kind: Literal['PLAN', 'RESULT'] = 'RESULT'):
+    query = {'month': month, 'kind': 'PLAN' if kind == 'PLAN' else {'$ne': 'PLAN'}}
+    docs = await svc.M.get_db()[svc.REPORTS].find(query, {'snapshot': 0}).sort([('revision', -1), ('created_at', -1)]).to_list(None)
     return svc.clean(docs)
 
 
@@ -173,7 +177,11 @@ async def edit(report_id: str, body: Edit, user: User):
     svc.draft_version(doc, body.version)
     if not body.title.strip():
         raise HTTPException(422, '보고서 제목을 입력해 주세요.')
-    values = body.model_dump(exclude={'version', 'limitations'})
+    values = body.model_dump(exclude={'version', 'limitations', 'planned_time', 'resource_checks'})
+    if doc.get('kind') == 'PLAN':
+        values.update({key: getattr(body, key) for key in ('planned_time', 'resource_checks')
+                       if key in body.model_fields_set})
+        values['include_appendix'] = False
     # Older clients can still edit legacy prose, but cannot flatten an item list.
     if 'limitations' in body.model_fields_set:
         notes = svc.report_notes(doc)

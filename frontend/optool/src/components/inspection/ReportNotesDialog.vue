@@ -2,13 +2,13 @@
   <q-dialog :model-value="modelValue" persistent @update:model-value="close">
     <q-card class="report-notes-dialog">
       <q-card-section class="row items-center no-wrap">
-        <h2 class="col">추가 확인 사항 {{ note ? '수정' : '추가' }}</h2>
+        <h2 class="col">{{ noteLabel }} {{ note ? '수정' : '추가' }}</h2>
         <q-btn
           flat
           round
           dense
           icon="close"
-          aria-label="추가 확인 사항 닫기"
+          :aria-label="`${noteLabel} 닫기`"
           :disable="busy"
           @click="close"
         />
@@ -47,7 +47,7 @@
   </q-dialog>
 </template>
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router';
 import { uid, useQuasar } from 'quasar';
 import {
@@ -67,6 +67,7 @@ const emit = defineEmits<{
   saved: [report: InspectionReport];
 }>();
 const $q = useQuasar();
+const noteLabel = computed(() => (props.report.kind === 'PLAN' ? '추가 안내' : '추가 확인 사항'));
 const notes = ref(''),
   initial = ref(''),
   error = ref(''),
@@ -90,7 +91,7 @@ function discard(): boolean | Promise<boolean> {
   return new Promise((resolve) => {
     $q.dialog({
       title: '저장하지 않고 닫으시겠습니까?',
-      message: '작성 중인 추가 확인 사항이 있습니다.',
+      message: '작성 중인 내용이 있습니다.',
       cancel: { label: '계속 작성', flat: true },
       ok: { label: '닫기', color: 'negative' },
     })
@@ -120,7 +121,7 @@ async function save() {
     initial.value = notes.value;
     emit('saved', updated);
     emit('update:modelValue', false);
-    $q.notify({ type: 'positive', message: '추가 확인 사항을 저장했습니다.' });
+    $q.notify({ type: 'positive', message: '내용을 저장했습니다.' });
   } catch (e) {
     error.value = inspectionError(e);
   } finally {

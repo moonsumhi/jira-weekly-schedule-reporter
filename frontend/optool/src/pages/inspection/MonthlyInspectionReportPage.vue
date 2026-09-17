@@ -10,7 +10,10 @@
             icon="arrow_back"
             :to="
               report
-                ? { path: '/inspection/monthly-reports', query: { month: report.month } }
+                ? {
+                    path: '/inspection/monthly-reports',
+                    query: { month: report.month, kind: report.kind || 'RESULT' },
+                  }
                 : { path: '/inspection/tasks', query: { month } }
             "
             :aria-label="report ? '보고서 목록' : '월간 작업으로 돌아가기'"
@@ -19,12 +22,14 @@
             <div class="toolbar-eyebrow">
               서버 점검 / {{ report ? formatInspectionMonth(report.month) : '월간 작업' }}
             </div>
-            <h1>점검 보고서</h1>
+            <h1>점검 {{ documentLabel }}</h1>
           </div>
         </div>
         <div v-if="report" class="toolbar-actions">
           <span class="save-status">{{
-            report.state === 'FINAL' ? '확정된 보고서' : `저장됨 · ${shortTime(report.updatedAt)}`
+            report.state === 'FINAL'
+              ? `확정된 ${documentLabel}`
+              : `저장됨 · ${shortTime(report.updatedAt)}`
           }}</span>
           <div v-if="editable || canWrite" class="report-primary-actions">
             <template v-if="editable">
@@ -33,7 +38,7 @@
                 no-caps
                 color="primary"
                 icon="edit_note"
-                label="보고서 내용 수정"
+                :label="`${documentLabel} 내용 수정`"
                 class="report-edit-button"
                 :disable="busy || loading"
                 @click="openEdit"
@@ -42,7 +47,7 @@
                 outline
                 no-caps
                 color="primary"
-                label="보고서 확정"
+                :label="`${documentLabel} 확정`"
                 :disable="busy || loading"
                 @click="finalizeOpen = true"
               />
@@ -93,7 +98,7 @@
           unelevated
           color="primary"
           icon="add"
-          label="보고서 작성"
+          :label="`${documentLabel} 작성`"
           :disable="loading || !!error"
           @click="sourceOpen = true"
         />
@@ -125,11 +130,11 @@
               <button v-for="s in sections" :key="s.id" @click="jump(s.id)">
                 <span>{{ s.no }}</span
                 >{{ s.label }}</button
-              ><button v-if="report.includeAppendix" @click="jump('report-appendix')">
+              ><button v-if="!isPlan && report.includeAppendix" @click="jump('report-appendix')">
                 <span>＋</span>서버별 상세 점검표
               </button>
             </nav>
-            <div v-if="editable" class="outline-editor">
+            <div v-if="editable && !isPlan" class="outline-editor">
               <q-toggle
                 :model-value="report.includeAppendix"
                 label="상세 점검표 포함"
@@ -161,10 +166,31 @@
         </div>
       </template>
       <template v-else-if="!error">
+        <q-tabs
+          :model-value="kind"
+          dense
+          align="left"
+          active-color="primary"
+          indicator-color="primary"
+          class="document-kind-tabs"
+          @update:model-value="changeKind"
+        >
+          <q-tab name="PLAN" label="점검 계획서" no-caps /><q-tab
+            name="RESULT"
+            label="점검 결과서"
+            no-caps
+          />
+        </q-tabs>
         <section class="report-list-header">
           <div>
-            <h2>월별 점검 보고서</h2>
-            <p>자원 사용량, 조치 내역, 월간 작업 결과를 확인합니다.</p>
+            <h2>월별 점검 {{ documentLabel }}</h2>
+            <p>
+              {{
+                isPlan
+                  ? '점검 대상과 예정된 작업, 참여자별 담당 업무를 정리합니다.'
+                  : '자원 사용량, 조치 내역, 월간 작업 결과를 확인합니다.'
+              }}
+            </p>
           </div>
           <InspectionMonthPicker :model-value="month" @update:model-value="changeMonth" />
         </section>
@@ -181,7 +207,7 @@
                 {{ item.state === 'FINAL' ? '확정' : '초안' }} <span>{{ item.revision }}차</span>
               </div>
               <h3>{{ item.title }}</h3>
-              <p>{{ item.projects.map((p) => p.name).join(' · ') || '자원 점검' }}</p>
+              <p>점검{{ isPlan ? ' 예정일' : '일' }} {{ item.inspectionDate }}</p>
               <small>{{ item.createdBy }} · {{ reportTime(item.updatedAt) }}</small>
             </div>
             <q-icon name="description" size="17px" class="report-card-open" />
@@ -197,14 +223,20 @@
             <div class="mock-line short" />
             <span><q-icon name="check" size="20px" /></span>
           </div>
-          <h3>{{ formatInspectionMonth(month) }} 점검 보고서가 없습니다.</h3>
-          <p>점검 데이터와 월간 작업으로 보고서 초안을 만들 수 있습니다.</p>
+          <h3>{{ formatInspectionMonth(month) }} 점검 {{ documentLabel }}가 없습니다.</h3>
+          <p>
+            {{
+              isPlan
+                ? '정기 점검 대상과 월간 작업으로 계획서 초안을 만들 수 있습니다.'
+                : '점검 데이터와 월간 작업으로 결과서 초안을 만들 수 있습니다.'
+            }}
+          </p>
           <q-btn
             v-if="canWrite"
             unelevated
             color="primary"
             icon="add"
-            label="보고서 작성"
+            :label="`${documentLabel} 작성`"
             @click="sourceOpen = true"
           />
           <p v-else>내부망에서 보고서를 작성할 수 있습니다.</p>
@@ -232,6 +264,7 @@
     <ReportSourceDialog
       v-model="sourceOpen"
       :month="report?.month || month"
+      :kind="kind"
       :report="report"
       @saved="onSaved"
     />
@@ -262,7 +295,7 @@
       v-model="sourcePlanOpen"
       :entry-id="sourcePlan.id"
       :title="sourcePlan.templateTitle"
-      back-label="점검 보고서로 돌아가기"
+      :back-label="`점검 ${documentLabel}로 돌아가기`"
     />
     <IssueDetailDialog
       v-if="selectedIssue"
@@ -274,8 +307,8 @@
       ><q-card class="report-edit-dialog"
         ><q-card-section class="dialog-heading"
           ><div>
-            <div class="toolbar-eyebrow">점검 보고서 · 개요</div>
-            <h2>보고서 내용 수정</h2>
+            <div class="toolbar-eyebrow">점검 {{ documentLabel }} · 개요</div>
+            <h2>{{ documentLabel }} 내용 수정</h2>
           </div>
           <q-btn
             flat
@@ -290,7 +323,7 @@
             v-model="form.title"
             outlined
             dense
-            label="보고서명"
+            :label="`${documentLabel} 제목`"
             maxlength="200"
             :disable="editBusy"
           /><q-input
@@ -299,9 +332,30 @@
             dense
             type="date"
             stack-label
-            label="점검일"
+            :label="isPlan ? '점검 예정일' : '점검일'"
             :disable="editBusy"
           /><q-input
+            v-if="isPlan"
+            v-model="form.planned_time"
+            outlined
+            dense
+            label="예정 시간 (선택)"
+            placeholder="예: 10:00 ~ 12:00"
+            maxlength="100"
+            :disable="editBusy"
+          />
+          <q-input
+            v-if="isPlan"
+            v-model="form.resource_checks"
+            outlined
+            type="textarea"
+            autogrow
+            label="자원 점검 항목"
+            placeholder="항목별로 한 줄씩 작성해 주세요."
+            maxlength="3000"
+            :disable="editBusy"
+          />
+          <q-input
             v-model="form.purpose"
             outlined
             label="점검 목적"
@@ -312,13 +366,18 @@
           /><q-input
             v-model="form.overview"
             outlined
-            label="종합 의견"
+            :label="isPlan ? '사전 준비 및 유의사항 (선택)' : '종합 의견'"
             type="textarea"
             autogrow
             maxlength="10000"
-            placeholder="주요 점검 결과와 조치 내용, 추가로 확인할 사항을 입력해 주세요."
+            :placeholder="
+              isPlan
+                ? '사전 준비, 서비스 중단 여부 등 필요한 내용을 입력해 주세요.'
+                : '주요 점검 결과와 조치 내용, 추가로 확인할 사항을 입력해 주세요.'
+            "
             :disable="editBusy"
           /><q-checkbox
+            v-if="!isPlan"
             v-model="form.include_appendix"
             label="서버별 상세 점검 기록을 부록에 포함"
             size="sm"
@@ -342,7 +401,7 @@
         ><q-card-section class="dialog-heading"
           ><div>
             <div class="toolbar-eyebrow">마지막 확인</div>
-            <h2>보고서 확정</h2>
+            <h2>{{ documentLabel }} 확정</h2>
           </div>
           <q-btn
             flat
@@ -378,7 +437,7 @@
             unelevated
             color="primary"
             icon="check"
-            label="보고서 확정"
+            :label="`${documentLabel} 확정`"
             :loading="busy"
             @click="finalize" /></q-card-actions></q-card
     ></q-dialog>
@@ -463,6 +522,7 @@ import {
   reportNotes,
   saveReportNotes,
   type ReportNote,
+  type ReportKind,
   reviseReport,
   syncReportResults,
   type InspectionReport,
@@ -515,6 +575,11 @@ const resultOpen = ref(false),
   serverOpen = ref(false);
 const sourcePlan = ref<InspectionWorkPlan | null>(null),
   sourcePlanOpen = ref(false);
+const kind = computed<ReportKind>(
+  () => report.value?.kind || (route.query.kind === 'PLAN' ? 'PLAN' : 'RESULT'),
+);
+const isPlan = computed(() => kind.value === 'PLAN');
+const documentLabel = computed(() => (isPlan.value ? '계획서' : '결과서'));
 const canWrite = computed(() => auth.me?.isInternal !== false);
 const canViewAssets = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('asset'));
 const editable = computed(() => report.value?.state === 'DRAFT' && canWrite.value);
@@ -532,9 +597,16 @@ const sections = computed(() =>
   [
     { id: 'report-overview', no: '·', label: '점검 개요' },
     { id: 'report-participants', no: '·', label: '참여자 및 역할' },
-    { id: 'report-resources', no: '01', label: '자원 사용량 및 조치 내역' },
-    { id: 'report-tasks', no: '02', label: '월간 작업 결과' },
-    { id: 'report-followup', no: '03', label: '추가 확인 사항' },
+    {
+      id: 'report-resources',
+      no: '01',
+      label: isPlan.value ? '자원 점검 계획' : '자원 사용량 및 조치 내역',
+    },
+    ...(report.value?.snapshot.plan
+      ? [{ id: 'report-plan', no: '·', label: '계획 대비 수행 현황' }]
+      : []),
+    { id: 'report-tasks', no: '02', label: isPlan.value ? '월간 작업 계획' : '월간 작업 결과' },
+    { id: 'report-followup', no: '03', label: isPlan.value ? '추가 안내' : '추가 확인 사항' },
   ].filter(
     (s) =>
       (s.id !== 'report-participants' || editable.value || report.value?.participants?.length) &&
@@ -578,8 +650,18 @@ async function load() {
         reviewOpen.value = doc.snapshot.warnings.length > 0;
       }
     } else {
-      const docs = await listReports(month.value);
-      if (token === generation) reports.value = docs;
+      const docs = await listReports(month.value, kind.value);
+      if (token === generation) {
+        reports.value = docs;
+        if (route.query.open === 'latest') {
+          if (docs[0]) {
+            void router.replace({
+              path: `/inspection/monthly-reports/${docs[0].id}`,
+              query: { kind: kind.value },
+            });
+          } else if (canWrite.value) sourceOpen.value = true;
+        }
+      }
     }
   } catch (e) {
     if (token === generation) error.value = inspectionError(e);
@@ -588,17 +670,26 @@ async function load() {
   }
 }
 watch(
-  () => [route.params.id, route.query.month],
+  () => [route.params.id, route.query.month, route.query.kind, route.query.open],
   () => {
     void load();
   },
   { immediate: true },
 );
 function changeMonth(value: string) {
-  void router.push({ path: '/inspection/monthly-reports', query: { month: value } });
+  void router.push({
+    path: '/inspection/monthly-reports',
+    query: { month: value, kind: kind.value },
+  });
+}
+function changeKind(value: ReportKind) {
+  void router.push({
+    path: '/inspection/monthly-reports',
+    query: { month: month.value, kind: value },
+  });
 }
 function goReport(id: string) {
-  void router.push(`/inspection/monthly-reports/${id}`);
+  void router.push({ path: `/inspection/monthly-reports/${id}`, query: { kind: kind.value } });
 }
 function onSaved(doc: InspectionReport) {
   report.value = doc;
@@ -614,7 +705,7 @@ function deleteNote(note: ReportNote) {
   if (!report.value || !editable.value || busy.value) return;
   const original = report.value;
   $q.dialog({
-    title: '추가 확인 사항 삭제',
+    title: isPlan.value ? '추가 안내 삭제' : '추가 확인 사항 삭제',
     message: `이 항목을 삭제할까요? ${note.content.slice(0, 120)}${note.content.length > 120 ? '…' : ''}`,
     cancel: { label: '취소', flat: true },
     ok: { label: '삭제', color: 'negative' },
@@ -632,7 +723,10 @@ async function removeNote(original: InspectionReport, note: ReportNote) {
       reportNotes(original).filter((item) => item.id !== note.id),
     );
     if (report.value?.id === original.id) onSaved(updated);
-    $q.notify({ type: 'positive', message: '추가 확인 사항을 삭제했습니다.' });
+    $q.notify({
+      type: 'positive',
+      message: isPlan.value ? '추가 안내를 삭제했습니다.' : '추가 확인 사항을 삭제했습니다.',
+    });
   } catch (e) {
     $q.notify({ type: 'negative', message: inspectionError(e) });
   } finally {
@@ -649,6 +743,9 @@ function editValues(doc: InspectionReport): ReportEdit {
     purpose: doc.purpose,
     overview: doc.overview,
     include_appendix: doc.includeAppendix,
+    ...(doc.kind === 'PLAN'
+      ? { planned_time: doc.plannedTime || '', resource_checks: doc.resourceChecks || '' }
+      : {}),
   };
 }
 function openEdit() {
@@ -760,7 +857,7 @@ async function finalize() {
   try {
     report.value = await finalizeReport(report.value);
     finalizeOpen.value = false;
-    $q.notify({ type: 'positive', message: '점검 보고서를 확정했습니다.' });
+    $q.notify({ type: 'positive', message: `점검 ${documentLabel.value}를 확정했습니다.` });
   } catch (e) {
     finalizeError.value = inspectionError(e);
   } finally {
@@ -860,6 +957,10 @@ onBeforeUnmount(() => {
 });
 </script>
 <style scoped>
+.document-kind-tabs {
+  border-bottom: 1px solid #e1e7ee;
+  margin-bottom: 16px;
+}
 .monthly-report-page {
   background: #f4f6f9;
   min-height: 100vh;

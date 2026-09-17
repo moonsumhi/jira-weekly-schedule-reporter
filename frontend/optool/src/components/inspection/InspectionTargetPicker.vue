@@ -2,30 +2,43 @@
   <div class="inspection-target-picker">
     <div class="common-choice">
       <q-toggle v-model="common" label="공통 작업" :disable="disable" color="primary" dense /><span
-        >서버를 지정하지 않는 작업</span
+        >자산을 지정하지 않는 작업</span
       >
     </div>
     <div v-if="common" class="common-empty">
-      <q-icon name="layers" size="36px" /><strong>공통 작업은 서버를 선택하지 않습니다.</strong>
+      <q-icon name="layers" size="36px" /><strong>공통 작업은 자산을 선택하지 않습니다.</strong>
       <p>예: 운영 절차 확인, 점검 문서 정리</p>
     </div>
     <template v-else>
-      <q-input
-        v-model="assetSearch"
-        outlined
-        dense
-        clearable
-        debounce="250"
-        placeholder="서버명 또는 IP 검색"
-        aria-label="대상 서버 검색"
-        hide-bottom-space
-        :disable="disable"
-        @update:model-value="loadAssets"
-        ><template #prepend><q-icon name="search" size="18px" /></template
-      ></q-input>
-      <div class="asset-results" aria-label="등록된 서버 자산" :aria-busy="assetsLoading">
+      <div class="asset-search">
+        <q-input
+          v-model="assetSearch"
+          outlined
+          dense
+          clearable
+          debounce="250"
+          placeholder="자산명, 관리번호 또는 IP 검색"
+          aria-label="대상 자산 검색"
+          hide-bottom-space
+          :disable="disable"
+          @update:model-value="loadAssets"
+          ><template #prepend><q-icon name="search" size="18px" /></template
+        ></q-input>
+        <q-select
+          v-model="assetCategory"
+          :options="categoryOptions"
+          outlined
+          dense
+          emit-value
+          map-options
+          aria-label="자산 유형"
+          :disable="disable"
+          @update:model-value="loadAssets"
+        />
+      </div>
+      <div class="asset-results" aria-label="등록된 자산" :aria-busy="assetsLoading">
         <div v-if="assetsLoading" class="asset-loading">
-          <q-spinner color="primary" size="22px" /><span>서버를 검색하는 중입니다.</span>
+          <q-spinner color="primary" size="22px" /><span>자산을 검색하는 중입니다.</span>
         </div>
         <div v-else-if="assetsError" class="asset-empty">
           <span>{{ assetsError }}</span
@@ -49,9 +62,11 @@
             /></q-item-section>
             <q-item-section
               ><q-item-label class="asset-name">{{ a.assetName || a.name }}</q-item-label
-              ><q-item-label caption
-                >{{ a.assetName ? `${a.name} · ` : '' }}{{ a.ip }}</q-item-label
-              ></q-item-section
+              ><q-item-label caption>{{
+                [a.category || '서버', a.assetName && a.name !== a.assetName ? a.name : '', a.ip]
+                  .filter(Boolean)
+                  .join(' · ')
+              }}</q-item-label></q-item-section
             >
             <q-item-section v-if="a.status" side
               ><span class="asset-state">{{ a.status }}</span></q-item-section
@@ -59,14 +74,14 @@
           </q-item>
         </template>
         <div v-else class="asset-empty">
-          <q-icon name="search_off" size="25px" /><span>검색된 서버가 없습니다.</span
-          ><small>호스트명이나 IP를 확인해 주세요.</small>
+          <q-icon name="search_off" size="25px" /><span>검색된 자산이 없습니다.</span
+          ><small>자산명, 관리번호 또는 IP를 확인해 주세요.</small>
         </div>
       </div>
       <div class="selected-targets">
         <div class="selection-heading">
           <span
-            >선택한 서버 <b>{{ selectedAssets.length }}</b></span
+            >선택한 자산 <b>{{ selectedAssets.length }}</b></span
           ><q-btn
             v-if="selectedAssets.length"
             flat
@@ -88,12 +103,16 @@
             :text-color="a.isDeleted ? 'negative' : 'primary'"
             @remove="toggleAsset(a)"
             >{{ a.name
-            }}<q-tooltip>{{ a.ip }}{{ a.isDeleted ? ' · 삭제된 자산' : '' }}</q-tooltip></q-chip
+            }}<q-tooltip>{{
+              [a.category || '서버', a.ip, a.isDeleted ? '삭제된 자산' : '']
+                .filter(Boolean)
+                .join(' · ')
+            }}</q-tooltip></q-chip
           >
         </div>
-        <p v-else>위 목록에서 점검할 서버를 선택하세요.</p>
+        <p v-else>위 목록에서 작업할 자산을 선택하세요.</p>
         <span v-if="selectedAssets.length >= 100" class="text-caption text-negative"
-          >최대 100대까지 선택할 수 있습니다.</span
+          >최대 100개까지 선택할 수 있습니다.</span
         >
       </div>
     </template>
@@ -104,6 +123,8 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import {
   inspectionError,
   searchInspectionAssets,
+  inspectionAssetCategories,
+  type InspectionAssetCategory,
   type InspectionAsset,
 } from 'src/services/inspection';
 
@@ -111,6 +132,11 @@ defineProps<{ disable?: boolean }>();
 const common = defineModel<boolean>('common', { required: true });
 const selectedAssets = defineModel<InspectionAsset[]>({ required: true });
 const assetSearch = ref('');
+const assetCategory = ref<InspectionAssetCategory | ''>('');
+const categoryOptions = [
+  { label: '전체 자산', value: '' },
+  ...inspectionAssetCategories.map((category) => ({ label: category, value: category })),
+];
 const assetOptions = ref<InspectionAsset[]>([]);
 const assetsLoading = ref(false);
 const assetsError = ref('');
@@ -125,7 +151,11 @@ async function loadAssets() {
   assetsLoading.value = true;
   assetsError.value = '';
   try {
-    const options = await searchInspectionAssets(assetSearch.value || '');
+    const options = await searchInspectionAssets(
+      assetSearch.value || '',
+      [],
+      assetCategory.value || undefined,
+    );
     if (token === assetRequest) assetOptions.value = options;
   } catch (e) {
     if (token === assetRequest) assetsError.value = inspectionError(e);
@@ -139,6 +169,16 @@ onBeforeUnmount(() => {
 });
 </script>
 <style scoped>
+.asset-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 8px;
+}
+@media (max-width: 599px) {
+  .asset-search {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .common-choice {
   display: flex;
   align-items: center;

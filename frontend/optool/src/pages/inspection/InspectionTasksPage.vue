@@ -11,10 +11,25 @@
           <q-btn
             flat
             no-caps
-            icon="description"
-            label="점검 보고서"
+            icon="event_note"
+            label="점검 계획서"
             color="grey-7"
-            :to="{ path: '/inspection/monthly-reports', query: { month } }"
+            :to="{
+              path: '/inspection/monthly-reports',
+              query: { month, kind: 'PLAN', open: 'latest' },
+            }"
+            class="report-link"
+          />
+          <q-btn
+            flat
+            no-caps
+            icon="description"
+            label="점검 결과서"
+            color="grey-7"
+            :to="{
+              path: '/inspection/monthly-reports',
+              query: { month, kind: 'RESULT', open: 'latest' },
+            }"
             class="report-link"
           />
           <q-btn
@@ -32,7 +47,7 @@
       <section v-if="assetId || issueId" class="context-banner" aria-label="적용 중인 조회 범위">
         <q-icon name="filter_alt" size="22px" />
         <div class="context-description">
-          <strong>{{ issueId ? '선택한 작업의 점검 이력' : '선택한 서버의 점검 작업' }}</strong>
+          <strong>{{ issueId ? '선택한 작업의 점검 이력' : '선택한 자산의 점검 작업' }}</strong>
           <p>
             {{ issueId ? issueFilterLabel : assetFilterLabel }}에 등록된 점검 작업만 표시합니다.
           </p>
@@ -147,7 +162,7 @@
             dense
             outlined
             clearable
-            placeholder="작업명, 이슈 번호, 서버 검색"
+            placeholder="작업명, 이슈 번호, 자산 검색"
             aria-label="작업 검색"
             class="task-search"
             hide-bottom-space
@@ -187,7 +202,7 @@
         </div>
         <template v-else-if="!error && filtered.length">
           <div class="list-columns" aria-hidden="true">
-            <span>작업</span><span>대상 서버</span><span>담당자</span><span>상태</span><span />
+            <span>작업</span><span>대상 자산</span><span>담당자</span><span>상태</span><span />
           </div>
           <section
             v-for="group in groups"
@@ -274,7 +289,7 @@
               isEmptyContext
                 ? issueId
                   ? '이 작업의 점검 이력이 없습니다.'
-                  : '이 서버에 등록된 점검 작업이 없습니다.'
+                  : '이 자산에 등록된 점검 작업이 없습니다.'
                 : emptyKind === 'done'
                   ? '미완료 작업이 없습니다.'
                   : emptyKind === 'search'

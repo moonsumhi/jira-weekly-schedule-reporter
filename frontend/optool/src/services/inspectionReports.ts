@@ -113,7 +113,24 @@ export interface ReportTask extends InspectionTask {
   plannedStart?: string;
   plannedEnd?: string;
 }
+export type ReportKind = 'PLAN' | 'RESULT';
+export interface InspectionPlanReference {
+  id: string;
+  title: string;
+  month: string;
+  revision: number;
+  inspectionDate: string;
+  plannedTime: string;
+  finalizedAt: string;
+  purpose: string;
+  participants: ReportParticipant[];
+  resourceTargets: InspectionAsset[];
+  resourceChecks: string;
+  tasks: ReportTask[];
+}
 export interface ReportSnapshot {
+  resourceTargets?: InspectionAsset[];
+  plan?: InspectionPlanReference | null;
   source: ReportSource | null;
   comparison: ReportSource | null;
   capturedAt: string;
@@ -144,6 +161,9 @@ export interface ReportNote {
 }
 export interface InspectionReport {
   id: string;
+  kind?: ReportKind;
+  plannedTime?: string;
+  resourceChecks?: string;
   month: string;
   projectIds: string[];
   projects: ReportProject[];
@@ -171,6 +191,7 @@ export interface InspectionReport {
 export type ReportSummary = Omit<InspectionReport, 'snapshot'>;
 export interface ReportPreview {
   id: string;
+  kind?: ReportKind;
   month: string;
   projects: ReportProject[];
   snapshot: ReportSnapshot;
@@ -178,6 +199,7 @@ export interface ReportPreview {
 }
 export interface PreviewRequest {
   month: string;
+  kind?: ReportKind;
   project_ids?: string[];
   source_id?: string | null;
   comparison_id?: string | null;
@@ -196,6 +218,8 @@ export interface ReportEdit {
   purpose: string;
   overview: string;
   include_appendix: boolean;
+  planned_time?: string;
+  resource_checks?: string;
 }
 const base = '/monthly-inspection-reports';
 export function reportNotes(report: InspectionReport): ReportNote[] {
@@ -234,8 +258,8 @@ export async function reportOptions(month: string) {
     )
   ).data;
 }
-export async function listReports(month: string) {
-  return (await api.get<ReportSummary[]>(base, { params: { month } })).data;
+export async function listReports(month: string, kind: ReportKind = 'RESULT') {
+  return (await api.get<ReportSummary[]>(base, { params: { month, kind } })).data;
 }
 export async function getReport(id: string) {
   return (await api.get<InspectionReport>(`${base}/${id}`)).data;

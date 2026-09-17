@@ -151,7 +151,7 @@ async function load() {
 async function filterAssets(value: string, update: (fn: () => void) => void) {
   const generation = ++searchGeneration;
   try {
-    const data = await searchInspectionAssets(value);
+    const data = await searchInspectionAssets(value, [], '서버');
     if (active && generation === searchGeneration)
       update(() => {
         options.value = data;

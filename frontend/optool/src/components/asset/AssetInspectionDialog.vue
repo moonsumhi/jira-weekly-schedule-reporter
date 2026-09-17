@@ -31,7 +31,7 @@
             {{ task.issue.key }} · 담당 {{ task.issue.assigneeName || '미배정' }}
           </div>
           <dl class="inspection-history-fields">
-            <dt>대상 서버</dt>
+            <dt>대상 자산</dt>
             <dd v-for="asset in task.assets" :key="asset.id">
               {{ asset.current?.name || asset.name
               }}<span v-if="asset.current?.ip || asset.ip">
