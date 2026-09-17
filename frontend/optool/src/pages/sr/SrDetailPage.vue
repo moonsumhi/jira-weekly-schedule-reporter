@@ -1338,7 +1338,7 @@ import {
   SR_STATUS_LABEL, SR_STATUS_COLOR, SR_PRIORITY_LABEL,
   REQUEST_TYPE_LABEL,
   type SR, type SRComment, type SRHistory, type SRStatus, type ReviewResult, type SRAttachment,
-  type CommentReaction,
+  type CommentReaction, type SRTypeDetailValue,
 } from 'src/services/sr'
 import { SR_TYPE_FIELDS } from 'src/services/sr-type-fields'
 import type { SRTypeField } from 'src/services/sr-type-fields'
@@ -1526,7 +1526,7 @@ const dDayColor = computed(() => {
 // 권한 만료 D-Day (PERMISSION 유형)
 const permissionExpiryDDay = computed((): number | null => {
   const expiry = sr.value?.typeDetail?.permissionExpiry
-  if (!expiry) return null
+  if (typeof expiry !== 'string' || !expiry) return null
   const due   = new Date(expiry)
   const today = new Date(); today.setHours(0, 0, 0, 0)
   return Math.ceil((due.getTime() - today.getTime()) / 86400000)
@@ -1724,21 +1724,21 @@ function priorityChipColor(p: string) {
   return m[p] ?? 'grey-5'
 }
 
-function riskLevelColor(v: string | null) {
+function riskLevelColor(v: SRTypeDetailValue) {
   if (v === 'high') return 'red-7'
   if (v === 'medium') return 'orange-7'
   return 'green-7'
 }
 
-function serviceImpactColor(v: string | null) {
+function serviceImpactColor(v: SRTypeDetailValue) {
   if (v === 'stop') return 'red-7'
   if (v === 'delay') return 'orange-7'
   return 'positive'
 }
 
 function fieldValue(field: SRTypeField): string | null {
-  if (!sr.value) return null
-  return (sr.value.typeDetail?.[field.key]) ?? null
+  const value = sr.value?.typeDetail?.[field.key]
+  return typeof value === 'string' ? value : null
 }
 
 function selectLabel(field: SRTypeField, value: string | null): string {
@@ -1746,8 +1746,8 @@ function selectLabel(field: SRTypeField, value: string | null): string {
   return field.options.find(o => o.value === value)?.label ?? value
 }
 
-function fieldSelectLabel(typeName: string, fieldKey: string, value: string | null): string {
-  if (!value) return '-'
+function fieldSelectLabel(typeName: string, fieldKey: string, value: SRTypeDetailValue): string {
+  if (typeof value !== 'string' || !value) return '-'
   const field = (SR_TYPE_FIELDS[typeName] ?? []).find(f => f.key === fieldKey)
   if (!field?.options) return value
   return field.options.find(o => o.value === value)?.label ?? value
@@ -1764,8 +1764,8 @@ function fileIcon(ct: string) {
   return 'insert_drive_file'
 }
 
-function fmtDate(d: string | null | undefined)     { return fmtDateKst(d) }
-function fmtDateTime(d: string | null | undefined) { return d ? formatKst(d) : '-' }
+function fmtDate(d: SRTypeDetailValue)     { return fmtDateKst(typeof d === 'string' ? d : null) }
+function fmtDateTime(d: SRTypeDetailValue) { return typeof d === 'string' && d ? formatKst(d) : '-' }
 
 const FIELD_LABELS: Record<string, string> = {
   request_type: '요청 유형',

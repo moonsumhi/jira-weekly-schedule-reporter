@@ -110,6 +110,9 @@ export type SRAttachmentInput = {
   content_type: string
 }
 
+export type SRTypeDetailValue = string | Record<string, string>[] | null | undefined
+export type SRTypeDetail = Record<string, SRTypeDetailValue>
+
 export type SR = {
   id: string
   srNo: string
@@ -159,7 +162,7 @@ export type SR = {
   deployedAt: string | null
   requesterConfirmed: boolean
   // 유형별 추가 항목 (테이블형 필드는 행 배열로 저장됨)
-  typeDetail: Record<string, any> | null
+  typeDetail: SRTypeDetail | null
   // 연결 정보
   relatedProjectId: string | null
   relatedIssueId: string | null
@@ -224,7 +227,7 @@ export type SRCreate = {
   reviewer_name?: string
   note?: string
   attachments?: SRAttachmentInput[]
-  type_detail?: Record<string, any> | null
+  type_detail?: SRTypeDetail | null
   submit: boolean
 }
 

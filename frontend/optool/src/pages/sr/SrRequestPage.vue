@@ -200,7 +200,8 @@
                 <!-- textarea -->
                 <template v-if="field.type === 'textarea'">
                   <q-input
-                    v-model="typeDetail[field.key]"
+                    :model-value="textFieldValue(field)"
+                    @update:model-value="v => setTextFieldValue(field, v)"
                     :label="field.label + (field.required ? ' *' : '')"
                     outlined dense type="textarea"
                     :rows="field.rows ?? 3"
@@ -263,7 +264,8 @@
                 <!-- date / datetime / text -->
                 <template v-else>
                   <q-input
-                    v-model="typeDetail[field.key]"
+                    :model-value="textFieldValue(field)"
+                    @update:model-value="v => setTextFieldValue(field, v)"
                     :label="field.label + (field.required ? ' *' : '')"
                     outlined dense
                     :type="field.type === 'datetime' ? 'datetime-local' : field.type"
@@ -389,6 +391,7 @@ import {
   createSR, updateSR, getSR, listMySRs,
   SR_PRIORITY_OPTIONS, SR_PRIORITY_LABEL, SR_PRIORITY_COLOR,
   type SRAttachment, type SRAttachmentInput, type RequestType, type SRPriority, type SRListItem,
+  type SRTypeDetail,
 } from 'src/services/sr'
 import { SR_TYPE_FIELDS, TYPE_CARDS, type SRTypeField } from 'src/services/sr-type-fields'
 import { envCategoryService } from 'src/services/envCategory'
@@ -428,7 +431,7 @@ const form = ref({
   note:                 '',
 })
 
-const typeDetail = ref<Record<string, any>>({})
+const typeDetail = ref<SRTypeDetail>({})
 
 // 유형이 바뀌면 type_detail 초기화
 watch(() => form.value.requestType, () => { if (!editId.value) typeDetail.value = {} })
@@ -525,6 +528,15 @@ function goToStep3() { if (validateStep1() && validateStep2()) step.value = 3 }
 function goToStep4() { if (validateStep1() && validateStep2() && validateStep3()) step.value = 4 }
 
 function selectType(type: string) { form.value.requestType = type }
+
+function textFieldValue(field: SRTypeField): string | null {
+  const value = typeDetail.value[field.key]
+  return typeof value === 'string' ? value : null
+}
+
+function setTextFieldValue(field: SRTypeField, value: string | number | null) {
+  typeDetail.value[field.key] = value == null ? null : String(value)
+}
 
 // ── table 타입 필드 (반복 가능한 행) ─────────────────────────────────────
 function tableRows(field: SRTypeField): Record<string, string>[] {
