@@ -109,6 +109,7 @@
       @hide="importedImages = []; importedImageGroups = []; placedImportedIndices = new Set(); selectedPanelImage = ''; activePasteCell = null; importedOriginalFile = null; markdownSourceData = null"
       @save="doCreate"
     >
+      <template #assets><WorkDocumentAssets v-if="canLinkWorkDocument" v-model="formAssets" editing :disable="editorBusy" /></template>
       <template #section="{ section }">
         <div class="edit-section-rows">
           <div v-for="(row, rowIdx) in getRows(section.title)" :key="rowIdx" class="edit-row-card">
@@ -327,7 +328,9 @@
       :title="template?.title ?? ''"
       :sections="sections"
       :creating="creatingDetail"
-      :saving="detailSaving"
+      :saving="detailSaving" :save-warning="detailSaveWarning"
+      :link-assets="canLinkWorkDocument"
+      :inspection-links="canLinkWorkDocument && isWorkPlanTemplate(template)"
       @update:model-value="onDetailDialogUpdate"
       @save="saveDetailForm"
       @export="exportDetailMarkdown"
@@ -341,24 +344,30 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, toRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { exportFile, useQuasar } from 'quasar'
-import { downloadAttachment } from 'src/utils/attachment'
-import { formEntryMarkdown, markdownFileName, hasOriginalForm, synchronizedDocument } from 'src/utils/formEntryMarkdown'
+import { useQuasar } from 'quasar'
+import { prepareWorkDocumentData, resultImageUrl, useWorkDocumentExport } from 'src/composables/useWorkDocument'
+import { isWorkPlanTemplate } from 'src/services/inspectionWorkPlans'
+import { saveWorkDocument, WorkDocumentInspectionError, type WorkDocumentInspection } from 'src/services/workDocumentInspection'
+import { hasOriginalForm, synchronizedDocument } from 'src/utils/formEntryMarkdown'
 import WorkDocumentDetail from 'src/components/WorkDocumentDetail.vue'
 import WorkDocumentEditor from 'src/components/WorkDocumentEditor.vue'
+import WorkDocumentAssets from 'src/components/WorkDocumentAssets.vue'
+import { useAuthStore } from 'src/stores/auth'
 import { comparisonFormatKey, comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 import { api } from 'src/boot/axios'
 import { formTemplateService, type FormTemplate, type FormField, type FormSection } from 'src/services/formTemplates'
-import { formEntryService, type FormEntry, type ImportSkipped, type ImportImageGroup, type OriginalFile } from 'src/services/formEntries'
+import { formEntryService, type FormEntry, type ImportSkipped, type ImportImageGroup, type OriginalFile, type WorkDocumentAsset } from 'src/services/formEntries'
 
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const auth = useAuthStore()
 
 const loading = ref(true)
 const tableLoading = ref(false)
 const saving = ref(false)
+const detailSaveWarning = ref('')
 const imageUploads = ref<Record<string, boolean>>({})
 const insertingImages = ref(0)
 const editorBusy = computed(() => saving.value || insertingImages.value > 0 || Object.values(imageUploads.value).some(Boolean))
@@ -371,6 +380,8 @@ const documentTypeDialog = ref(false)
 const selectedDocumentType = ref<string | null>(null)
 const pendingDocumentAction = ref<'create' | 'import'>('create')
 const isJobPage = computed(() => route.path.startsWith('/job/'))
+const canLinkWorkDocument = computed(() => isJobPage.value && template.value?.menu?.toLowerCase() === 'job'
+  && !!(auth.me?.isAdmin || auth.me?.permissions?.includes('job')))
 const isAllJobs = computed(() => isJobPage.value && !route.params['id'])
 const activeJobTab = computed(() => isAllJobs.value ? 'all'
   : jobTemplates.value.find((item) => item.id === route.params['id'] || item.jiraIssueKey === route.params['id'])?.id ?? '')
@@ -490,6 +501,8 @@ const actingId = ref<string | null>(null)
 type RowData = Record<string, string | string[]>
 type SectionValue = RowData | RowData[]
 const formValues = ref<Record<string, SectionValue>>({})
+const formAssets = ref<WorkDocumentAsset[]>([])
+watch(formDialog, open => { if (open) formAssets.value = [] })
 
 // `structuredClone` cannot clone Vue reactive proxies. Form data is edited
 // through reactive objects, so unwrap proxies recursively before keeping a
@@ -509,7 +522,7 @@ function cloneFormData<T>(value: T): T {
 // 다이얼로그를 열 때(생성/수정 진입 시)의 스냅샷과 비교해 변경 여부를 판단.
 // 변경이 없으면 ESC/바깥 클릭 시 바로 닫고, 변경이 있으면 확인을 받는다.
 const formValuesSnapshot = ref('')
-const isFormDirty = computed(() => JSON.stringify(formValues.value) !== formValuesSnapshot.value)
+const isFormDirty = computed(() => formAssets.value.length > 0 || JSON.stringify(formValues.value) !== formValuesSnapshot.value)
 
 function onFormDialogModelUpdate(val: boolean): void {
   if (editorBusy.value) return
@@ -544,12 +557,6 @@ function originalSections(data: Record<string, unknown>): FormSection[] {
 }
 const sections = computed<FormSection[]>(() => documentMode.value ? documentSections : originalSections(formDialog.value ? formValues.value : detailRow.value?.data ?? {}))
 
-function hasMarkdownOverride(data: Record<string, unknown>): boolean {
-  const rows = data['문서 본문']
-  const row = Array.isArray(rows) && rows.length === 1 ? rows[0] : undefined
-  return !!row && typeof row === 'object' && !Array.isArray(row) && (row as Record<string, unknown>)['__markdown_override'] === 'true'
-}
-
 const columns = computed(() => [
   ...(isAllJobs.value ? [{ name: 'document_type', label: '문서 종류', field: (row: FormEntry) => entryTemplate(row)?.title ?? '—', align: 'left' as const, sortable: true }] : []),
   { name: 'preview', label: '내용 미리보기', field: 'id', align: 'left' as const },
@@ -565,60 +572,6 @@ function getWorkDate(row: FormEntry): string {
     if (d) return String(d).slice(0, 10)
   }
   return '-'
-}
-
-function normalizedFileLabel(value: string): string {
-  return value.replace(/[\s_*/\\()]/g, '').toLocaleLowerCase()
-}
-
-function detailValueForLabels(labels: string[]): string {
-  const wanted = new Set(labels.map(normalizedFileLabel))
-  for (const sectionData of Object.values(detailRow.value?.data ?? {})) {
-    const records = Array.isArray(sectionData) ? sectionData : [sectionData]
-    for (const record of records) {
-      if (!record || typeof record !== 'object' || Array.isArray(record)) continue
-      for (const [label, value] of Object.entries(record as Record<string, unknown>)) {
-        if (label.endsWith('__format') || !wanted.has(normalizedFileLabel(label))) continue
-        if (typeof value === 'string' || typeof value === 'number') {
-          if (String(value).trim()) return String(value).trim()
-        }
-      }
-    }
-  }
-  return ''
-}
-
-function exportDatePart(value: string): string {
-  const numeric = value.match(/(20\d{2})[./-](\d{1,2})[./-](\d{1,2})/)
-  const korean = value.match(/(20\d{2})년\s*(\d{1,2})월\s*(\d{1,2})일/)
-  const [, year, month, day] = numeric ?? korean ?? []
-  if (year && month && day) return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return ''
-  const parts = new Intl.DateTimeFormat('en', {
-    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(parsed)
-  const dateYear = parts.find(part => part.type === 'year')?.value
-  const dateMonth = parts.find(part => part.type === 'month')?.value
-  const dateDay = parts.find(part => part.type === 'day')?.value
-  return dateYear && dateMonth && dateDay ? `${dateYear}-${dateMonth}-${dateDay}` : ''
-}
-
-function exportDocumentFileName(format: 'hwp' | 'docx'): string {
-  const templateName = template.value?.title || '작업템플릿'
-  const serviceName = detailValueForLabels(['서비스 명', '서비스명']) || '서비스'
-  const workDate = detailValueForLabels(['작업 일시', '작업 기간 (시작)', '작업기간 시작'])
-  const date = exportDatePart(workDate || detailRow.value?.createdAt || '') || '날짜미상'
-  const safePart = (value: string, fallback: string) => value
-    .replace(/[<>:"|?*]/g, '_')
-    .replaceAll('/', '_')
-    .replaceAll('\\', '_')
-    .split('').map(character => character.charCodeAt(0) < 32 ? '_' : character).join('')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 100)
-    .replace(/[. ]+$/, '') || fallback
-  return `${safePart(templateName, '작업템플릿')}_${safePart(serviceName, '서비스')}_${date}.${format}`
 }
 
 function entryPreview(row: FormEntry): string {
@@ -831,16 +784,6 @@ function editorFieldWide(field: FormField): boolean {
   return !!field.fullWidth || field.type === 'textarea' || field.type === 'image'
 }
 
-async function resultImageUrl(src: string): Promise<string> {
-  if (!src.startsWith('data:image/')) return src
-  const response = await fetch(src)
-  const blob = await response.blob()
-  const file = new FormData()
-  file.append('file', blob, `image.${blob.type.split('/')[1] || 'png'}`)
-  const { data } = await api.post<{ url: string }>('/pm/uploads', file)
-  return data.url
-}
-
 async function prepareComparisonEditors(values: Record<string, SectionValue>, templateSections: FormSection[]) {
   for (const section of templateSections) {
     const stored = values[section.title]
@@ -977,6 +920,7 @@ function openCreate() {
 
 function openDetailCreate(data: Record<string, SectionValue>, originalFile: OriginalFile | null = null): void {
   if (!template.value) return
+  detailSaveWarning.value = ''
   importedOriginalFile.value = originalFile
   creatingDetail.value = true
   detailRow.value = {
@@ -991,6 +935,13 @@ function openDetailCreate(data: Record<string, SectionValue>, originalFile: Orig
 
 function onDetailDialogUpdate(open: boolean): void {
   detailDialog.value = open
+  if (!open) {
+    ++detailRequest
+    if (route.query.entryId) {
+      const query = { ...route.query }; delete query.entryId
+      void router.replace({ query })
+    }
+  }
   if (!open && creatingDetail.value) {
     creatingDetail.value = false
     detailRow.value = null
@@ -998,112 +949,54 @@ function onDetailDialogUpdate(open: boolean): void {
   }
 }
 
-async function saveDetailForm(values: Record<string, Record<string, unknown> | Record<string, unknown>[]>) {
+function reflectSavedDocument(saved: FormEntry) {
+  const index = rows.value.findIndex(row => row.id === saved.id)
+  if (index < 0) rows.value.unshift(saved)
+  else rows.value.splice(index, 1, saved)
+}
+
+async function saveDetailForm(values: Record<string, Record<string, unknown> | Record<string, unknown>[]>, assetIds?: string[], inspection?: WorkDocumentInspection | null) {
   if (!detailRow.value || !template.value || detailSaving.value) return
-  const data = cloneFormData(values) as Record<string, SectionValue>
-  for (const section of template.value.sections) {
-    const stored = data[section.title]
-    const items = Array.isArray(stored) ? stored : stored ? [stored] : []
-    for (let rowIndex = 0; rowIndex < items.length; rowIndex += 1) {
-      const row = items[rowIndex]
-      if (!row) continue
-      for (const field of section.fields) {
-        const value = row[field.label]
-        if (field.required && (!value || (Array.isArray(value) && value.length === 0))) {
-          const position = section.multiple ? ` ${rowIndex + 1}번째 행의` : ''
-          $q.notify({ type: 'negative', message: `[${section.title}]${position} "${field.label}"은(는) 필수 입력입니다.` })
-          return
-        }
-        if (field.type === 'image') row[field.label] = await Promise.all(toImageArray(value).map(resultImageUrl))
-        else if (typeof value === 'string') row[field.label] = await uploadEmbeddedDataImages(value)
-      }
-    }
-  }
   detailSaving.value = true
+  const wasCreating = creatingDetail.value
   try {
-    const original = originalSections(data)
-    const payload = hasOriginalForm(original, data)
-      ? synchronizedDocument(template.value.title, original, data, window.location.origin)
-      : data
-    if (creatingDetail.value) {
-      const created = await formEntryService.create(template.value.id, payload, importedOriginalFile.value)
-      rows.value.unshift(created)
-      detailRow.value = created
-      detailDialog.value = false
+    const payload = await prepareWorkDocumentData(template.value, values)
+    const saved = await saveWorkDocument({
+      ...(!wasCreating ? { entry: detailRow.value } : {}),
+      templateId: template.value.id, data: payload, originalFile: importedOriginalFile.value,
+      assetIds, inspection,
+    })
+    detailSaveWarning.value = ''
+    reflectSavedDocument(saved)
+    detailRow.value = saved
+    creatingDetail.value = false
+    importedOriginalFile.value = null
+    if (wasCreating) detailDialog.value = false
+    $q.notify({ type: 'positive', message: inspection ? '작업계획서를 저장하고 서버 점검에 등록했습니다.' : wasCreating ? '저장됐습니다.' : '수정됐습니다.' })
+  } catch (error: unknown) {
+    if (error instanceof WorkDocumentInspectionError) {
+      detailSaveWarning.value = error.message
+      reflectSavedDocument(error.entry)
+      detailRow.value = error.entry
       creatingDetail.value = false
       importedOriginalFile.value = null
-      $q.notify({ type: 'positive', message: '저장됐습니다.' })
-    } else {
-      const updated = await formEntryService.patch(detailRow.value.id, payload, detailRow.value.version)
-      rows.value = rows.value.map(row => row.id === updated.id ? updated : row)
-      detailRow.value = updated
-      $q.notify({ type: 'positive', message: '수정됐습니다.' })
     }
-  } catch (error: unknown) {
-    console.error('작업 문서 상세 수정 실패', error)
     const detail = apiErrorDetail(error)
-    $q.notify({ type: 'negative', message: detail ? `수정 실패: ${detail}` : '수정 실패' })
+    $q.notify({ type: 'negative', message: detail || '저장하지 못했습니다.' })
   } finally {
     detailSaving.value = false
   }
 }
 
-async function uploadEmbeddedDataImages(value: string): Promise<string> {
-  const sources = [...new Set(value.match(/data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=]+/g) ?? [])]
-  let result = value
-  for (const source of sources) result = result.replaceAll(source, await resultImageUrl(source))
-  return result
-}
+const { exportingDocument, exportDetailFile, downloadOriginalFile, exportDetailMarkdown } =
+  useWorkDocumentExport(detailRow, template, sections, detailLoading)
 
-const exportingDocument = ref(false)
-async function exportDetailFile(format: 'hwp' | 'docx') {
-  if (detailLoading.value || !detailRow.value || !template.value || exportingDocument.value) return
-  const title = template.value.title
-  const filename = exportDocumentFileName(format)
-  const markdown = formEntryMarkdown(title, sections.value, detailRow.value.data, window.location.origin)
-  const originalName = detailRow.value.originalFile?.originalName ?? ''
-  const sourceExtension = originalName.includes('.') ? originalName.slice(originalName.lastIndexOf('.')).toLowerCase() : ''
-  if (format === 'hwp' && sourceExtension === '.pdf') {
-    $q.notify({ type: 'info', timeout: 4500, message: 'PDF 원본은 원본 PDF로 다운로드할 수 있으며, HWP는 수정된 항목을 기준으로 재생성됩니다.' })
-  }
-  exportingDocument.value = true
-  try {
-    const original = originalSections(detailRow.value.data)
-    const original_form = !hasMarkdownOverride(detailRow.value.data) && hasOriginalForm(original, detailRow.value.data)
-      ? { title, sections: original, data: detailRow.value.data } : undefined
-    const { data } = await api.post<Blob>('/form-entries/export-document', { markdown, format, original_form }, { responseType: 'blob', timeout: 120000 })
-    if (exportFile(filename, data) !== true) throw new Error('download failed')
-  } catch {
-    $q.notify({ type: 'negative', message: '파일 내보내기에 실패했습니다. 사진이 정상적으로 표시되는지 확인한 뒤 다시 시도해 주세요.' })
-  } finally { exportingDocument.value = false }
-}
-
-async function downloadOriginalFile() {
-  const originalFile = detailRow.value?.originalFile
-  if (!originalFile || exportingDocument.value) return
-  exportingDocument.value = true
-  try {
-    await downloadAttachment(originalFile.url, originalFile.originalName)
-  } catch {
-    $q.notify({ type: 'negative', message: '원본 파일 다운로드에 실패했습니다.' })
-  } finally {
-    exportingDocument.value = false
-  }
-}
-
-function exportDetailMarkdown() {
-  if (detailLoading.value || !detailRow.value || !template.value) return
-  const title = template.value.title
-  const markdown = formEntryMarkdown(title, sections.value, detailRow.value.data, window.location.origin)
-  const result = exportFile(markdownFileName(title, detailRow.value.id), markdown, 'text/markdown;charset=utf-8')
-  if (result !== true) {
-    $q.notify({ type: 'negative', message: '파일을 내려받지 못했습니다. 브라우저의 다운로드 설정을 확인해 주세요.' })
-  }
-}
-
+let detailRequest = 0
 async function openDetail(row: FormEntry) {
   const selectedTemplate = entryTemplate(row)
   if (!selectedTemplate) return
+  const request = ++detailRequest
+  detailSaveWarning.value = ''
   template.value = selectedTemplate
   markdownEditMode.value = false
   documentMode.value = !!row.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, row.data)
@@ -1111,13 +1004,16 @@ async function openDetail(row: FormEntry) {
   detailDialog.value = true
   detailLoading.value = true
   try {
-    detailRow.value = await formEntryService.get(row.id)
+    const full = await formEntryService.get(row.id)
+    if (request !== detailRequest) return
+    detailRow.value = full
     documentMode.value = !!detailRow.value.data['문서 본문'] && !hasOriginalForm(selectedTemplate.sections, detailRow.value.data)
   } catch {
+    if (request !== detailRequest) return
     $q.notify({ type: 'negative', message: '상세 데이터를 불러오지 못했습니다.' })
     detailDialog.value = false
   } finally {
-    detailLoading.value = false
+    if (request === detailRequest) detailLoading.value = false
   }
 }
 
@@ -1185,7 +1081,8 @@ async function doCreate() {
   if (!validate() || !template.value) return
   saving.value = true
   try {
-    const entry = await formEntryService.create(template.value.id, await saveData(), importedOriginalFile.value)
+    const entry = await formEntryService.create(template.value.id, await saveData(), importedOriginalFile.value,
+      canLinkWorkDocument.value ? formAssets.value.map(a => a.id) : undefined)
     rows.value.unshift(entry)
     formDialog.value = false
     $q.notify({ type: 'positive', message: '저장됐습니다.' })
@@ -1253,6 +1150,7 @@ async function loadPage() {
       template.value = tmpl
       rows.value = entries
     }
+    await openLinkedEntry()
   } catch {
     if (request !== pageRequest) return
     rows.value = []
@@ -1272,16 +1170,28 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  ++pageRequest
+  ++detailRequest
   document.removeEventListener('paste', handleGlobalPaste as EventListener)
 })
 
 watch(() => route.path, () => {
+  ++detailRequest
   documentTypeDialog.value = false
   detailDialog.value = false
   formDialog.value = false
   resetSearch()
   void loadPage()
 })
+
+async function openLinkedEntry() {
+  const id = typeof route.query.entryId === 'string' ? route.query.entryId : ''
+  if (!id || (detailDialog.value && detailRow.value?.id === id)) return
+  const row = rows.value.find(item => item.id === id)
+  if (row) await openDetail(row)
+  else $q.notify({ type: 'warning', message: '연결된 작업 문서를 찾을 수 없습니다. 삭제 여부를 확인해 주세요.' })
+}
+watch(() => route.query.entryId, () => { if (!loading.value) void openLinkedEntry() })
 </script>
 
 <style scoped>

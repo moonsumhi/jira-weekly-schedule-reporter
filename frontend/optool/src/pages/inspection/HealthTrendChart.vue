@@ -2,14 +2,14 @@
   <div class="trend-chart">
     <div v-if="!points.length" class="text-center text-grey-5 q-pa-lg">
       <q-icon name="show_chart" size="32px" class="q-mb-xs" /><br />
-      추이를 표시할 데이터가 없습니다.
+      사용량 기록이 없습니다.
     </div>
     <template v-else>
       <div class="trend-toolbar">
         <div class="trend-legend">
           <span class="legend-item"><span class="legend-swatch" style="background:#eda100" />CPU</span>
           <span class="legend-item"><span class="legend-swatch" style="background:#2a78d6" />RAM</span>
-          <span class="legend-item"><span class="legend-swatch" style="background:#1baf7a" />Disk</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:#1baf7a" />디스크</span>
         </div>
         <q-btn flat dense no-caps size="sm" :label="showTable ? '차트로 보기' : '표로 보기'" @click="showTable = !showTable" />
       </div>
@@ -69,13 +69,13 @@
           <div class="tooltip-date">{{ points[hoverIndex]!.label }}</div>
           <div class="tooltip-row"><span class="tooltip-key" style="background:#eda100" />CPU <b>{{ points[hoverIndex]!.cpu.toFixed(1) }}%</b></div>
           <div class="tooltip-row"><span class="tooltip-key" style="background:#2a78d6" />RAM <b>{{ points[hoverIndex]!.ram.toFixed(1) }}%</b></div>
-          <div class="tooltip-row"><span class="tooltip-key" style="background:#1baf7a" />Disk <b>{{ points[hoverIndex]!.disk.toFixed(1) }}%</b></div>
+          <div class="tooltip-row"><span class="tooltip-key" style="background:#1baf7a" />디스크 <b>{{ points[hoverIndex]!.disk.toFixed(1) }}%</b></div>
         </div>
       </div>
 
       <q-markup-table v-else flat dense bordered class="trend-table">
         <thead>
-          <tr class="bg-grey-2"><th>월</th><th>CPU</th><th>RAM</th><th>Disk</th></tr>
+          <tr class="bg-grey-2"><th>월</th><th>CPU</th><th>RAM</th><th>디스크</th></tr>
         </thead>
         <tbody>
           <tr v-for="p in points" :key="p.label">

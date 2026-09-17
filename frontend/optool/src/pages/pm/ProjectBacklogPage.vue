@@ -20,7 +20,7 @@
           v-model="filterSearch"
           dense
           outlined
-          placeholder="이슈 제목 또는 SR 번호로 검색..."
+          placeholder="이슈 제목, 이슈 번호 또는 SR 번호로 검색..."
           class="filter-search-input"
         >
           <template #prepend>
@@ -185,6 +185,8 @@
                 type="date"
                 dense outlined clearable
                 label="종료일"
+                :error="invalidDateRange"
+                error-message="종료일은 시작일 이후로 선택해 주세요."
               />
             </div>
           </q-menu>
@@ -204,8 +206,10 @@
 
         <q-space />
 
-        <span class="text-caption text-grey-5 q-mr-sm" style="white-space: nowrap">
-          <span class="text-weight-medium text-grey-7">{{ filteredCount }}</span>개 이슈
+        <span class="filter-result-count text-caption text-grey-7 q-mr-sm" style="white-space: nowrap">
+          <template v-if="hasFilter">전체 {{ allIssues.length }}개 중 <b>{{ matchedCount }}개</b> 일치</template>
+          <template v-else>{{ allIssues.length }}개 이슈</template>
+          <q-tooltip v-if="hasFilter && filteredCount > matchedCount">일치하는 이슈의 상위 항목도 함께 표시합니다.</q-tooltip>
         </span>
 
         <q-btn-group flat>
@@ -217,13 +221,32 @@
           </q-btn>
         </q-btn-group>
       </div>
+      <div v-if="invalidDateRange" class="q-px-md q-pb-sm text-caption text-negative" role="status">
+        시작일이 종료일보다 늦어 마감일 필터를 적용하지 않았습니다. 기간을 확인해 주세요.
+      </div>
+      <div v-else-if="restoredFilters" class="q-px-md q-pb-sm text-caption text-grey-7" role="status">
+        저장된 필터 적용 중 · 전체 이슈를 보려면 초기화를 눌러 주세요.
+      </div>
+      <div v-else-if="legacyFiltersReset" class="q-px-md q-pb-sm text-caption text-grey-7" role="status">
+        필터를 계정별로 저장하도록 개선하면서 기존 조건을 한 번 초기화했습니다.
+      </div>
     </q-card>
 
     <q-inner-loading :showing="loading" />
+    <q-banner v-if="loadError" dense rounded class="bg-red-1 text-negative q-mb-md" role="alert">
+      {{ loadError }}
+      <template #action>
+        <q-btn flat color="negative" label="다시 불러오기" :loading="loading" @click="loadIssues" />
+      </template>
+    </q-banner>
 
     <!-- 트리 목록 -->
     <q-card flat bordered>
-      <div v-if="allIssues.length === 0 && !loading" class="q-pa-lg text-grey-6 text-center">이슈가 없습니다.</div>
+      <div v-if="allIssues.length === 0 && !loading && !loadError" class="q-pa-lg text-grey-6 text-center">이슈가 없습니다.</div>
+      <div v-else-if="allIssues.length > 0 && hasFilter && matchedCount === 0 && !loading" class="q-pa-lg text-grey-7 text-center">
+        <div>현재 필터와 일치하는 이슈가 없습니다.</div>
+        <q-btn flat color="primary" label="필터 초기화하고 전체 보기" class="q-mt-sm" @click="clearFilters" />
+      </div>
 
       <div class="backlog-tree">
         <!-- ── 에픽 (드래그 가능) ── -->
@@ -564,12 +587,15 @@
 
     <IssueFormDialog
       v-model="createDialog.open"
+      :key="`create:${filterScopeKey}`"
       :project-id="projectId"
       @created="onIssueCreated"
+      @updated="onIssueUpdated"
     />
 
     <IssueDetailDialog
       v-model="detailDialog.open"
+      :key="`detail:${filterScopeKey}`"
       :project-id="projectId"
       :project-key="project?.key ?? ''"
       :issue="detailDialog.issue"
@@ -581,9 +607,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive, onMounted } from 'vue'
+import { ref, computed, watch, reactive, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { Notify } from 'quasar'
 import draggable from 'vuedraggable'
 import {
   listIssues,
@@ -595,14 +620,24 @@ import { getProject, listProjectMembers, type Project, type ProjectMember } from
 import IssueFormDialog from './components/IssueFormDialog.vue'
 import IssueDetailDialog from './components/IssueDetailDialog.vue'
 import { getErrorMessage } from 'src/utils/http/error'
+import { useAuthStore } from 'src/stores/auth'
+import { backlogFilterKey, defaultBacklogFilters, hasBacklogFilters, matchesBacklogIssue, readBacklogFilters, writeBacklogFilters, type BacklogFilters } from 'src/utils/pm/backlogState'
 
 const route = useRoute()
-const projectId = route.params.projectId as string
+const auth = useAuthStore()
+const projectId = computed(() => String(route.params.projectId ?? ''))
+const userId = computed(() => String(auth.me?.id ?? ''))
+const filterScopeKey = computed(() => backlogFilterKey(userId.value, projectId.value))
 
 const project  = ref<Project | null>(null)
 const allIssues = ref<Issue[]>([])
 const members  = ref<ProjectMember[]>([])
 const loading  = ref(false)
+const loadError = ref('')
+const restoredFilters = ref(false)
+const legacyFiltersReset = ref(false)
+let readyFilterScope = ''
+let dataRequest = 0
 
 const collapsed = ref(new Set<string>())
 const createDialog = ref({ open: false })
@@ -618,66 +653,40 @@ const filterAssigneeId = ref<string | null>(null)
 const filterDateFrom  = ref<string | null>(null)
 const filterDateTo    = ref<string | null>(null)
 
-const FILTER_KEY = `backlog_filter_${projectId}`
-const VALID_PRIORITIES = new Set<IssuePriority>(['LOWEST', 'LOW', 'MEDIUM', 'HIGH', 'HIGHEST'])
-const VALID_TYPES = new Set<IssueType>(['EPIC', 'STORY', 'TASK', 'BUG', 'SUB_TASK'])
+const filters = computed<BacklogFilters>(() => ({
+  search: filterSearch.value, statusTabs: filterStatusTabs.value,
+  priority: filterPriority.value, type: filterType.value, assigneeId: filterAssigneeId.value,
+  dateFrom: filterDateFrom.value, dateTo: filterDateTo.value,
+}))
+const hasFilter = computed(() => hasBacklogFilters(filters.value))
+const invalidDateRange = computed(() => !!(filterDateFrom.value && filterDateTo.value && filterDateFrom.value > filterDateTo.value))
 
-function normalizeStatusTabs(value: unknown, legacyStatus: unknown): string[] {
-  const saved = Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string')
-    : (typeof legacyStatus === 'string' ? [legacyStatus] : [])
-
-  // 과거 상태값(IN_REVIEW 등)은 현재 화면에서 해제할 수 없는 숨은 필터가 되므로 제거한다.
-  // 동일 상태의 포함/제외 값이 함께 저장된 비정상 데이터는 포함 조건을 우선한다.
-  return ISSUE_STATUSES.flatMap((status) => {
-    if (saved.includes(status)) return [status]
-    if (saved.includes(`!${status}`)) return [`!${status}`]
-    return []
-  })
-}
-
-function validSavedValue<T extends string>(value: unknown, allowed: ReadonlySet<T>): T | null {
-  return typeof value === 'string' && allowed.has(value as T) ? value as T : null
+function setFilters(value: BacklogFilters) {
+  filterSearch.value = value.search; filterStatusTabs.value = value.statusTabs
+  filterPriority.value = value.priority; filterType.value = value.type; filterAssigneeId.value = value.assigneeId
+  filterDateFrom.value = value.dateFrom; filterDateTo.value = value.dateTo
 }
 
 function saveFilters() {
-  localStorage.setItem(FILTER_KEY, JSON.stringify({
-    search: filterSearch.value, statusTabs: filterStatusTabs.value,
-    priority: filterPriority.value, type: filterType.value, assigneeId: filterAssigneeId.value,
-    dateFrom: filterDateFrom.value, dateTo: filterDateTo.value,
-  }))
+  if (readyFilterScope !== filterScopeKey.value || !userId.value || !projectId.value) return
+  writeBacklogFilters(userId.value, projectId.value, filters.value, localStorage)
 }
 
-function restoreFilters() {
-  try {
-    const raw = localStorage.getItem(FILTER_KEY)
-    if (!raw) return
-    const parsed: unknown = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return
-    const s = parsed as Record<string, unknown>
-    filterSearch.value = typeof s.search === 'string' ? s.search : ''
-    // statusTabs가 없으면(예전 저장분) 단일 status 값을 include 탭 하나로 이관
-    filterStatusTabs.value = normalizeStatusTabs(s.statusTabs, s.status)
-    filterPriority.value = validSavedValue(s.priority, VALID_PRIORITIES)
-    filterType.value = validSavedValue(s.type, VALID_TYPES)
-    filterAssigneeId.value = typeof s.assigneeId === 'string' && s.assigneeId ? s.assigneeId : null
-    filterDateFrom.value = typeof s.dateFrom === 'string' && s.dateFrom ? s.dateFrom : null
-    filterDateTo.value = typeof s.dateTo === 'string' && s.dateTo ? s.dateTo : null
-  } catch { /* ignore */ }
-}
-
-watch([
-  filterSearch, filterStatusTabs, filterPriority, filterType, filterAssigneeId, filterDateFrom, filterDateTo,
-], saveFilters, { deep: true })
-
-const hasFilter = computed(() =>
-  !!(filterSearch.value || filterStatusTabs.value.length || filterPriority.value || filterType.value || filterAssigneeId.value || filterDateFrom.value || filterDateTo.value)
-)
+watch(filters, () => {
+  // 복원·프로젝트 전환 중에는 이전 조건으로 새 프로젝트의 저장값을 덮어쓰지 않는다.
+  if (readyFilterScope !== filterScopeKey.value) return
+  restoredFilters.value = false
+  legacyFiltersReset.value = false
+  collapsed.value = new Set()
+  saveFilters()
+}, { deep: true, flush: 'sync' })
 
 function clearFilters() {
-  filterSearch.value = ''; filterStatusTabs.value = []
-  filterPriority.value = null; filterType.value = null; filterAssigneeId.value = null
-  filterDateFrom.value = null; filterDateTo.value = null
+  setFilters(defaultBacklogFilters())
+  restoredFilters.value = false
+  legacyFiltersReset.value = false
+  collapsed.value = new Set()
+  saveFilters()
 }
 
 // ── 상태 칩 (포함 → 제외 → 해제 3단계 순환, SR 관리 상태 탭과 동일) ────────
@@ -707,7 +716,7 @@ const orderedOrphans    = ref<Issue[]>([])
 const orderedSubsByMain  = reactive<Record<string, Issue[]>>({})
 const orphanSubs        = ref<Issue[]>([])
 
-const ORDER_KEY = `backlog_order_${projectId}`
+const orderKey = computed(() => `backlog_order_${projectId.value}`)
 
 type SavedOrder = {
   epics: string[]
@@ -717,7 +726,10 @@ type SavedOrder = {
 }
 
 function loadOrder(): SavedOrder | null {
-  try { return JSON.parse(localStorage.getItem(ORDER_KEY) ?? 'null') as SavedOrder | null }
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(orderKey.value) ?? 'null')
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved as SavedOrder : null
+  }
   catch { return null }
 }
 
@@ -728,12 +740,12 @@ function saveOrder() {
     orphans: orderedOrphans.value.map(i => i.id),
     subsByMain: Object.fromEntries(Object.entries(orderedSubsByMain).map(([k, v]) => [k, v.map(i => i.id)])),
   }
-  localStorage.setItem(ORDER_KEY, JSON.stringify(order))
+  try { localStorage.setItem(orderKey.value, JSON.stringify(order)) } catch { /* 저장이 제한되어도 목록은 유지한다. */ }
 }
 
 function sortByIds<T extends { id: string }>(items: T[], ids?: string[]): T[] {
-  if (!ids?.length) return items
-  const idx = new Map(ids.map((id, i) => [id, i]))
+  if (!Array.isArray(ids) || !ids.length) return items
+  const idx = new Map(ids.filter(id => typeof id === 'string').map((id, i) => [id, i]))
   return [...items].sort((a, b) => (idx.get(a.id) ?? 9999) - (idx.get(b.id) ?? 9999))
 }
 
@@ -776,19 +788,9 @@ watch(allIssues, (issues) => applyOrder(issues))
 
 // ── 필터 적용 ─────────────────────────────────────────────────────────
 function matches(issue: Issue): boolean {
-  const q = (filterSearch.value ?? '').trim().toLowerCase()
-  if (q && ![issue.title, issue.linkedSrNo].some(value => (value ?? '').toLowerCase().includes(q))) return false
-  const includeStatuses = filterStatusTabs.value.filter(s => !s.startsWith('!'))
-  const excludeStatuses = filterStatusTabs.value.filter(s => s.startsWith('!')).map(s => s.slice(1))
-  if (includeStatuses.length && !includeStatuses.includes(issue.status)) return false
-  if (excludeStatuses.includes(issue.status)) return false
-  if (filterPriority.value   && issue.priority   !== filterPriority.value)   return false
-  if (filterType.value       && issue.type       !== filterType.value)       return false
-  if (filterAssigneeId.value && issue.assigneeId !== filterAssigneeId.value) return false
-  if (filterDateFrom.value   && (!issue.dueDate  || issue.dueDate < filterDateFrom.value)) return false
-  if (filterDateTo.value     && (!issue.dueDate  || issue.dueDate > filterDateTo.value))   return false
-  return true
+  return matchesBacklogIssue(issue, filters.value, project.value?.key)
 }
+const matchedCount = computed(() => allIssues.value.filter(matches).length)
 
 function visibleSubsForMain(mainId: string): Issue[] {
   const subs = orderedSubsByMain[mainId] ?? []
@@ -881,49 +883,66 @@ const typeOptions = [
   { label: 'Sub-task', value: 'SUB_TASK' as IssueType },
 ]
 
-const memberOptions = computed(() =>
-  members.value.map(m => ({ label: m.userName || m.userEmail, value: m.userId }))
-)
+const memberOptions = computed(() => {
+  const options = new Map(members.value.map(m => [m.userId, m.userName || m.userEmail]))
+  for (const issue of allIssues.value) {
+    if (issue.assigneeId && !options.has(issue.assigneeId)) {
+      options.set(issue.assigneeId, issue.assigneeName || '이전 담당자')
+    }
+  }
+  return [...options].map(([value, label]) => ({ label, value }))
+})
 
 // ── 데이터 로드 ───────────────────────────────────────────────────────
 async function loadIssues() {
+  const token = ++dataRequest
+  const id = projectId.value, scope = filterScopeKey.value
+  if (!id || !userId.value) return
   loading.value = true
-  try {
-    allIssues.value = await listIssues(projectId)
-  } catch (e) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, '이슈 로드 실패') })
-  } finally {
-    loading.value = false
+  loadError.value = ''
+  const [proj, issues, mems] = await Promise.allSettled([
+    getProject(id), listIssues(id), listProjectMembers(id),
+  ])
+  if (token !== dataRequest || scope !== filterScopeKey.value) return
+  if (proj.status === 'fulfilled') project.value = proj.value
+  if (issues.status === 'fulfilled') allIssues.value = issues.value
+  if (mems.status === 'fulfilled') members.value = mems.value
+  const failed = [issues, proj, mems].find(result => result.status === 'rejected')
+  if (failed?.status === 'rejected') loadError.value = getErrorMessage(failed.reason, '목록을 불러오지 못했습니다. 다시 시도해 주세요.')
+  // 탈퇴한 담당자라도 배정된 이슈가 남아 있으면 필터에 계속 표시한다.
+  if (issues.status === 'fulfilled' && mems.status === 'fulfilled' && filterAssigneeId.value
+    && !memberOptions.value.some(option => option.value === filterAssigneeId.value)) {
+    filterAssigneeId.value = null
   }
+  loading.value = false
 }
 
-onMounted(async () => {
-  restoreFilters()
-  loading.value = true
-  try {
-    const [proj, issues, mems] = await Promise.all([
-      getProject(projectId),
-      listIssues(projectId),
-      listProjectMembers(projectId),
-    ])
-    project.value  = proj
-    allIssues.value = issues
-    members.value  = mems
-    // 탈퇴·제외된 멤버의 저장 필터도 UI에서 해제할 수 없는 숨은 조건이 되므로 제거한다.
-    if (filterAssigneeId.value && !mems.some(member => member.userId === filterAssigneeId.value)) {
-      filterAssigneeId.value = null
-    }
-  } catch (e) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
-  } finally {
-    loading.value = false
-  }
-})
+watch([projectId, userId], () => {
+  ++dataRequest
+  readyFilterScope = ''
+  project.value = null
+  allIssues.value = []
+  members.value = []
+  loading.value = false
+  loadError.value = ''
+  collapsed.value = new Set()
+  createDialog.value = { open: false }
+  detailDialog.value = { open: false, issue: null }
+  const saved = readBacklogFilters(userId.value, projectId.value, localStorage)
+  setFilters(saved.filters)
+  restoredFilters.value = hasFilter.value
+  legacyFiltersReset.value = saved.resetLegacy
+  readyFilterScope = filterScopeKey.value
+  saveFilters()
+  void loadIssues()
+}, { immediate: true, flush: 'sync' })
+
+onBeforeUnmount(() => { ++dataRequest })
 
 function openDetail(issue: Issue) { detailDialog.value = { open: true, issue } }
 
 function onIssueCreated(issue: Issue) {
-  allIssues.value = [...allIssues.value, issue]
+  if (issue.projectId === projectId.value) allIssues.value = [...allIssues.value, issue]
 }
 
 function onIssueUpdated() { void loadIssues() }

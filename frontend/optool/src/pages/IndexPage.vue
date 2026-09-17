@@ -32,8 +32,8 @@
         </div>
 
         <div class="dash-card-body">
-          <!-- 서버 점검일 (정기: 3번째 목요일) — D-Day 지나면 숨김 -->
-          <div v-if="showInspectionDay" class="dday-item dday-item--inspection q-mb-sm">
+          <!-- 점검일이 지나도 내 미완료 작업이 있으면 계속 표시 -->
+          <div v-if="showInspectionDay || inspectionPending > 0 || inspectionLoadFailed" class="dday-item dday-item--inspection q-mb-sm">
             <div class="dday-count" style="background: #00897b">
               <span class="dday-label">{{ calcDDay(inspectionDate) }}</span>
             </div>
@@ -42,6 +42,8 @@
                 서버 점검일
                 <q-badge outline color="teal" label="정기" class="q-ml-xs" style="font-size:10px" />
               </div>
+              <q-btn v-if="canInspect" flat dense no-caps color="teal" size="sm"
+                :label="inspectionLoadFailed ? '점검 작업 확인' : `내 미완료 작업 ${inspectionPending}건`" :to="{ path: '/inspection/tasks', query: { mine: '1' } }" />
               <div class="dday-date text-grey-6">{{ inspectionDate }}{{ inspectionOverridden ? ' (수정됨)' : ' (3번째 목요일)' }}</div>
             </div>
             <div v-if="auth.me?.isAdmin" class="dday-actions">
@@ -167,7 +169,7 @@
           <span class="card-title">서버 리소스 위험 현황</span>
           <q-space />
           <span v-if="dangerReport.reportDate" class="text-caption text-grey-6">{{ dangerReport.reportDate }} 기준</span>
-          <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" @click="$router.push('/inspection/health-summary')" />
+          <q-btn flat dense round icon="open_in_new" size="sm" color="grey-6" :to="{ path: '/inspection/health-servers', query: { tab: 'data', month: dangerReport.reportDate?.slice(0, 7) } }" />
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
             <q-tooltip>카드 크기 조절</q-tooltip>
             <q-menu anchor="bottom right" self="top right">
@@ -350,6 +352,7 @@ import { fetchDDays, createDDay, patchDDay, deleteDDay, type DDay } from 'src/se
 import { STATUS_LABEL, STATUS_COLOR, type Issue } from 'src/services/pm/issue'
 import { listMySRs, SR_STATUS_LABEL, SR_STATUS_COLOR, type SRListItem } from 'src/services/sr'
 import { getPrefs, savePrefs, type ColPreset, type CardSize } from 'src/services/prefs'
+import { getInspectionTasks, thisMonth } from 'src/services/inspection'
 import CardSizePicker from 'src/components/CardSizePicker.vue'
 import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
 
@@ -443,6 +446,18 @@ async function loadWatch() {
 
 // ── 서버 점검일 ────────────────────────────────────────────────────────────
 const INSPECTION_KEY_PREFIX = '서버 점검일'
+const inspectionPending = ref(0)
+const inspectionLoadFailed = ref(false)
+const canInspect = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('server_check'))
+async function loadInspectionPending() {
+  if (!canInspect.value) return
+  try {
+    const result = await getInspectionTasks(thisMonth())
+    inspectionPending.value = result.items.filter(t => t.state === 'ACTIVE' && t.issue.status !== 'DONE' && t.issue.assigneeId === auth.me?.id).length
+    inspectionLoadFailed.value = false
+  } catch { inspectionLoadFailed.value = true }
+}
+
 
 function thirdThursdayOf(year: number, month: number): string {
   // month: 0-based
@@ -791,6 +806,7 @@ function setCardSize(id: string, w: number, h: number) {
 
 onMounted(() => {
   void loadDDays()
+  void loadInspectionPending()
   void loadWatch()
   void loadNextDutyDay()
   void loadEosSummary()

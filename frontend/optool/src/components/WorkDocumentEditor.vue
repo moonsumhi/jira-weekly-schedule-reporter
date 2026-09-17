@@ -32,6 +32,7 @@
             <header class="document-hero"><div class="document-kind"><q-icon name="edit_note" size="16px" />{{ isEdit ? '문서 수정' : '새 문서' }}</div>
               <h1>{{ title }}</h1><div class="document-byline">별표(*)가 표시된 항목은 필수 입력입니다.</div>
             </header>
+            <slot name="assets" />
             <fieldset :disabled="saving" class="editor-fieldset">
               <section v-for="(section, index) in sections" :key="index" :data-section-index="index" class="document-section">
                 <div v-if="!isMarkdownBody(section)" class="section-heading"><span class="section-number">{{ String(index + 1).padStart(2, '0') }}</span><h2>{{ displaySectionTitle(section) }}</h2></div>
@@ -57,7 +58,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import type { FormSection } from 'src/services/formTemplates'
 const props = defineProps<{ modelValue: boolean; title: string; sections: FormSection[]; isEdit: boolean; saving: boolean; dirty: boolean; syncMarkdown?: boolean; showMarkdownEdit?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: boolean]; hide: []; save: []; 'edit-markdown': [] }>()
-defineSlots<{ section(props: { section: FormSection }): unknown; images(): unknown }>()
+defineSlots<{ section(props: { section: FormSection }): unknown; images(): unknown; assets(): unknown }>()
 const isMarkdownBody = (section: FormSection): boolean => section.title === '문서 본문'
 const navigationSections = computed(() => props.sections
   .map((section, index) => ({ section, index }))

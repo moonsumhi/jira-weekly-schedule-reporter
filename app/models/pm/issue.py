@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.models.mention import MentionedUser
 from app.models.comment_reaction import CommentReactionOut, CommentReactionToggle
+from app.models.asset_link import AssetSelection, LinkedAsset
 
 
 class Attachment(BaseModel):
@@ -24,7 +25,7 @@ IssuePriority = Literal["LOWEST", "LOW", "MEDIUM", "HIGH", "HIGHEST"]
 ISSUE_STATUS_ORDER = ["BACKLOG", "TODO", "IN_PROGRESS", "IMPLEMENTED", "DONE"]
 
 
-class IssueCreate(BaseModel):
+class IssueCreate(AssetSelection):
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     type: IssueType = "TASK"
@@ -44,7 +45,7 @@ class IssueCreate(BaseModel):
     show_on_dashboard: bool = False
 
 
-class IssuePatch(BaseModel):
+class IssuePatch(AssetSelection):
     title: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
     type: Optional[IssueType] = None
@@ -111,6 +112,7 @@ class IssueOut(BaseModel):
     subtasks: List[SubtaskSummary] = []
     created_at: datetime
     updated_at: datetime
+    linked_assets: list[LinkedAsset] = Field(default_factory=list)
 
 
 class IssueCommentCreate(BaseModel):

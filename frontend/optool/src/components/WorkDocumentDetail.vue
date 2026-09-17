@@ -3,14 +3,17 @@
     @update:model-value="handleDialogUpdate">
     <q-card class="work-document">
       <header class="document-topbar">
-        <q-btn flat round dense icon="arrow_back" aria-label="목록으로 돌아가기" @click="close" />
+        <q-btn flat round dense icon="arrow_back" :aria-label="backLabel || '목록으로 돌아가기'" :disable="saving" @click="close" />
         <div class="document-breadcrumb"><span>작업 관리</span><q-icon name="chevron_right" size="16px" /><strong>{{ title }}</strong></div>
         <q-space />
         <span class="reading-badge"><span />{{ editing ? (creating ? '작성 모드' : '수정 모드') : '읽기 모드' }}</span>
-        <q-btn flat round dense icon="close" aria-label="상세 닫기" @click="close" />
+        <q-btn flat round dense icon="close" aria-label="상세 닫기" :disable="saving" @click="close" />
       </header>
 
       <div v-if="loading" class="document-loading"><q-spinner size="36px" color="primary" /><span>문서를 불러오고 있습니다</span></div>
+      <div v-else-if="error" class="document-loading" role="alert">
+        <span>{{ error }}</span><q-btn outline color="primary" label="다시 불러오기" @click="emit('retry')" />
+      </div>
       <div v-else-if="entry" :class="['document-layout', { 'is-editing': editing }]">
         <aside class="document-sidebar">
           <div class="sidebar-label">문서 목차 <span>{{ sections.length }}</span></div>
@@ -41,7 +44,15 @@
               </div>
             </header>
 
+            <div v-if="inspectionLinks && !creating && canViewInspection" class="document-inspection-link">
+              <InspectionLinks :key="`${entry.id}:${entry.version}`" :work-plan-id="entry.id" :allow-add="false" @navigate="closeImmediately" />
+            </div>
+            <WorkDocumentAssets v-if="linkAssets" v-model="editableAssets" :editing="editing" :disable="!!saving" @navigate="closeImmediately" />
+
             <template v-if="editing">
+              <div v-if="saveWarning" class="document-save-warning" role="alert"><q-icon name="info" size="19px" /><span>{{ saveWarning }}</span></div>
+              <WorkDocumentInspectionOptions v-if="inspectionLinks && canViewInspection" v-model="inspection"
+                :entry-id="creating ? undefined : entry.id" :assets="editableAssets" :data="editableData" :disable="!!saving" />
               <InlineDocumentEditor v-model="editableData" :sections="sections" />
             </template>
             <template v-else-if="view === 'markdown'">
@@ -136,7 +147,7 @@
       <footer class="document-footer">
         <span class="footer-note"><q-icon name="description" />{{ title }}</span><q-space />
         <q-btn flat no-caps :label="editing ? (creating ? '작성 취소' : '수정 취소') : '닫기'" :disable="saving" @click="editing ? cancelEdit() : close()" />
-        <q-btn v-if="editing" color="primary" no-caps icon="save" label="저장" :loading="saving" @click="emit('save', editableData)" />
+        <q-btn v-if="editing" color="primary" no-caps icon="save" label="저장" :loading="saving" @click="emit('save', editableData, linkAssets ? editableAssets.map(a => a.id) : undefined, inspection)" />
         <q-btn v-else-if="!creating" outline no-caps icon="edit_note" label="수정" :disable="loading || !entry || entry.isDeleted" @click="startEdit" />
         <q-btn-dropdown v-if="!editing" outline no-caps icon="download" label="내보내기" :loading="exporting" :disable="loading || !entry || exporting">
           <q-list>
@@ -159,30 +170,44 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import type { FormEntry } from 'src/services/formEntries'
+import type { FormEntry, WorkDocumentAsset } from 'src/services/formEntries'
+import WorkDocumentAssets from './WorkDocumentAssets.vue'
 import type { FormField, FormSection } from 'src/services/formTemplates'
 import { comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
 import WorkResultContent from './WorkResultContent.vue'
 import InlineDocumentEditor from './InlineDocumentEditor.vue'
 import { formEntryMarkdown } from 'src/utils/formEntryMarkdown'
+import { useAuthStore } from 'stores/auth'
+import InspectionLinks from './inspection/InspectionLinks.vue'
+import WorkDocumentInspectionOptions from './inspection/WorkDocumentInspectionOptions.vue'
+import type { WorkDocumentInspection } from 'src/services/workDocumentInspection'
 
 type EditableData = Record<string, Record<string, unknown> | Record<string, unknown>[]>
-const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; creating?: boolean; exporting?: boolean; saving?: boolean }>()
+const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; creating?: boolean; exporting?: boolean; saving?: boolean; linkAssets?: boolean; inspectionLinks?: boolean; saveWarning?: string; error?: string; backLabel?: string }>()
+const auth = useAuthStore()
+const canViewInspection = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('server_check'))
 const view = ref<'markdown'>('markdown')
 const editing = ref(false)
+const inspection = ref<WorkDocumentInspection | null>(null)
 const editableData = ref<EditableData>({})
+const editableAssets = ref<WorkDocumentAsset[]>([])
 const editSnapshot = ref('')
 const $q = useQuasar()
 function cloneEntryData(): EditableData { return JSON.parse(JSON.stringify(props.entry?.data ?? {})) as EditableData }
-function snapshot(value: EditableData): string { return JSON.stringify(value) }
-const isEditDirty = computed(() => editing.value && snapshot(editableData.value) !== editSnapshot.value)
+function cloneEntryAssets() { return (props.entry?.linkedAssets ?? []).map(asset => ({ ...asset })) }
+function snapshot(value: EditableData): string { return JSON.stringify({ data: value, assets: editableAssets.value.map(a => a.id) }) }
+const isEditDirty = computed(() => editing.value && (!!inspection.value || snapshot(editableData.value) !== editSnapshot.value))
 function startEdit() {
+  inspection.value = null
   editableData.value = cloneEntryData()
+  editableAssets.value = cloneEntryAssets()
   editSnapshot.value = snapshot(editableData.value)
   editing.value = true
 }
 function discardEdit() {
+  inspection.value = null
   editableData.value = cloneEntryData()
+  editableAssets.value = cloneEntryAssets()
   editSnapshot.value = snapshot(editableData.value)
   editing.value = false
 }
@@ -229,9 +254,12 @@ function displaySectionTitle(section: FormSection): string {
 const markdownSectionTitles = computed(() => props.sections.map(displaySectionTitle))
 const originalDownloadLabel = '원본 파일 다운로드'
 watch(() => [props.modelValue, props.entry?.id, props.entry?.version, props.loading, props.creating], () => {
+  if (props.modelValue && editing.value && props.saveWarning) return
+  inspection.value = null
   view.value = 'markdown'
   editing.value = Boolean(props.creating && props.modelValue && props.entry)
   editableData.value = cloneEntryData()
+  editableAssets.value = cloneEntryAssets()
   editSnapshot.value = snapshot(editableData.value)
 })
 function isWorkTable(section: FormSection): boolean {
@@ -260,7 +288,7 @@ function tableFields(section: FormSection): FormField[] {
   ordered.splice(hostnameIndex >= 0 ? hostnameIndex + 1 : ordered.length, 0, note)
   return ordered
 }
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; save: [value: EditableData]; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': [] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; save: [value: EditableData, assetIds?: string[], inspection?: WorkDocumentInspection | null]; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': []; retry: [] }>()
 const scrollArea = ref<HTMLElement | null>(null)
 const activeSection = ref(0)
 const previewSource = ref('')
@@ -297,15 +325,15 @@ function findField(labels: string[]): string {
   }
   return ''
 }
-const documentTitle = computed(() => findField(['작업명', '작업 제목', '제목', '작업 명']) || props.title)
-const workDate = computed(() => findField(['작업 일시', '작업 기간 (시작)', '작업일']).replace('T', ' '))
+const documentTitle = computed(() => findField(['작업명', '작업 제목', '제목', '작업 명', '문서명', '신청명', '처리 목적']) || props.title)
+const workDate = computed(() => findField(['작업 일시', '작업 기간 (시작)', '작업일', '신청일자', '신청일', '작성일']).replace('T', ' '))
 function formatDate(value?: string | null) {
   if (!value) return '—'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('sv-SE', { timeZone: 'Asia/Seoul' }).slice(0, 16)
 }
 function closeImmediately() { emit('update:modelValue', false) }
-function close() { confirmDiscard(closeImmediately) }
+function close() { if (!props.saving) confirmDiscard(closeImmediately) }
 function handleDialogUpdate(open: boolean) {
   if (open) emit('update:modelValue', true)
   else close()
@@ -334,3 +362,8 @@ watch(() => [props.modelValue, props.entry?.id, props.loading], async () => {
 </script>
 
 <style scoped src="./workDocument.css"></style>
+<style scoped>
+.document-save-warning { display: flex; gap: 8px; padding: 12px; margin-bottom: 16px; border-radius: 8px; background: #fff4de; color: #775521; font-size: 13px; line-height: 1.7; }
+.document-save-warning .q-icon { flex-shrink: 0; margin-top: 2px; }
+.document-inspection-link { display: flex; justify-content: flex-end; margin: 0 0 12px; }
+</style>

@@ -1626,7 +1626,7 @@
     </q-dialog>
 
     <!-- Detail view dialog -->
-    <q-drawer v-model="detailDialog" side="right" overlay bordered :width="600" class="asset-detail-drawer">
+    <q-drawer v-model="detailDialog" side="right" overlay bordered :width="Math.min(600, $q.screen.width)" class="asset-detail-drawer">
       <div v-if="detailTarget" class="column no-wrap" style="height: 100%;">
         <!-- 상단: 호스트명 & IP -->
         <q-card-section class="q-pb-sm row items-center" style="flex-shrink: 0;">
@@ -1636,7 +1636,7 @@
               <q-input v-if="detailEditing" v-model="rowEditValues['__name__']" borderless dense class="top-field-input" />
               <span v-else class="top-field-value">{{ detailTarget.name }}</span>
             </div>
-            <div class="top-field-row q-mt-sm">
+            <div class="top-field-row q-mt-sm asset-detail-ip">
               <span class="top-field-label">IP:</span>
               <q-input v-if="detailEditing" v-model="rowEditValues['__ip__']" borderless dense class="top-field-input" />
               <span v-else class="top-field-value">{{ detailTarget.ip }}</span>
@@ -1654,6 +1654,7 @@
           <q-tab name="basic" label="기본정보" />
           <q-tab name="config" label="구성정보" />
           <q-tab name="location" label="위치·연결" />
+          <q-tab v-if="(inspectionAuth.me?.isAdmin || inspectionAuth.me?.permissions?.includes('asset')) && (detailTarget.fields?.['자산유형'] || '서버') === '서버'" name="work-documents" label="운영 이력" />
           <q-tab name="history" label="변경이력" @click="loadDetailHistory" />
         </q-tabs>
 
@@ -2169,6 +2170,9 @@
             label="랙 배치도에서 보기" class="q-mt-md" @click="goToRack()" />
         </q-tab-panel>
 
+        <q-tab-panel name="work-documents" class="q-pa-md">
+          <AssetWorkDocuments v-if="inspectionAuth.me?.isAdmin || inspectionAuth.me?.permissions?.includes('asset')" :key="detailTarget.id" :asset-id="detailTarget.id" :asset-deleted="!!detailTarget.isDeleted" @navigate="closeDetail" />
+        </q-tab-panel>
         <q-tab-panel name="history" class="q-pa-md">
           <div v-if="loadingDetailHistory" class="text-grey text-center q-pa-md">불러오는 중…</div>
           <q-timeline v-else-if="detailHistory.length" color="blue-grey-4">
@@ -2691,6 +2695,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from 'stores/auth'
+import AssetWorkDocuments from 'src/components/asset/AssetWorkDocuments.vue'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
 import draggable from 'vuedraggable'
@@ -2752,6 +2758,7 @@ const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 const menuStore = useMenuStore()
+const inspectionAuth = useAuthStore()
 
 // 사이드바 자산 하위 메뉴와 같은 순서로 카테고리 탭을 표시한다.
 // 메뉴 데이터가 아직 로드되지 않은 최초 렌더링에서는 기본 순서를 사용한다.
@@ -2789,6 +2796,10 @@ const category = computed(() => (route.query.category as string) || '')
 const pageTitle = computed(() => category.value ? `${category.value} 자산 관리` : '전체 자산 관리')
 
 watch(category, () => { void load() })
+watch(() => route.query.assetId, id => {
+  const linked = rows.value.find(r => r.id === id)
+  if (linked) void openDetailView(linked)
+}, { flush: 'post' })
 
 const eosSoonDays = 90
 
@@ -3564,6 +3575,8 @@ async function load() {
   loading.value = true
   try {
     rows.value = await listServers(true, category.value || undefined)
+    const linkedAsset = rows.value.find(r => r.id === route.query.assetId)
+    if (linkedAsset) void openDetailView(linkedAsset)
     // 라이프사이클 맵의 최신 판정으로 화면 표시 값을 보완 (DB 미수정)
     await fetchEosMap()
     for (const row of rows.value) {
@@ -5480,6 +5493,12 @@ tbody .sticky-actions-col {
   padding: 4px 0;
   min-height: 32px;
   line-height: 24px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .asset-detail-ip { flex-wrap: wrap; row-gap: 6px; }
+  .asset-detail-ip .top-field-value { min-width: calc(100% - 92px); }
 }
 .detail-value {
   font-size: 14px;

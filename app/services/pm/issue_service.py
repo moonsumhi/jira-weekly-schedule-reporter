@@ -6,6 +6,7 @@ from typing import Any
 from bson import ObjectId
 
 from app.db.mongo import MongoClientManager
+from app.services import asset_links
 
 
 async def attach_linked_sr_info(docs: list[dict]) -> None:
@@ -80,6 +81,7 @@ async def enrich_issue(doc: dict) -> dict:
     """이슈 doc에 담당자/보고자 이름을 JOIN하여 반환."""
     users = MongoClientManager.get_users_collection()
     d = dict(doc)
+    await asset_links.hydrate([d])
     issue_object_id = d.pop("_id")
     d["id"] = str(issue_object_id)
     d["project_id"] = str(d["project_id"])

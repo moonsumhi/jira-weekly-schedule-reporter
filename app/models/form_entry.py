@@ -1,5 +1,6 @@
 from typing import Any, Literal
 from pydantic import BaseModel, Field
+from app.models.asset_link import AssetSelection as WorkAssetSelection, LinkedAsset as LinkedWorkAsset
 
 
 class ExportFormField(BaseModel):
@@ -33,13 +34,13 @@ class FormOriginalFile(BaseModel):
     size: int | None = None
 
 
-class FormEntryCreate(BaseModel):
+class FormEntryCreate(WorkAssetSelection):
     template_id: str
     data: dict[str, Any]
     original_file: FormOriginalFile | None = None
 
 
-class FormEntryPatch(BaseModel):
+class FormEntryPatch(WorkAssetSelection):
     data: dict[str, Any]
     version: int
     original_file: FormOriginalFile | None = None
@@ -49,6 +50,7 @@ class FormEntryOut(BaseModel):
     id: str
     template_id: str
     data: dict[str, Any]
+    linked_assets: list[LinkedWorkAsset] = Field(default_factory=list)
     original_file: FormOriginalFile | None = None
     version: int
     is_deleted: bool

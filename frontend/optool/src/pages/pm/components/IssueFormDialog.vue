@@ -1,22 +1,31 @@
 <template>
-  <q-dialog :model-value="modelValue" @update:model-value="onDialogModelUpdate" @show="onDialogShow">
-    <q-card style="width: 1080px; max-width: 96vw">
+  <q-dialog :model-value="modelValue" :persistent="loading" @update:model-value="onDialogModelUpdate" @show="onDialogShow">
+    <q-card class="issue-create-dialog" style="width: 1080px; max-width: 96vw">
 
       <!-- 헤더 -->
       <q-card-section class="row items-center q-pb-none q-pt-md q-px-lg">
         <div>
-          <div class="text-h6 text-weight-bold">이슈 추가</div>
-          <div class="text-caption text-grey-6">새 이슈를 생성합니다</div>
+          <div class="text-h6 text-weight-bold">{{ createdIssue ? '점검 작업 연결' : '이슈 추가' }}</div>
+          <div class="text-caption text-grey-6">{{ createdIssue ? '생성된 이슈에 점검 정보를 연결합니다' : '새 이슈를 생성합니다' }}</div>
         </div>
         <q-space />
-        <q-btn flat round dense icon="close" @click="onDialogModelUpdate(false)" />
+        <q-btn flat round dense icon="close" :disable="loading" @click="onDialogModelUpdate(false)" />
       </q-card-section>
 
       <q-separator class="q-mt-md" />
+      <q-banner v-if="creationError" rounded class="creation-error q-mx-lg q-mt-md" role="alert">
+        <template #avatar><q-icon name="error_outline" color="negative" /></template>
+        <div v-if="createdIssue" class="text-weight-medium">
+          {{ createdIssue.projectKey }}-{{ createdIssue.number }} 이슈는 생성되었습니다.
+          점검 연결을 확인하지 못했으니 다시 시도해 주세요.
+        </div>
+        <div>{{ creationError }}</div>
+      </q-banner>
 
       <!-- 폼 본문 -->
-      <q-card-section class="q-px-lg q-pt-sm q-pb-none" style="max-height: 70vh; overflow-y: auto">
+      <q-card-section class="issue-create-body q-px-lg q-pt-sm q-pb-none">
 
+        <fieldset class="issue-fields" :disabled="loading || !!createdIssue" :inert="loading || !!createdIssue">
         <!-- ── 기본 정보 ── -->
         <div class="section-label q-mt-sm q-mb-sm">기본 정보</div>
         <div style="display: flex; flex-direction: column; gap: 12px">
@@ -173,7 +182,39 @@
             style="flex: 0 0 160px"
           />
         </div>
+        </fieldset>
 
+        <ServerAssetLinks :key="`${projectId}:${modelValue}`" v-model="workAssets" class="issue-work-assets" editing :disable="loading"
+          label="작업 대상 서버 (선택)" :search-assets="searchAssets"
+          hint="등록된 서버를 선택하면 해당 자산의 운영 이력에도 이슈가 표시됩니다." />
+
+        <section v-if="canInspect" class="issue-inspection" :class="{ 'issue-inspection--enabled': inspectionEnabled }" aria-label="서버 점검 연결">
+          <q-checkbox
+            v-model="inspectionEnabled"
+            label="서버 점검에 추가"
+            color="primary"
+            :disable="loading"
+            aria-controls="issue-inspection-options"
+            :aria-expanded="inspectionEnabled"
+          />
+          <p class="inspection-hint">이 이슈를 선택한 월의 서버 점검 작업에 추가합니다.</p>
+          <div v-if="inspectionEnabled" id="issue-inspection-options" class="issue-inspection-options">
+            <div class="inspection-month-info">
+              <InspectionMonthPicker v-model="inspectionMonth" :disable="loading" />
+              <div class="inspection-schedule">
+                <q-icon name="event_available" size="18px" />
+                <span v-if="inspectionDateLoading">점검일 확인 중…</span>
+                <span v-else-if="inspectionDate">점검 예정일 {{ inspectionDate }}</span>
+                <span v-else>선택한 월의 작업 목록에 등록됩니다.</span>
+              </div>
+              <p>{{ workAssets.length ? `선택한 서버 ${workAssets.length}대를 점검 작업의 대상 서버로 지정합니다.` : '대상 서버가 없는 작업은 공통 작업으로 등록해 주세요.' }}</p>
+            </div>
+            <div v-if="workAssets.length" class="inspection-selected-servers"><q-icon name="dns" size="18px" /><span>{{ workAssets.map(asset => asset.name).join(', ') }}</span></div>
+            <q-checkbox v-else v-model="inspectionCommon" label="특정 서버 없이 공통 작업으로 등록" :disable="loading" />
+          </div>
+        </section>
+
+        <fieldset class="issue-fields" :disabled="loading || !!createdIssue" :inert="loading || !!createdIssue">
         <q-separator class="q-my-md" />
 
         <!-- ── 기타 ── -->
@@ -274,6 +315,7 @@
           </div>
 
         </div>
+        </fieldset>
 
       </q-card-section>
 
@@ -281,8 +323,8 @@
 
       <!-- 하단 버튼 -->
       <q-card-actions align="right" class="q-pa-md q-gutter-x-sm">
-        <q-btn flat label="취소" @click="onDialogModelUpdate(false)" />
-        <q-btn color="primary" label="이슈 추가" :loading="loading" :disable="loading" @click="submit" />
+        <q-btn flat :label="createdIssue ? '연결 없이 닫기' : '취소'" :disable="loading" @click="onDialogModelUpdate(false)" />
+        <q-btn color="primary" :label="submitLabel" :loading="loading" :disable="loading || uploadingCount > 0" @click="submit" />
       </q-card-actions>
 
     </q-card>
@@ -292,10 +334,11 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 import { Dialog, Notify, type QInput } from 'quasar'
 import {
-  createIssue, listIssues, listLabels, uploadAttachment,
+  createIssue, updateIssue, searchIssueAssets, listIssues, listLabels, uploadAttachment,
   ISSUE_STATUSES, STATUS_LABEL,
   type IssueType, type IssueStatus, type IssuePriority, type Issue, type Label, type Attachment,
 } from 'src/services/pm/issue'
@@ -304,6 +347,12 @@ import { listProjectMembers, type ProjectMember } from 'src/services/pm/project'
 import { useAuthStore } from 'src/stores/auth'
 import { getErrorMessage } from 'src/utils/http/error'
 import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
+import InspectionMonthPicker from 'src/components/inspection/InspectionMonthPicker.vue'
+import ServerAssetLinks from 'src/components/ServerAssetLinks.vue'
+import type { ServerAssetLink } from 'src/services/assetLinks'
+import {
+  getInspectionDate, getInspectionTasks, registerInspection, searchInspectionAssets, thisMonth,
+} from 'src/services/inspection'
 
 const props = defineProps<{
   modelValue: boolean
@@ -314,13 +363,47 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [boolean]
   'created': [Issue]
+  'updated': [Issue]
 }>()
 
 const ATTACHMENT_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.hwpx,.txt,.csv,.zip,.mp4,.html,.htm,.log,.json,.xml,.yaml,.yml'
 const ATTACHMENT_HINT = '지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), TXT, CSV, ZIP, MP4, HTML, LOG, JSON, XML, YAML (최대 100MB)'
 
 const auth = useAuthStore()
+const router = useRouter()
 const loading = ref(false)
+const createdIssue = ref<Issue | null>(null)
+const creationError = ref('')
+const canInspect = computed(() => !!(auth.me?.isAdmin || auth.me?.permissions?.includes('server_check')))
+const inspectionEnabled = ref(false)
+const inspectionMonth = ref(thisMonth())
+const inspectionCommon = ref(false)
+const workAssets = ref<ServerAssetLink[]>([])
+const searchAssets = (search: string) => searchIssueAssets(props.projectId, search)
+watch(() => workAssets.value.length, length => { if (length) inspectionCommon.value = false })
+const workAssetsChanged = computed(() => !!createdIssue.value && JSON.stringify((createdIssue.value.linkedAssets || []).map(asset => asset.id).sort()) !== JSON.stringify(workAssets.value.map(asset => asset.id).sort()))
+const inspectionDate = ref('')
+const inspectionDateLoading = ref(false)
+const submitLabel = computed(() => {
+  if (createdIssue.value) return inspectionEnabled.value ? '점검 연결 재시도' : workAssetsChanged.value ? '서버 연결 저장' : '닫기'
+  return inspectionEnabled.value ? '이슈 및 점검 작업 추가' : '이슈 추가'
+})
+let inspectionDateRequest = 0
+watch([inspectionEnabled, inspectionMonth, () => props.modelValue], async () => {
+  const token = ++inspectionDateRequest
+  inspectionDate.value = ''
+  inspectionDateLoading.value = false
+  if (!props.modelValue || !inspectionEnabled.value || !canInspect.value) return
+  inspectionDateLoading.value = true
+  try {
+    const date = await getInspectionDate(inspectionMonth.value)
+    if (token === inspectionDateRequest) inspectionDate.value = date
+  } catch {
+    // 점검일은 참고 정보이며, 월과 대상 서버로 등록할 수 있다.
+  } finally {
+    if (token === inspectionDateRequest) inspectionDateLoading.value = false
+  }
+})
 const titleInputRef = ref<QInput | null>(null)
 
 // autofocus는 다이얼로그의 진입 트랜지션이 끝나기 전에 포커스를 걸어버려서,
@@ -434,6 +517,12 @@ onMounted(async () => {
 
 watch(() => props.modelValue, async (open) => {
   if (open) {
+    createdIssue.value = null
+    creationError.value = ''
+    inspectionEnabled.value = false
+    inspectionMonth.value = thisMonth()
+    inspectionCommon.value = false
+    workAssets.value = []
     form.value = {
       title: '',
       type: 'TASK',
@@ -464,15 +553,16 @@ watch(() => props.modelValue, async (open) => {
 // 그냥 닫혀 작성 중이던 내용을 잃어버리는 걸 막기 위한 변경사항 추적
 const formSnapshot = ref('')
 const isDirty = computed(() =>
-  JSON.stringify(form.value) !== formSnapshot.value || attachments.value.length > 0
+  JSON.stringify(form.value) !== formSnapshot.value || attachments.value.length > 0 || inspectionEnabled.value || workAssets.value.length > 0
 )
 
 function onDialogModelUpdate(val: boolean) {
+  if (loading.value) return
   if (val) {
     emit('update:modelValue', true)
     return
   }
-  if (!isDirty.value) {
+  if ((createdIssue.value && !workAssetsChanged.value) || (!createdIssue.value && !isDirty.value)) {
     emit('update:modelValue', false)
     return
   }
@@ -544,44 +634,99 @@ function fmtSize(bytes: number) {
 }
 
 async function submit() {
-  if (!form.value.title.trim()) {
+  if (loading.value || uploadingCount.value > 0) return
+  if (createdIssue.value && !inspectionEnabled.value && !workAssetsChanged.value) {
+    emit('update:modelValue', false)
+    return
+  }
+  if (!createdIssue.value && !form.value.title.trim()) {
     Notify.create({ type: 'warning', message: '제목은 필수입니다.' })
     return
   }
-  if (form.value.type === 'TASK' && (!form.value.startDate || !form.value.dueDate || !form.value.assigneeId || !form.value.epicId)) {
+  if (!createdIssue.value && form.value.type === 'TASK' && (!form.value.startDate || !form.value.dueDate || !form.value.assigneeId || !form.value.epicId)) {
     Notify.create({ type: 'warning', message: 'Task 타입은 담당자, 상위 Epic, 시작일, 마감일이 필수입니다.' })
     return
   }
+  const addInspection = canInspect.value && inspectionEnabled.value
+  if (addInspection && (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(inspectionMonth.value) || (!inspectionCommon.value && !workAssets.value.length))) {
+    Notify.create({ type: 'warning', message: '점검 월과 대상 서버를 선택하거나 공통 작업으로 지정해 주세요.' })
+    return
+  }
   loading.value = true
+  creationError.value = ''
   try {
-    const created = await createIssue(props.projectId, {
-      title: form.value.title.trim(),
-      type: form.value.type,
-      priority: form.value.priority,
-      status: form.value.status,
-      ...(form.value.sprintId ? { sprint_id: form.value.sprintId } : {}),
-      ...(form.value.assigneeId ? { assignee_id: form.value.assigneeId } : {}),
-      ...(form.value.epicId ? { epic_id: form.value.epicId } : {}),
-      ...(form.value.storyPoints != null ? { story_points: form.value.storyPoints } : {}),
-      ...(form.value.effortValue != null ? { effort_md: `${form.value.effortValue} 일` } : {}),
-      ...(form.value.labelIds.length ? { label_ids: form.value.labelIds } : {}),
-      ...(form.value.description ? { description: form.value.description } : {}),
-      ...(form.value.startDate ? { start_date: new Date(form.value.startDate).toISOString() } : {}),
-      ...(form.value.dueDate ? { due_date: new Date(form.value.dueDate).toISOString() } : {}),
-      show_on_dashboard: form.value.showOnDashboard,
-      attachments: attachments.value.map(a => ({
-        file_id: a.fileId,
-        original_name: a.originalName,
-        url: a.url,
-        size: a.size,
-        content_type: a.contentType,
-      })),
-    })
-    emit('created', created)
+    const assetIds = workAssets.value.map(a => a.id)
+    if (addInspection && assetIds.length) {
+      const available = new Set((await searchInspectionAssets('', assetIds)).map(a => a.id))
+      if (assetIds.some(id => !available.has(id))) throw new Error('선택한 서버 중 삭제된 자산이 있습니다. 대상 서버를 다시 선택해 주세요.')
+    }
+    if (!createdIssue.value) {
+      const created = await createIssue(props.projectId, {
+        title: form.value.title.trim(),
+        type: form.value.type,
+        priority: form.value.priority,
+        status: form.value.status,
+        ...(form.value.sprintId ? { sprint_id: form.value.sprintId } : {}),
+        ...(form.value.assigneeId ? { assignee_id: form.value.assigneeId } : {}),
+        ...(form.value.epicId ? { epic_id: form.value.epicId } : {}),
+        ...(form.value.storyPoints != null ? { story_points: form.value.storyPoints } : {}),
+        ...(form.value.effortValue != null ? { effort_md: `${form.value.effortValue} 일` } : {}),
+        ...(form.value.labelIds.length ? { label_ids: form.value.labelIds } : {}),
+        ...(form.value.description ? { description: form.value.description } : {}),
+        ...(form.value.startDate ? { start_date: new Date(form.value.startDate).toISOString() } : {}),
+        ...(form.value.dueDate ? { due_date: new Date(form.value.dueDate).toISOString() } : {}),
+        show_on_dashboard: form.value.showOnDashboard,
+        asset_ids: assetIds,
+        attachments: attachments.value.map(a => ({
+          file_id: a.fileId,
+          original_name: a.originalName,
+          url: a.url,
+          size: a.size,
+          content_type: a.contentType,
+        })),
+      })
+      createdIssue.value = created
+      emit('created', created)
+    } else if (workAssetsChanged.value) {
+      createdIssue.value = await updateIssue(props.projectId, createdIssue.value.id, { asset_ids: assetIds })
+      emit('updated', createdIssue.value)
+    }
+    if (addInspection) {
+      const payload = {
+        month: inspectionMonth.value,
+        issue_id: createdIssue.value.id,
+        asset_ids: assetIds,
+        common: inspectionCommon.value,
+      }
+      try {
+        await registerInspection(payload)
+      } catch (error) {
+        // 응답만 유실된 경우에는 같은 이슈·월·대상이 이미 저장되었는지 확인한다.
+        const existing = await getInspectionTasks(payload.month, {
+          include_overdue: false,
+          issue_id: payload.issue_id,
+        }).catch(() => null)
+        const linked = existing?.items.some(t => t.issueId === payload.issue_id && t.month === payload.month
+          && t.state === 'ACTIVE' && t.common === payload.common
+          && t.assets.length === assetIds.length && t.assets.every(a => assetIds.includes(a.id)))
+        if (!linked) throw error
+      }
+    }
     emit('update:modelValue', false)
-    Notify.create({ type: 'positive', message: '이슈가 추가되었습니다.' })
+    const savedMonth = inspectionMonth.value
+    const savedIssueId = createdIssue.value.id
+    Notify.create({
+      type: 'positive',
+      message: addInspection ? `${Number(savedMonth.slice(5))}월 서버 점검에 이슈를 추가했습니다.` : '이슈가 추가되었습니다.',
+      ...(addInspection ? {
+        timeout: 8000,
+        actions: [{ label: '월간 작업 보기', color: 'white', handler: () => {
+          void router.push({ path: '/inspection/tasks', query: { month: savedMonth, issue_id: savedIssueId } })
+        } }],
+      } : {}),
+    })
   } catch (e) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, '추가 실패') })
+    creationError.value = getErrorMessage(e, '저장하지 못했습니다. 다시 시도해 주세요.')
   } finally {
     loading.value = false
   }
@@ -589,6 +734,25 @@ async function submit() {
 </script>
 
 <style scoped>
+.issue-create-dialog { display: flex; flex-direction: column; }
+.issue-create-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.issue-create-dialog > .q-card-actions { flex-shrink: 0; }
+.issue-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.issue-fields:disabled { opacity: 0.65; }
+.creation-error { background: #fff2ef; color: #9c4336; font-size: 12px; flex-shrink: 0; }
+.issue-inspection { margin-top: 18px; padding: 10px 14px; border: 1px solid #e1e7ef; border-radius: 9px; background: #f8fafc; }
+.issue-inspection--enabled { border-color: #a8c6e5; }
+.issue-inspection > .q-checkbox { font-size: 13px; font-weight: 600; color: #365778; }
+.inspection-hint { margin: 0 0 4px 40px; font-size: 12px; color: #718399; }
+.issue-inspection-options { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; border-top: 1px solid #e1e7ef; padding: 18px 8px 6px; margin-top: 12px; }
+.inspection-schedule { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #526a84; margin-top: 15px; }
+.inspection-month-info p { margin: 10px 0 0; font-size: 12px; color: #718399; line-height: 1.7; }
+.inspection-selected-servers { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.8; color: #526a84; overflow-wrap: anywhere; }
+.issue-work-assets { max-width: none; }
+@media (max-width: 700px) {
+  .issue-inspection-options { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .inspection-hint { margin-left: 0; }
+}
 .section-label {
   font-size: 11px;
   font-weight: 600;

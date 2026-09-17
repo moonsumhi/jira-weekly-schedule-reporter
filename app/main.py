@@ -21,6 +21,8 @@ from starlette.requests import Request
 BUILD_ID = str(int(time.time()))
 
 from app.routers import health, auth, admin, assets, watch, pilot, job, job_result, job_non_service, test, form_templates, form_entries, menus, boards, notices, health_reports, health_actions, links, ddays, calendar as calendar_router, env_categories, attachments, racks, integrations
+from app.routers import asset_work_history
+from app.routers import inspection_resources
 from app.routers import settings as settings_router
 from app.routers import branding as branding_router
 from app.routers import pm as pm_router
@@ -33,6 +35,8 @@ from app.db.startup import run_startup
 from app.services.jira_poller import JiraPollerService
 from app.services.delayed_digest_service import DelayedDigestService
 from app.services.recurring_issue_scheduler import RecurringIssueScheduler
+from app.routers import inspection_tasks, monthly_inspection_reports
+from app.services.inspection_scheduler import InspectionScheduler
 from app.middleware.activity_logger import ActivityLoggerMiddleware
 
 
@@ -56,6 +60,8 @@ async def lifespan(app: FastAPI):
 
     recurring_scheduler = RecurringIssueScheduler()
     recurring_scheduler.start()
+    inspection_scheduler = InspectionScheduler()
+    inspection_scheduler.start()
 
     yield
 
@@ -65,6 +71,7 @@ async def lifespan(app: FastAPI):
     if digest_service:
         digest_service.stop()
     recurring_scheduler.stop()
+    inspection_scheduler.stop()
     await MongoClientManager.close_client()
 
 
@@ -151,6 +158,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(assets.router, prefix="/assets", tags=["assets"])
+app.include_router(asset_work_history.router, prefix="/assets", tags=["assets"])
 app.include_router(racks.router, prefix="/racks", tags=["racks"])
 app.include_router(watch.router, prefix="/watch", tags=["watch"])
 app.include_router(pilot.router, prefix="/pilot", tags=["pilot"])
@@ -164,6 +172,9 @@ app.include_router(menus.router, prefix="/menus", tags=["menus"])
 app.include_router(boards.router, prefix="/boards", tags=["boards"])
 app.include_router(notices.router, prefix="/notices", tags=["notices"])
 app.include_router(health_reports.router, prefix="/health-reports", tags=["health-reports"])
+app.include_router(inspection_tasks.router, prefix="/inspection-tasks", tags=["inspection-tasks"])
+app.include_router(inspection_resources.router, prefix="/inspection-resources", tags=["inspection-resources"])
+app.include_router(monthly_inspection_reports.router, prefix="/monthly-inspection-reports", tags=["monthly-inspection-reports"])
 app.include_router(health_actions.router, prefix="/health-reports", tags=["health-actions"])
 app.include_router(settings_router.router, prefix="/settings", tags=["settings"])
 app.include_router(branding_router.router, prefix="/branding", tags=["branding"])

@@ -28,6 +28,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 from app.services.work_documents import import_document, markdown_from_data, save_markdown_snapshot, export_hwpx, export_hwp, export_docx
+from app.services import work_document_assets
 
 from app.db.mongo import MongoClientManager
 from app.models.form_entry import FormEntryCreate, FormEntryOut, FormEntryPatch, FormDocumentExport, FormOriginalFile
@@ -56,6 +57,7 @@ def _to_out(doc: dict) -> FormEntryOut:
         id=str(doc["_id"]),
         template_id=doc.get("template_id", ""),
         data=doc.get("data", {}),
+        linked_assets=doc.get("linked_assets", []),
         original_file=doc.get("original_file"),
         version=doc.get("version", 1),
         is_deleted=doc.get("is_deleted", False),
@@ -1365,6 +1367,20 @@ def _save_original_file(content: bytes, filename: str, content_type: str | None)
     ).model_dump()
 
 
+@router.get('/asset-options')
+async def work_document_asset_options(search: str = Query('', max_length=200),
+                                      current_user: UserPublic = Depends(get_current_user)):
+    work_document_assets.require_job(current_user)
+    return await work_document_assets.search_assets(search)
+
+
+@router.get('/by-asset/{asset_id}')
+async def work_documents_for_asset(asset_id: str, offset: int = Query(0, ge=0), limit: int = Query(20, ge=1, le=100),
+                                   current_user: UserPublic = Depends(get_current_user)):
+    work_document_assets.require_job(current_user)
+    return await work_document_assets.asset_history(asset_id, offset, limit)
+
+
 @router.get("", response_model=list[FormEntryOut])
 async def list_entries(
     template_id: str = Query(...),
@@ -1389,6 +1405,7 @@ async def list_entries(
         doc["updated_by"] = resolve(doc.get("updated_by"))
         doc["data"] = _strip_images(doc.get("data", {}))
 
+    await work_document_assets.hydrate(docs)
     return [_to_out(doc) for doc in docs]
 
 
@@ -1499,6 +1516,7 @@ async def get_entry(
     name_map = await _email_to_name_map()
     doc["created_by"] = name_map.get(doc.get("created_by", ""), doc.get("created_by"))
     doc["updated_by"] = name_map.get(doc.get("updated_by", ""), doc.get("updated_by"))
+    await work_document_assets.hydrate([doc])
     return _to_out(doc)
 
 
@@ -1508,9 +1526,15 @@ async def create_entry(
     current_user: UserPublic = Depends(get_current_user),
 ):
     col = MongoClientManager.get_form_entries_collection()
+    linked_assets = []
+    if payload.asset_ids:
+        work_document_assets.require_job(current_user)
+        linked_assets = await work_document_assets.selected_assets(payload.template_id, payload.asset_ids)
     now = _now()
     doc = {
         "template_id": payload.template_id,
+        "asset_ids": payload.asset_ids,
+        "linked_assets": linked_assets,
         "data": _persist_images(payload.data),
         **save_markdown_snapshot(payload.data),
         "version": 1,
@@ -1536,6 +1560,16 @@ async def patch_entry(
     col = MongoClientManager.get_form_entries_collection()
     entry_oid = parse_oid(entry_id, "잘못된 항목 ID입니다.")
 
+    linked_assets = None
+    if 'asset_ids' in payload.model_fields_set:
+        work_document_assets.require_job(current_user)
+        previous = await col.find_one({'_id': entry_oid})
+        if not previous:
+            raise HTTPException(404, '항목을 찾을 수 없습니다.')
+        if previous.get('is_deleted') or previous.get('version', 1) != payload.version:
+            raise HTTPException(409, '다른 사용자가 먼저 수정하여 버전 충돌이 발생했습니다.')
+        linked_assets = await work_document_assets.selected_assets(previous['template_id'], payload.asset_ids, previous)
+
     now = _now()
     set_fields: dict[str, Any] = {
         "data": _persist_images(payload.data),
@@ -1545,6 +1579,8 @@ async def patch_entry(
     }
     if "original_file" in payload.model_fields_set:
         set_fields["original_file"] = payload.original_file.model_dump() if payload.original_file else None
+    if linked_assets is not None:
+        set_fields.update(asset_ids=payload.asset_ids, linked_assets=linked_assets)
     result = await col.find_one_and_update(
         {"_id": entry_oid, "version": payload.version, "is_deleted": {"$ne": True}},
         {"$set": set_fields,
@@ -1556,6 +1592,7 @@ async def patch_entry(
         if doc is None:
             raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
         raise HTTPException(status_code=409, detail="다른 사용자가 먼저 수정하여 버전 충돌이 발생했습니다.")
+    await work_document_assets.hydrate([result])
     return _to_out(result)
 
 
