@@ -93,6 +93,61 @@ class WorkDocumentTests(unittest.TestCase):
         self.assertLess(markdown.index('![사진]'), markdown.index('AFTER'))
         self.assert_hwpx_order(markdown)
 
+    def test_hwp_unreadable_image_reports_its_table_location(self):
+        def convert(command, **kwargs):
+            output = Path(command[command.index('--output') + 1])
+            output.mkdir()
+            if corrupt:
+                (output / 'bindata').mkdir()
+                (output / 'bindata' / 'BIN000A.bmp').write_bytes(b'invalid bitmap')
+            (output / 'index.xhtml').write_text(
+                '<p>[개발 내용]</p><table><tr><td>제목</td><td>세부 작업 내용</td></tr>'
+                '<tr><td>마이그레이션</td><td><p>테스트 케이스</p>'
+                '<table><tr><td>구분</td><td>테스트 항목</td><td>예상 결과</td><td>실제 결과</td></tr>'
+                '<tr><td>기능</td><td>GitLab 웹/Git 접속</td><td>정상 접속</td>'
+                '<td>Pass<img src="bindata/BIN000A.bmp"/></td></tr></table>'
+                '<p>작업 후</p></td></tr></table>',
+                encoding='utf-8',
+            )
+
+        for corrupt in (False, True):
+            with self.subTest(corrupt=corrupt), patch.object(documents.subprocess, 'run', side_effect=convert):
+                with self.assertRaises(documents.DocumentImportError) as error:
+                    documents.import_document(b'hwp fixture', 'missing-image.hwp')
+            message = str(error.exception)
+            self.assertIn('기능 / GitLab 웹/Git 접속 → 실제 결과', message)
+            self.assertIn('이미지 개체를 삭제하거나 다시 삽입', message)
+            self.assertNotIn('BIN000A', message)
+            self.assertNotIn('/tmp/', message)
+
+    def test_hwp_valid_image_preserves_surrounding_content(self):
+        def convert(command, **kwargs):
+            output = Path(command[command.index('--output') + 1])
+            (output / 'bindata').mkdir(parents=True)
+            (output / 'bindata' / 'BIN0001.png').write_bytes(self.photo())
+            (output / 'index.xhtml').write_text(
+                '<table><tr><td>점검</td><td>결과</td></tr><tr><td>서비스</td>'
+                '<td>작업 전<img src="bindata/BIN0001.png"/>작업 후</td></tr></table>', encoding='utf-8',
+            )
+
+        with patch.object(documents.subprocess, 'run', side_effect=convert):
+            markdown, warnings = documents.import_document(b'hwp fixture', 'valid-image.hwp')
+        self.assertLess(markdown.index('작업 전'), markdown.index('![사진]'))
+        self.assertLess(markdown.index('![사진]'), markdown.index('작업 후'))
+        self.assertIn('| 점검 | 결과 |', markdown)
+        self.assertEqual(len(warnings), 1)
+        self.assertEqual(len(list(Path(self.directory.name).rglob('*.png'))), 1)
+
+    def test_hwp_missing_image_does_not_allow_path_traversal(self):
+        def convert(command, **kwargs):
+            output = Path(command[command.index('--output') + 1])
+            output.mkdir()
+            (output / 'index.xhtml').write_text('<p>본문<img src="%2e%2e/private.png"/></p>', encoding='utf-8')
+
+        with patch.object(documents.subprocess, 'run', side_effect=convert):
+            with self.assertRaisesRegex(ValueError, '잘못된 이미지 경로'):
+                documents.import_document(b'hwp fixture', 'invalid-path.hwp')
+
     def assert_hwpx_order(self, markdown):
         output = documents.export_hwpx(markdown)
         from hwpx import HwpxDocument
@@ -199,6 +254,34 @@ class WorkDocumentTests(unittest.TestCase):
 
 
 class WorkDocumentApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_import_errors_explain_known_failures_without_exposing_internal_errors(self):
+        from bson import ObjectId
+        from fastapi import HTTPException, UploadFile
+        from app.routers import form_entries
+        collection = AsyncMock()
+        collection.find_one.return_value = {'sections': []}
+        user = SimpleNamespace(full_name='테스트', email='test@example.com')
+        message = '문서의 이미지를 불러올 수 없습니다. 위치: 테스트 항목 → 실제 결과.'
+        for known in (True, False):
+            error = documents.DocumentImportError(message) if known else RuntimeError('/private/internal-path')
+            for route in ('import_markdown_file', 'import_original_form'):
+                with self.subTest(known=known, route=route), patch.object(
+                    form_entries, 'import_document', side_effect=error
+                ), patch.object(form_entries, '_save_original_file') as save, patch.object(
+                    form_entries.MongoClientManager, 'get_form_templates_collection', return_value=collection
+                ):
+                    args = {'file': UploadFile(filename='test.hwp', file=io.BytesIO(b'fixture')), 'current_user': user}
+                    if route == 'import_original_form':
+                        args['template_id'] = str(ObjectId())
+                    with self.assertRaises(HTTPException) as failure:
+                        await getattr(form_entries, route)(**args)
+                    self.assertEqual(failure.exception.status_code, 422)
+                    if known:
+                        self.assertEqual(failure.exception.detail, message)
+                    else:
+                        self.assertNotIn('/private/', failure.exception.detail)
+                    save.assert_not_called()
+
     async def test_save_update_and_export_share_markdown(self):
         from bson import ObjectId
         from app.routers import form_entries

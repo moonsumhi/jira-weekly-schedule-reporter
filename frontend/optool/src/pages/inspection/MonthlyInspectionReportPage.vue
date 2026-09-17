@@ -38,7 +38,7 @@
                 no-caps
                 color="primary"
                 icon="edit_note"
-                :label="`${documentLabel} 내용 수정`"
+                label="내용 수정"
                 class="report-edit-button"
                 :disable="busy || loading"
                 @click="openEdit"
@@ -47,7 +47,7 @@
                 outline
                 no-caps
                 color="primary"
-                :label="`${documentLabel} 확정`"
+                label="확정"
                 :disable="busy || loading"
                 @click="finalizeOpen = true"
               />
@@ -64,15 +64,6 @@
             />
           </div>
           <div class="report-secondary-actions">
-            <q-btn
-              v-if="report.snapshot.warnings.length"
-              flat
-              no-caps
-              icon="info_outline"
-              label="확인할 항목"
-              :disable="busy || loading"
-              @click="reviewOpen = true"
-            />
             <q-btn
               v-if="editable"
               flat
@@ -308,7 +299,7 @@
         ><q-card-section class="dialog-heading"
           ><div>
             <div class="toolbar-eyebrow">점검 {{ documentLabel }} · 개요</div>
-            <h2>{{ documentLabel }} 내용 수정</h2>
+            <h2>내용 수정</h2>
           </div>
           <q-btn
             flat
@@ -401,7 +392,7 @@
         ><q-card-section class="dialog-heading"
           ><div>
             <div class="toolbar-eyebrow">마지막 확인</div>
-            <h2>{{ documentLabel }} 확정</h2>
+            <h2>확정</h2>
           </div>
           <q-btn
             flat
@@ -437,7 +428,7 @@
             unelevated
             color="primary"
             icon="check"
-            :label="`${documentLabel} 확정`"
+            label="확정"
             :loading="busy"
             @click="finalize" /></q-card-actions></q-card
     ></q-dialog>

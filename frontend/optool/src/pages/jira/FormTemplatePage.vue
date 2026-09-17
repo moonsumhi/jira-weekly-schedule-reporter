@@ -345,6 +345,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, toRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { isAxiosError } from 'axios'
 import { prepareWorkDocumentData, resultImageUrl, useWorkDocumentExport } from 'src/composables/useWorkDocument'
 import { isWorkPlanTemplate } from 'src/services/inspectionWorkPlans'
 import { saveWorkDocument, WorkDocumentInspectionError, type WorkDocumentInspection } from 'src/services/workDocumentInspection'
@@ -901,8 +902,14 @@ async function handleFileImport(event: Event) {
       skippedDialog.value = true
     }
     $q.notify({ type: 'positive', message: 'Import 완료. 내용과 이미지 위치 확인 후 저장해주세요.' })
-  } catch {
-    $q.notify({ type: 'negative', message: 'Import 실패. 파일을 확인하세요.' })
+  } catch (error) {
+    const detail = isAxiosError<{ detail?: unknown }>(error) ? error.response?.data?.detail : null
+    $q.notify({
+      type: 'negative',
+      message: typeof detail === 'string' && detail.trim() ? detail : '파일을 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.',
+      timeout: 15000,
+      actions: [{ label: '닫기', color: 'white' }],
+    })
   } finally {
     importing.value = false
     input.value = ''

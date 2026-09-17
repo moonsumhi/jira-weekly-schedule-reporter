@@ -27,7 +27,7 @@ _DATA_URL_RE = re.compile(r"^data:image/(?P<ext>[a-zA-Z0-9.+-]+);base64,(?P<b64>
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
-from app.services.work_documents import import_document, markdown_from_data, save_markdown_snapshot, export_hwpx, export_hwp, export_docx
+from app.services.work_documents import DocumentImportError, import_document, markdown_from_data, save_markdown_snapshot, export_hwpx, export_hwp, export_docx
 from app.services import work_document_assets
 
 from app.db.mongo import MongoClientManager
@@ -1420,6 +1420,8 @@ async def import_markdown_file(
         raise HTTPException(status_code=413, detail="파일 크기가 50MB를 초과합니다.")
     try:
         markdown, warnings = await asyncio.to_thread(import_document, content, file.filename or '')
+    except DocumentImportError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         logger.warning('Markdown import failed: %s', type(exc).__name__)
         raise HTTPException(status_code=422, detail="문서 변환에 실패했습니다. HWP, HWPX, DOC, DOCX 파일을 확인해 주세요.") from exc
@@ -1441,6 +1443,8 @@ async def import_original_form(file: UploadFile = File(...), template_id: str = 
     try:
         markdown, warnings = await asyncio.to_thread(import_document, content, file.filename or '')
         data, mapping_warnings = await asyncio.to_thread(map_document, markdown, template.get('sections', []))
+    except DocumentImportError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         logger.warning('Original form import failed: %s', type(exc).__name__)
         raise HTTPException(status_code=422, detail='양식 변환에 실패했습니다. 파일을 확인해 주세요.') from exc
