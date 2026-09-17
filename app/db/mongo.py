@@ -11,6 +11,7 @@ class MongoClientManager:
     PENDING_USERS = "pending_users"
     ASSETS_SERVERS = "assets_servers"
     ASSETS_SERVER_HISTORY = "assets_server_history"
+    ASSET_NOTES = "asset_notes"
     ASSETS_NETWORK = "assets_network"
     ASSETS_NETWORK_HISTORY = "assets_network_history"
     ASSETS_SECURITY = "assets_security"
@@ -144,6 +145,10 @@ class MongoClientManager:
     @classmethod
     def get_assets_server_history_collection(cls):
         return cls.get_db()[cls.ASSETS_SERVER_HISTORY]
+
+    @classmethod
+    def get_asset_notes_collection(cls):
+        return cls.get_db()[cls.ASSET_NOTES]
 
     @classmethod
     def get_asset_collection(cls, category: str):

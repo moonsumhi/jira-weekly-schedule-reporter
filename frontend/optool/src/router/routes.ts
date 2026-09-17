@@ -55,9 +55,19 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true },
         children: [
           {
+            path: 'tasks',
+            meta: { requiresPermission: 'server_check' },
+            component: () => import('pages/inspection/InspectionTasksPage.vue')
+          },
+          {
+            path: 'monthly-reports/:id?',
+            meta: { requiresPermission: 'server_check' },
+            component: () => import('pages/inspection/MonthlyInspectionReportPage.vue')
+          },
+          {
             path: 'health-summary',
             meta: { requiresPermission: 'server_check' },
-            component: () => import('pages/inspection/HealthSummaryPage.vue')
+            redirect: (to) => ({ path: '/inspection/health-servers', query: { ...to.query, tab: 'data' } })
           },
           {
             path: 'health-servers',
@@ -67,7 +77,7 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'health-compare',
             meta: { requiresPermission: 'server_check' },
-            component: () => import('pages/inspection/HealthComparePage.vue')
+            redirect: (to) => ({ path: '/inspection/health-servers', query: { ...to.query, tab: 'compare' } })
           }
         ]
       },

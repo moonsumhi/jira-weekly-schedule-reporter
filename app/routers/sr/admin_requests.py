@@ -5,6 +5,7 @@ import io
 import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+from urllib.parse import quote
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -182,18 +183,6 @@ async def list_all_srs(
     outs = [sr_to_out(d) for d in docs]
     await _attach_comment_counts(outs)
     return SRListPage(items=[SRListItem(**o) for o in outs], total=total)
-
-
-# ── SR 상세 (관리자용) ────────────────────────────────────────────────
-
-@router.get("/{sr_id}", response_model=SROut)
-async def get_sr_admin(
-    sr_id: str,
-    current_user: UserPublic = Depends(get_current_user),
-):
-    require_sr_operator(current_user)
-    doc = await get_sr_or_404(sr_id)
-    return SROut(**sr_to_out(doc))
 
 
 # ── 인라인 필드 수정 (manager 이상) ─────────────────────────────────────
@@ -870,7 +859,7 @@ async def export_excel(
     return StreamingResponse(
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename, safe='')}"},
     )
 
 
@@ -969,5 +958,16 @@ async def export_sr_detail(
     return StreamingResponse(
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename, safe='')}"},
     )
+
+
+# Register the dynamic detail route after /export so the static path is not treated as an SR ID.
+@router.get("/{sr_id}", response_model=SROut)
+async def get_sr_admin(
+    sr_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    require_sr_operator(current_user)
+    doc = await get_sr_or_404(sr_id)
+    return SROut(**sr_to_out(doc))

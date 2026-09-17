@@ -67,6 +67,12 @@ async def create_indexes() -> None:
     form_entries_col = MongoClientManager.get_form_entries_collection()
     await form_entries_col.create_index("template_id")
     await form_entries_col.create_index("created_at")
+    await form_entries_col.create_index([("asset_ids", 1), ("created_at", -1)])
+
+    asset_notes = MongoClientManager.get_asset_notes_collection()
+    await asset_notes.create_index([('asset_id', 1), ('created_at', -1), ('_id', -1)])
+    await asset_notes.create_index([('asset_id', 1), ('client_id', 1)], unique=True)
+    await MongoClientManager.get_pm_issues_collection().create_index([('asset_ids', 1), ('created_at', -1)])
 
     menus_col = MongoClientManager.get_menus_collection()
     await menus_col.create_index("sort_order")
@@ -406,9 +412,7 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
     },
     "server_check": {
         "submenus": [
-            {"title": "요약",      "icon": "fa-solid fa-table-list",   "link": "/inspection/health-summary"},
-            {"title": "서버리스트", "icon": "fa-solid fa-server",       "link": "/inspection/health-servers"},
-            {"title": "월별 비교", "icon": "fa-solid fa-code-compare", "link": "/inspection/health-compare"},
+            {"title": "자원 점검", "icon": "fa-solid fa-server",       "link": "/inspection/health-servers"},
         ],
     },
     "admin": {
@@ -1146,6 +1150,9 @@ async def run_startup() -> None:
     await create_indexes()
     await seed_system_menus()
     await seed_system_menu_extras()
+    await migrate_inspection_tasks()
+    from app.services.monthly_inspection_reports import indexes as report_indexes
+    await report_indexes()
     await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
     await migrate_recurring_issue_submenu()
@@ -1181,3 +1188,43 @@ async def run_startup() -> None:
     from app.db.notification_indexes import create_notification_indexes
     await create_notification_indexes()
     logger.info("알림 인덱스 생성 완료")
+
+
+async def migrate_inspection_tasks():
+    col = MongoClientManager.get_db()['inspection_tasks']
+    await col.create_index('project_id')
+    await col.create_index('occurrences.month')
+    await col.create_index('occurrences.assets.id')
+    await col.create_index('occurrences.work_plans.id')
+    await col.create_index('work_plan_id', sparse=True)
+    menus = MongoClientManager.get_menus_collection()
+    # Uploaded measurements and monthly comparisons now live inside resource inspections.
+    await menus.update_one(
+        {'slug': 'server_check'},
+        {'$pull': {'submenus': {'link': {'$in': [
+            '/inspection/health-summary', '/inspection/health-compare',
+        ]}}}},
+    )
+    await menus.update_one(
+        {'slug': 'server_check', 'submenus.link': {'$ne': '/inspection/health-servers'}},
+        {'$push': {'submenus': {'title': '자원 점검', 'icon': 'fa-solid fa-server',
+                               'link': '/inspection/health-servers'}}},
+    )
+    await menus.update_one(
+        {'slug': 'server_check', 'submenus.link': '/inspection/health-servers'},
+        {'$set': {'submenus.$.title': '자원 점검'}},
+    )
+    await menus.update_one(
+        {'slug': 'server_check', 'submenus': {'$elemMatch': {'link': '/inspection/tasks', 'title': '월별 작업'}}},
+        {'$set': {'submenus.$.title': '월간 작업'}},
+    )
+    await menus.update_one(
+        {'slug': 'server_check', 'submenus.link': {'$ne': '/inspection/tasks'}},
+        {'$push': {'submenus': {'$each': [{'title': '월간 작업', 'icon': 'fa-solid fa-list-check',
+                                          'link': '/inspection/tasks'}], '$position': 0}}},
+    )
+    await menus.update_one(
+        {'slug': 'server_check', 'submenus.link': {'$ne': '/inspection/monthly-reports'}},
+        {'$push': {'submenus': {'$each': [{'title': '점검 보고서', 'icon': 'fa-solid fa-file-lines',
+                                          'link': '/inspection/monthly-reports'}], '$position': 1}}},
+    )

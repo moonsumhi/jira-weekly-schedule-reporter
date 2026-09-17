@@ -19,13 +19,18 @@
         <q-btn flat round dense icon="close" @click="$emit('update:modelValue', false)" />
       </q-toolbar>
 
-      <div class="col" style="position: relative; overflow: hidden; min-height: 0">
+      <div class="col issue-detail-body">
         <!-- 메인 콘텐츠 -->
-        <div class="q-pa-md" style="position: absolute; top: 0; left: 0; right: 320px; bottom: 0; overflow-y: auto; overflow-x: hidden">
-          <q-tabs v-model="tab" dense align="left" class="q-mb-md">
-            <q-tab name="detail" label="상세" />
-            <q-tab name="history" label="변경 이력" />
-          </q-tabs>
+        <div class="q-pa-md issue-detail-content">
+          <div class="issue-detail-navigation q-mb-md">
+            <q-tabs v-model="tab" dense align="left">
+              <q-tab name="detail" label="상세" />
+              <q-tab name="history" label="변경 이력" />
+            </q-tabs>
+            <InspectionLinks v-if="modelValue && localIssue && (authStore.me?.isAdmin || authStore.me?.permissions?.includes('server_check'))"
+              :key="localIssue.id" :issue-id="localIssue.id" :issue-title="localIssue.title"
+              @navigate="emit('update:modelValue', false)" />
+          </div>
 
           <q-tab-panels v-model="tab" animated>
             <!-- ── 상세 탭 ── -->
@@ -40,6 +45,9 @@
                 @blur="saveField('title', editTitle)"
                 @keydown.enter.prevent="saveField('title', editTitle)"
               />
+
+              <IssueAssetLinks v-if="localIssue" :key="localIssue.id" :issue="localIssue"
+                @saved="assetsSaved" @navigate="emit('update:modelValue', false)" />
 
               <!-- 연결된 SR 바로가기 -->
               <q-btn v-if="localIssue?.linkedSrId"
@@ -390,7 +398,7 @@
         </div>
 
         <!-- 사이드바 -->
-        <div class="q-pa-md bg-grey-1 sidebar-panel" style="position: absolute; top: 0; right: 0; width: 320px; bottom: 0; overflow-y: auto; overflow-x: hidden; border-left: 1px solid #e0e0e0">
+        <div class="q-pa-md bg-grey-1 sidebar-panel">
           <div class="column q-gutter-md">
 
             <div>
@@ -569,7 +577,9 @@ import { getErrorMessage } from 'src/utils/http/error'
 import { fmtDatetimeKst } from 'src/utils/time/kst'
 import { useAuthStore } from 'src/stores/auth'
 import { downloadAttachment } from 'src/utils/attachment'
+import InspectionLinks from 'src/components/inspection/InspectionLinks.vue'
 import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
+import IssueAssetLinks from './IssueAssetLinks.vue'
 
 const props = defineProps<{
   modelValue: boolean
@@ -757,6 +767,7 @@ const FIELD_LABEL: Record<string, string> = {
   sprint_id: '스프린트',
   epic_id: 'Epic',
   parent_issue_id: '상위 이슈',
+  asset_ids: '작업 대상 서버',
   label_ids: '라벨',
   start_date: '시작일',
   due_date: '마감일',
@@ -979,6 +990,12 @@ async function reloadHistory() {
   } catch { /* ignore */ }
 }
 
+function assetsSaved(issue: Issue) {
+  localIssue.value = issue
+  emit('updated', issue)
+  void reloadHistory()
+}
+
 async function saveField(field: 'title' | 'description', value: string) {
   if (!localIssue.value) return
   const trimmed = value.trim()
@@ -1169,6 +1186,17 @@ function confirmDelete() {
 </script>
 
 <style scoped>
+.issue-detail-body { position: relative; overflow: hidden; min-height: 0; }
+.issue-detail-content { position: absolute; inset: 0 320px 0 0; overflow-y: auto; overflow-x: hidden; }
+.sidebar-panel { position: absolute; inset: 0 0 0 auto; width: 320px; overflow-y: auto; overflow-x: hidden; border-left: 1px solid #e0e0e0; }
+.issue-detail-navigation { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.issue-detail-navigation > .q-tabs { min-width: 0; }
+@media (max-width: 767px) {
+  .issue-detail-body { overflow-y: auto; }
+  .issue-detail-content { position: static; overflow: visible; }
+  .sidebar-panel { position: static; width: auto; overflow: visible; border-left: 0; border-top: 1px solid #e0e0e0; }
+  .issue-detail-navigation { flex-wrap: wrap; gap: 8px; }
+}
 .emoji-pick-btn { font-size: 18px; min-width: 32px; }
 
 .comment-highlight { animation: comment-flash 2.5s ease; }

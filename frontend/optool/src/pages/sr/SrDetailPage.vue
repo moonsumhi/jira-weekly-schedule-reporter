@@ -50,7 +50,7 @@
       </div>
 
       <!-- ── 액션 버튼 ── -->
-      <div v-if="actionButtons.length" class="row q-gutter-xs q-mb-md items-center">
+      <div v-if="actionButtons.length || isAdminUser" class="row q-gutter-xs q-mb-md items-center">
         <q-btn
           v-for="btn in actionButtons" :key="btn.key"
           :color="btn.color" :outline="btn.outline"
@@ -60,7 +60,8 @@
           @click="btn.action()"
         />
         <q-space />
-        <q-btn v-if="isAdminUser" flat round icon="download" color="grey-6" size="sm" @click="downloadDetail">
+        <q-btn v-if="isAdminUser" flat round icon="download" color="grey-6" size="sm"
+          aria-label="Excel 다운로드" :loading="exporting" @click="downloadDetail">
           <q-tooltip>Excel 다운로드</q-tooltip>
         </q-btn>
       </div>
@@ -1327,7 +1328,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { exportFile, useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import {
@@ -1388,6 +1389,7 @@ function goToSR(id: string) {
 }
 
 const loading        = ref(true)
+const exporting      = ref(false)
 const sr             = ref<SR | null>(null)
 const comments       = ref<SRComment[]>([])
 const statusHistory  = ref<SRHistory[]>([])
@@ -1808,16 +1810,19 @@ function fmtSize(b: number) {
 }
 
 async function downloadDetail() {
+  if (!sr.value || exporting.value) return
+  const current = sr.value
+  exporting.value = true
   try {
-    const res = await api.get(`/admin/schedule/service-requests/${srId.value}/export`, { responseType: 'blob' })
-    const url = URL.createObjectURL(res.data as Blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `SR_${srId.value}.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
+    const res = await api.get<Blob>(`/admin/schedule/service-requests/${current.id}/export`, { responseType: 'blob' })
+    const downloaded = exportFile(`SR상세_${current.srNo || current.id}.xlsx`, res.data, {
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    if (downloaded !== true) throw downloaded
   } catch {
     $q.notify({ type: 'negative', message: 'Excel 다운로드에 실패했습니다.' })
+  } finally {
+    exporting.value = false
   }
 }
 

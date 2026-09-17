@@ -241,6 +241,7 @@
       :project-id="projectId"
       v-bind="selectedSprintId ? { sprintId: selectedSprintId } : {}"
       @created="onIssueCreated"
+      @updated="onIssueUpdated"
     />
 
     <!-- 이슈 상세 다이얼로그 -->

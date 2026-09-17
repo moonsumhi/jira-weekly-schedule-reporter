@@ -20,8 +20,16 @@ from app.services.pm.issue_service import attach_linked_sr_info, next_issue_numb
 from app.services.notification_service import create_notification
 from app.services.mention_service import resolve_mentions, notify_mentions
 from app.models.mention import MentionedUser
+from app.services import asset_links
 
 router = APIRouter()
+
+
+@router.get('/{project_id}/asset-options')
+async def issue_asset_options(project_id: str, search: str = Query('', max_length=200),
+                              current_user: UserPublic = Depends(get_current_user)):
+    await require_pm_member(current_user, project_id)
+    return await asset_links.search_assets(search)
 
 
 # ── 이슈 CRUD ──────────────────────────────────────────────────────
@@ -70,6 +78,7 @@ async def create_issue(
     current_user: UserPublic = Depends(get_current_user),
 ):
     await require_pm_member(current_user, project_id)
+    linked_assets = await asset_links.selected_assets(body.asset_ids)
 
     col = MongoClientManager.get_pm_issues_collection()
 
@@ -100,6 +109,8 @@ async def create_issue(
         "order": float(number),
         "created_at": now,
         "updated_at": now,
+        "asset_ids": body.asset_ids,
+        "linked_assets": linked_assets,
     }
     result = await col.insert_one(doc)
     created = await col.find_one({"_id": result.inserted_id})
@@ -119,6 +130,9 @@ async def get_linked_issue(
         doc = None
     if not doc:
         raise HTTPException(status_code=404, detail="이슈를 찾을 수 없습니다.")
+    if not current_user.is_admin and not await MongoClientManager.get_pm_project_members_collection().find_one({
+            'project_id': doc['project_id'], 'user_id': ObjectId(current_user.id)}):
+        doc = {**doc, 'asset_ids': [], 'linked_assets': []}
     return await enrich_issue(doc)
 
 
@@ -149,6 +163,9 @@ async def patch_issue(
     patch = body.model_dump(exclude_unset=True)
 
     update: dict = {}
+    if 'asset_ids' in patch:
+        update['asset_ids'] = patch.pop('asset_ids')
+        update['linked_assets'] = await asset_links.selected_assets(update['asset_ids'], old)
     for oid_field in ("assignee_id", "sprint_id", "epic_id", "parent_issue_id"):
         if oid_field in patch:
             val = patch.pop(oid_field)
@@ -222,6 +239,9 @@ async def patch_issue(
                     lbl = await labels_col.find_one({"_id": lid if isinstance(lid, ObjectId) else ObjectId(str(lid))}, {"name": 1})
                     names.append(lbl.get("name", str(lid)) if lbl else str(lid))
                 return ", ".join(names) if names else None
+        if field == 'asset_ids':
+            snapshots = {a['id']: a for d in (old, new_doc) for a in d.get('linked_assets', [])}
+            return ', '.join(snapshots.get(asset_id, {}).get('name') or asset_id for asset_id in val) or None
         if isinstance(val, list):
             return ", ".join(str(x) for x in val)
         return str(val)
@@ -233,7 +253,7 @@ async def patch_issue(
             return ", ".join(str(x) for x in v)
         return str(v)
 
-    skip = {"updated_at", "order"}
+    skip = {"updated_at", "order", "linked_assets"}
     for field, new_val in update.items():
         if field in skip:
             continue
@@ -242,6 +262,10 @@ async def patch_issue(
             old_display = await _resolve(field, old_val)
             new_display = await _resolve(field, new_val)
             await record_history(iid, uid, field, old_display, new_display)
+
+    if "status" in update:
+        from app.services.inspection_service import capture_completion
+        await capture_completion(new_doc)
 
     enriched = await enrich_issue(new_doc)
 
