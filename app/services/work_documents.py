@@ -13,11 +13,41 @@ from zipfile import ZipFile
 
 from lxml import html
 from markdown_it import MarkdownIt
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 UPLOAD_ROOT = Path('/app/uploads')
 logger = logging.getLogger(__name__)
 DOCUMENT_SECTION = '문서 본문'
+
+
+class DocumentImportError(ValueError):
+    """An import problem with a message safe to display to the user."""
+
+
+def _image_import_location(node) -> str:
+    """Identify the surrounding row and column without exposing file paths."""
+    cell = next((parent for parent in node.iterancestors() if parent.tag in ('td', 'th')), None)
+    if cell is None:
+        return ''
+    row = cell.getparent()
+    cells = row.xpath('./td|./th')
+    if cell not in cells:
+        return ''
+    column = cells.index(cell)
+    labels = [' '.join(item.itertext()).strip() for item in cells[:column]]
+    labels = [re.sub(r'\s+', ' ', label) for label in labels if label and not label.isdecimal()]
+    row_label = ' / '.join(labels[:2])[:100]
+    table = next(cell.iterancestors('table'), None)
+    rows = table.xpath('./tr|./thead/tr|./tbody/tr|./tfoot/tr') if table is not None else []
+    headers = rows[0].xpath('./td|./th') if rows and rows[0] is not row else []
+    # Avoid assigning a misleading column name for merged or multi-level headers.
+    column_label = ''
+    if len(headers) == len(cells) and all(
+        item.get('colspan', '1') == '1' and item.get('rowspan', '1') == '1'
+        for item in headers + cells
+    ):
+        column_label = re.sub(r'\s+', ' ', ' '.join(headers[column].itertext())).strip()[:60]
+    return ' → '.join(part for part in (row_label, column_label) if part)
 
 
 def escape(text: str) -> str:
@@ -49,7 +79,16 @@ def html_markdown(source: str, image_reader) -> str:
             return ''
         if tag == 'img':
             src = node.get('src', '')
-            return f'![사진](<{image_reader(src)}>)'
+            try:
+                image_url = image_reader(src)
+            except (FileNotFoundError, UnidentifiedImageError) as exc:
+                location = _image_import_location(node)
+                context = f' 위치: {location}.' if location else ''
+                raise DocumentImportError(
+                    f'문서의 이미지를 불러올 수 없어 가져오기를 중단했습니다.{context} '
+                    '한글에서 해당 위치의 이미지 개체를 삭제하거나 다시 삽입한 뒤 저장해 주세요.'
+                ) from exc
+            return f'![사진](<{image_url}>)'
         if tag == 'br':
             return '\n'
         if tag == 'a':
