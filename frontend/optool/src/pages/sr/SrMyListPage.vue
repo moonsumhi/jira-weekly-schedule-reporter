@@ -31,6 +31,14 @@
       >
         <q-badge v-if="activeFilterCount" color="indigo-7" :label="activeFilterCount" class="q-ml-xs" />
       </q-btn>
+      <q-btn
+        flat dense size="sm" no-caps
+        :color="showReceivedDate ? 'grey-7' : 'indigo-7'"
+        :icon="showReceivedDate ? 'visibility_off' : 'visibility'"
+        :label="showReceivedDate ? '상세보기 숨기기' : '상세 보기'"
+        class="q-px-xs"
+        @click="showReceivedDate = !showReceivedDate"
+      />
       <q-btn v-if="activeFilterCount" flat dense size="sm" no-caps color="grey-6" icon="refresh" label="필터 초기화" @click="resetDetailFilters" />
     </div>
 
@@ -65,18 +73,24 @@
     <!-- 탭 + 검색 -->
     <div class="row items-center q-mb-sm" style="gap: 8px;">
       <div class="row q-gutter-xs" style="flex:1; flex-wrap:wrap;">
-        <q-chip
-          v-for="tab in statusTabs" :key="tab.key"
-          :color="activeTab === tab.key ? tab.color : 'grey-3'"
-          :text-color="activeTab === tab.key ? 'white' : 'grey-7'"
-          clickable dense
-          @click="activeTab = tab.key"
-        >
-          {{ tab.label }}
-          <span v-if="tab.count > 0" class="q-ml-xs"
-            :class="activeTab === tab.key ? 'text-white' : 'text-grey-5'"
-            style="font-size:0.72rem">{{ tab.count }}</span>
-        </q-chip>
+        <div v-for="tab in statusTabs" :key="tab.key" class="status-filter-group">
+          <q-chip
+            :color="statusChipColor(tab)"
+            :text-color="statusChipTextColor(tab)"
+            :outline="statusTabState(tab.key) === 'exclude'"
+            clickable dense
+            @click="handleStatusChipClick(tab.key)"
+          >
+            <q-icon v-if="statusTabState(tab.key) === 'exclude'" name="block" size="11px" class="q-mr-xs" />
+            {{ tab.label }}
+            <span v-if="tab.count > 0" class="q-ml-xs"
+              :class="statusTabState(tab.key) === 'include' ? 'text-white' : 'text-grey-5'"
+              style="font-size:0.72rem">{{ tab.count }}</span>
+            <q-tooltip v-if="tab.key !== 'all'">
+              {{ statusTabTooltip(tab.key) }}
+            </q-tooltip>
+          </q-chip>
+        </div>
       </div>
       <q-input
         v-model="search"
@@ -90,6 +104,17 @@
 
     <!-- 목록 카드 -->
     <q-card flat bordered class="sr-list-card">
+
+      <div class="sr-list-card__header row items-center justify-between q-px-md q-py-sm">
+        <div class="row items-center q-gutter-xs">
+          <q-icon name="view_list" size="18px" color="primary" />
+          <span class="text-subtitle2 text-weight-medium">SR 목록</span>
+          <q-badge color="blue-1" text-color="blue-8" :label="`${filteredRows.length}건`" />
+        </div>
+        <span v-if="filteredRows.length" class="text-caption text-grey-6">
+          {{ pageStart }}–{{ pageEnd }}건 표시
+        </span>
+      </div>
 
       <!-- 로딩 -->
       <div v-if="loading" class="flex flex-center q-pa-xl">
@@ -106,7 +131,7 @@
       <!-- 행 목록 -->
       <div v-else>
         <div
-          v-for="row in filteredRows" :key="row.id"
+          v-for="row in paginatedRows" :key="row.id"
           class="sr-row"
           :class="{ 'sr-row--delayed': row.isDelayed }"
           @click="$router.push(`/pm/sr/${row.id}`)"
@@ -116,33 +141,49 @@
 
           <!-- 본문 -->
           <div class="sr-row__body">
-            <div class="row items-center q-gutter-xs q-mb-xs">
-              <span class="text-caption text-grey-5">{{ row.srNo }}</span>
-              <q-badge v-if="row.isUrgent" color="red" label="긴급" style="font-size:0.65rem" />
-              <q-badge v-if="row.isDelayed" color="negative" label="지연" style="font-size:0.65rem" />
+                        <div class="sr-row__heading">
+              <div v-if="showReceivedDate" class="row items-center q-gutter-xs q-mb-xs">
+                <span class="text-caption text-grey-5">{{ row.srNo }}</span>
+                <q-badge :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" text-color="white" style="font-size:0.65rem" />
+                <q-badge v-if="row.isUrgent" color="red" label="긴급" style="font-size:0.65rem" />
+                <q-badge v-if="row.isDelayed" color="negative" label="지연" style="font-size:0.65rem" />
+              </div>
+              <div class="sr-title text-body2 text-weight-medium text-dark">
+                {{ formatTitle(row) }}
+                <span v-if="!showReceivedDate" class="sr-row__inline-badges">
+                  <q-badge :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" text-color="white" style="font-size:0.65rem" />
+                  <q-badge v-if="row.isUrgent" color="red" label="긴급" style="font-size:0.65rem" />
+                  <q-badge v-if="row.isDelayed" color="negative" label="지연" style="font-size:0.65rem" />
+                </span>
+              </div>
             </div>
-            <div class="sr-title text-body2 text-weight-medium text-dark">{{ formatTitle(row) }}</div>
           </div>
 
           <!-- 우측 메타 -->
-          <div class="sr-row__meta text-right q-pr-sm">
-            <div class="q-mb-xs">
+                    <div class="sr-row__meta text-right q-pr-sm">
+            <div class="sr-row__meta-primary">
               <q-chip :color="statusColor(row.status)" text-color="white" dense size="xs" style="font-size:0.7rem">
                 {{ statusLabel(row.status) }}
               </q-chip>
+              <div v-if="!showReceivedDate && row.desiredDueDate" class="text-caption text-grey-5">
+                완료 희망 {{ fmtDate(row.desiredDueDate) }}
+              </div>
             </div>
-            <div class="text-caption text-grey-5 q-mb-xs">
-              {{ row.assigneeName ? `담당: ${row.assigneeName}` : `접수 ${fmtDate(row.createdAt)}` }}
+            <div v-if="showReceivedDate && row.assigneeName" class="text-caption text-grey-5 q-mb-xs">
+              담당: {{ row.assigneeName }}
             </div>
-            <div v-if="row.requesterId !== currentUserId" class="text-caption text-primary q-mb-xs">
+            <div v-else-if="showReceivedDate" class="text-caption text-grey-5 q-mb-xs">
+              접수 {{ fmtDate(row.createdAt) }}
+            </div>
+            <div v-if="showReceivedDate && row.requesterId !== currentUserId" class="text-caption text-primary q-mb-xs">
               요청자 {{ row.requesterName }}<span v-if="row.requesterDepartment"> · {{ row.requesterDepartment }}</span>
             </div>
-            <div v-if="row.plannedDueDate"
+            <div v-if="showReceivedDate && row.plannedDueDate"
               class="text-caption"
               :class="row.isDelayed ? 'text-negative text-weight-medium' : 'text-grey-5'">
               완료 목표 {{ fmtDate(row.plannedDueDate) }}
             </div>
-            <div v-if="row.desiredDueDate"
+            <div v-if="showReceivedDate && row.desiredDueDate"
               class="text-caption"
               :class="row.isDelayed && !row.plannedDueDate ? 'text-negative text-weight-medium' : 'text-grey-5'">
               완료 희망 {{ fmtDate(row.desiredDueDate) }}
@@ -160,6 +201,33 @@
         </div>
       </div>
     </q-card>
+
+    <div v-if="filteredRows.length" class="row items-center justify-between q-mt-md sr-pagination">
+      <div class="sr-pagination__summary text-caption text-grey-6">
+        <q-icon name="format_list_numbered" size="16px" />
+        <span>전체 <strong class="text-dark">{{ filteredRows.length }}</strong>건</span>
+        <span class="sr-pagination__divider">·</span>
+        <span>{{ pageStart }}–{{ pageEnd }}건 표시 중</span>
+      </div>
+      <div class="sr-pagination__controls row items-center q-gutter-sm">
+        <q-select
+          v-model="rowsPerPage"
+          :options="rowsPerPageOptions"
+          dense outlined options-dense
+          label="페이지당"
+          suffix="개"
+          style="width: 116px"
+        />
+        <q-pagination
+          v-model="page"
+          :max="pageCount"
+          :max-pages="7"
+          boundary-numbers
+          direction-links
+          color="primary"
+        />
+      </div>
+    </div>
 
     <!-- 취소 다이얼로그 -->
     <q-dialog v-model="cancelDialog">
@@ -183,7 +251,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'src/stores/auth'
 import { fmtDateKst } from 'src/utils/time/kst'
@@ -210,14 +278,20 @@ const categoryFilter = ref<string | null>(null)
 const requesterFilter = ref<string | null>(null)
 const assigneeFilter = ref<string | null>(null)
 const statusFilter = ref<string | null>(null)
+const showReceivedDate = ref(true)
+const page = ref(1)
+const rowsPerPage = ref(20)
+const rowsPerPageOptions = [20, 50, 100]
 const currentUserId = computed(() => String(authStore.me?.id ?? ''))
-const activeFilterCount = computed(() => [categoryFilter.value, requesterFilter.value, assigneeFilter.value, statusFilter.value].filter(Boolean).length)
+const excludedStatusGroups = ref<string[]>([])
+const activeFilterCount = computed(() => [categoryFilter.value, requesterFilter.value, assigneeFilter.value, statusFilter.value].filter(Boolean).length + excludedStatusGroups.value.length)
 
 function resetDetailFilters() {
   categoryFilter.value = null
   requesterFilter.value = null
   assigneeFilter.value = null
   statusFilter.value = null
+  excludedStatusGroups.value = []
 }
 
 const ownerTabs = computed(() => {
@@ -262,7 +336,7 @@ const GROUP_MAP: Record<string, string> = {
   SUBMITTED: 'active', REVIEWING: 'active', APPROVED: 'active', ASSIGNED: 'active', IN_PROGRESS: 'active',
   PENDING_INFO: 'pending',
   COMPLETED: 'done', CONFIRMING: 'done', CLOSED: 'done',
-  REJECTED: 'ended', ON_HOLD: 'ended', CANCELLED: 'ended',
+  REJECTED: 'rejected', CANCELLED: 'cancelled', ON_HOLD: 'ended',
 }
 
 const GROUP_META = [
@@ -271,7 +345,9 @@ const GROUP_META = [
   { key: 'active',  label: '진행 중',   color: 'blue-7'   },
   { key: 'pending', label: '확인 요청', color: 'amber-8'  },
   { key: 'done',    label: '완료',      color: 'positive' },
-  { key: 'ended',   label: '반려/취소', color: 'grey-5'   },
+  { key: 'rejected', label: '반려',      color: 'negative' },
+  { key: 'cancelled', label: '취소',     color: 'grey-6'   },
+  { key: 'ended',   label: '보류',       color: 'grey-5'   },
 ]
 
 const statusTabs = computed(() => {
@@ -285,6 +361,46 @@ const statusTabs = computed(() => {
     .map(m => ({ ...m, count: m.key === 'all' ? ownerRows.value.length : (counts[m.key] ?? 0) }))
 })
 
+function isStatusExcluded(key: string) {
+  return excludedStatusGroups.value.includes(key)
+}
+function statusTabState(key: string): 'include' | 'exclude' | 'none' {
+  if (key === 'all') return activeTab.value === 'all' && excludedStatusGroups.value.length === 0 ? 'include' : 'none'
+  if (isStatusExcluded(key)) return 'exclude'
+  return activeTab.value === key ? 'include' : 'none'
+}
+function statusTabTooltip(key: string) {
+  const state = statusTabState(key)
+  if (state === 'include') return '다시 클릭하면 제외'
+  if (state === 'exclude') return '다시 클릭하면 해제'
+  return '클릭하면 해당 상태만 보기'
+}
+function handleStatusChipClick(key: string) {
+  if (key === 'all') {
+    activeTab.value = 'all'
+    excludedStatusGroups.value = []
+    return
+  }
+  const state = statusTabState(key)
+  if (state === 'none') {
+    activeTab.value = key
+    excludedStatusGroups.value = excludedStatusGroups.value.filter(group => group !== key)
+  } else if (state === 'include') {
+    activeTab.value = 'all'
+    excludedStatusGroups.value = [...excludedStatusGroups.value, key]
+  } else {
+    excludedStatusGroups.value = excludedStatusGroups.value.filter(group => group !== key)
+    activeTab.value = 'all'
+  }
+}
+function statusChipColor(tab: { key: string; color: string }) {
+  const state = statusTabState(tab.key)
+  return state === 'include' || state === 'exclude' ? tab.color : 'grey-3'
+}
+function statusChipTextColor(tab: { key: string; color: string }) {
+  return statusTabState(tab.key) === 'exclude' ? tab.color : statusTabState(tab.key) === 'include' ? 'white' : 'grey-7'
+}
+
 const filteredRows = computed(() => {
   let list = ownerRows.value
   if (categoryFilter.value) list = list.filter(row => row.requestType === categoryFilter.value)
@@ -293,6 +409,9 @@ const filteredRows = computed(() => {
     list = list.filter(row => (row.assigneeId ?? '__unassigned__') === assigneeFilter.value)
   }
   if (statusFilter.value) list = list.filter(row => row.status === statusFilter.value)
+  if (excludedStatusGroups.value.length) {
+    list = list.filter(row => !excludedStatusGroups.value.includes(GROUP_MAP[row.status] ?? 'ended'))
+  }
   if (activeTab.value !== 'all') {
     list = list.filter(r => GROUP_MAP[r.status] === activeTab.value)
   }
@@ -306,6 +425,22 @@ const filteredRows = computed(() => {
     )
   }
   return list
+})
+
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / rowsPerPage.value)))
+const pageStart = computed(() => filteredRows.value.length ? (page.value - 1) * rowsPerPage.value + 1 : 0)
+const pageEnd = computed(() => Math.min(page.value * rowsPerPage.value, filteredRows.value.length))
+const paginatedRows = computed(() => {
+  const start = (page.value - 1) * rowsPerPage.value
+  return filteredRows.value.slice(start, start + rowsPerPage.value)
+})
+
+watch(
+  [ownerScope, activeTab, search, categoryFilter, requesterFilter, assigneeFilter, statusFilter, excludedStatusGroups, rowsPerPage],
+  () => { page.value = 1 },
+)
+watch(pageCount, (count) => {
+  if (page.value > count) page.value = count
 })
 
 const PRIORITY_HEX: Record<string, string> = {
@@ -359,15 +494,21 @@ async function confirmCancel() {
   }
 }
 
-// suppress unused warning — kept for template compatibility
-void priorityLabel; void priorityColor
-
 onMounted(fetchList)
 </script>
 
 <style scoped>
 .sr-list-card { overflow: hidden; }
+.sr-list-card__header {
+  background: #f8fafc;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
 .sr-advanced-panel { padding-bottom: 4px; }
+.status-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
 
 .sr-row {
   display: flex;
@@ -384,32 +525,72 @@ onMounted(fetchList)
 .priority-bar {
   width: 4px;
   align-self: stretch;
-  min-height: 64px;
+  min-height: 48px;
   flex-shrink: 0;
 }
 
 .sr-row__body {
   flex: 1;
-  padding: 14px 12px;
+  padding: 9px 12px;
   min-width: 0;
 }
+.sr-row__heading { min-width: 0; }
 .sr-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.35;
+}
+.sr-row__inline-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 .sr-row__meta {
   flex-shrink: 0;
-  padding: 14px 8px 14px 4px;
+  padding: 9px 8px 9px 4px;
   min-width: 130px;
+  line-height: 1.25;
+}
+.sr-row__meta-primary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
 }
 
 .sr-row__actions {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding-right: 10px;
+  padding-right: 8px;
   flex-shrink: 0;
+}
+
+.sr-pagination {
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.sr-pagination__summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.sr-pagination__divider { color: #cbd5e1; }
+.sr-pagination__controls { flex-wrap: wrap; justify-content: flex-end; }
+
+@media (max-width: 640px) {
+  .sr-pagination { align-items: stretch; flex-direction: column; }
+  .sr-pagination__controls { justify-content: space-between; }
+  .sr-pagination__controls .q-pagination { margin-left: auto; }
 }
 </style>
