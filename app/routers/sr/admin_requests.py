@@ -968,16 +968,8 @@ async def export_sr_detail(
 ):
     require_sr_admin(current_user)
     doc = await get_sr_or_404(sr_id)
-    col_c = MongoClientManager.get_db()[MongoClientManager.SR_COMMENTS]
-    col_h = MongoClientManager.get_db()[MongoClientManager.SR_STATUS_HISTORIES]
-    col_fh = MongoClientManager.get_db()[MongoClientManager.SR_HISTORIES]
-
-    comments = await col_c.find({"sr_id": sr_id, "deleted_at": None}).sort("created_at", 1).to_list(None)
-    histories = await col_h.find({"sr_id": sr_id}).sort("changed_at", 1).to_list(None)
-    field_histories = await col_fh.find({"sr_id": sr_id}).sort("changed_at", 1).to_list(None)
-
     output, filename, media_type, warnings = await run_in_threadpool(
-        export_detail, doc, comments, histories, field_histories)
+        export_detail, doc)
     return StreamingResponse(
         stream_export(output), media_type=media_type,
         headers={
