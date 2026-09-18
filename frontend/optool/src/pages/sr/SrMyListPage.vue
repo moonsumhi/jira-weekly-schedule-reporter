@@ -169,14 +169,11 @@
                 완료 희망 {{ fmtDate(row.desiredDueDate) }}
               </div>
             </div>
-            <div v-if="showReceivedDate && row.assigneeName" class="text-caption text-grey-5 q-mb-xs">
-              담당: {{ row.assigneeName }}
+            <div v-if="showReceivedDate && ownerScope !== 'team'" class="text-caption text-grey-5 q-mb-xs">
+              담당자: {{ row.assigneeName || '미지정' }}
             </div>
-            <div v-else-if="showReceivedDate" class="text-caption text-grey-5 q-mb-xs">
-              접수 {{ fmtDate(row.createdAt) }}
-            </div>
-            <div v-if="showReceivedDate && row.requesterId !== currentUserId" class="text-caption text-primary q-mb-xs">
-              요청자 {{ row.requesterName }}<span v-if="row.requesterDepartment"> · {{ row.requesterDepartment }}</span>
+            <div v-if="showReceivedDate && ownerScope === 'team'" class="text-caption text-primary q-mb-xs">
+              요청자: {{ row.requesterName }}<span v-if="row.requesterDepartment"> · {{ row.requesterDepartment }}</span>
             </div>
             <div v-if="showReceivedDate && row.plannedDueDate"
               class="text-caption"
