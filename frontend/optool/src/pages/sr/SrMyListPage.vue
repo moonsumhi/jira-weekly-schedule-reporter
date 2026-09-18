@@ -95,7 +95,7 @@
       <q-input
         v-model="search"
         dense outlined clearable
-        placeholder="제목 · 시스템 · SR번호 · 요청자 검색"
+        placeholder="제목 · 카테고리 · 시스템 · SR번호 · 요청자 검색"
         style="width: min(440px, 100%); min-width: 320px"
       >
         <template #prepend><q-icon name="search" size="18px" color="grey-5" /></template>
@@ -413,12 +413,15 @@ const filteredRows = computed(() => {
     list = list.filter(r => GROUP_MAP[r.status] === activeTab.value)
   }
   if (search.value.trim()) {
-    const q = search.value.toLowerCase()
+    const q = normalizeSearchTerm(search.value)
     list = list.filter(r =>
-      r.title.toLowerCase().includes(q) ||
-      (r.relatedSystem ?? '').toLowerCase().includes(q) ||
-      r.srNo.toLowerCase().includes(q) ||
-      r.requesterName.toLowerCase().includes(q)
+      [
+        r.title,
+        ...requestTypeSearchValues(r),
+        r.relatedSystem,
+        r.srNo,
+        r.requesterName,
+      ].some(value => normalizeSearchTerm(value).includes(q))
     )
   }
   return list
@@ -455,6 +458,26 @@ function statusColor(s: string)      { return (SR_STATUS_COLOR   as Record<strin
 function priorityLabel(s: string)    { return (SR_PRIORITY_LABEL as Record<string,string>)[s] ?? s }
 function priorityColor(s: string)    { return (SR_PRIORITY_COLOR as Record<string,string>)[s] ?? 'grey' }
 function requestTypeLabel(s: string) { return (REQUEST_TYPE_LABEL as Record<string,string>)[s] ?? s }
+type SRCategorySearchRow = SRListItem & {
+  requestTypeLabel?: string
+  category?: string
+  requestCategory?: string
+  request_type?: string
+}
+function requestTypeSearchValues(row: SRListItem): string[] {
+  const candidate = row as SRCategorySearchRow
+  return [
+    requestTypeLabel(row.requestType),
+    row.requestType,
+    candidate.requestTypeLabel,
+    candidate.category,
+    candidate.requestCategory,
+    candidate.request_type,
+  ].filter((value): value is string => Boolean(value))
+}
+function normalizeSearchTerm(value: string | null | undefined): string {
+  return (value ?? '').toLocaleLowerCase('ko-KR').replace(/\s+/g, '')
+}
 function fmtDate(d: string | null)   { return fmtDateKst(d) }
 function canCancel(row: SRListItem)  { return row.requesterId === currentUserId.value && !['CLOSED','CANCELLED','REJECTED'].includes(row.status) }
 
