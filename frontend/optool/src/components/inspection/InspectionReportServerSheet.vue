@@ -272,14 +272,12 @@ const hardwareChecks = computed(() =>
         ? 'OK'
         : checked(check.na)
           ? 'N/A'
-          : '미확인',
+          : '미기록',
     tone: checked(check.ng)
       ? 'danger'
       : checked(check.ok)
         ? 'positive'
-        : checked(check.na)
-          ? 'muted'
-          : 'missing',
+        : 'muted',
   })),
 );
 </script>
