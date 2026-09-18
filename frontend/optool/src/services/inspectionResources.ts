@@ -78,3 +78,37 @@ export async function getResourceTargets() {
 export async function saveResourceTargets(version: number, assetIds: string[]) {
   await api.put(`${base}/targets`, { version, asset_ids: assetIds });
 }
+
+export interface HostnameChange {
+  key: string;
+  hostname: string;
+  sourceIp: string;
+  ignoredIps: string[];
+  matchedIps: string[];
+  assetId: string | null;
+  assetName: string;
+  currentHostname: string;
+  assetIp: string;
+  status: 'ready' | 'review' | 'unchanged';
+  reason: string;
+}
+export interface HostnamePreview {
+  source: ReportSource;
+  rows: HostnameChange[];
+  revision: string;
+}
+export interface HostnameApplyResult {
+  updatedIds: string[];
+  skipped: { assetId: string; reason: string }[];
+}
+export async function previewHostnames(sourceId: string) {
+  return (await api.get<HostnamePreview>(`${base}/${sourceId}/hostnames/preview`)).data;
+}
+export async function applyHostnames(sourceId: string, revision: string, assetIds: string[]) {
+  return (
+    await api.post<HostnameApplyResult>(`${base}/${sourceId}/hostnames/apply`, {
+      revision,
+      asset_ids: assetIds,
+    })
+  ).data;
+}

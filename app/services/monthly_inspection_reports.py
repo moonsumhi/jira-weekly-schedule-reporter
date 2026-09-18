@@ -356,6 +356,12 @@ async def latest_source(month):
     return await source_doc(str(doc['_id']), month) if doc else None
 
 
+def has_task_result(task):
+    result = task.get('result') or {}
+    return bool(result.get('content', '').strip() or any(
+        not ref.get('unavailable') and not ref.get('is_deleted') for ref in result.get('work_results', [])))
+
+
 def update_stats(snapshot):
     ts, servers = snapshot['tasks'], snapshot['servers']
     counts = Counter('rolled' if t['state'] == 'ROLLED' else 'excluded' if t['state'] == 'EXCLUDED' else
@@ -371,7 +377,7 @@ def update_stats(snapshot):
         ('unmapped', '자산 연결 확인 필요', sum(s['asset'] is None for s in servers)),
         ('missing_metrics', '측정값이 없는 서버', sum(any(s[k]['value'] is None for k in ('cpu', 'ram', 'disk')) for s in servers)),
         ('missing_resources', '점검 데이터가 없는 작업 대상 서버', len(snapshot['missing_asset_resources'])),
-        ('missing_result', '완료했으나 결과를 작성하지 않은 작업', sum(t['state'] == 'ACTIVE' and t['issue']['status'] == 'DONE' and not (t.get('result') or {}).get('content', '').strip() for t in ts)),
+        ('missing_result', '완료했으나 결과를 작성하지 않은 작업', sum(t['state'] == 'ACTIVE' and t['issue']['status'] == 'DONE' and not has_task_result(t) for t in ts)),
         ('pending', '미완료 또는 이월한 작업', counts['pending'] + counts['rolled']),
         ('ambiguous_actions', '대상 서버를 확인할 수 없는 조치 내역', len(snapshot.get('unmatched_actions', []))),
     ]
@@ -452,6 +458,8 @@ async def task_snapshot(month, ids):
             t['work_plan'] = deepcopy(plan if historical else plan.get('current') or plan)
             t['work_plan'].pop('current', None)
         t.pop('history', None)
+    from app.services.inspection_work_plans import freeze_results
+    freeze_results(all_tasks)
     return all_tasks
 
 
@@ -591,6 +599,10 @@ async def sync_results(doc, user):
         occurrence = next((o for o in (source or {}).get('occurrences', []) if o['month'] == t['month']), None)
         if occurrence and occurrence.get('result'):
             t['result'] = clean(occurrence['result'])
+    from app.services.inspection_work_plans import hydrate_results, freeze_results
+    await hydrate_results(data['tasks'] + data['carryover'])
+    freeze_results(data['tasks'] + data['carryover'])
+    data = clean(data)
     update_stats(data)
     return await change_report(doc, user, {'snapshot': data})
 

@@ -47,7 +47,7 @@
                 />
               </h3>
               <p>
-                {{ issueId ? '이 이슈' : workPlanId ? '이 작업계획서' : '이 자산' }}에 연결된
+                {{ issueId ? '이 이슈' : workPlanId ? '이 작업계획서' : workResultId ? '이 작업결과서' : '이 자산' }}에 연결된
                 작업<span v-if="hasLoaded" class="inspection-link-total">
                   {{ tasks.length }}건</span
                 >
@@ -114,7 +114,7 @@
             <q-icon name="event_note" size="27px" color="grey-5" />
             <strong>연결된 점검 작업이 없습니다.</strong>
             <span>{{
-              workPlanId
+              workResultId ? '월간 작업의 결과 작성에서 이 작업결과서를 연결할 수 있습니다.' : workPlanId
                 ? '월간 작업에서 이 작업계획서를 연결할 수 있습니다.'
                 : '‘작업 추가’에서 이슈를 점검 작업에 등록할 수 있습니다.'
             }}</span>
@@ -167,7 +167,8 @@ const props = withDefaults(
     issueId?: string;
     issueTitle?: string;
     assetId?: string;
-    workPlanId?: string;
+    workPlanId?: string | undefined;
+    workResultId?: string | undefined;
     allowAdd?: boolean;
   }>(),
   { allowAdd: true },
@@ -191,7 +192,7 @@ const previewTasks = computed(() =>
         : b.month.localeCompare(a.month);
       return byMonth || a.issue.key.localeCompare(b.issue.key, 'ko', { numeric: true });
     })
-    .slice(0, props.workPlanId ? tasks.value.length : 4),
+    .slice(0, props.workPlanId || props.workResultId ? tasks.value.length : 4),
 );
 const triggerLabel = computed(() =>
   loading.value && !hasLoaded.value
@@ -226,7 +227,7 @@ function load(force = false): Promise<void> {
   // 작업 추가 직후에는 진행 중인 조회보다 최신 결과가 필요하다.
   if (pendingLoad && !force) return pendingLoad;
   const token = ++request;
-  if (!props.issueId && !props.assetId && !props.workPlanId) return Promise.resolve();
+  if (!props.issueId && !props.assetId && !props.workPlanId && !props.workResultId) return Promise.resolve();
   loading.value = true;
   error.value = false;
   pendingLoad = (async () => {
@@ -235,6 +236,7 @@ function load(force = false): Promise<void> {
       if (props.issueId) params.issue_id = props.issueId;
       if (props.assetId) params.asset_id = props.assetId;
       if (props.workPlanId) params.work_plan_id = props.workPlanId;
+      if (props.workResultId) params.work_result_id = props.workResultId;
       const result = await getInspectionTasks(thisMonth(), params);
       if (token === request) {
         tasks.value = result.items;
@@ -268,7 +270,7 @@ function navigate(task?: InspectionTask) {
   void router.push({ path: '/inspection/tasks', query });
 }
 watch(
-  () => [props.issueId, props.assetId, props.workPlanId],
+  () => [props.issueId, props.assetId, props.workPlanId, props.workResultId],
   () => {
     ++request;
     pendingLoad = undefined;

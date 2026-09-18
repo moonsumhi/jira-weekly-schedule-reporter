@@ -331,6 +331,7 @@
       :saving="detailSaving" :save-warning="detailSaveWarning"
       :link-assets="canLinkWorkDocument"
       :inspection-links="canLinkWorkDocument && isWorkPlanTemplate(template)"
+      :result-inspection-links="canLinkWorkDocument && isWorkResultTemplate(template)"
       @update:model-value="onDetailDialogUpdate"
       @save="saveDetailForm"
       @export="exportDetailMarkdown"
@@ -347,7 +348,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { isAxiosError } from 'axios'
 import { prepareWorkDocumentData, resultImageUrl, useWorkDocumentExport } from 'src/composables/useWorkDocument'
-import { isWorkPlanTemplate } from 'src/services/inspectionWorkPlans'
+import { isWorkPlanTemplate, isWorkResultTemplate } from 'src/services/inspectionWorkPlans'
 import { saveWorkDocument, WorkDocumentInspectionError, type WorkDocumentInspection } from 'src/services/workDocumentInspection'
 import { hasOriginalForm, synchronizedDocument } from 'src/utils/formEntryMarkdown'
 import WorkDocumentDetail from 'src/components/WorkDocumentDetail.vue'

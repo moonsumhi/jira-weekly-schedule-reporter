@@ -128,6 +128,14 @@ async def mutate(issue_id, project_id, transform, *, source=None, expected_versi
 
 async def save_result(doc, month, values, user):
     """Save a shared occurrence result after the caller checks its access boundary."""
+    links = None
+    if values.get('work_result_ids') is not None:
+        from app.services.work_document_assets import require_job
+        from app.services.inspection_work_plans import selected_documents
+        require_job(user)
+        occurrence = next((o for o in doc['occurrences'] if o['month'] == month), {})
+        links = await selected_documents(values['work_result_ids'],
+            (occurrence.get('result') or {}).get('work_results', []), kind='RESULT')
     result = {'content': values['content'].strip(), 'follow_up': values['follow_up'].strip(),
               'performed_on': values['performed_on'], 'version': values['version'] + 1,
               'updated_at': datetime.now(timezone.utc),
@@ -139,6 +147,7 @@ async def save_result(doc, month, values, user):
             raise HTTPException(404, '해당 월의 점검 작업을 찾을 수 없습니다.')
         if (item.get('result') or {}).get('version', 0) != values['version']:
             raise HTTPException(409, '다른 사용자가 결과를 변경했습니다. 작성 내용을 복사한 뒤 최신 결과를 확인해 주세요.')
+        result['work_results'] = deepcopy(links if links is not None else (item.get('result') or {}).get('work_results', []))
         item['result'] = result
 
     await mutate(str(doc['_id']), doc.get('project_id'), change)
@@ -171,7 +180,7 @@ async def register(issue, month, assets, common, user, work_plans=None):
     await mutate(str(issue['_id']), str(issue['project_id']), change)
 
 
-async def list_tasks(user, month, include_overdue=True, issue_id=None, asset_id=None, all_months=False, work_plan_id=None):
+async def list_tasks(user, month, include_overdue=True, issue_id=None, asset_id=None, all_months=False, work_plan_id=None, work_result_id=None):
     projects = await accessible_projects(user)
     query = project_scope(projects)
     if issue_id:
@@ -180,12 +189,14 @@ async def list_tasks(user, month, include_overdue=True, issue_id=None, asset_id=
         query['occurrences.assets.id'] = asset_id
     if work_plan_id:
         query['$and'] = [{'$or': [{'work_plan_id': work_plan_id}, {'occurrences.work_plans.id': work_plan_id}]}]
+    if work_result_id:
+        query['occurrences.result.work_results.id'] = work_result_id
     docs = await collection().find(query).to_list(None)
-    result = await hydrate_tasks(docs, month, include_overdue, asset_id, all_months, work_plan_id)
+    result = await hydrate_tasks(docs, month, include_overdue, asset_id, all_months, work_plan_id, work_result_id)
     return sorted(result, key=lambda x: (not x['overdue'], x['month'], x['issue']['title']))
 
 
-async def hydrate_tasks(docs, month, include_overdue=True, asset_id=None, all_months=False, work_plan_id=None):
+async def hydrate_tasks(docs, month, include_overdue=True, asset_id=None, all_months=False, work_plan_id=None, work_result_id=None):
     """Resolve a batch of occurrences consistently for monthly tasks and asset history."""
     if not docs:
         return []
@@ -216,6 +227,8 @@ async def hydrate_tasks(docs, month, include_overdue=True, asset_id=None, all_mo
                 continue
             if work_plan_id and doc.get('work_plan_id') != work_plan_id and not any(p['id'] == work_plan_id for p in o.get('work_plans', [])):
                 continue
+            if work_result_id and not any(ref['id'] == work_result_id for ref in (o.get('result') or {}).get('work_results', [])):
+                continue
             for a in o['assets']:
                 current = current_assets.get(a['id'])
                 a['current'] = current
@@ -226,8 +239,9 @@ async def hydrate_tasks(docs, month, include_overdue=True, asset_id=None, all_mo
             if is_plan_task(doc):
                 row['work_plan'] = {**deepcopy(o['work_plan_snapshot']), 'current': deepcopy(plan), 'unavailable': plan is None}
             result.append(row)
-    from app.services.inspection_work_plans import hydrate_plans
+    from app.services.inspection_work_plans import hydrate_plans, hydrate_results
     await hydrate_plans(result)
+    await hydrate_results(result)
     return result
 
 

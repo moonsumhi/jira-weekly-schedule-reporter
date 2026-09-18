@@ -1,6 +1,6 @@
 <template>
   <div v-if="plans?.length" class="inspection-work-plan-links">
-    <span class="plan-link-label"><q-icon name="description" size="14px" />작업계획서</span>
+    <span v-if="!hideLabel" class="plan-link-label"><q-icon name="description" size="14px" />{{ kind === 'RESULT' ? '작업결과서' : '작업계획서' }}</span>
     <template v-for="plan in plans" :key="plan.id">
       <button
         v-if="canOpen && !plan.unavailable && !plan.isDeleted"
@@ -32,11 +32,12 @@
 import { computed, ref, watch } from 'vue';
 import { useAuthStore } from 'stores/auth';
 import WorkDocumentEntryDialog from 'src/components/WorkDocumentEntryDialog.vue';
-import { displayWorkPlan, type InspectionWorkPlan } from 'src/services/inspectionWorkPlans';
+import { displayWorkPlan, type InspectionWorkPlan, type InspectionDocumentKind } from 'src/services/inspectionWorkPlans';
 const props = withDefaults(
-  defineProps<{ plans?: InspectionWorkPlan[] | undefined; backLabel?: string }>(),
+  defineProps<{ plans?: InspectionWorkPlan[] | undefined; backLabel?: string; kind?: InspectionDocumentKind; hideLabel?: boolean }>(),
   {
     backLabel: '점검 목록으로 돌아가기',
+    kind: 'PLAN',
   },
 );
 const auth = useAuthStore();

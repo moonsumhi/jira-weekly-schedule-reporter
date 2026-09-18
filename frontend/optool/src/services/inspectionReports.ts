@@ -1,5 +1,5 @@
 import { api } from 'boot/axios';
-import type { InspectionAsset, InspectionTask } from './inspection';
+import type { InspectionAsset, InspectionTask, InspectionResultInput } from './inspection';
 
 export interface ReportProject {
   id: string;
@@ -294,7 +294,7 @@ export async function getReportTask(reportId: string, task: InspectionTask) {
 export async function saveReportTaskResult(
   reportId: string,
   task: InspectionTask,
-  body: { version: number; content: string; performed_on: string | null; follow_up: string },
+  body: InspectionResultInput,
 ) {
   await api.put(`${base}/${reportId}/tasks/${task.issueId}/${task.month}/result`, body);
 }

@@ -135,11 +135,32 @@ async def link_work_plans(issue_id: str, month: Month, body: PlanLinks,
     return await plans.save_links(issue_id, month, body.work_plan_ids, body.version, user)
 
 
+@router.get('/work-results')
+async def work_result_options(search: str = Query('', max_length=200), asset_ids: str = '',
+                              user: UserPublic = Depends(require_inspection)):
+    require_job(user)
+    values = asset_ids.split(',') if asset_ids else []
+    if len(values) > 100:
+        raise HTTPException(422, '대상 자산은 최대 100개까지 선택할 수 있습니다.')
+    return await plans.search_documents(search, [str(oid(value)) for value in values], kind='RESULT')
+
+
 class TaskResult(BaseModel):
     version: int = Field(ge=0)
     content: str = Field(default='', max_length=10000)
     performed_on: date | None = None
     follow_up: str = Field(default='', max_length=3000)
+    work_result_ids: list[str] | None = Field(default=None, max_length=20)
+
+    @field_validator('work_result_ids')
+    @classmethod
+    def canonical_results(cls, values):
+        if values is None:
+            return values
+        result = [str(oid(value)) for value in values]
+        if len(result) != len(set(result)):
+            raise ValueError('같은 작업결과서를 중복 연결할 수 없습니다.')
+        return result
 
 
 @router.put('/{issue_id}/{month}/result')
@@ -155,15 +176,18 @@ async def save_result(issue_id: str, month: Month, body: TaskResult,
 @router.get('')
 async def list_tasks(month: Month, include_overdue: bool = True, issue_id: str | None = None,
                      asset_id: str | None = None, all_months: bool = False,
-                     work_plan_id: str | None = None,
+                     work_plan_id: str | None = None, work_result_id: str | None = None,
                      user: UserPublic = Depends(require_inspection)):
     if asset_id:
         oid(asset_id)
     if work_plan_id:
         require_job(user)
         work_plan_id = str(oid(work_plan_id))
+    if work_result_id:
+        require_job(user)
+        work_result_id = str(oid(work_result_id))
     return {'inspection_date': (await svc.inspection_date(month)).isoformat(),
-            'items': await svc.list_tasks(user, month, include_overdue, issue_id, asset_id, all_months, work_plan_id)}
+            'items': await svc.list_tasks(user, month, include_overdue, issue_id, asset_id, all_months, work_plan_id, work_result_id)}
 
 
 @router.get('/schedule')

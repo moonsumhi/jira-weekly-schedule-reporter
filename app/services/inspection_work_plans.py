@@ -1,4 +1,4 @@
-"""Explicit links from a monthly inspection occurrence to existing work plans."""
+"""References to work management documents used by monthly inspections."""
 from copy import deepcopy
 from datetime import datetime, timezone
 
@@ -19,6 +19,14 @@ def is_work_plan(template):
         ''.join(str(template.get('title') or '').split()).startswith('작업계획서'))
 
 
+def is_work_result(template):
+    if not template or not work_document_assets.is_work_document(template):
+        return False
+    key = str(template.get('jira_issue_key') or '').upper()
+    return key == 'JOB-RESULT' or (not key.startswith('JOB-') and
+        ''.join(str(template.get('title') or '').split()).startswith('작업결과서'))
+
+
 def plan_summary(doc, template):
     return {**work_document_assets.summary(doc, template),
             'version': doc.get('version', 1),
@@ -27,8 +35,13 @@ def plan_summary(doc, template):
 
 
 async def search_plans(search='', asset_ids=(), limit=30):
+    return await search_documents(search, asset_ids, limit)
+
+
+async def search_documents(search='', asset_ids=(), limit=30, *, kind='PLAN'):
+    matches = is_work_result if kind == 'RESULT' else is_work_plan
     templates = await M.get_form_templates_collection().find({'is_deleted': {'$ne': True}}).to_list(None)
-    templates = {str(t['_id']): t for t in templates if is_work_plan(t)}
+    templates = {str(t['_id']): t for t in templates if matches(t)}
     query = {'template_id': {'$in': list(templates)}, 'is_deleted': {'$ne': True}}
     if asset_ids:
         query['asset_ids'] = {'$in': list(asset_ids)}
@@ -50,20 +63,29 @@ async def search_plans(search='', asset_ids=(), limit=30):
 
 
 async def plan_map(ids):
+    return await document_map(ids)
+
+
+async def document_map(ids, *, kind='PLAN'):
     if not ids:
         return {}
+    matches = is_work_result if kind == 'RESULT' else is_work_plan
     docs = await M.get_form_entries_collection().find({'_id': {'$in': [oid(i) for i in ids]}}, {'data.문서 본문.내용': 0}).to_list(None)
     template_ids = {str(d.get('template_id')) for d in docs}
     templates = {str(t['_id']): t for t in await M.get_form_templates_collection().find(
         {'_id': {'$in': [oid(i) for i in template_ids if ObjectId.is_valid(i)]}}).to_list(None)}
     await work_document_assets.hydrate(docs)
     return {str(d['_id']): plan_summary(d, templates[d['template_id']]) for d in docs
-            if not d.get('is_deleted') and is_work_plan(templates.get(d.get('template_id')))
+            if not d.get('is_deleted') and matches(templates.get(d.get('template_id')))
             and not templates[d['template_id']].get('is_deleted')}
 
 
 async def selected_plans(ids, previous=()):
-    current = await plan_map(ids)
+    return await selected_documents(ids, previous)
+
+
+async def selected_documents(ids, previous=(), *, kind='PLAN'):
+    current = await document_map(ids, kind=kind)
     previous = {p['id']: p for p in previous}
     result = []
     for entry_id in ids:
@@ -75,7 +97,8 @@ async def selected_plans(ids, previous=()):
             saved['unavailable'] = True
             result.append(saved)
         else:
-            raise HTTPException(422, '삭제되었거나 연결할 수 없는 작업계획서가 있습니다. 다시 선택해 주세요.')
+            label = '작업결과서' if kind == 'RESULT' else '작업계획서'
+            raise HTTPException(422, f'삭제되었거나 연결할 수 없는 {label}가 있습니다. 다시 선택해 주세요.')
     return result
 
 
@@ -88,6 +111,25 @@ async def hydrate_plans(rows):
         for plan in row['work_plans']:
             plan['current'] = deepcopy(current.get(plan['id']))
             plan['unavailable'] = plan['current'] is None
+
+
+async def hydrate_results(rows):
+    references = [ref for row in rows for ref in (row.get('result') or {}).get('work_results', [])]
+    current = await document_map({ref['id'] for ref in references}, kind='RESULT')
+    for ref in references:
+        ref['current'] = deepcopy(current.get(ref['id']))
+        ref['unavailable'] = ref['current'] is None
+
+
+def freeze_results(rows):
+    """Capture reference metadata without embedding the original document body."""
+    for row in rows:
+        result = row.get('result')
+        if result is None:
+            continue
+        result['work_results'] = [deepcopy(ref.get('current') or ref) for ref in result.get('work_results', [])]
+        for ref in result['work_results']:
+            ref.pop('current', None)
 
 
 async def save_links(issue_id, month, entry_ids, version, user):

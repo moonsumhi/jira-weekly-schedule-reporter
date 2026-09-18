@@ -44,8 +44,8 @@
               </div>
             </header>
 
-            <div v-if="inspectionLinks && !creating && canViewInspection" class="document-inspection-link">
-              <InspectionLinks :key="`${entry.id}:${entry.version}`" :work-plan-id="entry.id" :allow-add="false" @navigate="closeImmediately" />
+            <div v-if="(inspectionLinks || resultInspectionLinks) && !creating && canViewInspection" class="document-inspection-link">
+              <InspectionLinks :key="`${entry.id}:${entry.version}`" :work-plan-id="inspectionLinks ? entry.id : undefined" :work-result-id="resultInspectionLinks ? entry.id : undefined" :allow-add="false" @navigate="closeImmediately" />
             </div>
             <WorkDocumentAssets v-if="linkAssets" v-model="editableAssets" :editing="editing" :disable="!!saving" @navigate="closeImmediately" />
 
@@ -183,7 +183,7 @@ import WorkDocumentInspectionOptions from './inspection/WorkDocumentInspectionOp
 import type { WorkDocumentInspection } from 'src/services/workDocumentInspection'
 
 type EditableData = Record<string, Record<string, unknown> | Record<string, unknown>[]>
-const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; creating?: boolean; exporting?: boolean; saving?: boolean; linkAssets?: boolean; inspectionLinks?: boolean; saveWarning?: string; error?: string; backLabel?: string }>()
+const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; creating?: boolean; exporting?: boolean; saving?: boolean; linkAssets?: boolean; inspectionLinks?: boolean; resultInspectionLinks?: boolean; saveWarning?: string; error?: string; backLabel?: string }>()
 const auth = useAuthStore()
 const canViewInspection = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('server_check'))
 const view = ref<'markdown'>('markdown')

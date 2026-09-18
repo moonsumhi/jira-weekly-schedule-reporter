@@ -456,9 +456,12 @@
               {{ task.plannedEnd?.slice(0, 10) || '미정' }}</span
             >
           </div>
-          <InspectionWorkPlanLinks :plans="task.workPlans" back-label="점검 보고서로 돌아가기" />
+          <div class="task-documents">
+            <InspectionWorkPlanLinks :plans="taskPlans(task)" back-label="점검 결과서로 돌아가기" />
+            <InspectionWorkPlanLinks :plans="task.result?.workResults" kind="RESULT" back-label="점검 결과서로 돌아가기" />
+          </div>
           <div class="task-result-copy">
-            <p class="prose" :class="{ placeholder: !task.result?.content }">
+            <p v-if="task.result?.content || !hasInspectionResult(task)" class="prose" :class="{ placeholder: !task.result?.content }">
               {{ task.result?.content || '작업 결과 미작성' }}
             </p>
             <div v-if="editable" class="task-edit-actions screen-only">
@@ -646,7 +649,7 @@ import InspectionPlanComparison from './InspectionPlanComparison.vue';
 import InspectionWorkPlanLinks from './InspectionWorkPlanLinks.vue';
 import InspectionReportServerSheet from './InspectionReportServerSheet.vue';
 import { measurementBasis } from 'src/utils/inspectionMeasurements';
-import { formatInspectionMonth, inspectionStatusLabel } from 'src/services/inspection';
+import { formatInspectionMonth, inspectionStatusLabel, hasInspectionResult } from 'src/services/inspection';
 import {
   percent,
   reportTime,
@@ -669,6 +672,10 @@ const emit = defineEmits<{
   issue: [task: ReportTask];
 }>();
 const isPlan = computed(() => props.report.kind === 'PLAN');
+const taskPlans = (task: ReportTask) => {
+  const plans = task.workPlan ? [task.workPlan, ...(task.workPlans || [])] : task.workPlans || [];
+  return plans.filter((plan, index) => plans.findIndex((item) => item.id === plan.id) === index);
+};
 const noteLabel = computed(() => (isPlan.value ? '추가 안내' : '추가 확인 사항'));
 const plannedAssetCount = computed(
   () => new Set(props.report.snapshot.tasks.flatMap((t) => t.assets.map((a) => a.id))).size,
