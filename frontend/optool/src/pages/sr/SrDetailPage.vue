@@ -62,7 +62,7 @@
         <q-space />
         <q-btn v-if="isAdminUser" flat no-caps icon="download" label="내려받기" color="primary" size="sm"
           aria-label="엑셀 및 첨부파일 내려받기" :loading="exporting" @click="downloadDetail">
-          <q-tooltip>엑셀과 첨부파일을 함께 내려받습니다.</q-tooltip>
+          <q-tooltip>요청 내용과 이미지를 엑셀로 내려받습니다. 일반 첨부파일은 함께 묶습니다.</q-tooltip>
         </q-btn>
       </div>
 
@@ -1845,7 +1845,7 @@ async function downloadDetail() {
     const downloaded = exportFile(filename, res.data, { mimeType })
     if (downloaded !== true) throw downloaded
     if (Number(res.headers['x-export-warnings']) > 0) {
-      $q.notify({ type: 'warning', message: '일부 첨부파일을 포함하지 못했습니다. 엑셀의 첨부파일 시트를 확인해 주세요.', timeout: 8000 })
+      $q.notify({ type: 'warning', message: '일부 이미지나 첨부파일을 포함하지 못했습니다. 엑셀에 표시된 안내를 확인해 주세요.', timeout: 8000 })
     }
   } catch {
     $q.notify({ type: 'negative', message: 'SR 내려받기에 실패했습니다. 다시 시도해 주세요.' })

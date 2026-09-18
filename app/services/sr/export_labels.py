@@ -1,5 +1,25 @@
 """Excel labels corresponding to services/sr-type-fields.ts in the frontend."""
 
+# The editor field is stored in description; other fields live in type_detail.
+EDITOR_FIELDS = {
+    'IMPROVEMENT': 'improvementDetail', 'BUG_FIX': 'reproduceSteps',
+    'DATA_REQUEST': 'dataItems', 'PERMISSION': 'permissionReason',
+    'CONFIG_CHANGE': 'changeDetail', 'SERVER_INFRA': 'workDetail',
+    'SECURITY': 'securityIssue', 'ETC': 'description',
+}
+REQUEST_FIELDS = {
+    'IMPROVEMENT': ['currentProblem', 'improvementDetail', 'expectedEffect', 'targetMenu', 'referenceCase', 'completionCriteria'],
+    'BUG_FIX': ['errorScreen', 'occurredAt', 'errorMessage', 'reproduceSteps', 'expectedResult', 'actualResult', 'userEnvironment'],
+    'DATA_REQUEST': ['dataPurpose', 'dataItems', 'dataPeriodFrom', 'dataPeriodTo', 'dataCondition', 'containsPersonalInfo', 'containsSensitiveInfo', 'deliveryFormat', 'deliveryMethod', 'approver', 'retentionDate'],
+    'PERMISSION': ['targetUser', 'requestedPermission', 'permissionReason', 'permissionDuration', 'permissionExpiry', 'approver', 'existingPermission'],
+    'CONFIG_CHANGE': ['configTarget', 'changeDetail', 'currentValue', 'requestedValue', 'changeReason', 'impactScope', 'applyDatetime', 'serviceInterruption', 'rollbackPlan', 'verificationMethod'],
+    'SERVER_INFRA': ['targetServer', 'workType', 'workDetail', 'resourceInfo', 'workDatetime', 'serviceImpact', 'backupRequired', 'verificationMethod'],
+    'SECURITY': ['securityRequestType', 'securityIssue', 'riskLevel', 'diagnosisStandard', 'requestedAction', 'actionDeadline', 'evidenceRequired', 'evidenceFormat', 'exceptionApproval'],
+    'FIREWALL': ['requestKind', 'environment', 'firewallRules', 'direction', 'purpose', 'duration', 'expiryDate'],
+    'BACKOFFICE_EAA': ['researchNumber', 'mappedVmInfo', 'userList', 'etc'],
+    'ETC': ['description'],
+}
+
 DETAIL_LABELS = {'currentProblem': '현재 문제점',
  'improvementDetail': '개선 요청 내용',
  'expectedEffect': '기대 효과',
