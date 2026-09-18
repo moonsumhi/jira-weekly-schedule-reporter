@@ -1225,11 +1225,11 @@ async def migrate_inspection_tasks():
     )
     await menus.update_one(
         {'slug': 'server_check', 'submenus.link': {'$ne': '/inspection/monthly-reports'}},
-        {'$push': {'submenus': {'$each': [{'title': '계획서·결과서', 'icon': 'fa-solid fa-file-lines',
+        {'$push': {'submenus': {'$each': [{'title': '점검 보고서', 'icon': 'fa-solid fa-file-lines',
                                           'link': '/inspection/monthly-reports'}], '$position': 1}}},
     )
 
     await menus.update_one(
-        {'slug': 'server_check', 'submenus': {'$elemMatch': {'link': '/inspection/monthly-reports', 'title': '점검 보고서'}}},
-        {'$set': {'submenus.$.title': '계획서·결과서'}},
+        {'slug': 'server_check', 'submenus.link': '/inspection/monthly-reports'},
+        {'$set': {'submenus.$.title': '점검 보고서'}},
     )

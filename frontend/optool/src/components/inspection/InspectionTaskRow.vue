@@ -35,7 +35,7 @@
         <div class="task-meta">
           <span class="issue-key">{{ task.issue.key }}</span>
           <button class="result-link" @click="emit('result')">
-            {{ task.result?.content ? '결과 보기' : '결과 작성' }}
+            {{ hasInspectionResult(task) ? '결과 보기' : '결과 작성' }}
           </button>
           <span v-if="task.issueDeleted" class="text-negative">{{
             task.sourceType === 'WORK_PLAN' ? '삭제된 작업계획서' : '삭제된 이슈'
@@ -49,6 +49,7 @@
         </div>
         <div v-if="task.reason" class="task-reason">{{ task.reason }}</div>
         <InspectionWorkPlanLinks :plans="task.workPlans" @updated="emit('work-plans-updated')" />
+        <InspectionWorkPlanLinks :plans="task.result?.workResults" kind="RESULT" @updated="emit('work-plans-updated')" />
       </div>
     </div>
     <div class="task-assets">
@@ -212,7 +213,7 @@
 import { computed } from 'vue';
 import { useAuthStore } from 'stores/auth';
 import InspectionWorkPlanLinks from './InspectionWorkPlanLinks.vue';
-import { thisMonth, type InspectionTask, type InspectionAsset } from 'src/services/inspection';
+import { thisMonth, hasInspectionResult, type InspectionTask, type InspectionAsset } from 'src/services/inspection';
 import { ISSUE_STATUSES, STATUS_LABEL, type IssueStatus } from 'src/services/pm/issue';
 const props = defineProps<{ task: InspectionTask; busy: boolean; canViewAssets: boolean }>();
 const emit = defineEmits<{

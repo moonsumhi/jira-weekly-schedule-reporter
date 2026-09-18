@@ -17,6 +17,13 @@ export interface InspectionWorkPlan {
 }
 
 export const displayWorkPlan = (plan: InspectionWorkPlan) => plan.current || plan;
+export type InspectionWorkResult = InspectionWorkPlan;
+export type InspectionDocumentKind = 'PLAN' | 'RESULT';
+export function isWorkResultTemplate(template: FormTemplate | null) {
+  if (template?.menu?.toLowerCase() !== 'job') return false;
+  const key = (template.jiraIssueKey || '').toUpperCase();
+  return key === 'JOB-RESULT' || (!key.startsWith('JOB-') && template.title.replace(/\s+/g, '').startsWith('작업결과서'));
+}
 export function isWorkPlanTemplate(template: FormTemplate | null) {
   if (template?.menu?.toLowerCase() !== 'job') return false;
   const key = (template.jiraIssueKey || '').toUpperCase();
@@ -26,9 +33,12 @@ export function isWorkPlanTemplate(template: FormTemplate | null) {
   );
 }
 export async function searchInspectionWorkPlans(search = '', assetIds: string[] = []) {
+  return searchInspectionWorkDocuments('PLAN', search, assetIds);
+}
+export async function searchInspectionWorkDocuments(kind: InspectionDocumentKind, search = '', assetIds: string[] = []) {
   return (
     await api.get<{ items: InspectionWorkPlan[]; hasMore: boolean }>(
-      '/inspection-tasks/work-plans',
+      `/inspection-tasks/${kind === 'RESULT' ? 'work-results' : 'work-plans'}`,
       {
         params: { search, asset_ids: assetIds.join(',') },
       },

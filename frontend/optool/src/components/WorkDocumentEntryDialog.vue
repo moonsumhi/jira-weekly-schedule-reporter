@@ -1,7 +1,7 @@
 <template>
   <WorkDocumentDetail v-model="open" :loading="loading" :entry="entry" :title="template?.title || title"
     :sections="sections" :saving="saving" :save-warning="saveWarning" :exporting="exportingDocument" :error="error"
-    link-assets :back-label="backLabel || '자산으로 돌아가기'" :inspection-links="isWorkPlanTemplate(template)" @retry="load" @save="save"
+    link-assets :back-label="backLabel || '자산으로 돌아가기'" :inspection-links="isWorkPlanTemplate(template)" :result-inspection-links="isWorkResultTemplate(template)" @retry="load" @save="save"
     @export="exportDetailMarkdown" @export-file="exportDetailFile" @download-original="downloadOriginalFile" />
 </template>
 
@@ -13,7 +13,7 @@ import { formEntryService, type FormEntry } from 'src/services/formEntries'
 import { formTemplateService, type FormTemplate } from 'src/services/formTemplates'
 import { prepareWorkDocumentData, useWorkDocumentExport, workDocumentSections, type WorkDocumentData } from 'src/composables/useWorkDocument'
 import { getErrorMessage } from 'src/utils/http/error'
-import { isWorkPlanTemplate } from 'src/services/inspectionWorkPlans'
+import { isWorkPlanTemplate, isWorkResultTemplate } from 'src/services/inspectionWorkPlans'
 import { saveWorkDocument, WorkDocumentInspectionError, type WorkDocumentInspection } from 'src/services/workDocumentInspection'
 
 const props = defineProps<{ entryId: string; title: string; backLabel?: string }>()

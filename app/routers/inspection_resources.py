@@ -7,10 +7,12 @@ from pydantic import BaseModel, Field, field_validator
 from pymongo.errors import DuplicateKeyError
 
 from app.models.user import UserPublic
+from app.routers.admin import require_admin
 from app.routers.inspection_tasks import Month, require_inspection
 from app.routers.monthly_inspection_reports import Mapping
 from app.services import monthly_inspection_reports as reports
 from app.services import inspection_service as tasks
+from app.services import inspection_hostnames
 from app.db.mongo import MongoClientManager as M
 from app.utils.mongo import oid
 
@@ -36,6 +38,36 @@ class ResourcePreview(BaseModel):
     month: Month
     source_id: str = Field(min_length=24, max_length=24)
     mappings: list[Mapping] = Field(default_factory=list, max_length=5000)
+
+
+async def hostname_admin(user: Annotated[UserPublic, Depends(require_admin)]):
+    if not user.is_internal:
+        raise HTTPException(403, '자산 호스트명 변경은 내부 접속에서만 사용할 수 있습니다.')
+    return user
+
+
+HostnameAdmin = Annotated[UserPublic, Depends(hostname_admin)]
+
+
+class HostnameChanges(BaseModel):
+    revision: str = Field(pattern=r'^[0-9a-f]{64}$')
+    asset_ids: list[str] = Field(min_length=1, max_length=5000)
+
+    @field_validator('asset_ids')
+    @classmethod
+    def unique_assets(cls, values):
+        return Targets.unique_assets(values)
+
+
+@router.get('/{source_id}/hostnames/preview')
+async def preview_hostnames(source_id: str, user: HostnameAdmin):
+    data, _ = await inspection_hostnames.preview(source_id)
+    return reports.clean(data)
+
+
+@router.post('/{source_id}/hostnames/apply')
+async def apply_hostnames(source_id: str, body: HostnameChanges, user: HostnameAdmin):
+    return await inspection_hostnames.apply(source_id, body.revision, body.asset_ids, user)
 
 
 async def target_state():

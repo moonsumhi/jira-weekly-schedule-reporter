@@ -1,6 +1,6 @@
 import { api } from 'boot/axios';
 import { STATUS_LABEL, type IssueStatus } from './pm/issue';
-import type { InspectionWorkPlan } from './inspectionWorkPlans';
+import type { InspectionWorkPlan, InspectionWorkResult } from './inspectionWorkPlans';
 import { assetCategories, type AssetCategory } from './assetLinks';
 
 export interface InspectionAsset {
@@ -16,6 +16,7 @@ export interface InspectionAsset {
 export const inspectionAssetCategories = assetCategories;
 export type InspectionAssetCategory = AssetCategory;
 export interface InspectionResult {
+  workResults?: InspectionWorkResult[];
   content: string;
   performedOn: string | null;
   followUp: string;
@@ -23,9 +24,19 @@ export interface InspectionResult {
   updatedAt: string;
   updatedBy: string;
 }
+export interface InspectionResultInput {
+  version: number;
+  content: string;
+  performed_on: string | null;
+  follow_up: string;
+  work_result_ids?: string[];
+}
+export const hasInspectionResult = (task: InspectionTask) => !!(
+  task.result?.content?.trim() || task.result?.workResults?.some((ref) => !ref.unavailable && !ref.isDeleted)
+);
 export async function saveInspectionResult(
   task: InspectionTask,
-  body: { version: number; content: string; performed_on: string | null; follow_up: string },
+  body: InspectionResultInput,
 ) {
   return (
     await api.put<InspectionResult>(`/inspection-tasks/${task.issueId}/${task.month}/result`, body)

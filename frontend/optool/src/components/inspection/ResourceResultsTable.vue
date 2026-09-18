@@ -11,6 +11,9 @@
     rows-per-page-label="페이지당 항목"
     :pagination-label="(first, last, total) => `${first}–${last} / ${total}건`"
   >
+    <template #header-cell-status="props">
+      <q-th :props="props">{{ props.col.label }}<ResourceStatusHelp /></q-th>
+    </template>
     <template #body-cell-name="props">
       <q-td :props="props" class="identity-cell">
         <ResourceResultIdentity
@@ -70,9 +73,12 @@
             :busy="busy"
             @mapping="emit('mapping', $event)"
           />
-          <span class="result-status" :class="props.row.status.tone"
-            ><i />{{ props.row.status.label }}</span
-          >
+          <div class="result-card-status">
+            <span class="result-status" :class="props.row.status.tone"
+              ><i />{{ props.row.status.label }}</span
+            >
+            <ResourceStatusHelp />
+          </div>
         </div>
         <div v-if="props.row.record" class="result-card-metrics">
           <div v-for="kind in metricKinds" :key="kind">
@@ -111,6 +117,7 @@ import type { ResourceServer } from 'src/services/inspectionReports';
 import type { ResourceResultRow } from 'src/utils/inspectionResources';
 import ResourceUsageMetric from './ResourceUsageMetric.vue';
 import ResourceResultIdentity from './ResourceResultIdentity.vue';
+import ResourceStatusHelp from './ResourceStatusHelp.vue';
 const props = defineProps<{
   rows: ResourceResultRow[];
   canViewAsset: boolean;
@@ -258,6 +265,7 @@ watch(
   justify-content: space-between;
   gap: 12px;
 }
+.result-card-status { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
 .result-card-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

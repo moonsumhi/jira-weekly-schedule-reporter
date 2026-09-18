@@ -5,7 +5,7 @@
       outlined
       dense
       clearable
-      label="작업계획서 검색"
+      :label="`${documentLabel} 검색`"
       placeholder="작업명 또는 문서 종류"
       :disable="disable"
       debounce="250"
@@ -17,7 +17,7 @@
       v-if="props.assetIds.length"
       v-model="relatedOnly"
       dense
-      label="선택한 자산의 계획서만 보기"
+      :label="`선택한 자산의 ${shortLabel}만 보기`"
       class="plan-related"
       :disable="disable"
     />
@@ -51,15 +51,15 @@
           <q-icon :name="chosen(plan.id) ? 'check' : 'add'" size="18px" />
         </button>
       </li>
-      <li v-if="!loading && !options.length" class="plan-empty">일치하는 작업계획서가 없습니다.</li>
-      <li v-if="loading && !options.length" class="plan-empty">작업계획서를 불러오는 중입니다.</li>
+      <li v-if="!loading && !options.length" class="plan-empty">일치하는 {{ documentLabel }}가 없습니다.</li>
+      <li v-if="loading && !options.length" class="plan-empty">{{ documentLabel }}를 불러오는 중입니다.</li>
     </ul>
     <p v-if="hasMore && !error" class="plan-more">
       검색 결과가 더 있습니다. 작업명을 입력해 범위를 좁혀 주세요.
     </p>
     <div v-if="selected.length" class="selected-plans">
       <div class="selected-heading">
-        {{ props.maxSelection === 1 ? '선택한 작업계획서' : '연결할 계획서' }}
+        {{ props.maxSelection === 1 ? `선택한 ${documentLabel}` : `연결할 ${shortLabel}` }}
         <b>{{ selected.length }}개</b>
       </div>
       <div v-for="plan in selected" :key="plan.id" class="selected-plan">
@@ -96,14 +96,14 @@
           no-caps
           color="primary"
           class="plan-apply-assets"
-          label="계획서의 연결 자산 가져오기"
+          :label="`${shortLabel}의 연결 자산 가져오기`"
           :disable="disable"
           @click="emit('assets', availableAssets(plan))"
         />
       </div>
     </div>
     <p v-if="props.maxSelection > 1 && selected.length >= props.maxSelection" class="plan-more">
-      계획서는 최대 {{ props.maxSelection }}개까지 연결할 수 있습니다.
+      {{ shortLabel }}는 최대 {{ props.maxSelection }}개까지 연결할 수 있습니다.
     </p>
   </div>
   <WorkDocumentEntryDialog
@@ -111,16 +111,17 @@
     v-model="previewOpen"
     :entry-id="preview.id"
     :title="preview.templateTitle"
-    back-label="계획서 선택으로 돌아가기"
+    :back-label="`${shortLabel} 선택으로 돌아가기`"
     @saved="load"
   />
 </template>
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { inspectionError, type InspectionAsset } from 'src/services/inspection';
 import {
   displayWorkPlan,
-  searchInspectionWorkPlans,
+  searchInspectionWorkDocuments,
+  type InspectionDocumentKind,
   type InspectionWorkPlan,
 } from 'src/services/inspectionWorkPlans';
 import WorkDocumentEntryDialog from 'src/components/WorkDocumentEntryDialog.vue';
@@ -131,9 +132,12 @@ const props = withDefaults(
     allowApplyAssets?: boolean;
     maxSelection?: number;
     disabledIds?: string[];
+    kind?: InspectionDocumentKind;
   }>(),
-  { assetIds: () => [], maxSelection: 20, disabledIds: () => [] },
+  { assetIds: () => [], maxSelection: 20, disabledIds: () => [], kind: 'PLAN' },
 );
+const documentLabel = computed(() => props.kind === 'RESULT' ? '작업결과서' : '작업계획서');
+const shortLabel = computed(() => props.kind === 'RESULT' ? '결과서' : '계획서');
 const selected = defineModel<InspectionWorkPlan[]>({ required: true });
 const emit = defineEmits<{ assets: [assets: InspectionAsset[]] }>();
 const search = ref<string | null>(''),
@@ -166,7 +170,8 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const result = await searchInspectionWorkPlans(
+    const result = await searchInspectionWorkDocuments(
+      props.kind,
       search.value || '',
       relatedOnly.value ? props.assetIds : [],
     );
@@ -183,7 +188,7 @@ async function load() {
   }
 }
 watch(
-  [search, relatedOnly, () => props.assetIds.join(',')],
+  [search, relatedOnly, () => props.assetIds.join(','), () => props.kind],
   () => {
     void load();
   },

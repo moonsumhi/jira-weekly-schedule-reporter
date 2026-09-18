@@ -7,6 +7,13 @@
       </div>
       <div class="resource-actions">
         <q-btn
+          v-if="auth.me?.isAdmin && canWrite"
+          flat no-caps color="grey-8" icon="drive_file_rename_outline"
+          label="자산 호스트명 변경"
+          :disable="busy || !data?.source"
+          @click="hostnameOpen = true"
+        />
+        <q-btn
           v-if="canWrite"
           flat
           no-caps
@@ -215,6 +222,12 @@
       </div>
     </template>
     <ResourceTargetsDialog v-if="targetsOpen" v-model="targetsOpen" @saved="targetsSaved" />
+    <ResourceHostnameDialog
+      v-if="hostnameOpen && data?.source"
+      v-model="hostnameOpen"
+      :source-id="data.source.id"
+      @saved="load(true)"
+    />
     <HealthResourceDetailDialog
       v-model="detailOpen"
       :record="detailRecord"
@@ -282,6 +295,7 @@ import {
 import { reportTime, type ResourceServer } from 'src/services/inspectionReports';
 import InspectionMonthPicker from 'src/components/inspection/InspectionMonthPicker.vue';
 import ResourceTargetsDialog from 'src/components/inspection/ResourceTargetsDialog.vue';
+import ResourceHostnameDialog from 'src/components/inspection/ResourceHostnameDialog.vue';
 import ResourceExceptionMapping from 'src/components/inspection/ResourceExceptionMapping.vue';
 import ResourceResultsTable from 'src/components/inspection/ResourceResultsTable.vue';
 import ResourceMonthlyComparison from 'src/components/inspection/ResourceMonthlyComparison.vue';
@@ -340,6 +354,7 @@ const busy = computed(
 );
 const filter = ref<ResourceFilter>('all');
 const targetsOpen = ref(false),
+  hostnameOpen = ref(false),
   detailOpen = ref(false),
   mappingOpen = ref(false);
 const detailRecord = ref<ResourceServer | null>(null),
