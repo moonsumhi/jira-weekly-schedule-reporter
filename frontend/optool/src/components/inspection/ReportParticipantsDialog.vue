@@ -11,8 +11,14 @@
           <div class="participants-eyebrow">
             {{ formatInspectionMonth(report.month) }} · 점검 참여
           </div>
-          <h2>참여자와 수행 업무</h2>
-          <p>참여자별 역할과 수행 업무를 작성합니다.</p>
+          <h2>{{ report.kind === 'PLAN' ? '참여 예정자와 담당 업무' : '참여자와 수행 업무' }}</h2>
+          <p>
+            {{
+              report.kind === 'PLAN'
+                ? '참여 예정자의 역할과 맡을 업무를 작성합니다.'
+                : '참여자별 역할과 수행 업무를 작성합니다.'
+            }}
+          </p>
         </div>
         <q-btn
           flat
@@ -82,13 +88,13 @@
             />
           </div>
           <p class="participant-picker-hint">
-            참여자를 선택하면 이번 달 점검에서 담당한 이슈가 표시됩니다. 역할은 여러 개 선택할 수
+            참여자를 선택하면 이번 달 점검의 담당 작업이 표시됩니다. 역할은 여러 개 선택할 수
             있습니다.
           </p>
         </div>
         <div v-if="!entries.length" class="participants-empty">
           <q-icon name="groups" size="38px" /><strong>등록된 참여자가 없습니다.</strong>
-          <p>위 검색창에서 점검에 참여한 사용자를 선택해 주세요.</p>
+          <p>위 검색창에서 점검 참여자를 선택해 주세요.</p>
         </div>
         <section v-for="(entry, index) in entries" :key="entry.userId" class="participant-editor">
           <div class="participant-editor-heading">
@@ -138,7 +144,7 @@
               <span
                 ><b>{{ task.key }}</b> · {{ task.title }}</span
               >
-              <small>{{ taskStatus(task.issueId) }}</small>
+              <small v-if="report.kind !== 'PLAN'">{{ taskStatus(task.issueId) }}</small>
             </div>
           </div>
           <q-input
@@ -146,7 +152,7 @@
             outlined
             type="textarea"
             autogrow
-            label="수행 업무"
+            :label="report.kind === 'PLAN' ? '담당 업무' : '수행 업무'"
             maxlength="5000"
             :disable="saving"
             placeholder="예: 웹 서버 자원 점검 및 로그 정리, 재기동 후 서비스 정상 동작 확인"
@@ -162,7 +168,7 @@
             use-chips
             outlined
             dense
-            label="추가로 참여한 작업 (선택)"
+            label="추가 참여 작업 (선택)"
             :disable="saving || !taskOptions(entry).length"
           >
             <template #selected-item="scope"

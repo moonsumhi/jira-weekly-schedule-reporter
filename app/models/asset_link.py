@@ -1,5 +1,8 @@
 from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
+from typing import Literal
+
+AssetCategory = Literal['서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙']
 
 
 class AssetSelection(BaseModel):
@@ -12,12 +15,13 @@ class AssetSelection(BaseModel):
             raise ValueError('잘못된 자산 ID입니다.')
         values = [str(ObjectId(value)) for value in values]
         if len(values) != len(set(values)):
-            raise ValueError('중복된 서버가 있습니다.')
+            raise ValueError('중복된 자산이 있습니다.')
         return values
 
 
 class LinkedAsset(BaseModel):
     id: str
+    category: AssetCategory = '서버'
     name: str = ''
     ip: str = ''
     asset_name: str = ''

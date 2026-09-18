@@ -75,10 +75,10 @@
         </q-select>
         <p v-if="assets.length" class="inspection-targets">
           <q-icon name="dns" size="17px" /><span
-            >대상 서버: {{ assets.map((asset) => asset.name).join(', ') }}</span
+            >연결 자산: {{ assets.map((asset) => asset.name).join(', ') }}</span
           >
         </p>
-        <p v-else class="inspection-targets">위에서 대상 서버를 선택해 주세요.</p>
+        <p v-else class="inspection-targets">위에서 자산을 선택해 주세요.</p>
       </template>
     </div>
   </section>

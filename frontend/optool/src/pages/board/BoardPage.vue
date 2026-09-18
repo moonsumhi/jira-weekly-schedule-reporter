@@ -188,7 +188,7 @@ watch(() => route.params.boardId, (id) => {
   if (typeof id !== 'string' || id === boardId.value) return
   rememberList()
   ready.value = false
-  boardId.value = id as string
+  boardId.value = id
   const restored = readBoardListState(boardId.value, window.sessionStorage)
   filterText.value = restored.search
   categoryFilter.value = restored.category

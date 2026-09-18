@@ -219,6 +219,8 @@
               <q-btn unelevated color="primary" icon="edit" label="수정" class="col" :loading="loadingRackEdit" @click="openRackEdit" />
               <q-btn outline color="negative" icon="delete" label="삭제" class="col" :loading="deletingRack" @click="confirmDeleteRack" />
             </div>
+            <q-btn v-if="!rackEditing && canViewWorkHistory" flat no-caps color="primary" icon="article"
+              label="운영 이력" class="full-width q-mb-sm" @click="workHistoryOpen = true" />
           </template>
           <div v-else class="rk-empty"><q-icon name="touch_app" size="28px" color="blue-grey-2" /><div>자산 또는 랙을 선택하세요.</div></div>
         </q-card>
@@ -258,6 +260,19 @@
         </q-card>
       </div>
     </div>
+
+    <q-dialog v-model="workHistoryOpen">
+      <q-card style="width: 760px; max-width: 95vw; max-height: 85vh" class="rack-work-history">
+        <q-card-section class="row items-center">
+          <strong>{{ layout?.rack.name }}</strong><q-space />
+          <q-btn flat round dense icon="close" aria-label="랙 운영 이력 닫기" v-close-popup />
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <AssetWorkDocuments v-if="workHistoryOpen && selectedRackId" :key="selectedRackId" :asset-id="selectedRackId"
+            @navigate="workHistoryOpen = false" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
 
     <RackPlacementDialog
       v-model="dialogOpen"
@@ -414,11 +429,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'stores/auth'
 import RackElevation from './RackElevation.vue'
 import RackPlacementDialog from './RackPlacementDialog.vue'
+import AssetWorkDocuments from 'src/components/asset/AssetWorkDocuments.vue'
 import {
   getRackHistory, getRackLayout, integrityCheck, listRacks, listUnplacedAssets,
   migrateRackFromFields, movePlacement, removePlacement, searchRackAssets,
@@ -432,8 +449,11 @@ import type {
 } from 'src/types/racks'
 
 const $q = useQuasar()
+const route = useRoute()
 const auth = useAuthStore()
 const isAdmin = computed(() => !!auth.me?.isAdmin)
+const canViewWorkHistory = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('asset'))
+const workHistoryOpen = ref(false)
 
 const racks = ref<RackSummary[]>([])
 const selectedRackId = ref('')
@@ -529,6 +549,11 @@ async function openAssetInfo() {
 }
 
 const SELECTED_RACK_KEY = 'rackMgmt:selectedRackId'
+watch(() => route.query.assetId, (id) => {
+  if (typeof id === 'string' && id !== selectedRackId.value && racks.value.some(r => r.rackId === id)) {
+    void selectRack(id)
+  }
+})
 
 async function loadRacks() {
   loading.value = true
@@ -536,7 +561,7 @@ async function loadRacks() {
     racks.value = await listRacks()
     if (!selectedRackId.value && racks.value.length) {
       // 새로고침 시 마지막으로 보던 랙 복원(없으면 첫 번째)
-      const saved = localStorage.getItem(SELECTED_RACK_KEY)
+      const saved = typeof route.query.assetId === 'string' ? route.query.assetId : localStorage.getItem(SELECTED_RACK_KEY)
       const target = racks.value.find((r) => r.rackId === saved) ?? racks.value[0]!
       await selectRack(target.rackId)
     }
@@ -547,6 +572,7 @@ async function loadRacks() {
 
 async function selectRack(rackId: string) {
   cancelRackEdit()
+  workHistoryOpen.value = false
   selectedRackId.value = rackId
   selectedAsset.value = null
   highlightAssetId.value = null

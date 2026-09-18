@@ -1654,7 +1654,7 @@
           <q-tab name="basic" label="기본정보" />
           <q-tab name="config" label="구성정보" />
           <q-tab name="location" label="위치·연결" />
-          <q-tab v-if="(inspectionAuth.me?.isAdmin || inspectionAuth.me?.permissions?.includes('asset')) && (detailTarget.fields?.['자산유형'] || '서버') === '서버'" name="work-documents" label="운영 이력" />
+          <q-tab v-if="inspectionAuth.me?.isAdmin || inspectionAuth.me?.permissions?.includes('asset')" name="work-documents" label="운영 이력" />
           <q-tab name="history" label="변경이력" @click="loadDetailHistory" />
         </q-tabs>
 

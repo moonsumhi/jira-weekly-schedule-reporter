@@ -11,8 +11,11 @@
       <p class="cover-purpose">{{ report.purpose || '점검 목적이 작성되지 않았습니다.' }}</p>
       <dl class="cover-meta">
         <div>
-          <dt>점검일</dt>
-          <dd>{{ report.inspectionDate }}</dd>
+          <dt>{{ isPlan ? '점검 예정일' : '점검일' }}</dt>
+          <dd>
+            {{ report.inspectionDate
+            }}<span v-if="isPlan && report.plannedTime"> · {{ report.plannedTime }}</span>
+          </dd>
         </div>
         <div>
           <dt>작성자</dt>
@@ -23,7 +26,7 @@
           <dd>{{ reportTime(report.finalizedAt || report.snapshot.capturedAt) }}</dd>
         </div>
       </dl>
-      <div class="summary-grid">
+      <div v-if="!isPlan" class="summary-grid">
         <div>
           <span>자원 점검 서버</span><strong>{{ stats.servers }}<small>대</small></strong
           ><em>보고서에 포함된 서버</em>
@@ -50,23 +53,52 @@
           }}</em>
         </div>
       </div>
-      <div class="opinion-box">
+      <div v-if="isPlan" class="summary-grid">
+        <div>
+          <span>자원 점검 대상</span
+          ><strong>{{ report.snapshot.resourceTargets?.length || 0 }}<small>대</small></strong
+          ><em>정기 점검 대상 서버</em>
+        </div>
+        <div>
+          <span>월간 작업</span><strong>{{ stats.planned }}<small>건</small></strong
+          ><em>등록된 작업 계획</em>
+        </div>
+        <div>
+          <span>작업 대상 자산</span><strong>{{ plannedAssetCount }}<small>개</small></strong
+          ><em>월간 작업에 연결된 자산</em>
+        </div>
+        <div>
+          <span>참여 예정자</span
+          ><strong>{{ report.participants?.length || 0 }}<small>명</small></strong
+          ><em>점검 참여자 및 담당자</em>
+        </div>
+      </div>
+      <div
+        v-if="!isPlan || editable || report.overview"
+        class="opinion-box"
+        :class="{ 'screen-only': isPlan && !report.overview }"
+      >
         <div class="section-title">
-          <h2>종합 의견</h2>
+          <h2>{{ isPlan ? '사전 준비 및 유의사항' : '종합 의견' }}</h2>
           <q-btn
             v-if="editable"
             flat
             dense
             no-caps
             icon="edit_note"
-            label="의견 작성"
+            :label="isPlan ? '수정' : '의견 작성'"
             class="screen-only"
             color="primary"
             @click="emit('edit')"
           />
         </div>
         <p :class="{ placeholder: !report.overview }" class="prose">
-          {{ report.overview || '주요 점검 결과와 조치 내용을 작성해 주세요.' }}
+          {{
+            report.overview ||
+            (isPlan
+              ? '사전 준비, 서비스 중단 여부 등 필요한 내용을 작성해 주세요.'
+              : '주요 점검 결과와 조치 내용을 작성해 주세요.')
+          }}
         </p>
       </div>
       <p v-if="report.snapshot.historicalReconstruction" class="reconstruction-note">
@@ -116,7 +148,9 @@
             <span v-for="role in person.roles" :key="role.value">{{ role.label }}</span>
           </div>
           <p v-if="person.workSummary" class="prose">{{ person.workSummary }}</p>
-          <p v-else-if="!person.work.length" class="prose placeholder">수행 업무 미작성</p>
+          <p v-else-if="!person.work.length" class="prose placeholder">
+            {{ isPlan ? '담당 업무 미작성' : '수행 업무 미작성' }}
+          </p>
           <div v-if="person.work.length" class="participant-task-list">
             <span class="cell-sub">관련 월간 작업</span>
             <div v-for="task in person.work" :key="task.issueId">
@@ -141,7 +175,14 @@
       </div>
     </section>
 
-    <section id="report-resources" class="paper-section">
+    <InspectionPlanSections
+      v-if="isPlan"
+      :report="report"
+      :editable="editable"
+      @edit="emit('edit')"
+      @issue="emit('issue', $event)"
+    />
+    <section v-if="!isPlan" id="report-resources" class="paper-section">
       <div class="section-title">
         <div>
           <div class="section-number">01</div>
@@ -153,9 +194,11 @@
       </div>
       <p class="section-description">
         {{
-          report.snapshot.source
-            ? `${report.snapshot.source.reportDate} 점검 시점의 측정값`
-            : '선택한 월의 점검 데이터가 없습니다.'
+          isPlan
+            ? '정기 자원 점검 대상 · 월간 작업'
+            : report.snapshot.source
+              ? `${report.snapshot.source.reportDate} 점검 시점의 측정값`
+              : '선택한 월의 점검 데이터가 없습니다.'
         }}<template v-if="report.snapshot.comparison">
           · 비교 {{ report.snapshot.comparison.reportDate }}</template
         >
@@ -369,7 +412,8 @@
       </div>
     </section>
 
-    <section id="report-tasks" class="paper-section">
+    <InspectionPlanComparison v-if="!isPlan" :report="report" />
+    <section v-if="!isPlan" id="report-tasks" class="paper-section">
       <div class="section-title">
         <div>
           <div class="section-number">02</div>
@@ -378,7 +422,7 @@
         <span class="section-count">{{ stats.planned }}건</span>
       </div>
       <p class="section-description">
-        {{ formatInspectionMonth(report.month) }}에 등록된 점검 작업입니다. 여러 서버에 연결된
+        {{ formatInspectionMonth(report.month) }}에 등록된 점검 작업입니다. 여러 자산에 연결된
         작업도 1건으로 집계합니다.
       </p>
       <div v-if="!stats.planned" class="quiet-empty">해당 월에 등록된 점검 작업이 없습니다.</div>
@@ -461,7 +505,7 @@
       <div class="section-title">
         <div>
           <div class="section-number">03</div>
-          <h2>추가 확인 사항</h2>
+          <h2>{{ noteLabel }}</h2>
         </div>
         <q-btn
           v-if="editable"
@@ -470,10 +514,10 @@
           dense
           color="primary"
           icon="add"
-          aria-label="추가 확인 사항 추가"
+          :aria-label="`${noteLabel} 추가`"
           class="screen-only"
           @click="emit('notes')"
-          ><q-tooltip>추가 확인 사항 추가</q-tooltip></q-btn
+          ><q-tooltip>{{ noteLabel }} 추가</q-tooltip></q-btn
         >
       </div>
       <ol v-if="notes.length" class="additional-notes">
@@ -488,7 +532,7 @@
                 color="primary"
                 icon="edit"
                 label="수정"
-                :aria-label="`추가 확인 사항 ${index + 1} 수정`"
+                :aria-label="`${noteLabel} ${index + 1} 수정`"
                 @click="emit('notes', note)"
               />
               <q-btn
@@ -498,18 +542,18 @@
                 color="grey-7"
                 icon="delete_outline"
                 label="삭제"
-                :aria-label="`추가 확인 사항 ${index + 1} 삭제`"
+                :aria-label="`${noteLabel} ${index + 1} 삭제`"
                 @click="emit('delete-note', note)"
               />
             </div>
           </div>
         </li>
       </ol>
-      <p v-else class="quiet-empty">등록된 추가 확인 사항이 없습니다.</p>
+      <p v-else class="quiet-empty">등록된 항목이 없습니다.</p>
     </section>
 
     <section
-      v-if="report.includeAppendix"
+      v-if="!isPlan && report.includeAppendix"
       id="report-appendix"
       class="paper-section appendix-section"
     >
@@ -573,9 +617,11 @@
       <p>
         <b>자료 출처</b>
         {{
-          report.snapshot.source
-            ? `${report.snapshot.source.title} · ${report.snapshot.source.reportDate} · 업로드 ${reportTime(report.snapshot.source.uploadedAt)}`
-            : '점검 데이터 없음'
+          isPlan
+            ? '정기 자원 점검 대상 · 월간 작업'
+            : report.snapshot.source
+              ? `${report.snapshot.source.title} · ${report.snapshot.source.reportDate} · 업로드 ${reportTime(report.snapshot.source.uploadedAt)}`
+              : '점검 데이터 없음'
         }}
       </p>
       <p>
@@ -595,6 +641,8 @@ import {
   inspectionActionNote,
 } from 'src/utils/inspectionReportResources';
 import InspectionReportAction from './InspectionReportAction.vue';
+import InspectionPlanSections from './InspectionPlanSections.vue';
+import InspectionPlanComparison from './InspectionPlanComparison.vue';
 import InspectionWorkPlanLinks from './InspectionWorkPlanLinks.vue';
 import InspectionReportServerSheet from './InspectionReportServerSheet.vue';
 import { measurementBasis } from 'src/utils/inspectionMeasurements';
@@ -620,6 +668,11 @@ const emit = defineEmits<{
   server: [server: ResourceServer];
   issue: [task: ReportTask];
 }>();
+const isPlan = computed(() => props.report.kind === 'PLAN');
+const noteLabel = computed(() => (isPlan.value ? '추가 안내' : '추가 확인 사항'));
+const plannedAssetCount = computed(
+  () => new Set(props.report.snapshot.tasks.flatMap((t) => t.assets.map((a) => a.id))).size,
+);
 const stats = computed(() => props.report.snapshot.stats);
 const notes = computed(() => reportNotes(props.report));
 const resourceFindings = computed(() => resourceReview(props.report.snapshot));
@@ -669,7 +722,7 @@ function openParticipantTask(id: string) {
 const metricKinds = ['cpu', 'ram', 'disk'] as const;
 const taskGroups = computed(() =>
   [
-    { label: '서버별 작업', tasks: props.report.snapshot.tasks.filter((t) => !t.common) },
+    { label: '자산별 작업', tasks: props.report.snapshot.tasks.filter((t) => !t.common) },
     { label: '공통 작업', tasks: props.report.snapshot.tasks.filter((t) => t.common) },
   ].filter((g) => g.tasks.length),
 );
@@ -722,6 +775,9 @@ const delta = (v: number | null) =>
   }
 }
 @media print {
+  #report-followup {
+    break-inside: avoid;
+  }
   .additional-note {
     break-inside: avoid;
   }
@@ -1572,6 +1628,7 @@ h4 {
   .document-footer {
     padding: 16px 0;
     background: white;
+    break-inside: avoid;
   }
   .appendix-section {
     break-before: page;

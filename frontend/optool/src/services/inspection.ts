@@ -1,9 +1,11 @@
 import { api } from 'boot/axios';
 import { STATUS_LABEL, type IssueStatus } from './pm/issue';
 import type { InspectionWorkPlan } from './inspectionWorkPlans';
+import { assetCategories, type AssetCategory } from './assetLinks';
 
 export interface InspectionAsset {
   id: string;
+  category?: InspectionAssetCategory;
   name: string;
   ip: string;
   assetName: string;
@@ -11,6 +13,8 @@ export interface InspectionAsset {
   isDeleted: boolean;
   current?: InspectionAsset | null;
 }
+export const inspectionAssetCategories = assetCategories;
+export type InspectionAssetCategory = AssetCategory;
 export interface InspectionResult {
   content: string;
   performedOn: string | null;
@@ -109,10 +113,14 @@ export async function getInspectionTasks(
     })
   ).data;
 }
-export async function searchInspectionAssets(search = '', ids: string[] = []) {
+export async function searchInspectionAssets(
+  search = '',
+  ids: string[] = [],
+  category?: InspectionAssetCategory,
+) {
   return (
     await api.get<InspectionAsset[]>('/inspection-tasks/assets', {
-      params: { search, ids: ids.join(',') },
+      params: { search, ids: ids.join(','), category },
     })
   ).data;
 }

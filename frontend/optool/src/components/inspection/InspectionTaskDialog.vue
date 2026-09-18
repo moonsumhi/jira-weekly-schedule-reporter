@@ -11,7 +11,7 @@
           <div>
             <div class="dialog-eyebrow">월간 작업</div>
             <h2>
-              {{ task ? (planMode ? '점검 작업 수정' : '대상 서버 변경') : '점검 작업 추가' }}
+              {{ task ? (planMode ? '점검 작업 수정' : '대상 자산 변경') : '점검 작업 추가' }}
             </h2>
             <p>
               {{
@@ -274,11 +274,11 @@
                 />
               </div>
             </section>
-            <section class="target-section" aria-label="대상 서버 선택">
+            <section class="target-section" aria-label="자산 선택">
               <div class="section-label">
                 <span>02</span>
-                <h3>대상 서버</h3>
-                <b v-if="!common">{{ selectedAssets.length }}대 선택</b>
+                <h3>자산 선택</h3>
+                <b v-if="!common">{{ selectedAssets.length }}개 선택</b>
               </div>
               <InspectionTargetPicker
                 v-if="modelValue"
@@ -291,12 +291,12 @@
         </div>
         <footer class="dialog-footer">
           <div class="save-summary">
-            <q-icon :name="common ? 'layers' : 'dns'" size="17px" /><span>{{
+            <q-icon :name="common ? 'layers' : 'inventory_2'" size="17px" /><span>{{
               common
                 ? '공통 작업'
                 : selectedAssets.length
-                  ? `서버 ${selectedAssets.length}대`
-                  : '대상 서버를 선택해 주세요'
+                  ? `자산 ${selectedAssets.length}개`
+                  : '대상 자산을 선택해 주세요'
             }}</span>
           </div>
           <div class="footer-buttons">
@@ -312,7 +312,7 @@
               no-caps
               type="submit"
               color="primary"
-              :label="task ? (planMode ? '변경 사항 저장' : '대상 서버 저장') : '작업 추가'"
+              :label="task ? (planMode ? '변경 사항 저장' : '대상 자산 저장') : '작업 추가'"
               :loading="saving"
               :disable="!canSave"
             />
@@ -566,7 +566,7 @@ watch(
         const assets = await searchInspectionAssets('', [props.assetId]);
         if (token !== generation) return;
         selectedAssets.value = assets;
-        if (!assets.length) error.value = '해당 서버는 삭제되었거나 선택할 수 없습니다.';
+        if (!assets.length) error.value = '해당 자산은 삭제되었거나 선택할 수 없습니다.';
       }
     } catch (e) {
       if (token === generation) error.value = inspectionError(e);

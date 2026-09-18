@@ -267,13 +267,13 @@
     <div v-if="!inProgressByPerson.length" class="empty-row">해당 없음</div>
     <table v-else class="doc-table">
       <colgroup>
-        <col style="width:24px" /><col style="width:96px" /><col /><col style="width:44px" /><col style="width:68px" />
+        <col style="width:24px" /><col style="width:96px" /><col /><col style="width:68px" />
       </colgroup>
-      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>지연</th><th>마감일</th></tr></thead>
+      <thead><tr><th>No</th><th>이슈 번호</th><th>업무명</th><th>마감일</th></tr></thead>
       <tbody>
         <template v-for="pb in inProgressByPerson" :key="pb.userId">
           <tr class="group-header-row">
-            <td colspan="5">
+            <td colspan="4">
               {{ pb.userName }}<span class="group-cnt">{{ pb.items.length }}건</span>
               <span v-if="pb.items.some(i => i.isDelayed)" class="group-delay-cnt">지연 {{ pb.items.filter(i => i.isDelayed).length }}건</span>
             </td>
@@ -281,8 +281,7 @@
           <tr v-for="(item, i) in pb.items" :key="item.issueId" :class="{ 'row-delay': item.isDelayed }">
             <td class="c">{{ i + 1 }}</td>
             <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
-            <td>{{ item.title }}</td>
-            <td class="c">{{ item.isDelayed ? '⚠ 지연' : '' }}</td>
+            <td>{{ item.title }} <span v-if="item.isDelayed" class="badge badge-red issue-delay-badge">지연</span></td>
             <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
           </tr>
         </template>
@@ -305,7 +304,7 @@
           <tr v-for="(item, i) in pb.items" :key="item.issueId">
             <td class="c">{{ i + 1 }}</td>
             <td class="c issue-key">{{ item.projectName }}-{{ item.issueNumber }}</td>
-            <td>{{ item.title }}</td>
+            <td>{{ item.title }} <span v-if="item.isDelayed" class="badge badge-red issue-delay-badge">지연</span></td>
             <td class="c">{{ item.dueDate ? fmt(item.dueDate) : '-' }}</td>
           </tr>
         </template>

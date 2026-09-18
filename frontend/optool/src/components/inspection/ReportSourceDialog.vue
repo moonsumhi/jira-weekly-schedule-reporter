@@ -9,10 +9,17 @@
       <header class="source-header">
         <div>
           <div class="eyebrow">
-            {{ formatInspectionMonth(month) }} · {{ report ? '최신 내용 불러오기' : '보고서 작성' }}
+            {{ formatInspectionMonth(month) }} ·
+            {{ report ? '최신 내용 불러오기' : `${documentLabel} 작성` }}
           </div>
-          <h2>{{ report ? '최신 점검 내용 확인' : '점검 보고서 작성' }}</h2>
-          <p>점검 데이터와 월간 작업 결과를 불러옵니다.</p>
+          <h2>{{ report ? '최신 내용 확인' : `점검 ${documentLabel} 작성` }}</h2>
+          <p>
+            {{
+              isPlan
+                ? '정기 점검 대상 서버와 예정된 월간 작업을 불러옵니다.'
+                : '점검 데이터와 월간 작업 결과를 불러옵니다.'
+            }}
+          </p>
         </div>
         <q-btn
           flat
@@ -27,10 +34,28 @@
       <q-linear-progress v-if="busy" indeterminate color="primary" />
       <div v-if="loading" class="source-loading" role="status">
         <q-spinner color="primary" size="30px" />
-        <p>선택한 월의 점검 데이터와 작업을 불러오는 중입니다.</p>
+        <p>선택한 월의 점검 내용을 불러오는 중입니다.</p>
       </div>
       <div v-else class="source-body">
-        <section class="source-config">
+        <section v-if="isPlan" class="source-config">
+          <h3>자원 점검 계획</h3>
+          <p class="field-help">자원 점검에 등록된 정기 점검 대상입니다.</p>
+          <div v-if="preview" class="source-record">
+            <strong>대상 서버 {{ preview.snapshot.resourceTargets?.length || 0 }}대</strong>
+            <div
+              v-for="asset in preview.snapshot.resourceTargets"
+              :key="asset.id"
+              class="plan-target"
+            >
+              <b>{{ asset.name }}</b
+              ><span>{{ asset.ip || 'IP 미등록' }}</span>
+            </div>
+            <p v-if="!preview.snapshot.resourceTargets?.length">
+              등록된 정기 점검 대상이 없습니다.
+            </p>
+          </div>
+        </section>
+        <section v-else class="source-config">
           <h3>자원 점검 데이터</h3>
           <template v-if="preview">
             <p class="field-help">선택한 월과 전월의 최신 점검 데이터를 비교합니다.</p>
@@ -66,6 +91,14 @@
                 }}
               </p>
             </div>
+            <div v-if="preview.snapshot.plan" class="source-record">
+              <span class="source-period">비교할 점검 계획서</span
+              ><strong>{{ preview.snapshot.plan.title }}</strong
+              ><span
+                >{{ preview.snapshot.plan.revision }}차 확정본 ·
+                {{ preview.snapshot.plan.tasks.length }}건</span
+              >
+            </div>
           </template>
           <p v-else class="field-help">점검 데이터를 불러오지 못했습니다. 다시 시도해 주세요.</p>
         </section>
@@ -78,8 +111,11 @@
             >
           </div>
           <p class="field-help">
-            선택한 월의 점검 작업 전체가 포함됩니다. 목록에서 설정한 검색·필터와 관계없이
-            불러옵니다.
+            {{
+              isPlan
+                ? '선택한 월에 진행할 작업을 포함합니다. 이월하거나 제외한 작업은 포함하지 않습니다.'
+                : '선택한 월의 점검 작업 전체가 포함됩니다. 목록에서 설정한 검색·필터와 관계없이 불러옵니다.'
+            }}
           </p>
           <template v-if="preview">
             <div class="preview-counts">
@@ -92,14 +128,14 @@
                 ><span>월간 작업</span>
               </div>
               <div>
-                <strong>{{ preview.snapshot.stats.done }}</strong
-                ><span>완료 작업</span>
+                <strong>{{ isPlan ? assignedCount : preview.snapshot.stats.done }}</strong
+                ><span>{{ isPlan ? '작업 담당자' : '완료 작업' }}</span>
               </div>
             </div>
             <p v-if="report" class="field-help">
               기존 {{ report.snapshot.stats.servers }}대 · {{ report.snapshot.stats.planned }}건 →
               변경 후 {{ preview.snapshot.stats.servers }}대 ·
-              {{ preview.snapshot.stats.planned }}건. 직접 작성한 종합 의견은 유지됩니다.
+              {{ preview.snapshot.stats.planned }}건. 직접 작성한 내용은 유지됩니다.
             </p>
             <div v-if="preview.snapshot.warnings.length" class="review-notes">
               <h4>확인이 필요한 항목</h4>
@@ -108,8 +144,8 @@
                 ><b>{{ w.count }}{{ w.code === 'no_source' ? '' : '건' }}</b>
               </div>
               <p>
-                누락된 항목이 있어도 초안은 만들 수 있습니다. 보고서 확정 전에는 누락 사유와 추가
-                확인 계획을 작성해 주세요.
+                누락된 항목이 있어도 초안은 만들 수 있습니다. 보고서 확정 전에는 내용을 확인해
+                주세요.
               </p>
             </div>
             <q-expansion-item
@@ -199,6 +235,7 @@ import {
   reportTime,
   type InspectionReport,
   type ReportPreview,
+  type ReportKind,
   type ResourceMapping,
 } from 'src/services/inspectionReports';
 import ResourceExceptionMapping from './ResourceExceptionMapping.vue';
@@ -212,6 +249,7 @@ import {
 import type { InspectionAsset } from 'src/services/inspection';
 const props = defineProps<{
   modelValue: boolean;
+  kind?: ReportKind;
   month: string;
   report?: InspectionReport | null;
 }>();
@@ -220,6 +258,13 @@ const emit = defineEmits<{
   saved: [report: InspectionReport];
 }>();
 const $q = useQuasar();
+const isPlan = computed(() => (props.report?.kind || props.kind) === 'PLAN');
+const documentLabel = computed(() => (isPlan.value ? '계획서' : '결과서'));
+const assignedCount = computed(
+  () =>
+    new Set((preview.value?.snapshot.tasks || []).map((t) => t.issue.assigneeId).filter(Boolean))
+      .size,
+);
 const preview = ref<ReportPreview | null>(null),
   loading = ref(false),
   busy = ref(false),
@@ -288,6 +333,7 @@ async function buildPreview() {
   try {
     const body = {
       month: props.month,
+      kind: props.report?.kind || props.kind || 'RESULT',
       // Keep displayed sources while rechecking live asset names.
       ...(preview.value
         ? {
@@ -363,6 +409,17 @@ async function apply() {
 }
 </script>
 <style scoped>
+.plan-target {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  padding-top: 10px;
+  font-size: 12px;
+}
+.plan-target span {
+  color: #8796a8;
+}
 .source-dialog {
   width: 1040px;
   max-width: calc(100vw - 48px);

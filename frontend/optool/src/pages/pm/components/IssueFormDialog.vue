@@ -184,9 +184,9 @@
         </div>
         </fieldset>
 
-        <ServerAssetLinks :key="`${projectId}:${modelValue}`" v-model="workAssets" class="issue-work-assets" editing :disable="loading"
-          label="작업 대상 서버 (선택)" :search-assets="searchAssets"
-          hint="등록된 서버를 선택하면 해당 자산의 운영 이력에도 이슈가 표시됩니다." />
+        <AssetLinks :key="`${projectId}:${modelValue}`" v-model="workAssets" class="issue-work-assets" editing :disable="loading"
+          :search-assets="searchAssets"
+          hint="자산을 선택하면 해당 자산의 운영 이력에도 이슈가 표시됩니다." />
 
         <section v-if="canInspect" class="issue-inspection" :class="{ 'issue-inspection--enabled': inspectionEnabled }" aria-label="서버 점검 연결">
           <q-checkbox
@@ -207,10 +207,10 @@
                 <span v-else-if="inspectionDate">점검 예정일 {{ inspectionDate }}</span>
                 <span v-else>선택한 월의 작업 목록에 등록됩니다.</span>
               </div>
-              <p>{{ workAssets.length ? `선택한 서버 ${workAssets.length}대를 점검 작업의 대상 서버로 지정합니다.` : '대상 서버가 없는 작업은 공통 작업으로 등록해 주세요.' }}</p>
+              <p>{{ workAssets.length ? `선택한 자산 ${workAssets.length}개를 점검 작업에 연결합니다.` : '자산을 지정하지 않는 작업은 공통 작업으로 등록해 주세요.' }}</p>
             </div>
-            <div v-if="workAssets.length" class="inspection-selected-servers"><q-icon name="dns" size="18px" /><span>{{ workAssets.map(asset => asset.name).join(', ') }}</span></div>
-            <q-checkbox v-else v-model="inspectionCommon" label="특정 서버 없이 공통 작업으로 등록" :disable="loading" />
+            <div v-if="workAssets.length" class="inspection-selected-servers"><q-icon name="inventory_2" size="18px" /><span>{{ workAssets.map(asset => asset.name).join(', ') }}</span></div>
+            <q-checkbox v-else v-model="inspectionCommon" label="특정 자산 없이 공통 작업으로 등록" :disable="loading" />
           </div>
         </section>
 
@@ -348,8 +348,8 @@ import { useAuthStore } from 'src/stores/auth'
 import { getErrorMessage } from 'src/utils/http/error'
 import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
 import InspectionMonthPicker from 'src/components/inspection/InspectionMonthPicker.vue'
-import ServerAssetLinks from 'src/components/ServerAssetLinks.vue'
-import type { ServerAssetLink } from 'src/services/assetLinks'
+import AssetLinks from 'src/components/AssetLinks.vue'
+import type { AssetCategory, AssetLink } from 'src/services/assetLinks'
 import {
   getInspectionDate, getInspectionTasks, registerInspection, searchInspectionAssets, thisMonth,
 } from 'src/services/inspection'
@@ -378,14 +378,14 @@ const canInspect = computed(() => !!(auth.me?.isAdmin || auth.me?.permissions?.i
 const inspectionEnabled = ref(false)
 const inspectionMonth = ref(thisMonth())
 const inspectionCommon = ref(false)
-const workAssets = ref<ServerAssetLink[]>([])
-const searchAssets = (search: string) => searchIssueAssets(props.projectId, search)
+const workAssets = ref<AssetLink[]>([])
+const searchAssets = (search: string, category?: AssetCategory) => searchIssueAssets(props.projectId, search, category)
 watch(() => workAssets.value.length, length => { if (length) inspectionCommon.value = false })
 const workAssetsChanged = computed(() => !!createdIssue.value && JSON.stringify((createdIssue.value.linkedAssets || []).map(asset => asset.id).sort()) !== JSON.stringify(workAssets.value.map(asset => asset.id).sort()))
 const inspectionDate = ref('')
 const inspectionDateLoading = ref(false)
 const submitLabel = computed(() => {
-  if (createdIssue.value) return inspectionEnabled.value ? '점검 연결 재시도' : workAssetsChanged.value ? '서버 연결 저장' : '닫기'
+  if (createdIssue.value) return inspectionEnabled.value ? '점검 연결 재시도' : workAssetsChanged.value ? '자산 연결 저장' : '닫기'
   return inspectionEnabled.value ? '이슈 및 점검 작업 추가' : '이슈 추가'
 })
 let inspectionDateRequest = 0
@@ -399,7 +399,7 @@ watch([inspectionEnabled, inspectionMonth, () => props.modelValue], async () => 
     const date = await getInspectionDate(inspectionMonth.value)
     if (token === inspectionDateRequest) inspectionDate.value = date
   } catch {
-    // 점검일은 참고 정보이며, 월과 대상 서버로 등록할 수 있다.
+    // 점검일은 참고 정보이며, 월과 대상 자산으로 등록할 수 있다.
   } finally {
     if (token === inspectionDateRequest) inspectionDateLoading.value = false
   }
@@ -649,7 +649,7 @@ async function submit() {
   }
   const addInspection = canInspect.value && inspectionEnabled.value
   if (addInspection && (!/^20\d{2}-(0[1-9]|1[0-2])$/.test(inspectionMonth.value) || (!inspectionCommon.value && !workAssets.value.length))) {
-    Notify.create({ type: 'warning', message: '점검 월과 대상 서버를 선택하거나 공통 작업으로 지정해 주세요.' })
+    Notify.create({ type: 'warning', message: '점검 월과 자산을 선택하거나 공통 작업으로 지정해 주세요.' })
     return
   }
   loading.value = true
@@ -658,7 +658,7 @@ async function submit() {
     const assetIds = workAssets.value.map(a => a.id)
     if (addInspection && assetIds.length) {
       const available = new Set((await searchInspectionAssets('', assetIds)).map(a => a.id))
-      if (assetIds.some(id => !available.has(id))) throw new Error('선택한 서버 중 삭제된 자산이 있습니다. 대상 서버를 다시 선택해 주세요.')
+      if (assetIds.some(id => !available.has(id))) throw new Error('선택한 자산 중 삭제된 항목이 있습니다. 자산을 다시 선택해 주세요.')
     }
     if (!createdIssue.value) {
       const created = await createIssue(props.projectId, {

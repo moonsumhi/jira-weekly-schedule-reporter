@@ -1,5 +1,5 @@
 import { api } from 'src/boot/axios'
-import type { ServerAssetLink } from '../assetLinks'
+import type { AssetCategory, AssetLink } from '../assetLinks'
 
 export type IssueType = 'EPIC' | 'STORY' | 'TASK' | 'BUG' | 'SUB_TASK'
 export type IssueStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IMPLEMENTED' | 'DONE'
@@ -109,7 +109,7 @@ export type Issue = {
   subtasks: SubtaskSummary[]
   createdAt: string
   updatedAt: string
-  linkedAssets?: ServerAssetLink[]
+  linkedAssets?: AssetLink[]
 }
 
 export type Attachment = {
@@ -143,8 +143,8 @@ export type IssueCreate = {
 
 export type IssuePatch = Partial<IssueCreate & { order: number }>
 
-export async function searchIssueAssets(projectId: string, search = '') {
-  return (await api.get<ServerAssetLink[]>(`/pm/projects/${projectId}/asset-options`, { params: { search } })).data
+export async function searchIssueAssets(projectId: string, search = '', category?: AssetCategory) {
+  return (await api.get<AssetLink[]>(`/pm/projects/${projectId}/asset-options`, { params: { search, category } })).data
 }
 
 export type MentionedUser = {

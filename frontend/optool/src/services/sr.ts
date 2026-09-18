@@ -110,6 +110,9 @@ export type SRAttachmentInput = {
   content_type: string
 }
 
+export type SRTypeDetailValue = string | Record<string, string>[] | null | undefined
+export type SRTypeDetail = Record<string, SRTypeDetailValue>
+
 export type SR = {
   id: string
   srNo: string
@@ -159,7 +162,7 @@ export type SR = {
   deployedAt: string | null
   requesterConfirmed: boolean
   // 유형별 추가 항목 (테이블형 필드는 행 배열로 저장됨)
-  typeDetail: Record<string, any> | null
+  typeDetail: SRTypeDetail | null
   // 연결 정보
   relatedProjectId: string | null
   relatedIssueId: string | null
@@ -224,7 +227,7 @@ export type SRCreate = {
   reviewer_name?: string
   note?: string
   attachments?: SRAttachmentInput[]
-  type_detail?: Record<string, any> | null
+  type_detail?: SRTypeDetail | null
   submit: boolean
 }
 
@@ -247,6 +250,10 @@ export type SRAssign = {
   planned_due_date?: string | null | undefined
   deployment_required?: boolean | undefined
   security_review_required?: boolean | undefined
+}
+
+export type SRProcessingPatch = Partial<Omit<SRAssign, 'assignee_name'>> & {
+  expected_updated_at: string
 }
 
 export type SRStatusChange = {
@@ -462,6 +469,11 @@ export async function reviewSR(id: string, payload: SRReview) {
 
 export async function assignSR(id: string, payload: SRAssign) {
   const { data } = await api.post<SR>(`/admin/schedule/service-requests/${id}/assign`, payload)
+  return data
+}
+
+export async function updateSRProcessing(id: string, payload: SRProcessingPatch) {
+  const { data } = await api.patch<SR>(`/admin/schedule/service-requests/${id}/processing`, payload)
   return data
 }
 

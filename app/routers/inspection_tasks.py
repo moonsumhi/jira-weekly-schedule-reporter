@@ -10,6 +10,7 @@ from app.routers.auth import get_current_user
 from app.services import inspection_service as svc
 from app.services import inspection_work_plans as plans
 from app.services import inspection_plan_tasks as plan_tasks
+from app.services import asset_catalog
 from app.services.work_document_assets import require_job
 from app.utils.mongo import oid
 
@@ -29,9 +30,9 @@ class Targets(BaseModel):
     @model_validator(mode='after')
     def valid_targets(self):
         if self.common == bool(self.asset_ids):
-            raise ValueError('대상 서버를 선택하거나 공통 작업으로 지정해 주세요.')
+            raise ValueError('대상 자산을 선택하거나 공통 작업으로 지정해 주세요.')
         if len(self.asset_ids) != len(set(self.asset_ids)):
-            raise ValueError('중복된 서버가 있습니다.')
+            raise ValueError('중복된 자산이 있습니다.')
         for value in self.asset_ids:
             oid(value)
         return self
@@ -81,7 +82,7 @@ class PlanTaskChange(BaseModel):
                 raise ValueError('상태와 예정일은 비워 둘 수 없습니다.')
         if {'asset_ids', 'common'} & fields:
             if self.asset_ids is None or self.common is None:
-                raise ValueError('대상 서버와 공통 작업 여부를 함께 입력해 주세요.')
+                raise ValueError('대상 자산과 공통 작업 여부를 함께 입력해 주세요.')
             Targets(asset_ids=self.asset_ids, common=self.common)
         return self
 
@@ -124,7 +125,7 @@ async def work_plan_options(search: str = Query('', max_length=200), asset_ids: 
     require_job(user)
     values = asset_ids.split(',') if asset_ids else []
     if len(values) > 100:
-        raise HTTPException(422, '대상 서버는 최대 100대까지 선택할 수 있습니다.')
+        raise HTTPException(422, '대상 자산은 최대 100개까지 선택할 수 있습니다.')
     return await plans.search_plans(search, [str(oid(value)) for value in values])
 
 
@@ -172,19 +173,12 @@ async def schedule(month: Month, user: UserPublic = Depends(require_inspection))
 
 @router.get('/assets')
 async def search_assets(search: str = Query('', max_length=200), ids: str = '',
+                        category: Literal['서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙'] | None = None,
                         user: UserPublic = Depends(require_inspection)):
-    import re
-    query = {'is_deleted': {'$ne': True}}
-    if ids:
-        values = ids.split(',')
-        if len(values) > 100:
-            raise HTTPException(422, '서버는 최대 100대까지 선택할 수 있습니다.')
-        query['_id'] = {'$in': [oid(i) for i in values]}
-    elif search.strip():
-        pattern = {'$regex': re.escape(search.strip()), '$options': 'i'}
-        query['$or'] = [{field: pattern} for field in ('name', 'ip', 'asset_no', 'fields.서버명')]
-    docs = await svc.M.get_assets_servers_collection().find(query).sort('name', 1).limit(100).to_list(100)
-    return [svc.asset_snapshot(d) for d in docs]
+    values = ids.split(',') if ids else []
+    if len(values) > 100:
+        raise HTTPException(422, '자산은 최대 100개까지 선택할 수 있습니다.')
+    return await asset_catalog.search_assets(search, [str(oid(value)) for value in values], category)
 
 
 @router.post('', status_code=201)
