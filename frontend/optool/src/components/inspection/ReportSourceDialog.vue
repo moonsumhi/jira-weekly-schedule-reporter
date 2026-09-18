@@ -226,7 +226,7 @@
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useQuasar } from 'quasar';
+import { uid, useQuasar } from 'quasar';
 import { formatInspectionMonth, inspectionError } from 'src/services/inspection';
 import {
   createReport,
@@ -289,7 +289,8 @@ watch(
     ++generation;
     ++previewGeneration;
     if (!open) return;
-    clientId = crypto.randomUUID();
+    // Internal HTTP deployments also need a stable request ID for creation retries.
+    clientId = uid();
     await loadPreview();
   },
 );
