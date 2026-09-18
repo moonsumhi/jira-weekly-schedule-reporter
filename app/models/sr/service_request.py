@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from bson import ObjectId
 
 from app.models.mention import MentionedUser
 from app.models.comment_reaction import CommentReactionOut, CommentReactionToggle
@@ -186,6 +187,26 @@ class SRStatusChange(BaseModel):
     deployed_at: Optional[datetime] = None
     actual_completed_at: Optional[datetime] = None
     requester_confirmed: Optional[bool] = None
+
+
+class SRProcessingPatch(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    expected_updated_at: datetime
+    assignee_id: Optional[str] = None
+    planned_start_date: Optional[datetime] = None
+    planned_due_date: Optional[datetime] = None
+    deployment_required: Optional[bool] = None
+    security_review_required: Optional[bool] = None
+
+    @model_validator(mode='after')
+    def valid_fields(self):
+        for key in ('assignee_id', 'deployment_required', 'security_review_required'):
+            if key in self.model_fields_set and getattr(self, key) is None:
+                raise ValueError('담당자와 필요 여부는 비워 둘 수 없습니다.')
+        if self.assignee_id is not None and not ObjectId.is_valid(self.assignee_id):
+            raise ValueError('담당자를 다시 선택해 주세요.')
+        return self
 
 
 class SRDueDateChange(BaseModel):

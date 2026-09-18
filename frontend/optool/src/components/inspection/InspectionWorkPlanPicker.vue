@@ -17,7 +17,7 @@
       v-if="props.assetIds.length"
       v-model="relatedOnly"
       dense
-      label="선택한 서버의 계획서만 보기"
+      label="선택한 자산의 계획서만 보기"
       class="plan-related"
       :disable="disable"
     />
@@ -96,7 +96,7 @@
           no-caps
           color="primary"
           class="plan-apply-assets"
-          label="계획서의 대상 서버 가져오기"
+          label="계획서의 연결 자산 가져오기"
           :disable="disable"
           @click="emit('assets', availableAssets(plan))"
         />

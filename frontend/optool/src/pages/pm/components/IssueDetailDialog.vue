@@ -774,7 +774,7 @@ const FIELD_LABEL: Record<string, string> = {
   sprint_id: '스프린트',
   epic_id: 'Epic',
   parent_issue_id: '상위 이슈',
-  asset_ids: '작업 대상 서버',
+  asset_ids: '연결 자산',
   label_ids: '라벨',
   start_date: '시작일',
   due_date: '마감일',

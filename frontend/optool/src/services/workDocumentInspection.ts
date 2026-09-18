@@ -68,13 +68,13 @@ export async function saveWorkDocument(options: {
         !inspection.plannedOn.startsWith(inspection.month)
       )
         throw new Error('선택한 점검 월에 맞는 작업 예정일을 입력해 주세요.');
-      if (!targets.length) throw new Error('서버 점검에 추가할 대상 서버를 선택해 주세요.');
+      if (!targets.length) throw new Error('서버 점검에 추가할 자산을 선택해 주세요.');
       if (targets.length) {
         const available = new Set(
           (await searchInspectionAssets('', targets)).map((asset) => asset.id),
         );
         if (targets.some((id) => !available.has(id)))
-          throw new Error('삭제된 서버가 포함되어 있습니다. 대상 서버를 다시 선택해 주세요.');
+          throw new Error('삭제된 자산이 포함되어 있습니다. 자산을 다시 선택해 주세요.');
       }
     }
   }

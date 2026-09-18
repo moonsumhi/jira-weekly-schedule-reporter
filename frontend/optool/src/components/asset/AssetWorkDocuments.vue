@@ -40,7 +40,7 @@
         <span class="work-document-kind">{{ item.templateTitle }}</span>
         <strong>{{ item.title }}</strong>
         <span>{{ item.dateLabel || '작업일' }} {{ item.workDate ? item.workDate.replace('T', ' ') : '미입력' }}</span>
-        <small>{{ item.createdBy || '작성자 미등록' }} · {{ fmtDateKst(item.createdAt) }} 등록{{ item.assetCount > 1 ? ` · 서버 ${item.assetCount}대` : '' }}</small>
+        <small>{{ item.createdBy || '작성자 미등록' }} · {{ fmtDateKst(item.createdAt) }} 등록{{ item.assetCount > 1 ? ` · 자산 ${item.assetCount}개` : '' }}</small>
       </template>
     </button>
     <q-btn v-if="items.length < total" flat color="primary" class="full-width q-mt-sm" :loading="loading" label="더 보기" @click="load(true)" />

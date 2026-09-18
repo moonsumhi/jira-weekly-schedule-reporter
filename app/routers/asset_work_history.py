@@ -10,7 +10,7 @@ from app.models.asset_note import AssetNoteCreate, AssetNotePatch, AssetNoteDele
 from app.models.user import UserPublic
 from app.routers.permissions import require_asset_access
 from app.services import inspection_service, work_document_assets
-from app.services.inspection_assets import asset_documents
+from app.services.asset_catalog import asset_documents
 from app.utils.mongo import oid, fmt_dt
 
 router = APIRouter()

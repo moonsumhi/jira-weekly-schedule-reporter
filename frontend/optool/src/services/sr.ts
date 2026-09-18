@@ -252,6 +252,10 @@ export type SRAssign = {
   security_review_required?: boolean | undefined
 }
 
+export type SRProcessingPatch = Partial<Omit<SRAssign, 'assignee_name'>> & {
+  expected_updated_at: string
+}
+
 export type SRStatusChange = {
   status: SRStatus
   reason?: string | undefined
@@ -465,6 +469,11 @@ export async function reviewSR(id: string, payload: SRReview) {
 
 export async function assignSR(id: string, payload: SRAssign) {
   const { data } = await api.post<SR>(`/admin/schedule/service-requests/${id}/assign`, payload)
+  return data
+}
+
+export async function updateSRProcessing(id: string, payload: SRProcessingPatch) {
+  const { data } = await api.patch<SR>(`/admin/schedule/service-requests/${id}/processing`, payload)
   return data
 }
 

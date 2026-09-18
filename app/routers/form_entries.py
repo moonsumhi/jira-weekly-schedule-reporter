@@ -33,6 +33,7 @@ from app.services import work_document_assets
 from app.db.mongo import MongoClientManager
 from app.models.form_entry import FormEntryCreate, FormEntryOut, FormEntryPatch, FormDocumentExport, FormOriginalFile
 from app.models.user import UserPublic
+from app.models.asset_link import AssetCategory
 from app.routers.auth import get_current_user
 from app.utils.mongo import fmt_dt, oid as parse_oid
 
@@ -1369,9 +1370,10 @@ def _save_original_file(content: bytes, filename: str, content_type: str | None)
 
 @router.get('/asset-options')
 async def work_document_asset_options(search: str = Query('', max_length=200),
+                                      category: AssetCategory | None = None,
                                       current_user: UserPublic = Depends(get_current_user)):
     work_document_assets.require_job(current_user)
-    return await work_document_assets.search_assets(search)
+    return await work_document_assets.search_assets(search, category)
 
 
 @router.get('/by-asset/{asset_id}')

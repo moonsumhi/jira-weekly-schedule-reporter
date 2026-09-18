@@ -40,8 +40,8 @@ class IssueAssetTests(unittest.IsolatedAsyncioTestCase):
         await M.get_assets_servers_collection().insert_many([
             {'_id': self.aid, 'name': 'web-01', 'ip': '192.0.2.10', 'fields': {'자산유형': '서버', '서버명': '서비스 서버', '비밀': 'hidden'}},
             {'_id': self.bid, 'name': 'db-01', 'ip': '192.0.2.11'},
-            {'_id': ObjectId(), 'name': 'switch-01', 'fields': {'자산유형': '네트워크'}},
         ])
+        await M.get_asset_collection('네트워크').insert_one({'name': 'switch-01', 'fields': {'자산유형': '네트워크'}})
         app = FastAPI()
         app.include_router(issues_router, prefix='/pm/projects')
         app.include_router(history_router, prefix='/assets')
@@ -92,8 +92,7 @@ class IssueAssetTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(next(row for row in listed if row['id'] == issue['id'])['linked_assets'][0]['name'], 'renamed')
 
     async def test_invalid_targets_fail_before_creating_or_changing_issue(self):
-        non_server = await M.get_assets_servers_collection().find_one({'name': 'switch-01'})
-        bad_values = [['invalid'], [str(ObjectId())], [str(non_server['_id'])], [str(self.aid)] * 2,
+        bad_values = [['invalid'], [str(ObjectId())], [str(self.aid)] * 2,
                       [str(ObjectId()) for _ in range(101)], None]
         for values in bad_values:
             response = await self.client.post(self.url, json={'title': 'invalid', 'asset_ids': values})
@@ -137,9 +136,9 @@ class IssueAssetTests(unittest.IsolatedAsyncioTestCase):
         result = await self.client.get(url, params={'search': '192.0.2.10'})
         self.assertEqual(result.status_code, 200)
         self.assertEqual([asset['id'] for asset in result.json()], [str(self.aid)])
-        self.assertEqual(set(result.json()[0]), {'id', 'name', 'ip', 'asset_name', 'is_deleted'})
+        self.assertEqual(set(result.json()[0]), {'id', 'category', 'name', 'ip', 'asset_name', 'is_deleted'})
         self.assertEqual((await self.client.get(url, params={'search': '.*'})).json(), [])
-        self.assertEqual(len((await self.client.get(url)).json()), 2)
+        self.assertEqual(len((await self.client.get(url)).json()), 3)
         self.assertEqual((await self.client.get(f'/assets/{self.aid}/work-history')).status_code, 403)
         self.user.permissions = ['asset']
         self.assertEqual((await self.history())['total'], 0)
@@ -151,6 +150,52 @@ class IssueAssetTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.client.get('/pm/projects/linked/' + issue['id'])).json()['linked_assets'], [])
         self.user.is_admin = True
         self.assertEqual((await self.history())['total'], 1)
+
+    async def test_all_asset_categories_search_link_edit_and_appear_in_history(self):
+        targets = {'서버': str(self.aid)}
+        for category in M.CATEGORY_COLLECTIONS:
+            if category == '서버':
+                continue
+            identifier = ObjectId()
+            targets[category] = str(identifier)
+            await M.get_asset_collection(category).insert_one({
+                '_id': identifier, 'name': f'{category}-연결', 'asset_no': f'LINK-{category}',
+                'fields': {'자산명': f'{category} 작업 대상', '비밀': 'must not expose'}})
+        search_url = f'/pm/projects/{self.pid}/asset-options'
+        found = (await self.client.get(search_url)).json()
+        self.assertEqual({asset['category'] for asset in found}, set(M.CATEGORY_COLLECTIONS))
+        for category, identifier in targets.items():
+            found = (await self.client.get(search_url, params={'category': category})).json()
+            self.assertTrue(found)
+            self.assertTrue(all(asset['category'] == category for asset in found))
+            self.assertIn(identifier, [asset['id'] for asset in found])
+            if category != '서버':
+                for search in (f'LINK-{category}', f'{category} 작업 대상'):
+                    found = (await self.client.get(search_url, params={'search': search})).json()
+                    self.assertEqual([asset['id'] for asset in found], [identifier])
+        self.assertEqual((await self.client.get(search_url, params={'category': 'invalid'})).status_code, 422)
+        issue = await self.create(asset_ids=list(targets.values()))
+        self.assertEqual({asset['category']: asset['id'] for asset in issue['linked_assets']}, targets)
+        self.assertNotIn('must not expose', str(issue))
+        for identifier in targets.values():
+            self.assertEqual((await self.history(identifier))['items'][0]['id'], issue['id'])
+
+        network_id = targets['네트워크']
+        await M.get_asset_collection('네트워크').update_one({'_id': ObjectId(network_id)}, {'$set': {'name': '갱신된 스위치'}})
+        url = self.url + '/' + issue['id']
+        detail = (await self.client.get(url)).json()
+        self.assertEqual(next(asset['name'] for asset in detail['linked_assets'] if asset['id'] == network_id), '갱신된 스위치')
+        await M.get_asset_collection('DBMS').update_one({'_id': ObjectId(targets['DBMS'])}, {'$set': {'is_deleted': True}})
+        await M.get_asset_collection('VMware').delete_one({'_id': ObjectId(targets['VMware'])})
+        changed = await self.client.patch(url, json={'asset_ids': list(targets.values())})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertEqual({asset['category'] for asset in changed.json()['linked_assets'] if asset['is_deleted']}, {'DBMS', 'VMware'})
+        rejected = await self.client.post(self.url, json={'title': 'new', 'asset_ids': [targets['DBMS']]})
+        self.assertEqual(rejected.status_code, 422)
+        changed = await self.client.patch(url, json={'asset_ids': [targets['랙']]})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertEqual((await self.history(network_id))['total'], 0)
+        self.assertEqual((await self.history(targets['랙']))['total'], 1)
 
     async def test_inspection_deduplication_respects_asset_state_and_permission(self):
         issue = await self.create(asset_ids=[str(self.aid), str(self.bid)])

@@ -1,4 +1,4 @@
-import type { ServerAssetLink } from './assetLinks'
+import type { AssetCategory, AssetLink } from './assetLinks'
 // src/services/formEntries.ts
 import { api } from 'src/boot/axios'
 
@@ -46,15 +46,15 @@ export type FormEntry = {
   updatedBy?: string | null
 }
 
-export type WorkDocumentAsset = ServerAssetLink
+export type WorkDocumentAsset = AssetLink
 export type AssetWorkDocument = {
   id: string; templateId: string; templateTitle: string; title: string; workDate: string;
   dateLabel?: string;
   createdAt: string | null; createdBy: string | null; assetCount: number;
 }
 
-export async function searchWorkDocumentAssets(search = '') {
-  return (await api.get<WorkDocumentAsset[]>('/form-entries/asset-options', { params: { search } })).data
+export async function searchWorkDocumentAssets(search = '', category?: AssetCategory) {
+  return (await api.get<WorkDocumentAsset[]>('/form-entries/asset-options', { params: { search, category } })).data
 }
 
 export async function listAssetWorkDocuments(assetId: string, offset = 0) {

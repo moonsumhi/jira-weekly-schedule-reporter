@@ -684,7 +684,7 @@ async def preview_weekly_report(
         lines.append("")
 
     # 2. 진행 중 업무
-    in_prog = [i for i in r.all_items if i.status == "IN_PROGRESS"]
+    in_prog = [i for i in r.all_items if i.status != "DONE"]
     if in_prog:
         lines.append("## 2. 진행 중 업무")
         for item in in_prog:
@@ -697,7 +697,8 @@ async def preview_weekly_report(
     if r.upcoming_items:
         lines.append("## 3. 차주 계획")
         for item in r.upcoming_items:
-            lines.append(f"- [{item.project_name}-{item.issue_number}] {item.title}")
+            delayed_mark = " ⚠️지연" if item.is_delayed else ""
+            lines.append(f"- [{item.project_name}-{item.issue_number}] {item.title}{delayed_mark}")
         lines.append("")
 
     # 4. 주요 안건
@@ -822,7 +823,7 @@ async def export_weekly_detail(
         ws2.merge_cells(f"A{row2}:K{row2}"); row2 += 1
         ws2.cell(row2, 1, f"완료 {pb.stats.completed} / 진행 {pb.stats.in_progress} / 지연 {pb.stats.delayed} / 완료율 {pb.stats.completion_rate}%")
         row2 += 2
-        for sec, items in [("완료", pb.completed), ("진행 중", pb.in_progress), ("지연", pb.delayed), ("차주 계획", pb.upcoming)]:
+        for sec, items in [("완료", pb.completed), ("진행 중", pb.in_progress), ("차주 계획", pb.upcoming)]:
             if not items: continue
             ws2.cell(row2, 1, sec).font = bold; row2 += 1
             row2 = _write_items_table(ws2, items, row2, hf, hfont, alt); row2 += 1
@@ -835,7 +836,7 @@ async def export_weekly_detail(
         ws3.merge_cells(f"A{row3}:K{row3}"); row3 += 1
         ws3.cell(row3, 1, f"완료 {pb.stats.completed} / 진행 {pb.stats.in_progress} / 지연 {pb.stats.delayed} / 완료율 {pb.stats.completion_rate}%")
         row3 += 2
-        for sec, items in [("완료", pb.completed), ("진행 중", pb.in_progress), ("지연", pb.delayed), ("차주 계획", pb.upcoming)]:
+        for sec, items in [("완료", pb.completed), ("진행 중", pb.in_progress), ("차주 계획", pb.upcoming)]:
             if not items: continue
             ws3.cell(row3, 1, sec).font = bold; row3 += 1
             row3 = _write_items_table(ws3, items, row3, hf, hfont, alt); row3 += 1

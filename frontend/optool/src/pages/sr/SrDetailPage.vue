@@ -60,9 +60,9 @@
           @click="btn.action()"
         />
         <q-space />
-        <q-btn v-if="isAdminUser" flat round icon="download" color="grey-6" size="sm"
-          aria-label="Excel 다운로드" :loading="exporting" @click="downloadDetail">
-          <q-tooltip>Excel 다운로드</q-tooltip>
+        <q-btn v-if="isAdminUser" flat no-caps icon="download" label="내려받기" color="primary" size="sm"
+          aria-label="엑셀 및 첨부파일 내려받기" :loading="exporting" @click="downloadDetail">
+          <q-tooltip>엑셀과 첨부파일을 함께 내려받습니다.</q-tooltip>
         </q-btn>
       </div>
 
@@ -701,7 +701,14 @@
 
                   <!-- 처리 정보 -->
                   <div v-if="sr.assigneeId">
-                    <div class="tab-section-title q-mb-sm">처리 정보</div>
+                    <div class="row items-center q-mb-sm">
+                      <div class="tab-section-title">처리 정보</div>
+                      <q-space />
+                      <q-btn v-if="canEditProcessing" flat round dense size="sm" color="primary" icon="edit"
+                        aria-label="처리 정보 수정" :disable="actionLoading" @click="openAssignDialog(true)">
+                        <q-tooltip>처리 정보 수정</q-tooltip>
+                      </q-btn>
+                    </div>
                     <q-card flat class="bg-grey-1 rounded-borders">
                       <q-card-section>
                         <div class="row q-col-gutter-md">
@@ -1214,16 +1221,16 @@
     </q-dialog>
 
     <!-- 담당자 배정 -->
-    <q-dialog v-model="assignDialog">
-      <q-card class="dialog-card">
+    <q-dialog v-model="assignDialog" :persistent="actionLoading">
+      <q-card class="dialog-card sr-processing-dialog">
         <div class="dialog-header dialog-header--cyan">
-          <div class="dialog-header__title">담당자 배정</div>
+          <div class="dialog-header__title">{{ assignEditing ? '처리 정보 수정' : '담당자 배정' }}</div>
           <div class="dialog-header__sub">{{ sr?.srNo }}</div>
         </div>
         <q-card-section class="dialog-body">
 
           <div class="field-label">담당자 <span class="required">*</span></div>
-          <q-select v-model="assignSelectedUser" outlined
+          <q-select v-model="assignSelectedUser" outlined :disable="actionLoading" aria-label="담당자"
             :options="userOptions" option-label="name"
             use-input fill-input hide-selected input-debounce="0" @filter="filterUserOptions" clearable
             placeholder="이름으로 검색" hide-bottom-space class="q-mb-md">
@@ -1242,29 +1249,29 @@
           </q-select>
 
           <div class="row q-col-gutter-sm q-mb-md">
-            <div class="col-6">
+            <div class="col-12 col-sm-6">
               <div class="field-label">처리 예정 시작일</div>
-              <q-input v-model="assignForm.plannedStartDate" outlined type="date" hide-bottom-space />
+              <q-input v-model="assignForm.plannedStartDate" outlined type="date" hide-bottom-space :disable="actionLoading" aria-label="처리 예정 시작일" />
             </div>
-            <div class="col-6">
+            <div class="col-12 col-sm-6">
               <div class="field-label">완료목표일 <span style="font-size:11px;color:#aaa;font-weight:400">(지연 판정 기준)</span></div>
-              <q-input v-model="assignForm.plannedDueDate" outlined type="date" hide-bottom-space />
+              <q-input v-model="assignForm.plannedDueDate" outlined type="date" hide-bottom-space :disable="actionLoading" aria-label="완료목표일" />
             </div>
           </div>
 
-          <div class="row q-gutter-xl q-mt-xs">
-            <q-toggle v-model="assignForm.deploymentRequired" color="orange-7" size="sm">
+          <div class="sr-processing-options">
+            <q-toggle v-model="assignForm.deploymentRequired" :disable="actionLoading" color="orange-7" size="sm">
               <template #default><span class="text-body2 q-ml-xs">배포 필요</span></template>
             </q-toggle>
-            <q-toggle v-model="assignForm.securityReviewRequired" color="red-7" size="sm">
+            <q-toggle v-model="assignForm.securityReviewRequired" :disable="actionLoading" color="red-7" size="sm">
               <template #default><span class="text-body2 q-ml-xs">보안 검토 필요</span></template>
             </q-toggle>
           </div>
 
         </q-card-section>
         <div class="dialog-footer">
-          <q-btn flat label="취소" v-close-popup color="grey-7" />
-          <q-btn color="cyan-7" unelevated label="배정 확인" @click="doAssign" :loading="actionLoading" />
+          <q-btn flat label="취소" v-close-popup color="grey-7" :disable="actionLoading" />
+          <q-btn color="cyan-7" unelevated :label="assignEditing ? '저장' : '배정 확인'" @click="doAssign" :loading="actionLoading" />
         </div>
       </q-card>
     </q-dialog>
@@ -1334,11 +1341,11 @@ import { useAuthStore } from 'src/stores/auth'
 import {
   getSR, getAdminSR, listComments, listHistory, addComment, uploadSRAttachment,
   deleteComment, toggleCommentReaction,
-  cancelSR, reviewSR, assignSR, changeSRStatus, changeSRRequester,
+  cancelSR, reviewSR, assignSR, updateSRProcessing, changeSRStatus, changeSRRequester,
   SR_STATUS_LABEL, SR_STATUS_COLOR, SR_PRIORITY_LABEL,
   REQUEST_TYPE_LABEL,
   type SR, type SRComment, type SRHistory, type SRStatus, type ReviewResult, type SRAttachment,
-  type CommentReaction, type SRTypeDetailValue,
+  type CommentReaction, type SRTypeDetailValue, type SRProcessingPatch,
 } from 'src/services/sr'
 import { SR_TYPE_FIELDS } from 'src/services/sr-type-fields'
 import type { SRTypeField } from 'src/services/sr-type-fields'
@@ -1465,6 +1472,8 @@ const cancelDialog   = ref(false)
 const requesterDialog = ref(false)
 const reviewDialog   = ref(false)
 const assignDialog   = ref(false)
+const assignEditing = ref(false)
+const assignmentSnapshot = ref<SR | null>(null)
 const statusDialog   = ref(false)
 const cancelReason   = ref('')
 
@@ -1501,6 +1510,8 @@ const isManagerUser  = computed(() => {
   const p = authStore.me?.permissions || []
   return authStore.me?.isAdmin || p.includes('sr_manager')
 })
+const canEditProcessing = computed(() => isManagerUser.value && !!sr.value?.assigneeId
+  && !['DRAFT', 'CLOSED', 'CANCELLED', 'REJECTED'].includes(sr.value.status))
 const isMyRequest    = computed(() => sr.value && String(authStore.me?.id) === sr.value.requesterId)
 
 // ── D-Day computed ────────────────────────────────────────────────────
@@ -1559,8 +1570,8 @@ const actionButtons = computed(() => {
     if (s === 'APPROVED') {
       btns.push({ key: 'assign', label: '담당자 배정', color: 'cyan-7', icon: 'person_add', action: () => { openAssignDialog(false) } })
     }
-    if (s === 'IN_PROGRESS') {
-      btns.push({ key: 'assign', label: '담당자 변경', color: 'cyan-7', outline: true, icon: 'person_add', action: () => { openAssignDialog(true) } })
+    if (canEditProcessing.value) {
+      btns.push({ key: 'assign', label: '처리 정보 수정', color: 'cyan-7', outline: true, icon: 'person_add', action: () => { openAssignDialog(true) } })
     }
   }
 
@@ -1768,6 +1779,11 @@ function fmtDate(d: SRTypeDetailValue)     { return fmtDateKst(typeof d === 'str
 function fmtDateTime(d: SRTypeDetailValue) { return typeof d === 'string' && d ? formatKst(d) : '-' }
 
 const FIELD_LABELS: Record<string, string> = {
+  ASSIGNEE_CHANGE: '담당자',
+  planned_start_date: '처리 예정 시작일',
+  planned_due_date: '완료목표일',
+  deployment_required: '배포 필요',
+  security_review_required: '보안 검토 필요',
   request_type: '요청 유형',
   impact_if_not_processed: '미처리 시 영향',
   compliance_related: '규정 관련 여부',
@@ -1815,12 +1831,24 @@ async function downloadDetail() {
   exporting.value = true
   try {
     const res = await api.get<Blob>(`/admin/schedule/service-requests/${current.id}/export`, { responseType: 'blob' })
-    const downloaded = exportFile(`SR상세_${current.srNo || current.id}.xlsx`, res.data, {
-      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    })
+    const mimeType = String(res.headers['content-type'] || res.data.type).split(';')[0] || ''
+    const extension = mimeType === 'application/zip' ? '.zip' : '.xlsx'
+    if (!['application/zip', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'].includes(mimeType)) {
+      throw new Error('올바른 다운로드 파일이 아닙니다.')
+    }
+    let filename = `SR상세_${current.srNo || current.id}${extension}`
+    const encodedName = String(res.headers['content-disposition'] || '').match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+    if (encodedName) {
+      try { filename = decodeURIComponent(encodedName) } catch { /* 기본 파일명 사용 */ }
+    }
+    filename = filename.replace(/[<>:"/\\|?*\r\n]/g, '_')
+    const downloaded = exportFile(filename, res.data, { mimeType })
     if (downloaded !== true) throw downloaded
+    if (Number(res.headers['x-export-warnings']) > 0) {
+      $q.notify({ type: 'warning', message: '일부 첨부파일을 포함하지 못했습니다. 엑셀의 첨부파일 시트를 확인해 주세요.', timeout: 8000 })
+    }
   } catch {
-    $q.notify({ type: 'negative', message: 'Excel 다운로드에 실패했습니다.' })
+    $q.notify({ type: 'negative', message: 'SR 내려받기에 실패했습니다. 다시 시도해 주세요.' })
   } finally {
     exporting.value = false
   }
@@ -2001,26 +2029,51 @@ async function doReview() {
 }
 
 async function doAssign() {
+  if (actionLoading.value || !sr.value) return
   if (!assignSelectedUser.value) {
-    $q.notify({ type: 'warning', message: '담당자를 선택해주세요.' }); return
+    $q.notify({ type: 'warning', message: '담당자를 선택해 주세요.' }); return
   }
+  const start = assignForm.value.plannedStartDate || null
+  const due = assignForm.value.plannedDueDate || null
+  if (start && due && start > due) {
+    $q.notify({ type: 'warning', message: '완료목표일은 처리 예정 시작일보다 빠를 수 없습니다.' }); return
+  }
+  const id = srId.value, editing = assignEditing.value, previous = assignmentSnapshot.value
+  if (editing && (!previous || previous.id !== id)) return
+  const startIso = start ? `${start}T00:00:00+09:00` : null
+  const dueIso = due ? `${due}T23:59:59+09:00` : null
   actionLoading.value = true; activeAction.value = 'assign'
   try {
-    await assignSR(srId.value, {
-      assignee_id:              assignSelectedUser.value.id,
-      assignee_name:            assignSelectedUser.value.name,
-      planned_start_date:       assignForm.value.plannedStartDate,
-      planned_due_date:         assignForm.value.plannedDueDate,
-      deployment_required:      assignForm.value.deploymentRequired,
-      security_review_required: assignForm.value.securityReviewRequired,
-    })
-    $q.notify({ type: 'positive', message: '담당자가 배정되었습니다.' })
+    let updated: SR
+    if (editing && previous) {
+      const patch: SRProcessingPatch = { expected_updated_at: previous.updatedAt }
+      if (assignSelectedUser.value.id !== previous.assigneeId) patch.assignee_id = assignSelectedUser.value.id
+      if (start !== (previous.plannedStartDate ? fmtDateKst(previous.plannedStartDate) : null)) patch.planned_start_date = startIso
+      if (due !== (previous.plannedDueDate ? fmtDateKst(previous.plannedDueDate) : null)) patch.planned_due_date = dueIso
+      if (assignForm.value.deploymentRequired !== previous.deploymentRequired) patch.deployment_required = assignForm.value.deploymentRequired
+      if (assignForm.value.securityReviewRequired !== previous.securityReviewRequired) patch.security_review_required = assignForm.value.securityReviewRequired
+      if (Object.keys(patch).length === 1) { assignDialog.value = false; return }
+      updated = await updateSRProcessing(id, patch)
+    } else {
+      updated = await assignSR(id, {
+        assignee_id: assignSelectedUser.value.id,
+        assignee_name: assignSelectedUser.value.name,
+        planned_start_date: startIso,
+        planned_due_date: dueIso,
+        deployment_required: assignForm.value.deploymentRequired,
+        security_review_required: assignForm.value.securityReviewRequired,
+      })
+    }
+    if (srId.value !== id) return
+    sr.value = updated
+    $q.notify({ type: 'positive', message: editing ? '처리 정보를 저장했습니다.' : '담당자가 배정되었습니다.' })
     assignDialog.value = false
     assignSelectedUser.value = null
     void load()
   } catch (e) {
+    if (srId.value !== id) return
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-    $q.notify({ type: 'negative', message: msg || '처리 실패' })
+    $q.notify({ type: 'negative', message: msg || '처리 정보를 저장하지 못했습니다.' })
   } finally { actionLoading.value = false; activeAction.value = null }
 }
 
@@ -2049,11 +2102,15 @@ async function doChangeRequester() {
 }
 
 function openAssignDialog(prefill: boolean) {
+  if (actionLoading.value || (prefill && !canEditProcessing.value)) return
+  assignEditing.value = prefill
+  assignmentSnapshot.value = sr.value ? { ...sr.value } : null
   if (prefill && sr.value) {
-    assignSelectedUser.value = allUsers.value.find(u => u.id === sr.value!.assigneeId) ?? null
+    assignSelectedUser.value = allUsers.value.find(u => u.id === sr.value!.assigneeId)
+      ?? { id: sr.value.assigneeId!, name: sr.value.assigneeName || '기존 담당자', email: '' }
     assignForm.value = {
-      plannedStartDate:       sr.value.plannedStartDate ? sr.value.plannedStartDate.slice(0, 10) : null,
-      plannedDueDate:         sr.value.plannedDueDate   ? sr.value.plannedDueDate.slice(0, 10)   : null,
+      plannedStartDate:       sr.value.plannedStartDate ? fmtDateKst(sr.value.plannedStartDate) : null,
+      plannedDueDate:         sr.value.plannedDueDate   ? fmtDateKst(sr.value.plannedDueDate)   : null,
       deploymentRequired:     sr.value.deploymentRequired     ?? false,
       securityReviewRequired: sr.value.securityReviewRequired ?? false,
     }
@@ -2214,6 +2271,8 @@ watch(() => route.params.id, (newId) => {
 
 /* 다이얼로그 공통 */
 .dialog-card { min-width: 440px; border-radius: 12px !important; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
+.sr-processing-dialog { min-width: 0; width: 440px; max-width: calc(100vw - 32px); }
+.sr-processing-options { display: flex; flex-wrap: wrap; gap: 8px 20px; }
 
 .dialog-header {
   padding: 20px 24px 16px;

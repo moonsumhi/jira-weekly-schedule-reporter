@@ -1,4 +1,4 @@
-"""Inspection task targets across the registered asset categories."""
+"""Shared lookup of registered assets across all asset categories."""
 import asyncio
 import re
 
