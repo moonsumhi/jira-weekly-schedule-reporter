@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
+from app.models.asset_link import AssetCategory
 from app.models.pm.issue import (
     IssueCreate, IssuePatch, IssueOut,
     IssueCommentCreate, IssueCommentPatch, IssueCommentOut,
@@ -27,9 +28,10 @@ router = APIRouter()
 
 @router.get('/{project_id}/asset-options')
 async def issue_asset_options(project_id: str, search: str = Query('', max_length=200),
+                              category: AssetCategory | None = None,
                               current_user: UserPublic = Depends(get_current_user)):
     await require_pm_member(current_user, project_id)
-    return await asset_links.search_assets(search)
+    return await asset_links.search_assets(search, category)
 
 
 # ── 이슈 CRUD ──────────────────────────────────────────────────────

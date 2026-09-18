@@ -215,13 +215,59 @@ class WorkDocumentAssetsTests(unittest.IsolatedAsyncioTestCase):
             'template_id': str(intake_id), 'data': self.data, 'asset_ids': [str(self.aid)]})
         self.assertEqual(rejected.status_code, 422)
 
-    async def test_server_search_is_literal_and_excludes_deleted_or_other_types(self):
+    async def test_asset_search_is_literal_and_excludes_deleted_assets(self):
         await M.get_assets_servers_collection().update_one({'_id': self.bid}, {'$set': {'is_deleted': True}})
-        await M.get_assets_servers_collection().insert_one({'name': 'network', 'fields': {'자산유형': '네트워크'}})
-        for term, expected in (('', 1), ('192.0.2.1', 1), ('포털', 1), ('.*', 0)):
+        await M.get_asset_collection('네트워크').insert_one({'name': 'network', 'fields': {'자산유형': '네트워크'}})
+        for term, expected in (('', 2), ('192.0.2.1', 1), ('포털', 1), ('.*', 0)):
             response = await self.client.get('/form-entries/asset-options', params={'search': term})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(len(response.json()), expected)
+
+    async def test_all_asset_categories_are_preserved_in_documents_and_history(self):
+        targets = {'서버': str(self.aid)}
+        for category in M.CATEGORY_COLLECTIONS:
+            if category == '서버':
+                continue
+            identifier = ObjectId()
+            targets[category] = str(identifier)
+            await M.get_asset_collection(category).insert_one({
+                '_id': identifier, 'name': f'{category}-문서', 'asset_no': f'DOC-{category}',
+                'fields': {'장비명': f'{category} 문서 대상', '비밀': 'must not expose'}})
+        for category, identifier in targets.items():
+            response = await self.client.get('/form-entries/asset-options', params={'category': category})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertTrue(all(asset['category'] == category for asset in response.json()))
+            self.assertIn(identifier, [asset['id'] for asset in response.json()])
+        self.assertEqual((await self.client.get('/form-entries/asset-options', params={'category': 'invalid'})).status_code, 422)
+        for title in ('작업계획서', '작업결과서', '반입신청서'):
+            tid = ObjectId()
+            await M.get_form_templates_collection().insert_one({'_id': tid, 'menu': 'Job', 'title': title})
+            entry = await self.create(template_id=str(tid), asset_ids=list(targets.values()))
+            self.assertEqual(entry['data'], self.data)
+            self.assertEqual({asset['category']: asset['id'] for asset in entry['linked_assets']}, targets)
+            self.assertNotIn('must not expose', str(entry))
+            for identifier in targets.values():
+                self.assertIn(entry['id'], [item['id'] for item in (await self.history(identifier))['items']])
+        network_id = targets['네트워크']
+        await M.get_asset_collection('네트워크').update_one({'_id': ObjectId(network_id)}, {'$set': {'name': '변경된 스위치'}})
+        detail = (await self.client.get('/form-entries/' + entry['id'])).json()
+        self.assertEqual(next(asset['name'] for asset in detail['linked_assets'] if asset['id'] == network_id), '변경된 스위치')
+        await M.get_asset_collection('네트워크').delete_one({'_id': ObjectId(network_id)})
+        response = await self.client.patch('/form-entries/' + entry['id'], json={
+            'data': self.data, 'version': 1, 'asset_ids': [network_id]})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(response.json()['linked_assets'][0]['is_deleted'])
+        self.assertEqual(response.json()['linked_assets'][0]['category'], '네트워크')
+        rejected = await self.client.post('/form-entries', json={
+            'template_id': str(self.tid), 'data': self.data, 'asset_ids': [network_id]})
+        self.assertEqual(rejected.status_code, 422)
+
+    async def test_ambiguous_asset_ids_are_rejected_before_document_creation(self):
+        await M.get_asset_collection('네트워크').insert_one({'_id': self.aid, 'name': 'duplicate'})
+        response = await self.client.post('/form-entries', json={
+            'template_id': str(self.tid), 'data': self.data, 'asset_ids': [str(self.aid)]})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(await M.get_form_entries_collection().count_documents({}), 0)
 
     async def test_history_pagination_has_no_duplicates(self):
         entry = await self.create()

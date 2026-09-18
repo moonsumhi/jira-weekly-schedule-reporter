@@ -10,7 +10,7 @@ from app.routers.auth import get_current_user
 from app.services import inspection_service as svc
 from app.services import inspection_work_plans as plans
 from app.services import inspection_plan_tasks as plan_tasks
-from app.services import inspection_assets
+from app.services import asset_catalog
 from app.services.work_document_assets import require_job
 from app.utils.mongo import oid
 
@@ -178,7 +178,7 @@ async def search_assets(search: str = Query('', max_length=200), ids: str = '',
     values = ids.split(',') if ids else []
     if len(values) > 100:
         raise HTTPException(422, '자산은 최대 100개까지 선택할 수 있습니다.')
-    return await inspection_assets.search_assets(search, [str(oid(value)) for value in values], category)
+    return await asset_catalog.search_assets(search, [str(oid(value)) for value in values], category)
 
 
 @router.post('', status_code=201)

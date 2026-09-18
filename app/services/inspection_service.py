@@ -11,7 +11,7 @@ from pymongo.errors import DuplicateKeyError
 
 from app.db.mongo import MongoClientManager as M
 from app.services.pm.permission import require_pm_member
-from app.services.inspection_assets import asset_map, asset_snapshot
+from app.services.asset_catalog import asset_map, asset_snapshot
 from app.utils.mongo import oid
 
 KST = ZoneInfo('Asia/Seoul')

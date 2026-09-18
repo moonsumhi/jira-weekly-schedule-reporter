@@ -10,12 +10,14 @@ from urllib.parse import quote
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from starlette.background import BackgroundTask
+from starlette.concurrency import run_in_threadpool
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.sr.service_request import (
     SROut, SRListItem, SRListPage, SRPatch, SRInlinePatch, SRRequesterChange,
-    SRReview, SRAssign, SRStatusChange, SRDueDateChange,
+    SRReview, SRAssign, SRStatusChange, SRDueDateChange, SRProcessingPatch,
     SRStats, SR_STATUS_LABEL, REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL,
 )
 from app.routers.auth import get_current_user
@@ -27,6 +29,7 @@ from app.services.sr.sr_service import (
     is_sr_operator,
 )
 from app.services.notification_service import create_notification, notify_users
+from app.services.sr.excel_export import export_detail, stream_export
 
 router = APIRouter()
 
@@ -405,6 +408,109 @@ async def review_sr(
     return SROut(**sr_to_out(updated))
 
 
+async def _notify_assignment(doc: dict, sr_id: str, current_user: UserPublic):
+    sender = _user_label(current_user)
+    target_url = f"/pm/sr/{sr_id}"
+    requester_id = str(doc["requester_id"])
+    # 요청자에게 담당자 배정 알림
+    await create_notification(
+        recipient_user_id=requester_id,
+        notification_type="STATUS_CHANGED",
+        title="SR 담당자 배정",
+        message=f"'{doc.get('title', '')}' SR이 {doc.get('assignee_name', '')}님에게 배정되었습니다.",
+        sender_user_id=str(current_user.id),
+        sender_name=sender,
+        target_type="SR",
+        target_id=sr_id,
+        target_url=target_url,
+    )
+    # 담당자에게 배정 알림 (자신이 배정자인 경우 제외)
+    if str(doc["assignee_id"]) != str(current_user.id):
+        await create_notification(
+            recipient_user_id=str(doc["assignee_id"]),
+            notification_type="ASSIGNED",
+            title="SR 담당 배정",
+            message=f"'{doc.get('title', '')}' SR의 담당자로 배정되었습니다.",
+            sender_user_id=str(current_user.id),
+            sender_name=sender,
+            target_type="SR",
+            target_id=sr_id,
+            target_url=target_url,
+        )
+
+    from app.utils.mail_notify import send_sr_notification
+    await send_sr_notification(doc, event="assigned")
+
+
+# ── 배정 후 처리 정보 수정 ──────────────────────────────────────────
+
+@router.patch("/{sr_id}/processing", response_model=SROut)
+async def update_processing_info(
+    sr_id: str,
+    body: SRProcessingPatch,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    require_sr_manager(current_user)
+    doc = await get_sr_or_404(sr_id)
+    if not doc.get("assignee_id") or doc["status"] in ("DRAFT", "CLOSED", "CANCELLED", "REJECTED"):
+        raise HTTPException(400, "처리 정보를 수정할 수 있는 상태가 아닙니다.")
+
+    def utc(value):
+        return value.replace(tzinfo=timezone.utc) if value and value.tzinfo is None else value
+
+    if utc(doc.get("updated_at")) != utc(body.expected_updated_at):
+        raise HTTPException(409, "다른 사용자가 SR을 수정했습니다. 새로고침 후 다시 수정해 주세요.")
+    updates = body.model_dump(exclude_unset=True, exclude={"expected_updated_at"})
+    start = updates.get("planned_start_date", doc.get("planned_start_date"))
+    due = updates.get("planned_due_date", doc.get("planned_due_date"))
+    if start and due and utc(start).astimezone(KST).date() > utc(due).astimezone(KST).date():
+        raise HTTPException(422, "완료목표일은 처리 예정 시작일보다 빠를 수 없습니다.")
+    if "assignee_id" in updates:
+        updates["assignee_id"] = ObjectId(updates["assignee_id"])
+        if str(updates["assignee_id"]) != str(doc["assignee_id"]):
+            user = await MongoClientManager.get_users_collection().find_one({"_id": updates["assignee_id"]})
+            if not user:
+                raise HTTPException(422, "선택한 담당자가 존재하지 않습니다. 다시 선택해 주세요.")
+            updates["assignee_name"] = user.get("full_name") or user["email"]
+
+    def comparable(value):
+        return utc(value) if isinstance(value, datetime) else str(value) if isinstance(value, ObjectId) else value
+
+    changes = {key: value for key, value in updates.items() if comparable(doc.get(key)) != comparable(value)}
+    if not changes:
+        return SROut(**sr_to_out(doc))
+    actor = _user_label(current_user)
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    result = await col.update_one(
+        {"_id": doc["_id"], "updated_at": doc.get("updated_at"), "status": doc["status"], "deleted_at": None},
+        {"$set": {**changes, "updated_at": datetime.now(timezone.utc), "updated_by": actor}},
+    )
+    if result.matched_count != 1:
+        raise HTTPException(409, "다른 사용자가 SR을 수정했습니다. 새로고침 후 다시 수정해 주세요.")
+
+    def history_value(value):
+        if isinstance(value, bool):
+            return "필요" if value else "해당 없음"
+        if isinstance(value, datetime):
+            return utc(value).astimezone(KST).strftime("%Y-%m-%d")
+        return str(value) if value is not None else None
+
+    for key, value in changes.items():
+        if key == "assignee_id":
+            await record_sr_history(sr_id, "ASSIGNEE_CHANGE", doc.get("assignee_name"), updates["assignee_name"], actor)
+        elif key != "assignee_name":
+            await record_sr_history(sr_id, f"FIELD_CHANGE:{key}", history_value(doc.get(key)), history_value(value), actor)
+    if "planned_due_date" in changes:
+        await record_due_date_history(sr_id, doc.get("planned_due_date"), changes["planned_due_date"], None, actor)
+    if "assignee_id" in changes and doc.get("converted_issue_id"):
+        from app.services.sr.sr_issue_bridge import update_pm_issue_assignee
+        await update_pm_issue_assignee(doc["converted_issue_id"], str(changes["assignee_id"]))
+    updated = await col.find_one({"_id": doc["_id"]})
+    if "assignee_id" in changes:
+        await _notify_assignment(updated, sr_id, current_user)
+    return SROut(**sr_to_out(updated))
+
+
 # ── 담당자 배정 ───────────────────────────────────────────────────────
 
 @router.post("/{sr_id}/assign", response_model=SROut)
@@ -449,35 +555,6 @@ async def assign_sr(
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
 
-    sender = _user_label(current_user)
-    target_url = f"/pm/sr/{sr_id}"
-    requester_id = str(doc["requester_id"])
-    # 요청자에게 담당자 배정 알림
-    await create_notification(
-        recipient_user_id=requester_id,
-        notification_type="STATUS_CHANGED",
-        title="SR 담당자 배정",
-        message=f"'{doc.get('title', '')}' SR이 {body.assignee_name}님에게 배정되었습니다.",
-        sender_user_id=str(current_user.id),
-        sender_name=sender,
-        target_type="SR",
-        target_id=sr_id,
-        target_url=target_url,
-    )
-    # 담당자에게 배정 알림 (자신이 배정자인 경우 제외)
-    if body.assignee_id != str(current_user.id):
-        await create_notification(
-            recipient_user_id=body.assignee_id,
-            notification_type="ASSIGNED",
-            title="SR 담당 배정",
-            message=f"'{doc.get('title', '')}' SR의 담당자로 배정되었습니다.",
-            sender_user_id=str(current_user.id),
-            sender_name=sender,
-            target_type="SR",
-            target_id=sr_id,
-            target_url=target_url,
-        )
-
     # PM 이슈 자동 생성/담당자 업데이트
     from app.services.sr.sr_issue_bridge import auto_create_pm_issue, update_pm_issue_assignee
     existing_issue_id = doc.get("converted_issue_id")
@@ -491,8 +568,7 @@ async def assign_sr(
             await col.update_one({"_id": ObjectId(sr_id)}, {"$set": patch})
             updated.update(patch)
 
-    from app.utils.mail_notify import send_sr_notification
-    await send_sr_notification(updated, event="assigned")
+    await _notify_assignment(updated, sr_id, current_user)
 
     return SROut(**sr_to_out(updated))
 
@@ -846,8 +922,30 @@ async def export_excel(
             _fmt_dt(d.get("updated_at")),
         ])
 
+    ws.freeze_panes = "C2"
+    ws.auto_filter.ref = ws.dimensions
+    ws.sheet_view.showGridLines = False
+    ws.row_dimensions[1].height = 30
     for col_idx in range(1, len(headers) + 1):
-        ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = 15
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col_idx)].width = 18
+    ws.column_dimensions['B'].width = 48
+    ws.column_dimensions['E'].width = 24
+    ws.column_dimensions['F'].width = 26
+    for row in ws.iter_rows(min_row=2):
+        for cell in row:
+            if isinstance(cell.value, str):
+                cell.data_type = 's'
+            cell.font = Font(name='맑은 고딕', size=11, color='243447')
+            cell.alignment = Alignment(vertical='center', wrap_text=True)
+            if cell.row % 2 == 0:
+                cell.fill = PatternFill('solid', fgColor='F1F5F9')
+        ws.row_dimensions[row[0].row].height = max(36, 18 * ((len(str(row[1].value or '')) + 22) // 23))
+    ws.print_title_rows = '1:1'
+    ws.page_setup.orientation = 'landscape'
+    ws.page_setup.paperSize = ws.PAPERSIZE_A3
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -869,9 +967,6 @@ async def export_sr_detail(
     current_user: UserPublic = Depends(get_current_user),
 ):
     require_sr_admin(current_user)
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment
-
     doc = await get_sr_or_404(sr_id)
     col_c = MongoClientManager.get_db()[MongoClientManager.SR_COMMENTS]
     col_h = MongoClientManager.get_db()[MongoClientManager.SR_STATUS_HISTORIES]
@@ -881,84 +976,15 @@ async def export_sr_detail(
     histories = await col_h.find({"sr_id": sr_id}).sort("changed_at", 1).to_list(None)
     field_histories = await col_fh.find({"sr_id": sr_id}).sort("changed_at", 1).to_list(None)
 
-    wb = openpyxl.Workbook()
-    ws_info = wb.active
-    ws_info.title = "요청정보"
-
-    def _row(label, value):
-        ws_info.append([label, str(value) if value is not None else ""])
-
-    _row("SR 번호", doc.get("sr_no"))
-    _row("제목", doc.get("title"))
-    _row("상태", SR_STATUS_LABEL.get(doc.get("status", ""), ""))
-    _row("요청자", doc.get("requester_name"))
-    _row("요청부서", doc.get("requester_department"))
-    _row("요청유형", REQUEST_TYPE_LABEL.get(doc.get("request_type", ""), ""))
-    _row("관련시스템", doc.get("related_system"))
-    _row("요청내용", doc.get("description"))
-    _row("요청목적", doc.get("purpose"))
-    _row("요청배경", doc.get("background"))
-    _row("희망완료일", str(doc.get("desired_due_date", ""))[:10])
-    _row("처리예정완료일", str(doc.get("planned_due_date", ""))[:10])
-    _row("실제완료일", str(doc.get("actual_completed_at", ""))[:10])
-    _row("담당자", doc.get("assignee_name"))
-    _row("처리결과", doc.get("process_result"))
-    _row("검토결과", doc.get("review_result"))
-    _row("검토의견", doc.get("review_comment"))
-
-    ws_c = wb.create_sheet("댓글")
-    ws_c.append(["작성자", "내용", "내부메모", "작성일"])
-    for c in comments:
-        ws_c.append([
-            c.get("writer_name", ""),
-            c.get("content", ""),
-            "Y" if c.get("is_internal") else "N",
-            str(c.get("created_at", ""))[:19],
-        ])
-
-    ws_h = wb.create_sheet("상태이력")
-    ws_h.append(["이전상태", "변경상태", "사유", "변경자", "변경일시"])
-    for h in histories:
-        ws_h.append([
-            SR_STATUS_LABEL.get(h.get("previous_status", ""), h.get("previous_status", "")),
-            SR_STATUS_LABEL.get(h.get("new_status", ""), h.get("new_status", "")),
-            h.get("reason", ""),
-            h.get("changed_by", ""),
-            str(h.get("changed_at", ""))[:19],
-        ])
-
-    _field_label_map = {
-        "title": "제목", "description": "요청내용", "background": "배경",
-        "purpose": "목적", "desired_deploy_date": "희망배포일",
-        "priority": "우선순위", "impact_scope": "영향범위",
-        "is_urgent": "긴급여부", "urgent_reason": "긴급사유",
-        "related_system": "대상시스템", "related_menu": "관련메뉴",
-        "related_url": "관련URL", "completion_criteria": "완료기준", "note": "비고",
-        "planned_due_date": "완료목표일",
-    }
-    ws_fh = wb.create_sheet("필드변경이력")
-    ws_fh.append(["변경항목", "이전값", "변경값", "변경자", "변경일시"])
-    for fh in field_histories:
-        field_key = fh.get("action_type", "").replace("FIELD_CHANGE:", "")
-        ws_fh.append([
-            _field_label_map.get(field_key, field_key),
-            fh.get("before_value", ""),
-            fh.get("after_value", ""),
-            fh.get("changed_by", ""),
-            str(fh.get("changed_at", ""))[:19],
-        ])
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-
-    sr_no = doc.get("sr_no", sr_id)
-    filename = f"SR상세_{sr_no}.xlsx"
-
+    output, filename, media_type, warnings = await run_in_threadpool(
+        export_detail, doc, comments, histories, field_histories)
     return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename, safe='')}"},
+        stream_export(output), media_type=media_type,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename, safe='')}",
+            "X-Export-Warnings": str(warnings),
+        },
+        background=BackgroundTask(output.close),
     )
 
 

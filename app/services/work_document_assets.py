@@ -1,11 +1,11 @@
-"""작업 관리 문서와 등록 서버 자산의 연결. 본문·내보내기 데이터와 분리한다."""
+"""작업 관리 문서와 등록 자산의 연결. 본문·내보내기 데이터와 분리한다."""
 
 from fastapi import HTTPException
 
 from app.db.mongo import MongoClientManager as M
 from app.utils.mongo import oid, fmt_dt
 from app.services import asset_links
-from app.services.asset_links import asset_info, hydrate, search_assets
+from app.services.asset_links import hydrate, search_assets
 
 
 def require_job(user):
@@ -20,7 +20,7 @@ def is_work_document(template):
 async def selected_assets(template_id, asset_ids, previous=None):
     template = await M.get_form_templates_collection().find_one({'_id': oid(template_id), 'is_deleted': {'$ne': True}})
     if not template or not is_work_document(template):
-        raise HTTPException(422, '서버 자산은 작업 관리 문서에 연결할 수 있습니다.')
+        raise HTTPException(422, '자산은 작업 관리 문서에 연결할 수 있습니다.')
     return await asset_links.selected_assets(asset_ids, previous)
 
 

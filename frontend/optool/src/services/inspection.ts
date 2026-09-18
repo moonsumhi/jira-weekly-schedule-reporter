@@ -1,6 +1,7 @@
 import { api } from 'boot/axios';
 import { STATUS_LABEL, type IssueStatus } from './pm/issue';
 import type { InspectionWorkPlan } from './inspectionWorkPlans';
+import { assetCategories, type AssetCategory } from './assetLinks';
 
 export interface InspectionAsset {
   id: string;
@@ -12,15 +13,8 @@ export interface InspectionAsset {
   isDeleted: boolean;
   current?: InspectionAsset | null;
 }
-export const inspectionAssetCategories = [
-  '서버',
-  '네트워크',
-  '정보보호시스템',
-  'DBMS',
-  'VMware',
-  '랙',
-] as const;
-export type InspectionAssetCategory = (typeof inspectionAssetCategories)[number];
+export const inspectionAssetCategories = assetCategories;
+export type InspectionAssetCategory = AssetCategory;
 export interface InspectionResult {
   content: string;
   performedOn: string | null;

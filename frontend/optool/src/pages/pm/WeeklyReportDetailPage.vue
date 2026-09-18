@@ -94,15 +94,18 @@
                           class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders cursor-pointer issue-row"
                           @click="openIssueDetail(item.issueId)">
                           <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
-                          <span class="text-body2 col ellipsis">{{ item.title }}</span>
+                          <div class="col issue-row-title">
+                            <span class="text-body2 ellipsis">{{ item.title }}</span>
+                            <q-badge v-if="item.isDelayed" outline color="negative" label="지연" class="issue-delay-badge" />
+                          </div>
                           <span v-if="item.assigneeName" class="text-caption text-grey-7">{{ item.assigneeName }}</span>
                           <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
-                          <q-badge :color="item.isDelayed ? 'negative' : 'grey-5'" :label="ISSUE_STATUS_KO[item.status] ?? item.status" />
+                          <q-badge color="grey-5" :label="ISSUE_STATUS_KO[item.status] ?? item.status" />
                           <span v-if="item.dueDate" class="text-caption text-grey-6">{{ fmtDateKst(item.dueDate) }}</span>
                         </div>
                       </div>
                     </template>
-                    <div v-if="!pb.completed.length && !pb.inProgress.length && !pb.delayed.length"
+                    <div v-if="!breakdown(pb).some(sec => sec.items.length)"
                       class="text-grey-5 text-caption">업무 없음</div>
                   </q-card-section>
                 </q-card>
@@ -126,9 +129,12 @@
                             class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders cursor-pointer issue-row"
                             @click="openIssueDetail(item.issueId)">
                             <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
-                            <span class="text-body2 col ellipsis">{{ item.title }}</span>
+                            <div class="col issue-row-title">
+                              <span class="text-body2 ellipsis">{{ item.title }}</span>
+                              <q-badge v-if="item.isDelayed" outline color="negative" label="지연" class="issue-delay-badge" />
+                            </div>
                             <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
-                            <q-badge :color="item.isDelayed ? 'negative' : 'grey-5'" :label="ISSUE_STATUS_KO[item.status] ?? item.status" />
+                            <q-badge color="grey-5" :label="ISSUE_STATUS_KO[item.status] ?? item.status" />
                             <span v-if="item.dueDate" class="text-caption text-grey-6">{{ fmtDateKst(item.dueDate) }}</span>
                           </div>
                         </div>
@@ -149,12 +155,18 @@
                 <template #body-cell-num="props">
                   <q-td :props="props" class="text-caption text-grey-6">{{ props.row.projectName }}-{{ props.row.issueNumber }}</q-td>
                 </template>
+                <template #body-cell-title="props">
+                  <q-td :props="props">
+                    {{ props.row.title }}
+                    <q-badge v-if="props.row.isDelayed" outline color="negative" label="지연" class="issue-delay-badge q-ml-sm" />
+                  </q-td>
+                </template>
                 <template #body-cell-priority="props">
                   <q-td :props="props"><q-badge :color="PRIORITY_COLOR[props.row.priority]" :label="PRIORITY_KO[props.row.priority]" /></q-td>
                 </template>
                 <template #body-cell-status="props">
                   <q-td :props="props">
-                    <q-badge :color="props.row.isDelayed ? 'negative' : 'grey-5'" :label="ISSUE_STATUS_KO[props.row.status] ?? props.row.status" />
+                    <q-badge color="grey-5" :label="ISSUE_STATUS_KO[props.row.status] ?? props.row.status" />
                   </q-td>
                 </template>
               </q-table>
@@ -169,12 +181,18 @@
                 <template #body-cell-num="props">
                   <q-td :props="props" class="text-caption text-grey-6">{{ props.row.projectName }}-{{ props.row.issueNumber }}</q-td>
                 </template>
+                <template #body-cell-title="props">
+                  <q-td :props="props">
+                    {{ props.row.title }}
+                    <q-badge v-if="props.row.isDelayed" outline color="negative" label="지연" class="issue-delay-badge q-ml-sm" />
+                  </q-td>
+                </template>
                 <template #body-cell-priority="props">
                   <q-td :props="props"><q-badge :color="PRIORITY_COLOR[props.row.priority]" :label="PRIORITY_KO[props.row.priority]" /></q-td>
                 </template>
                 <template #body-cell-status="props">
                   <q-td :props="props">
-                    <q-badge :color="props.row.isDelayed ? 'negative' : 'grey-5'" :label="ISSUE_STATUS_KO[props.row.status] ?? props.row.status" />
+                    <q-badge color="grey-5" :label="ISSUE_STATUS_KO[props.row.status] ?? props.row.status" />
                   </q-td>
                 </template>
               </q-table>
@@ -420,7 +438,6 @@ function breakdown(pb: ProjectBreakdown | PersonBreakdown) {
   return [
     { label: '✅ 완료',     items: pb.completed,  color: 'positive' },
     { label: '🔄 진행 중',  items: pb.inProgress, color: 'primary'  },
-    { label: '⚠ 지연',      items: pb.delayed,    color: 'negative' },
     { label: '📌 차주 계획', items: pb.upcoming,   color: 'grey-7'   },
   ]
 }
@@ -540,5 +557,11 @@ onMounted(load)
 }
 .issue-row:hover {
   background: #e8eaf6 !important;
+}
+.issue-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.issue-row-title > .ellipsis { min-width: 0; }
+.issue-delay-badge { flex-shrink: 0; }
+@media (max-width: 599px) {
+  .issue-row-title { order: -1; flex: 0 0 calc(100% - 4px); }
 }
 </style>
