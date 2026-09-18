@@ -53,8 +53,91 @@ function nestedTableHtml(rows: string[][]): string {
     return [...row, ...Array.from({ length: columns - row.length }, () => '')]
   }
   const renderRow = (row: string[], tag: 'th' | 'td') => `<tr>${normalize(row).map(value => `<${tag}>${escapeHtml(value)}</${tag}>`).join('')}</tr>`
-  return `<div class="work-table-scroll work-table-scroll--nested" tabindex="0" role="region" aria-label="상세 내용 표, 가로 스크롤 가능"><table><thead>${renderRow(rows[0] ?? [], 'th')}</thead><tbody>${rows.slice(1).map(row => renderRow(row, 'td')).join('')}</tbody></table></div>`
+  return `<div class="work-table-scroll work-table-scroll--nested" tabindex="0" role="region" aria-label="상세 내용 표, 가로 스크롤 가능"><table><thead>${renderRow(rows[0] ?? [], 'th')}</thead><tbody>${rows.slice(2).map(row => renderRow(row, 'td')).join('')}</tbody></table></div>`
 }
+function splitMarkdownRow(line: string): string[] | null {
+  const trimmed = line.trim()
+  // Nested rows are escaped before they are placed in the outer table cell.
+  const normalized = trimmed.replace(/^\\\|/, '|').replace(/\\\|$/, '|')
+  if (!normalized.startsWith('|') || !normalized.endsWith('|')) return null
+  const cells: string[] = []
+  let current = ''
+  let escaped = false
+  for (const char of normalized.slice(1, -1)) {
+    if (char === '|' && !escaped) {
+      cells.push(current.trim())
+      current = ''
+      continue
+    }
+    current += char
+    escaped = char === '\\' && !escaped
+    if (char !== '\\') escaped = false
+  }
+  cells.push(current.trim())
+  return cells
+}
+
+function splitNestedMarkdownRow(line: string): string[] | null {
+  const trimmed = line.trim()
+  const normalized = trimmed.replace(/^\\\|/, '|').replace(/\\\|$/, '|')
+  if (!normalized.startsWith('|') || !normalized.endsWith('|')) return null
+  // The outer table escapes nested separators. Once isolated, those escaped
+  // pipes are the nested table's own column delimiters.
+  return normalized.slice(1, -1).split(/\\\||\|/).map(cell => cell.trim())
+}
+
+function isNestedSeparator(cells: string[] | null): cells is string[] {
+  return cells !== null && cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell))
+}
+
+function nestedMarkdownTableHtml(rows: string[][]): string {
+  const columns = Math.max(...rows.map(row => row.length))
+  const normalize = (row: string[]) => row.length > columns
+    ? [...row.slice(0, columns - 1), row.slice(columns - 1).join(' | ')]
+    : [...row, ...Array.from({ length: columns - row.length }, () => '')]
+  const renderInline = (value: string) => marked.parseInline(value.replace(/\\\|/g, '|'), { renderer, breaks: true })
+  const renderRow = (row: string[], tag: 'th' | 'td') => `<tr>${normalize(row).map(value => `<${tag}>${renderInline(value)}</${tag}>`).join('')}</tr>`
+  return `<div class="work-table-scroll work-table-scroll--nested" tabindex="0" role="region" aria-label="Nested table"><table><thead>${renderRow(rows[0] ?? [], 'th')}</thead><tbody>${rows.slice(2).map(row => renderRow(row, 'td')).join('')}</tbody></table></div>`
+}
+
+interface NestedTableReplacement { token: string; html: string }
+
+function protectNestedMarkdownTables(markdown: string): { source: string; replacements: NestedTableReplacement[] } {
+  const replacements: NestedTableReplacement[] = []
+  let tokenIndex = 0
+  const source = markdown.split(/\r?\n/).map(line => {
+    const outerCells = splitMarkdownRow(line)
+    if (!outerCells) return line
+    const cells = outerCells.map(cell => {
+      const parts = cell.split(/<br\s*\/?\s*>/i)
+      let index = 0
+      while (index < parts.length - 1) {
+        const header = splitNestedMarkdownRow(parts[index] ?? '')
+        const separator = splitNestedMarkdownRow(parts[index + 1] ?? '')
+        if (!header || !isNestedSeparator(separator)) {
+          index += 1
+          continue
+        }
+        const rows: string[][] = [header, separator]
+        let end = index + 2
+        while (end < parts.length) {
+          const row = splitNestedMarkdownRow(parts[end] ?? '')
+          if (!row) break
+          rows.push(row)
+          end += 1
+        }
+        const token = `worknestedtabletoken${tokenIndex++}`
+        replacements.push({ token, html: nestedMarkdownTableHtml(rows) })
+        parts.splice(index, end - index, token)
+        index += 1
+      }
+      return parts.join('<br>')
+    })
+    return `| ${cells.join(' | ')} |`
+  }).join('\n')
+  return { source, replacements }
+}
+
 function renderNestedTables(body: string): string {
   if (!body.includes('<br')) return body
   const root = document.createElement('tbody')
@@ -106,7 +189,12 @@ renderer.table = (header, body) => `<div class="work-table-scroll" tabindex="0" 
 renderer.html = (html) => /^<br\s*\/?\s*>$/i.test(html.trim()) ? '<br>' : escapeHtml(html)
 renderer.link = (href, _title, text) => href && safeUrl(href, false) ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${text}</a>` : text
 renderer.image = (href, _title, text) => href && safeUrl(href, true) ? `<img src="${escapeHtml(href)}" alt="${escapeHtml(text)}" loading="lazy" role="button" tabindex="0" aria-label="${escapeHtml(text || '문서 이미지')} 크게 보기" title="클릭하여 크게 보기">` : escapeHtml(text)
-const rendered = computed(() => marked(props.content, { renderer, breaks: true }))
+const rendered = computed(() => {
+  const prepared = protectNestedMarkdownTables(props.content ?? '')
+  let html = marked(prepared.source, { renderer, breaks: true })
+  for (const replacement of prepared.replacements) html = html.split(replacement.token).join(replacement.html)
+  return html
+})
 </script>
 <style scoped>
 .work-result-content { overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; min-width: 0; max-width: 100%; }
@@ -121,9 +209,11 @@ const rendered = computed(() => marked(props.content, { renderer, breaks: true }
 .work-result-content :deep(h3) { font-size: 18px; line-height: 1.5; margin: 20px 0 10px; text-align: center; }
 .work-result-content :deep(h4), .work-result-content :deep(h5), .work-result-content :deep(h6) { text-align: center; }
 .work-result-content :deep(.work-table-scroll) { display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; overflow-x: auto; overflow-y: hidden; margin: 16px 0; border: 1px solid #cbd5e1; border-radius: 8px; }
-.work-result-content :deep(.work-table-scroll--nested) { margin: 10px 0; border-color: #94a3b8; }
+.work-result-content :deep(.work-table-scroll--nested) { margin: 10px 0; border-color: #94a3b8; overflow-x: hidden; }
 .work-result-content :deep(.work-table-scroll:focus-visible) { outline: 2px solid var(--q-primary); outline-offset: 3px; }
 .work-result-content :deep(table) { width: 100%; max-width: 100%; min-width: 100%; border-collapse: collapse; table-layout: auto; }
+.work-result-content :deep(.work-table-scroll--nested table) { min-width: 0; table-layout: fixed; }
 .work-result-content :deep(td), .work-result-content :deep(th) { min-width: 0; border: 1px solid #cbd5e1; padding: 12px 16px; vertical-align: top; white-space: normal; word-break: normal; overflow-wrap: anywhere; }
+.work-result-content :deep(.work-table-scroll--nested img) { max-width: 100%; height: auto; }
 .work-result-content :deep(th) { background: #64748b0d; font-weight: 600; text-align: center; }
 </style>

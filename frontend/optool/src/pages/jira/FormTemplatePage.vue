@@ -1202,16 +1202,19 @@ watch(() => route.query.entryId, () => { if (!loading.value) void openLinkedEntr
 .edit-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .edit-field-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .edit-field-group { grid-column: 1 / -1; min-width: 0; }
-.edit-field-group.comparison-side { grid-column: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; }
+.edit-field-group.comparison-side { grid-column: auto; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; display: flex; flex-direction: column; }
 .edit-field-group.whole-document { grid-column: 1 / -1; }
 .comparison-side .edit-fields { grid-template-columns: minmax(0, 1fr); }
-.comparison-editor { min-width: 0; }
+.comparison-editor { width: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex: 1 1 auto; flex-direction: column; }
+.comparison-editor > div { width: 100%; max-width: 100%; min-width: 0; min-height: 0; display: flex; flex: 1 1 auto; flex-direction: column; }
+.comparison-editor :deep(.toastui-editor-defaultUI), .comparison-editor :deep(.toastui-editor-main), .comparison-editor :deep(.toastui-editor-main-container), .comparison-editor :deep(.toastui-editor-ww-container), .comparison-editor :deep(.toastui-editor-contents) { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+.comparison-editor :deep(.toastui-editor-main), .comparison-editor :deep(.toastui-editor-main-container), .comparison-editor :deep(.toastui-editor-ww-container), .comparison-editor :deep(.toastui-editor-contents) { height: auto; overflow: visible; }
 .comparison-editor :deep(.toastui-editor-defaultUI-toolbar) { flex-wrap: wrap; height: auto; min-height: 45px; padding: 4px; }
 .comparison-editor :deep(.toastui-editor-toolbar-group) { margin: 0; }
 .comparison-editor :deep(.toastui-editor-contents img) { max-width: 100%; height: auto; }
-.comparison-editor :deep(.toastui-editor-contents) { overflow-x: auto; }
-.comparison-editor :deep(.toastui-editor-contents table) { width: 100%; table-layout: auto; }
-.comparison-editor :deep(.toastui-editor-contents td), .comparison-editor :deep(.toastui-editor-contents th) { min-width: 180px; vertical-align: top; word-break: keep-all; overflow-wrap: anywhere; }
+.comparison-editor :deep(.toastui-editor-contents) { overflow-wrap: anywhere; word-break: break-word; }
+.comparison-editor :deep(.toastui-editor-contents table) { width: 100%; max-width: 100%; table-layout: fixed; }
+.comparison-editor :deep(.toastui-editor-contents td), .comparison-editor :deep(.toastui-editor-contents th) { min-width: 0; max-width: 100%; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }
 .comparison-heading { font-size: 15px; font-weight: 650; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 2px solid #94a3b8; }
 .comparison-side:nth-child(2) .comparison-heading { border-bottom-color: var(--q-primary); color: var(--q-primary); }
 @media (max-width: 700px) { .edit-field-groups { grid-template-columns: minmax(0, 1fr); } }

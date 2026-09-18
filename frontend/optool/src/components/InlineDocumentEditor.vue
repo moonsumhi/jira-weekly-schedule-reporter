@@ -78,6 +78,7 @@ const undoHistory: FormData[] = []
 const redoHistory: FormData[] = []
 let editorHeightFrame: number | null = null
 let layoutObserver: ResizeObserver | null = null
+let contentObserver: MutationObserver | null = null
 
 function syncEditorHeights() {
   const root = editorRoot.value
@@ -96,7 +97,15 @@ function syncEditorHeights() {
 
     cells.forEach(cell => cell.style.removeProperty('--editor-row-height'))
     editors.forEach(editor => editor.style.setProperty('height', 'auto', 'important'))
-    const maxHeight = Math.max(...editors.map(editor => editor.getBoundingClientRect().height))
+    // Toast UI updates the contenteditable DOM after its Vue model event. Measure
+    // the content area as well as the editor shell so the longer side wins even
+    // when the editor was previously constrained to the shorter row height.
+    const editorHeights = editors.map((editor) => {
+      const content = editor.querySelector<HTMLElement>('.toastui-editor-contents, .ProseMirror')
+      const contentHeight = content?.scrollHeight ?? 0
+      return Math.max(editor.getBoundingClientRect().height, editor.scrollHeight, contentHeight)
+    })
+    const maxHeight = Math.max(...editorHeights)
     if (!Number.isFinite(maxHeight) || maxHeight <= 0) continue
     const rowHeight = `${Math.ceil(maxHeight)}px`
     cells.forEach(cell => cell.style.setProperty('--editor-row-height', rowHeight))
@@ -107,8 +116,12 @@ function syncEditorHeights() {
 function queueEditorHeightSync() {
   if (editorHeightFrame !== null) cancelAnimationFrame(editorHeightFrame)
   editorHeightFrame = requestAnimationFrame(() => {
-    editorHeightFrame = null
-    syncEditorHeights()
+    // The editor emits its change event before ProseMirror has painted the new
+    // paragraph/image. A second frame makes the measurement deterministic.
+    editorHeightFrame = requestAnimationFrame(() => {
+      editorHeightFrame = null
+      syncEditorHeights()
+    })
   })
 }
 function snapshot(): FormData { return JSON.parse(JSON.stringify(model.value)) as FormData }
@@ -266,6 +279,8 @@ onMounted(async () => {
   if (editorRoot.value) {
     layoutObserver = new ResizeObserver(queueEditorHeightSync)
     layoutObserver.observe(editorRoot.value)
+    contentObserver = new MutationObserver(queueEditorHeightSync)
+    contentObserver.observe(editorRoot.value, { childList: true, characterData: true, subtree: true })
   }
 })
 
@@ -273,6 +288,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', queueEditorHeightSync)
   layoutObserver?.disconnect()
   layoutObserver = null
+  contentObserver?.disconnect()
+  contentObserver = null
   if (editorHeightFrame !== null) cancelAnimationFrame(editorHeightFrame)
   editorHeightFrame = null
 })
@@ -280,11 +297,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .inline-section { margin: 0 0 32px; scroll-margin-top: 28px; }
-.inline-editor { min-width: 0; }
+.inline-editor { width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden; }
 .inline-section h2 { margin: 32px 0 14px; font-size: 24px; line-height: 1.45; text-align: center; font-weight: 700; }
-.inline-table-scroll { width: 100%; overflow-x: auto; margin: 16px 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; }
-table { width: 100%; min-width: 100%; border-collapse: collapse; table-layout: auto; }
-th, td { min-width: 0; border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; overflow-wrap: anywhere; }
+.inline-table-scroll { width: 100%; max-width: 100%; overflow-x: hidden; overflow-y: visible; margin: 16px 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; }
+table { width: 100%; max-width: 100%; min-width: 0; border-collapse: collapse; table-layout: auto; }
+th, td { min-width: 0; max-width: 100%; border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; overflow-wrap: anywhere; }
 thead th { background: #64748b0d; font-weight: 600; text-align: center; padding: 12px 16px; }
 .label-column { width: 36%; }.field-label { width: 36%; text-align: left; font-weight: 400; }
 .number-cell { width: 6%; text-align: center; }.action-cell { width: 42px; padding: 4px; text-align: center; }
@@ -294,7 +311,7 @@ thead th { background: #64748b0d; font-weight: 600; text-align: center; padding:
 :deep(textarea.q-field__native) { resize: vertical; }
 .image-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .image-cell img { display: block; max-width: 240px; max-height: 180px; object-fit: contain; border-radius: 6px; }
-.content-cell { min-width: 160px; }
+.content-cell { min-width: 0; max-width: 100%; }
 .paste-hint { color: #94a3b8; font-size: 12px; }
 td:focus-visible { outline: 2px solid var(--q-primary); outline-offset: -2px; }
 
@@ -308,6 +325,13 @@ td:focus-visible { outline: 2px solid var(--q-primary); outline-offset: -2px; }
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
+}
+.inline-table-scroll :deep(.toastui-editor-main),
+.inline-table-scroll :deep(.toastui-editor-main-container),
+.inline-table-scroll :deep(.toastui-editor-ww-container),
+.inline-table-scroll :deep(.toastui-editor-contents) {
+  height: auto;
+  overflow: visible;
 }
 .inline-table-scroll :deep(.toastui-editor-defaultUI-toolbar) {
   display: flex;
@@ -325,6 +349,19 @@ td:focus-visible { outline: 2px solid var(--q-primary); outline-offset: -2px; }
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: break-word;
+  white-space: pre-wrap;
+}
+.inline-table-scroll :deep(.toastui-editor-contents table) {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+}
+.inline-table-scroll :deep(.toastui-editor-contents th),
+.inline-table-scroll :deep(.toastui-editor-contents td) {
+  min-width: 0;
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .inline-table-scroll td.editor-cell { vertical-align: stretch; }
 .inline-table-scroll td.editor-cell > div {

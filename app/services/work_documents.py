@@ -40,6 +40,12 @@ def store_image(raw: bytes) -> str:
 def html_markdown(source: str, image_reader) -> str:
     """Walk in document order, including images between text inside table cells."""
     root = html.fragment_fromstring(source, create_parent='div')
+    # HWP exports may split a long table across several sibling <table>
+    # elements.  Continuation tables often omit the header row and start with
+    # a numeric record (for example rows 3, 4, and 5 of the development table).
+    # Keep the most recent header by column count so the nested-table branch can
+    # still emit canonical field labels for those records.
+    table_headers_by_columns: dict[int, list[str]] = {}
 
     def walk(node):
         if not isinstance(node.tag, str):
@@ -90,15 +96,31 @@ def html_markdown(source: str, image_reader) -> str:
                     if current is not None:
                         parts.extend([f'### {current}', (' ' if current == '구분' else '\n\n').join(values)])
                 return '\n\n' + '\n\n'.join(parts) + '\n\n'
+            # Capture header rows even when this table has no nested table.
+            # HWP may put the nested table in a later continuation table, so
+            # that later table still needs the header from this one.
+            header_cells = cell_rows[0]
+            header_labels = [label(cell) for cell in header_cells]
+            if (header_labels and header_labels[0]
+                    and not re.fullmatch(r'\d+\.?', header_labels[0])
+                    and all(not cell.xpath('.//table|.//img') and len(label(cell)) < 40 for cell in header_cells)):
+                table_headers_by_columns[len(header_labels)] = [walk(cell).strip() for cell in header_cells]
             # A nested test table cannot live inside a Markdown pipe-table cell.
             # Lift the containing record into a section so its text, pictures,
             # and inner tables remain in their original order.
             if node.xpath('.//table'):
                 header = cell_rows[0]
-                has_header = all(not cell.xpath('.//table|.//img') and len(label(cell)) < 40 for cell in header)
-                headers = [walk(cell).strip() for cell in header] if has_header else []
+                source_has_header = all(not cell.xpath('.//table|.//img') and len(label(cell)) < 40 for cell in header)
+                headers = [walk(cell).strip() for cell in header] if source_has_header else []
+                if source_has_header and headers:
+                    table_headers_by_columns[len(headers)] = headers
+                elif header and re.fullmatch(r'\d+\.?', label(header[0])):
+                    # A continuation table has no header of its own.  Reuse a
+                    # matching header captured from the preceding table while
+                    # retaining every row in this table as data.
+                    headers = table_headers_by_columns.get(len(header), [])
                 parts = []
-                for index, cells in enumerate(cell_rows[1:] if has_header else cell_rows, 1):
+                for index, cells in enumerate(cell_rows[1:] if source_has_header else cell_rows, 1):
                     parts.append(f'### {index}번째 항목')
                     compact = []
                     def flush():

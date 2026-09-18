@@ -17,8 +17,8 @@
 .sidebar-metadata { margin: 36px 12px 0; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .sidebar-meta-title { margin: 10px 0 16px; font-weight: 600; color: var(--ink); }
 .sidebar-metadata dl { margin: 0; } .sidebar-metadata dt { margin-top: 14px; color: #94a3b8; } .sidebar-metadata dd { margin: 4px 0 0; overflow-wrap: anywhere; line-height: 1.6; }
-.document-scroll { overflow-y: auto; min-width: 0; padding: 36px 44px 56px; }
-.document-paper { width: 100%; max-width: 1320px; margin: 0 auto; padding: 44px 56px 28px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 4px 20px #1e293b04; }
+.document-scroll { overflow-x: hidden; overflow-y: auto; min-width: 0; padding: 36px 44px 56px; }
+.document-paper { width: 100%; max-width: 1320px; min-width: 0; margin: 0 auto; padding: 44px 56px 28px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 4px 20px #1e293b04; }
 .document-layout.is-editing .document-scroll { padding-left: 32px; padding-right: 32px; }
 .document-layout.is-editing .document-paper { max-width: 1120px; padding: 34px 42px 26px; }
 .document-hero { padding-bottom: 32px; border-bottom: 1px solid var(--line); margin-bottom: 36px; }
