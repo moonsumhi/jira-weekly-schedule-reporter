@@ -46,6 +46,14 @@ export function formatKst(iso: string): string {
   return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
 }
 
+/** 사용자 입력 datetime-local 값은 시간대가 없으면 한국 시간으로 해석한다. */
+export function formatKstLocal(iso: string): string {
+  const normalized = /Z|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + '+09:00'
+  const d = new Date(normalized)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+}
+
 export function isDateSoon(dateVal: unknown, days: number): boolean {
   const s = typeof dateVal === 'string' ? dateVal : ''
   // YYYY-MM-DD 또는 YYYY-MM 포맷 모두 허용
