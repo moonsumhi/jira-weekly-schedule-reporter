@@ -16,8 +16,8 @@
       <q-separator />
 
       <!-- 폼 바디 (스크롤) -->
-      <q-scroll-area style="height: min(85vh, 760px)">
-        <div class="q-px-lg q-py-md column q-gutter-y-md">
+      <div class="wr-body">
+        <div class="wr-form">
 
           <!-- ① 제목 -->
           <div>
@@ -166,7 +166,7 @@
           <!-- ③ MAIN_AGENDA 전용 -->
           <template v-if="section === 'MAIN_AGENDA'">
             <div class="row q-col-gutter-md">
-              <div class="col-6">
+              <div class="col-12 col-sm-6">
                 <div class="field-label">카테고리</div>
                 <q-select
                   v-model="form.category"
@@ -185,7 +185,7 @@
                   </template>
                 </q-select>
               </div>
-              <div class="col-6">
+              <div class="col-12 col-sm-6">
                 <div class="field-label">진행 상태</div>
                 <q-select
                   v-model="form.agenda_status"
@@ -218,7 +218,7 @@
           <!-- ④ ISSUE_RISK 전용 -->
           <template v-if="section === 'ISSUE_RISK'">
             <div class="row q-col-gutter-md">
-              <div class="col-6">
+              <div class="col-12 col-sm-6">
                 <div class="field-label">유형</div>
                 <q-select
                   v-model="form.item_type"
@@ -228,7 +228,7 @@
                   placeholder="선택"
                 />
               </div>
-              <div class="col-6">
+              <div class="col-12 col-sm-6">
                 <div class="field-label">영향도</div>
                 <q-select
                   v-model="form.impact"
@@ -317,10 +317,10 @@
           </div>
 
         </div>
-      </q-scroll-area>
+      </div>
 
       <q-separator />
-      <div class="row items-center justify-end q-px-lg q-py-sm q-gutter-sm">
+      <div class="wr-footer row items-center justify-end q-px-lg q-py-sm">
         <q-btn flat label="취소" no-caps color="grey-7" @click="close" />
         <q-btn
           color="primary"
@@ -513,12 +513,52 @@ async function save() {
 <style scoped>
 .wr-dialog {
   width: 780px;
-  max-width: 96vw;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: 12px !important;
+}
+
+.wr-header,
+.wr-footer,
+.wr-dialog > .q-separator {
+  flex-shrink: 0;
 }
 
 .wr-header {
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.wr-body {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wr-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 24px;
+}
+
+.wr-form > * {
+  min-width: 0;
+}
+
+.wr-footer {
+  gap: 8px;
+}
+
+@media (max-width: 599px) {
+  .wr-header,
+  .wr-form,
+  .wr-footer {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
 }
 
 .field-label {
