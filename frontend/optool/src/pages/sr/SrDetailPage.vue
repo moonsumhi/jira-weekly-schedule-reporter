@@ -123,7 +123,7 @@
                           <div class="content-label">발생 일시</div>
                           <div class="content-date">
                             <q-icon name="schedule" size="13px" color="blue-5" class="q-mr-xs" />
-                            {{ fmtDateTime(sr.typeDetail?.occurredAt ?? null) }}
+                            {{ fmtRequestDateTime(sr.typeDetail?.occurredAt ?? null) }}
                           </div>
                         </div>
                       </div>
@@ -186,7 +186,7 @@
                           <div class="content-label">적용 희망 일시</div>
                           <div class="content-date">
                             <q-icon name="schedule" size="13px" color="blue-5" class="q-mr-xs" />
-                            {{ fmtDateTime(sr.typeDetail?.applyDatetime ?? null) }}
+                            {{ fmtRequestDateTime(sr.typeDetail?.applyDatetime ?? null) }}
                           </div>
                         </div>
                         <div class="col-12 col-sm-6">
@@ -362,7 +362,7 @@
                           <div class="content-label">작업 희망 일시</div>
                           <div class="content-date">
                             <q-icon name="schedule" size="13px" color="blue-5" class="q-mr-xs" />
-                            {{ fmtDateTime(sr.typeDetail?.workDatetime ?? null) }}
+                            {{ fmtRequestDateTime(sr.typeDetail?.workDatetime ?? null) }}
                           </div>
                         </div>
                         <div class="col-12 col-sm-6">
@@ -586,7 +586,7 @@
                           </div>
                           <div v-else-if="field.type === 'datetime'" class="content-date">
                             <q-icon name="schedule" size="14px" color="blue-5" class="q-mr-xs" />
-                            {{ fmtDateTime(fieldValue(field)) }}
+                            {{ fmtRequestDateTime(fieldValue(field)) }}
                           </div>
                           <q-chip v-else-if="field.type === 'select'"
                             dense size="sm" color="blue-1" text-color="blue-9" class="q-my-none q-ml-none">
@@ -1350,7 +1350,7 @@ import {
 import { SR_TYPE_FIELDS } from 'src/services/sr-type-fields'
 import type { SRTypeField } from 'src/services/sr-type-fields'
 import { listPmUsers, type PmUser } from 'src/services/pm/users'
-import { formatKst, fmtDateKst } from 'src/utils/time/kst'
+import { formatKst, formatKstLocal, fmtDateKst } from 'src/utils/time/kst'
 import MentionInput from 'src/components/MentionInput.vue'
 import MentionContent from 'src/components/MentionContent.vue'
 import type { MentionUser } from 'src/services/mention'
@@ -1777,6 +1777,7 @@ function fileIcon(ct: string) {
 
 function fmtDate(d: SRTypeDetailValue)     { return fmtDateKst(typeof d === 'string' ? d : null) }
 function fmtDateTime(d: SRTypeDetailValue) { return typeof d === 'string' && d ? formatKst(d) : '-' }
+function fmtRequestDateTime(d: SRTypeDetailValue) { return typeof d === 'string' && d ? formatKstLocal(d) : '-' }
 
 const FIELD_LABELS: Record<string, string> = {
   ASSIGNEE_CHANGE: '담당자',
