@@ -346,7 +346,13 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
 
     def sec_pattern(title: str) -> str:
         # HWP 변환 결과의 "[\n작업 개요\n]" 표기까지 함께 매칭한다.
-        return r'\[\s*' + re.escape(title) + r'\s*\]'
+        # 본문 예시/명령어 안의 "[ 개발 내용 ]"은 섹션 경계가 아니므로
+        # 닫는 대괄호 뒤가 줄 또는 구조 마커인 경우만 실제 경계로 인정한다.
+        return (
+            r'(?<![가-힣A-Za-z0-9_])\[\s*'
+            + re.escape(title)
+            + r'\s*\](?=\s*(?:===NEWLINE===|===ROW_END===|===TABLE_END===|\r?\n|$))'
+        )
 
     def _section_scope_bounds(title: str) -> tuple[int, int] | None:
         """섹션 마커 위치를 찾아 (start, end) 반환. 없으면 None."""
@@ -365,7 +371,11 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
             om = re.search(sec_pattern(other), text[start:], re.DOTALL)
             if om and start + om.start() < end:
                 end = start + om.start()
-        km = re.search(r'\[\s*[가-힣][가-힣\s]*[가-힣]\s*\]', text[start:])
+        km = re.search(
+            r'(?<![가-힣A-Za-z0-9_])\[\s*[가-힣][가-힣\s]*[가-힣]\s*\]'
+            r'(?=\s*(?:===NEWLINE===|===ROW_END===|===TABLE_END===|\r?\n|$))',
+            text[start:],
+        )
         if km and start + km.start() < end:
             end = start + km.start()
         return start, end
@@ -500,8 +510,7 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
 
             if '===TABLE_END===' in scope:
                 chunks = scope.split('===TABLE_END===')
-                best_rows: list[list[str]] = []
-                best_score = -1
+                chunk_rows_with_scores: list[tuple[list[list[str]], int]] = []
                 for chunk in chunks:
                     if not chunk.strip():
                         continue
@@ -512,9 +521,44 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
                         sum(1 for c in row if cell_matches_label(c) is not None)
                         for row in chunk_rows
                     )
+                    chunk_rows_with_scores.append((chunk_rows, score))
+
+                best_rows: list[list[str]] = []
+                best_score = -1
+                best_chunk_idx = -1
+                for idx, (chunk_rows, score) in enumerate(chunk_rows_with_scores):
                     if score > best_score:
                         best_score = score
                         best_rows = chunk_rows
+                        best_chunk_idx = idx
+
+                # HWP can split one visual table into several TableBody nodes when
+                # it crosses a page or contains nested tables. The continuation
+                # body has only data rows (no repeated header), so it used to be
+                # discarded when the highest-scoring chunk was selected. Append
+                # subsequent numeric rows with the same column shape while
+                # stopping at the next top-level table header.
+                if best_chunk_idx >= 0 and best_rows and best_score > 0:
+                    header_probe = max(
+                        best_rows,
+                        key=lambda row: sum(1 for c in row if cell_matches_label(c) is not None),
+                    )
+                    expected_len = len(header_probe)
+                    for continuation_rows, _ in chunk_rows_with_scores[best_chunk_idx + 1:]:
+                        first = next((row for row in continuation_rows if any(cell.strip() for cell in row)), [])
+                        if not first:
+                            continue
+                        first_cell = first[0].strip() if first else ''
+                        if re.fullmatch(r'\d+\.?', first_cell) and len(first) >= max(2, expected_len - 1):
+                            best_rows.extend(continuation_rows)
+                            continue
+                        # A No./번호 header marks the next top-level table. Do
+                        # not scan past it, otherwise its numeric rows could be
+                        # mistaken for continuations of this section.
+                        if re.fullmatch(r'no\.?|번호|n', first_cell, re.IGNORECASE) or any(
+                            cell_matches_label(c) is not None for c in first
+                        ):
+                            break
                 rows_as_cells = best_rows
             else:
                 rows_as_cells = _build_rows(scope)
@@ -1018,7 +1062,11 @@ def _section_scope(text: str, all_titles: list[str], title: str) -> str:
     _extract_form_data 내부의 동일 로직(마커 없으면 이전 섹션 시작부터 전체 반환)을
     컬럼 기반 이미지 자동 배치 전용으로 재사용하기 위해 독립 함수로 둔다."""
     def sec_pattern(t: str) -> str:
-        return r'\[\s*' + re.escape(t) + r'\s*\]'
+        return (
+            r'(?<![가-힣A-Za-z0-9_])\[\s*'
+            + re.escape(t)
+            + r'\s*\](?=\s*(?:===NEWLINE===|===ROW_END===|===TABLE_END===|\r?\n|$))'
+        )
 
     def bounds(t: str) -> tuple[int, int] | None:
         m = re.search(sec_pattern(t), text, re.DOTALL)
@@ -1032,7 +1080,11 @@ def _section_scope(text: str, all_titles: list[str], title: str) -> str:
             om = re.search(sec_pattern(other), text[start:], re.DOTALL)
             if om and start + om.start() < end:
                 end = start + om.start()
-        km = re.search(r'\[\s*[가-힣][가-힣\s]*[가-힣]\s*\]', text[start:])
+        km = re.search(
+            r'(?<![가-힣A-Za-z0-9_])\[\s*[가-힣][가-힣\s]*[가-힣]\s*\]'
+            r'(?=\s*(?:===NEWLINE===|===ROW_END===|===TABLE_END===|\r?\n|$))',
+            text[start:],
+        )
         if km and start + km.start() < end:
             end = start + km.start()
         return start, end
@@ -1368,6 +1420,7 @@ def _save_original_file(content: bytes, filename: str, content_type: str | None)
     ).model_dump()
 
 
+
 @router.get('/asset-options')
 async def work_document_asset_options(search: str = Query('', max_length=200),
                                       category: AssetCategory | None = None,
@@ -1444,16 +1497,22 @@ async def import_original_form(file: UploadFile = File(...), template_id: str = 
         raise HTTPException(status_code=413, detail='파일 크기가 50MB를 초과합니다.')
     try:
         markdown, warnings = await asyncio.to_thread(import_document, content, file.filename or '')
-        data, mapping_warnings = await asyncio.to_thread(map_document, markdown, template.get('sections', []))
+        data, mapping_warnings = await asyncio.to_thread(
+            map_document,
+            markdown,
+            template.get('sections', []),
+        )
     except DocumentImportError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         logger.warning('Original form import failed: %s', type(exc).__name__)
         raise HTTPException(status_code=422, detail='양식 변환에 실패했습니다. 파일을 확인해 주세요.') from exc
+    final_warnings = warnings + mapping_warnings
     original_file = _save_original_file(content, file.filename or "", file.content_type)
     return {
         'data': data,
-        'warnings': warnings + mapping_warnings,
+        'warnings': final_warnings,
+        'mapping_warnings': mapping_warnings,
         'original_file': original_file,
     }
 

@@ -293,6 +293,54 @@
       </q-card>
     </q-dialog>
 
+    <!-- Import mapping warning dialog -->
+    <q-dialog v-model="importWarningDialog">
+      <q-card style="width: 760px; max-width: 96vw; max-height: 82vh; display: flex; flex-direction: column">
+        <q-card-section class="row items-center q-pb-none">
+          <q-icon name="warning" color="warning" size="sm" class="q-mr-sm" />
+          <div class="text-h6">Import 매핑 확인</div>
+          <q-space />
+          <q-btn flat dense icon="close" v-close-popup />
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="text-body2">
+          일부 내용을 선택한 양식의 입력 칸에 넣지 못했습니다. 아래 위치와 추천 항목을 확인해 주세요.
+          <div class="text-caption text-grey-7 q-mt-xs">추천 항목 중 실제 내용에 맞는 항목을 선택해 원본 양식의 항목명을 맞추면 됩니다.</div>
+        </q-card-section>
+        <q-card-section class="col scroll q-pt-none" style="min-height: 0">
+          <q-list bordered separator>
+            <q-item v-for="(warning, idx) in importWarnings" :key="idx" dense>
+              <q-item-section avatar>
+                <q-icon :name="warning.summary ? 'error' : 'error_outline'" color="negative" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-body2">{{ warning.message }}</q-item-label>
+                <q-item-label v-if="!warning.summary && warning.section" caption class="q-mt-xs">
+                  위치: {{ warning.section }}<span v-if="warning.field"> / {{ warning.field }}</span><span v-if="warning.row"> / {{ warning.row }}번째 행</span>
+                </q-item-label>
+                <q-item-label v-if="!warning.summary && warning.sourcePreview" caption class="q-mt-xs text-grey-7">
+                  원본 내용: {{ warning.sourcePreview }}
+                </q-item-label>
+                <div v-if="!warning.summary && warning.recommendations?.length" class="row items-center q-gutter-xs q-mt-sm">
+                  <span class="text-caption text-weight-medium">이 내용을 넣을 항목 후보:</span>
+                  <q-chip v-for="recommendation in warning.recommendations" :key="recommendation" dense color="blue-1" text-color="primary">
+                    {{ recommendation }}
+                  </q-chip>
+                </div>
+                <q-item-label v-else-if="!warning.summary" caption class="q-mt-xs text-grey-7">
+                  현재 양식에서 비슷한 항목을 찾지 못했습니다. 양식의 항목명을 확인해 주세요.
+                </q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+        <q-separator />
+        <q-card-actions align="right">
+          <q-btn flat label="닫기" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Extracted Image Panel (shown inside form dialog area, below form) -->
     <!-- Rendered as a floating panel attached to the page, visible when formDialog is open -->
 
@@ -329,6 +377,7 @@
       :sections="sections"
       :creating="creatingDetail"
       :saving="detailSaving" :save-warning="detailSaveWarning"
+      :import-warnings="importWarnings"
       :link-assets="canLinkWorkDocument"
       :inspection-links="canLinkWorkDocument && isWorkPlanTemplate(template)"
       :result-inspection-links="canLinkWorkDocument && isWorkResultTemplate(template)"
@@ -337,13 +386,14 @@
       @export="exportDetailMarkdown"
       @export-file="exportDetailFile"
       @download-original="downloadOriginalFile"
+      @show-import-warnings="importWarningDialog = true"
       :exporting="exportingDocument"
     />
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, toRaw } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, toRaw, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { isAxiosError } from 'axios'
@@ -445,6 +495,17 @@ const importing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const skippedDialog = ref(false)
 const skippedItems = ref<ImportSkipped[]>([])
+const importWarningDialog = ref(false)
+type ImportMappingWarning = {
+  summary?: boolean
+  section?: string
+  field?: string
+  row?: number | null
+  message: string
+  sourcePreview?: string
+  recommendations?: string[]
+}
+const importWarnings = ref<ImportMappingWarning[]>([])
 const importedImages = ref<string[]>([])
 const importedOriginalFile = ref<OriginalFile | null>(null)
 // 캡션을 추출할 수 없는 문서는 그룹 없이 flat하게 표시한다.
@@ -858,17 +919,30 @@ async function handleFileImport(event: Event) {
   const targetTemplate = template.value
   const request = pageRequest
   importing.value = true
+  importWarnings.value = []
+  importWarningDialog.value = false
   try {
     if (isJobPage.value) {
       const body = new FormData()
       body.append('file', file)
       body.append('template_id', targetTemplate.id)
-      const { data } = await api.post<{ data: Record<string, SectionValue>; warnings: string[]; originalFile?: OriginalFile | null }>('/form-entries/import-form', body)
+      const { data } = await api.post<{
+        data: Record<string, SectionValue>
+        warnings: string[]
+        mappingWarnings?: ImportMappingWarning[]
+        originalFile?: OriginalFile | null
+      }>('/form-entries/import-form', body)
       if (request !== pageRequest) return
       template.value = targetTemplate
+      importWarnings.value = data.mappingWarnings ?? []
       const importedData = cloneFormData(data.data)
       openDetailCreate(importedData, data.originalFile ?? null)
-      $q.notify({ type: 'info', message: `Import 완료. 표 형식으로 내용을 확인하고 저장해주세요. ${data.warnings.join(' ')}`.trim(), timeout: 10000 })
+      if (importWarnings.value.length > 0) {
+        await nextTick()
+        importWarningDialog.value = true
+        $q.notify({ type: 'warning', message: '연결되지 않은 항목이 있어 수정 화면에서 확인해 주세요.' })
+      }
+      $q.notify({ type: 'info', message: 'Import 완료. 표 형식으로 내용을 확인하고 저장해주세요.', timeout: 10000 })
       return
     }
     const result = await formEntryService.importFromFile(targetTemplate.id, file)
@@ -1270,4 +1344,6 @@ watch(() => route.query.entryId, () => { if (!loading.value) void openLinkedEntr
 .image-panel-scroll { overflow-x: auto; flex-wrap: nowrap; }
 .image-thumb { border: 1px solid #ddd; border-radius: 4px; padding: 4px; background: white; cursor: pointer; }
 .image-thumb--selected { border: 2px solid #43a047; background: #f1f8e9; box-shadow: 0 0 0 2px #43a04766; }
+.import-warning-resolved { opacity: 0.58; }
+.import-warning-resolved .text-body2 { text-decoration: line-through; }
 </style>

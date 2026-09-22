@@ -1,9 +1,20 @@
 <template>
-  <div ref="editorRoot" class="inline-editor" @keydown="handleKeydown">
+  <div ref="editorRoot" class="inline-editor" @keydown.capture="handleKeydown">
   <section v-for="(section, sectionIndex) in sections" :key="section.title" :data-section-index="sectionIndex" class="inline-section">
     <h2>{{ displaySectionTitle(section) }}</h2>
 
-    <div class="inline-table-scroll">
+    <div v-if="isImportedExtraSection(section)" class="imported-extra-editor-columns">
+      <article class="imported-extra-editor-panel">
+        <h3>원본 확인</h3>
+        <MarkdownEditor
+          :model-value="importedExtraPanels(section).original"
+          placeholder="원본 내용"
+          @uploading="setImportedExtraUploading('original', $event)"
+          @update:model-value="updateImportedExtraPanel(section, 'original', $event)"
+        />
+      </article>
+    </div>
+    <div v-else class="inline-table-scroll">
       <table v-if="section.multiple">
         <thead>
           <tr><th class="number-cell">No.</th><th v-for="field in visibleFields(section)" :key="field.label">{{ field.label }}</th><th class="action-cell" /></tr>
@@ -20,11 +31,17 @@
                 <img v-for="(src, imageIndex) in imageValues(row[field.label])" :key="imageIndex" :src="src" :alt="field.label" />
                 <span v-if="!imageValues(row[field.label]).length" class="paste-hint">이미지를 붙여넣을 수 있습니다.</span>
               </div>
-              <MarkdownEditor v-else-if="row[`${field.label}__format`] === 'markdown'"
+              <MarkdownEditor v-else-if="isMarkdownEditor(field, row)"
                 :model-value="scalarValue(row[field.label])?.toString() ?? ''"
                 :placeholder="`${field.label}`"
                 @update:model-value="updateField(row, field.label, $event)" />
               <div v-else class="content-cell">
+                <q-btn
+                  v-if="canUseRichEditor(field)"
+                  flat dense no-caps color="primary" icon="table_chart"
+                  label="표/이미지 입력" class="rich-editor-button"
+                  @click="enableMarkdownEditor(row, field.label)"
+                />
                 <q-input :model-value="scalarValue(row[field.label])" borderless dense autogrow :type="inputType(field)" :placeholder="`${field.label} 입력`" @update:model-value="updateField(row, field.label, $event ?? '')" />
               </div>
             </td>
@@ -47,11 +64,17 @@
                 <img v-for="(src, imageIndex) in imageValues(record(section)[field.label])" :key="imageIndex" :src="src" :alt="field.label" />
                 <span v-if="!imageValues(record(section)[field.label]).length" class="paste-hint">이미지를 붙여넣을 수 있습니다.</span>
               </div>
-              <MarkdownEditor v-else-if="record(section)[`${field.label}__format`] === 'markdown'"
+              <MarkdownEditor v-else-if="isMarkdownEditor(field, record(section))"
                 :model-value="scalarValue(record(section)[field.label])?.toString() ?? ''"
                 :placeholder="`${field.label}`"
                 @update:model-value="updateField(record(section), field.label, $event)" />
               <div v-else class="content-cell">
+                <q-btn
+                  v-if="canUseRichEditor(field)"
+                  flat dense no-caps color="primary" icon="table_chart"
+                  label="표/이미지 입력" class="rich-editor-button"
+                  @click="enableMarkdownEditor(record(section), field.label)"
+                />
                 <q-input :model-value="scalarValue(record(section)[field.label])" borderless dense autogrow :type="inputType(field)" :placeholder="`${field.label} 입력`" @update:model-value="updateField(record(section), field.label, $event ?? '')" />
               </div>
             </td>
@@ -73,6 +96,7 @@ type Row = Record<string, unknown>
 type FormData = Record<string, Row | Row[]>
 defineProps<{ sections: FormSection[] }>()
 const model = defineModel<FormData>({ required: true })
+const emit = defineEmits<{ uploading: [value: boolean] }>()
 const editorRoot = ref<HTMLElement | null>(null)
 const undoHistory: FormData[] = []
 const redoHistory: FormData[] = []
@@ -150,6 +174,7 @@ function redo() {
 function handleKeydown(event: KeyboardEvent) {
   if (!event.ctrlKey || event.key.toLowerCase() !== 'z') return
   event.preventDefault()
+  event.stopPropagation()
   if (event.shiftKey) redo()
   else undo()
 }
@@ -165,6 +190,71 @@ function displaySectionTitle(section: FormSection) {
 function visibleFields(section: FormSection) {
   const hiddenFields = new Set(['개발이미지', '작업전사진', '작업후사진'])
   return section.fields.filter(field => !hiddenFields.has(normalized(field.label)))
+}
+function canUseRichEditor(field: FormField): boolean {
+  return field.type === 'textarea' || field.type === 'markdown' || field.fullWidth === true
+}
+function isMarkdownEditor(field: FormField, target: Row): boolean {
+  return field.type === 'markdown' || target[`${field.label}__format`] === 'markdown'
+}
+function enableMarkdownEditor(target: Row, field: string): void {
+  if (target[`${field}__format`] === 'markdown') return
+  checkpoint()
+  target[field] = scalarValue(target[field]) ?? ''
+  target[`${field}__format`] = 'markdown'
+}
+function isImportedExtraSection(section: FormSection): boolean {
+  return normalized(section.title) === '가져온추가내용'
+}
+type ImportedExtraPanel = 'original' | 'mapping'
+const pendingImportedUploads = ref(new Set<ImportedExtraPanel>())
+function setImportedExtraUploading(panel: ImportedExtraPanel, uploading: boolean): void {
+  const next = new Set(pendingImportedUploads.value)
+  if (uploading) next.add(panel)
+  else next.delete(panel)
+  pendingImportedUploads.value = next
+  emit('uploading', next.size > 0)
+}
+function importedExtraField(section: FormSection): string {
+  return section.fields.find(field => normalized(field.label) === '내용')?.label ?? section.fields[0]?.label ?? '내용'
+}
+function importedExtraRaw(section: FormSection): string {
+  const value = model.value[section.title]
+  const rowsArr = Array.isArray(value) ? value : value ? [value] : []
+  const field = importedExtraField(section)
+  return rowsArr.map(row => scalarValue(row[field]) ?? '').filter(Boolean).join('\n\n')
+}
+function importedExtraPanels(section: FormSection): { original: string; mapping: string } {
+  const source = importedExtraRaw(section)
+  const headings = [...source.matchAll(/^##\s+([^\n]+?)\s*$/gm)]
+  const normalizedHeading = (value: string) => value.replace(/[\s*_`~]/g, '').toLocaleLowerCase()
+  const body = (index: number) => {
+    const current = headings[index]
+    if (!current || current.index == null) return ''
+    const end = headings[index + 1]?.index ?? source.length
+    return source.slice(current.index + current[0].length, end).trim()
+  }
+  const originalIndex = headings.findIndex(heading => normalizedHeading(heading[1] ?? '') === '원본내용')
+  const mappingIndex = headings.findIndex(heading => normalizedHeading(heading[1] ?? '') === '매핑확인')
+  if (originalIndex < 0 && mappingIndex < 0) return { original: source, mapping: '' }
+  return {
+    original: originalIndex >= 0 ? body(originalIndex) : '',
+    mapping: mappingIndex >= 0 ? body(mappingIndex) : '',
+  }
+}
+function updateImportedExtraPanel(section: FormSection, panel: ImportedExtraPanel, value: string): void {
+  const rowsArr = rows(section)
+  const target = rowsArr[0] ?? {}
+  if (!rowsArr.length) rowsArr.push(target)
+  const original = panel === 'original' ? value : importedExtraPanels(section).original
+  checkpoint()
+  if (!original.trim()) {
+    delete model.value[section.title]
+    return
+  }
+  if (rowsArr.length > 1) rowsArr.splice(1)
+  target[importedExtraField(section)] = '## 원본 내용\n\n' + original.trim()
+  target[importedExtraField(section) + '__format'] = 'markdown'
 }
 function record(section: FormSection): Row {
   const value = model.value[section.title]
@@ -285,6 +375,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  pendingImportedUploads.value = new Set()
+  emit('uploading', false)
   window.removeEventListener('resize', queueEditorHeightSync)
   layoutObserver?.disconnect()
   layoutObserver = null
@@ -299,7 +391,13 @@ onBeforeUnmount(() => {
 .inline-section { margin: 0 0 32px; scroll-margin-top: 28px; }
 .inline-editor { width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden; }
 .inline-section h2 { margin: 32px 0 14px; font-size: 24px; line-height: 1.45; text-align: center; font-weight: 700; }
+.inline-editor { width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden; }
+.inline-section h2 { margin: 32px 0 14px; font-size: 24px; line-height: 1.45; text-align: center; font-weight: 700; }
 .inline-table-scroll { width: 100%; max-width: 100%; overflow-x: hidden; overflow-y: visible; margin: 16px 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.imported-extra-editor-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin: 16px 0 10px; }
+.imported-extra-editor-panel { min-width: 0; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+.imported-extra-editor-panel h3 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #94a3b8; font-size: 15px; text-align: center; }
+.imported-extra-editor-panel:last-child h3 { border-bottom-color: var(--q-primary); color: var(--q-primary); }
 table { width: 100%; max-width: 100%; min-width: 0; border-collapse: collapse; table-layout: auto; }
 th, td { min-width: 0; max-width: 100%; border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; overflow-wrap: anywhere; }
 thead th { background: #64748b0d; font-weight: 600; text-align: center; padding: 12px 16px; }
@@ -311,7 +409,15 @@ thead th { background: #64748b0d; font-weight: 600; text-align: center; padding:
 :deep(textarea.q-field__native) { resize: vertical; }
 .image-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .image-cell img { display: block; max-width: 240px; max-height: 180px; object-fit: contain; border-radius: 6px; }
-.content-cell { min-width: 0; max-width: 100%; }
+.inline-editor { width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden; }
+.inline-section h2 { margin: 32px 0 14px; font-size: 24px; line-height: 1.45; text-align: center; font-weight: 700; }
+.inline-table-scroll { width: 100%; max-width: 100%; overflow-x: hidden; overflow-y: visible; margin: 16px 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.imported-extra-editor-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin: 16px 0 10px; }
+.imported-extra-editor-panel { min-width: 0; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+.imported-extra-editor-panel h3 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #94a3b8; font-size: 15px; text-align: center; }
+.imported-extra-editor-panel:last-child h3 { border-bottom-color: var(--q-primary); color: var(--q-primary); }
+table { width: 100%; max-width: 100%; min-width: 0; border-collapse: collapse; table-layout: auto; }
+th, td { min-width: 0; max-width: 100%; border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; overflow-wrap: anywhere; }
 .paste-hint { color: #94a3b8; font-size: 12px; }
 td:focus-visible { outline: 2px solid var(--q-primary); outline-offset: -2px; }
 

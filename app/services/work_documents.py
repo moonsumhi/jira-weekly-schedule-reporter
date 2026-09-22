@@ -70,14 +70,17 @@ def store_image(raw: bytes) -> str:
 def html_markdown(source: str, image_reader) -> str:
     """Walk in document order, including images between text inside table cells."""
     root = html.fragment_fromstring(source, create_parent='div')
-    # HWP exports may split a long table across several sibling <table>
-    # elements.  Continuation tables often omit the header row and start with
-    # a numeric record (for example rows 3, 4, and 5 of the development table).
-    # Keep the most recent header by column count so the nested-table branch can
-    # still emit canonical field labels for those records.
-    table_headers_by_columns: dict[int, list[str]] = {}
+    # HWP can emit one long visual table as several adjacent HTML tables when
+    # it crosses a page. Continuation tables omit the original header, so keep
+    # the last repeatable work-table header while walking the document.
+    continuation_headers: list[str] | None = None
+
+    def is_repeatable_work_header(values: list[str]) -> bool:
+        normalized = {re.sub(r'\s+|<br>', '', value) for value in values}
+        return '제목' in normalized and '리스크' in normalized and '세부작업내용' in normalized
 
     def walk(node):
+        nonlocal continuation_headers
         if not isinstance(node.tag, str):
             return ''
         tag = node.tag.lower() if isinstance(node.tag, str) else ''
@@ -108,6 +111,7 @@ def html_markdown(source: str, image_reader) -> str:
             if not source_rows:
                 return ''
             cell_rows = [row.xpath('./td|./th') for row in source_rows]
+            table_is_top_level = not node.xpath('ancestor::table')
             def label(cell):
                 return re.sub(r'\s+', '', ''.join(cell.itertext()))
             # Omit only the cover approval table, keeping the document title.
@@ -135,31 +139,33 @@ def html_markdown(source: str, image_reader) -> str:
                     if current is not None:
                         parts.extend([f'### {current}', (' ' if current == '구분' else '\n\n').join(values)])
                 return '\n\n' + '\n\n'.join(parts) + '\n\n'
-            # Capture header rows even when this table has no nested table.
-            # HWP may put the nested table in a later continuation table, so
-            # that later table still needs the header from this one.
-            header_cells = cell_rows[0]
-            header_labels = [label(cell) for cell in header_cells]
-            if (header_labels and header_labels[0]
-                    and not re.fullmatch(r'\d+\.?', header_labels[0])
-                    and all(not cell.xpath('.//table|.//img') and len(label(cell)) < 40 for cell in header_cells)):
-                table_headers_by_columns[len(header_labels)] = [walk(cell).strip() for cell in header_cells]
             # A nested test table cannot live inside a Markdown pipe-table cell.
             # Lift the containing record into a section so its text, pictures,
             # and inner tables remain in their original order.
             if node.xpath('.//table'):
                 header = cell_rows[0]
-                source_has_header = all(not cell.xpath('.//table|.//img') and len(label(cell)) < 40 for cell in header)
-                headers = [walk(cell).strip() for cell in header] if source_has_header else []
-                if source_has_header and headers:
-                    table_headers_by_columns[len(headers)] = headers
-                elif header and re.fullmatch(r'\d+\.?', label(header[0])):
-                    # A continuation table has no header of its own.  Reuse a
-                    # matching header captured from the preceding table while
-                    # retaining every row in this table as data.
-                    headers = table_headers_by_columns.get(len(header), [])
+                has_header = all(not cell.xpath('.//table|.//img') and len(label(cell)) < 40 for cell in header)
+                headers = [walk(cell).strip() for cell in header] if has_header else []
+                continuation = False
+                if (
+                    not has_header
+                    and table_is_top_level
+                    and continuation_headers
+                    and cell_rows
+                    and re.fullmatch(r'\d+\.?', label(cell_rows[0][0]))
+                    and len(cell_rows[0]) == len(continuation_headers)
+                ):
+                    # This is a page-split continuation of the previous work
+                    # table. Reuse its field headers instead of inventing
+                    # "1번째 내용" labels from the data row.
+                    headers = continuation_headers
+                    has_header = True
+                    continuation = True
+                if table_is_top_level and has_header and is_repeatable_work_header(headers):
+                    continuation_headers = headers
                 parts = []
-                for index, cells in enumerate(cell_rows[1:] if source_has_header else cell_rows, 1):
+                table_data_rows = cell_rows if continuation else (cell_rows[1:] if has_header else cell_rows)
+                for index, cells in enumerate(table_data_rows, 1):
                     parts.append(f'### {index}번째 항목')
                     compact = []
                     def flush():
@@ -215,6 +221,20 @@ def html_markdown(source: str, image_reader) -> str:
                             rows[0][c] = parent + ' / ' + value
                 if not rows[0][0] and {'IP', 'HOSTNAME'} <= second_labels:
                     rows[0][0] = 'No.'
+            continuation = False
+            if (
+                table_is_top_level
+                and continuation_headers
+                and rows
+                and re.fullmatch(r'\d+\.?', re.sub(r'\s+', '', rows[0][0]))
+                and len(rows[0]) == len(continuation_headers)
+            ):
+                rows.insert(0, continuation_headers)
+                continuation = True
+            if table_is_top_level and rows and is_repeatable_work_header(rows[0]):
+                continuation_headers = rows[0]
+            elif table_is_top_level and not continuation:
+                continuation_headers = None
             title = ''
             for c, value in enumerate(rows[0]):
                 normalized = re.sub(r'\s+|<br>', '', value)
@@ -243,6 +263,7 @@ def html_markdown(source: str, image_reader) -> str:
         if tag in ('p', 'div', 'ul', 'ol'):
             section = re.fullmatch(r'\[([^\[\]\n]+)\]', ''.join(node.itertext()).strip()) if tag == 'p' else None
             if section and not node.xpath('.//table|.//img'):
+                continuation_headers = None
                 return '\n\n## ' + escape(section.group(1)) + '\n\n'
             return '\n\n' + value.strip() + '\n\n'
         return value

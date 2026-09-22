@@ -63,6 +63,73 @@ class WorkDocumentTests(unittest.TestCase):
         time_table = '<table><tr><td colspan="2">작업 시간</td><td rowspan="2">내용</td></tr><tr><td>시작</td><td>종료</td></tr><tr><td>17:00</td><td>17:30</td><td>배포</td></tr></table>'
         self.assertIn('| 작업 시간 / 시작 | 작업 시간 / 종료 | 내용 |', documents.html_markdown(time_table, lambda src: src))
 
+    def test_hwp_section_example_text_does_not_truncate_repeated_development_rows(self):
+        from app.routers.form_entries import _extract_form_data
+
+        source = '''No.
+제목
+리스크
+세부 작업 내용
+===ROW_END===
+1
+첫 번째 작업
+중
+첫 번째 상세 내용
+===ROW_END===
+2
+두 번째 작업
+하
+두 번째 상세 내용
+===ROW_END===
+===TABLE_END===
+구분
+테스트 항목
+===ROW_END===
+기능
+로그인
+===TABLE_END===
+3
+세 번째 작업
+상
+세 번째 상세 내용
+===TABLE_END===
+다른 항목에서 [ 개발 내용 ] 섹션의 Issues/MR 동기화 부분을 확인한다.
+'''
+        sections = [{
+            'title': '개발 내용',
+            'multiple': True,
+            'fields': [
+                {'label': '제목', 'type': 'text'},
+                {'label': '리스크', 'type': 'select'},
+                {'label': '세부 작업 내용', 'type': 'textarea'},
+            ],
+        }]
+
+        data, skipped = _extract_form_data(source, sections)
+
+        self.assertEqual(skipped, [])
+        self.assertEqual(
+            [row['제목'] for row in data['개발 내용']],
+            ['첫 번째 작업', '두 번째 작업', '세 번째 작업'],
+        )
+
+    def test_page_split_work_table_reuses_previous_headers(self):
+        source = '''
+        <table>
+          <tr><td>No.</td><td>제목</td><td>리스크</td><td>세부 작업 내용</td></tr>
+          <tr><td>1</td><td>첫 번째 작업</td><td>중</td><td>첫 번째 상세<table><tr><td>구분</td><td>결과</td></tr></table></td></tr>
+        </table>
+        <table>
+          <tr><td>2</td><td>두 번째 작업</td><td>하</td><td>두 번째 상세<table><tr><td>구분</td><td>결과</td></tr></table></td></tr>
+        </table>
+        '''
+
+        markdown = documents.html_markdown(source, lambda src: src)
+
+        self.assertNotIn('1번째 내용', markdown)
+        self.assertEqual(markdown.count('#### 세부 작업 내용'), 2)
+        self.assertIn('두 번째 작업', markdown)
+
     def test_cover_approval_table_removed_but_body_reviewers_retained(self):
         source = '<table><tr><td>작업자</td><td>담당자</td><td rowspan="2">작 업 계 획 서<br>(서비스)</td><td>데이터운영팀 담당자</td><td>데이터운영<br>팀장</td></tr><tr><td>결재자1</td><td>결재자2</td><td></td><td></td></tr></table><p>[담당자]</p><table><tr><td>소속</td><td>성함</td></tr><tr><td>운영팀</td><td>본문 담당자</td></tr></table>'
         markdown = documents.html_markdown(source, lambda src: src)

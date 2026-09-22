@@ -2,6 +2,7 @@
 import re
 import unicodedata
 import logging
+from difflib import SequenceMatcher
 from lxml import html
 from markdown_it import MarkdownIt
 from app.services.work_documents import html_markdown
@@ -31,6 +32,67 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
     }
     data = {s['title']: [] if s.get('multiple') else {} for s in sections}
     extras = []
+    mapping_messages: list[dict[str, object]] = []
+    mapping_message_seen = set()
+    active_fields: list[dict] = []
+
+    def preview(value):
+        text = re.sub(r'\s+', ' ', str(value or '')).strip()
+        return text[:240] + ('…' if len(text) > 240 else '')
+
+    def recommended_fields(field_title):
+        source_key = norm(field_title)
+        if not source_key or not active_fields:
+            return []
+        scored = []
+        for field in active_fields:
+            label = str(field.get('label') or '').strip()
+            target_key = norm(label)
+            if not target_key:
+                continue
+            score = SequenceMatcher(None, source_key, target_key).ratio()
+            if source_key in target_key or target_key in source_key:
+                score += 0.35
+            scored.append((score, label))
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        return [label for score, label in scored[:3] if score >= 0.25]
+
+    def readable_reason(reason):
+        return {
+            '표의 열 제목과 템플릿 필드를 연결하지 못함': '이 표의 내용을 넣을 양식 칸을 찾지 못했습니다.',
+            '표의 열 제목에 대응하는 템플릿 필드를 찾지 못함': '이 표의 내용을 넣을 양식 칸을 찾지 못했습니다.',
+            '대응하는 템플릿 필드를 찾지 못함': '이 내용을 넣을 양식 칸을 찾지 못했습니다.',
+            '대응하는 템플릿 섹션을 찾지 못함': '이 내용을 넣을 양식 구역을 찾지 못했습니다.',
+            '표 또는 필드 형식으로 인식하지 못함': '표나 입력 칸으로 읽지 못한 내용입니다.',
+            '필드 제목이 없어 원문 위치를 확인하지 못함': '항목 이름이 없어 어느 칸에 넣을지 확인하지 못했습니다.',
+        }.get(str(reason or '').strip(), str(reason or 'Import 내용을 양식에 연결하지 못했습니다.'))
+
+    def record_unmapped(section_title, field_title, reason, source_value='', row_number=None):
+        # 문서 제목·머리말처럼 특정 섹션이나 필드에 속하지 않는 선행
+        # 내용은 사용자가 수정할 수 있는 매핑 실패가 아니므로 표시하지 않는다.
+        if not str(section_title or '').strip() and not str(field_title or '').strip():
+            return
+        location = str(section_title or '').strip() or '섹션 제목 없음'
+        if field_title:
+            location += f' / {str(field_title).strip()}'
+        if row_number is not None:
+            location += f' / {row_number}번째 행'
+        message_key = (location, str(reason or '').strip(), preview(source_value))
+        if message_key not in mapping_message_seen:
+            mapping_message_seen.add(message_key)
+            detail = {
+                'section': str(section_title or '').strip(),
+                'field': str(field_title or '').strip(),
+                'row': row_number,
+                'message': readable_reason(reason),
+                'recommendations': recommended_fields(field_title),
+            }
+            if source_value:
+                detail['source_preview'] = preview(source_value)
+            mapping_messages.append(detail)
+
+    def markdown_cell(value):
+        return str(value or '').replace('|', '\\|').replace('\n', ' ')
     logger.info('작업 문서 Import 매핑 시작: template_sections=%s', [s.get('title') for s in sections])
 
     def as_md(nodes):
@@ -274,6 +336,7 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
 
     for title, nodes in blocks:
         source_key = norm(title)
+        active_fields = []
         # Prefer the canonical target for known source titles. Fall back to an
         # exact title when a custom template does not define that target.
         preferred_title = aliases.get(source_key) if source_key in preferred_alias_sources else None
@@ -348,15 +411,20 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             logger.warning('작업 문서 Import 섹션 매핑 실패: source_title=%r normalized=%r', title, key)
             # The document title is already represented by the selected form.
             remaining = [n for n in nodes if n.tag != 'h1']
+            record_unmapped(title, '', '대응하는 템플릿 섹션을 찾지 못함', as_md(remaining) if remaining else '')
             if remaining:
                 extras.append((title, as_md(remaining)))
             continue
         section = candidates[0]
         fields = section.get('fields', [])
+        active_fields = fields
         logger.debug('작업 문서 Import 섹션 매핑: source_title=%r target_section=%r fields=%s', title, section.get('title'), [f.get('label') for f in fields])
         rows = []
         current = {}
+        current_row_number = 1
         pending_field, pending_nodes = None, []
+        result_section = norm(section.get('title')) == norm('작업 결과')
+        pending_result_prefix = ''
 
         def flush_field():
             nonlocal pending_field, pending_nodes
@@ -366,16 +434,35 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                 else:
                     assign(current, pending_field, pending_nodes)
             elif pending_nodes:
+                record_unmapped(
+                    title,
+                    '',
+                    '필드 제목이 없어 원문 위치를 확인하지 못함',
+                    as_md(pending_nodes),
+                    row_number=current_row_number,
+                )
                 extras.append((title, as_md(pending_nodes)))
             pending_field, pending_nodes = None, []
 
         for node in nodes:
+            # Some HWP exports put the short description (for example
+            # ``-사용 여부 확인``) in a paragraph immediately before the
+            # corresponding before/after table. Keep it with that table
+            # instead of reporting it as an unmapped field.
+            if result_section and node.tag not in ('table', 'h3', 'h4'):
+                prefix = as_md([node]).strip()
+                if prefix:
+                    pending_result_prefix = '\n\n'.join(
+                        part for part in (pending_result_prefix, prefix) if part
+                    )
+                continue
             heading = ''.join(node.itertext()).strip() if node.tag in ('h3', 'h4') else ''
             if node.tag == 'h3' and re.fullmatch(r'\d+번째 항목', heading):
                 flush_field()
                 if current:
                     rows.append(current)
                 current = {}
+                current_row_number = int(re.match(r'\d+', heading).group())
                 continue
             if node.tag in ('h3', 'h4'):
                 flush_field()
@@ -385,6 +472,7 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                     pending_field = {'label': '__work_period__'} if all(work_period_fields(fields)) else None
                 if pending_field is None:
                     logger.warning('작업 문서 Import 필드 매핑 실패: section=%r source_field=%r', title, heading)
+                    record_unmapped(title, heading, '대응하는 템플릿 필드를 찾지 못함', row_number=current_row_number)
                     pending_nodes = [node]
                 continue
             if pending_field is not None:
@@ -415,6 +503,44 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                     return ''.join(chunks).strip()
 
                 headers = [cell_text(c) for c in table_rows[0]]
+
+                # 작업결과서 HWP는 작업 전/후 표를 ``작업 결과 |``라는
+                # 2열 표로 반복 저장하는 경우가 있다. 이 형태는 표의
+                # 첫 행만 보면 템플릿 필드와 일치하지 않으므로 일반적인
+                # 열 매핑에 맡기면 텍스트와 이미지가 모두 미매핑된다.
+                # 각 표를 하나의 작업 결과 행으로 묶어 두 열의 Markdown을
+                # 그대로 보존한다. 이미지도 Markdown 이미지로 유지되므로
+                # 별도 사진 컬럼 없이 편집기에서 함께 수정할 수 있다.
+                is_result_pair_table = (
+                    norm(section.get('title')) == norm('작업 결과')
+                    and len(headers) >= 2
+                    and norm(headers[0]) in {'작업 결과', '작업결과'}
+                )
+                if is_result_pair_table:
+                    before_parts = []
+                    after_parts = []
+                    if pending_result_prefix:
+                        before_parts.append(pending_result_prefix)
+                        pending_result_prefix = ''
+                    for tr in table_rows[1:]:
+                        cells = list(tr)
+                        if not cells:
+                            continue
+                        before = as_md([cells[0]]).strip() if len(cells) >= 1 else ''
+                        after = as_md([cells[1]]).strip() if len(cells) >= 2 else ''
+                        if before:
+                            before_parts.append(before)
+                        if after:
+                            after_parts.append(after)
+                    if before_parts or after_parts:
+                        rows.append({
+                            '작업 전': '\n\n'.join(before_parts),
+                            '작업 전__format': 'markdown',
+                            '작업 후': '\n\n'.join(after_parts),
+                            '작업 후__format': 'markdown',
+                        })
+                    continue
+
                 mapped = [match(h, fields) for h in headers]
                 compound_mapped = {
                     index: compound_fields(header, fields)
@@ -432,7 +558,7 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                 if key_value_table:
                     parsed_row = {}
                     key_value_values = {}
-                    for tr in table_rows[1:]:
+                    for row_number, tr in enumerate(table_rows[1:], start=1):
                         cells = list(tr)
                         if len(cells) < 2:
                             continue
@@ -452,18 +578,25 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                             elif norm(source_label) == '작업일시':
                                 assign_work_period(parsed_row, fields, [cells[1]])
                             elif source_label and ''.join(cells[1].itertext()).strip():
-                                key_value_values[norm(source_label)] = cell_text(cells[1])
+                                key_value_values[norm(source_label)] = (source_label, cell_text(cells[1]), row_number)
                     # ``항목 | 내용`` 표에서도 성함·직책이 별도 행으로
                     # 내려오는 운영계 변형을 복합 필드 하나로 합친다.
                     for field in fields:
                         parts = [part.strip() for part in re.split(r'[/／]', str(field.get('label') or '')) if part.strip()]
-                        values = [key_value_values.get(norm(part), '') for part in parts]
+                        values = [key_value_values.get(norm(part), ('', ''))[1] for part in parts]
                         if len(parts) >= 2 and all(values):
                             assign_plain(parsed_row, field, ' / '.join(values))
                             for part in parts:
                                 key_value_values.pop(norm(part), None)
-                    for source_label, value in key_value_values.items():
+                    for _, (source_label, value, row_number) in key_value_values.items():
                         if value:
+                            record_unmapped(
+                                title,
+                                source_label,
+                                '항목명이 템플릿 필드와 일치하지 않음',
+                                value,
+                                row_number=row_number,
+                            )
                             extras.append((title + ' / ' + source_label, value))
                     if parsed_row:
                         if set(current) & set(parsed_row):
@@ -472,10 +605,31 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                         current.update(parsed_row)
                     continue
                 if not any(mapped) and not compound_mapped and not combined_mapped:
+                    recorded_cell = False
+                    for row_number, row in enumerate(table_rows[1:], start=1):
+                        for index, cell in enumerate(row):
+                            value = cell_text(cell)
+                            header = headers[index] if index < len(headers) else ''
+                            if not value or norm(header).lower() in ('no.', 'no', '번호'):
+                                continue
+                            record_unmapped(
+                                title,
+                                header,
+                                '표의 열 제목과 템플릿 필드를 연결하지 못함',
+                                value,
+                                row_number=row_number,
+                            )
+                            recorded_cell = True
+                    if not recorded_cell:
+                        record_unmapped(
+                            title,
+                            ' / '.join(header for header in headers if header),
+                            '표의 열 제목과 템플릿 필드를 연결하지 못함',
+                        )
                     extras.append((title, as_md([node])))
                     continue
                 parsed = []
-                for tr in table_rows[1:]:
+                for row_number, tr in enumerate(table_rows[1:], start=1):
                     row = {}
                     for i, cell in enumerate(tr):
                         field = mapped[i] if i < len(mapped) else None
@@ -498,6 +652,13 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                         elif i < len(headers) and norm(headers[i]) == '작업일시':
                             assign_work_period(row, fields, [cell])
                         elif i < len(headers) and norm(headers[i]).lower() not in ('no.', 'no', '번호') and cell_text(cell):
+                            record_unmapped(
+                                title,
+                                headers[i],
+                                '표의 열 제목에 대응하는 템플릿 필드를 찾지 못함',
+                                cell_text(cell),
+                                row_number=row_number,
+                            )
                             extras.append((title + ' / ' + headers[i], as_md([cell])))
                     if row:
                         parsed.append(row)
@@ -512,9 +673,23 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                         current = {}
                     rows.extend(parsed)
             else:
+                record_unmapped(
+                    title,
+                    '',
+                    '표 또는 필드 형식으로 인식하지 못함',
+                    as_md([node]),
+                    row_number=current_row_number,
+                )
                 extras.append((title, as_md([node])))
         flush_field()
         if pending_nodes:
+            record_unmapped(
+                title,
+                '',
+                '필드 제목이 없어 원문 위치를 확인하지 못함',
+                as_md(pending_nodes),
+                row_number=current_row_number,
+            )
             extras.append((title, as_md(pending_nodes)))
         if current:
             rows.append(current)
@@ -523,6 +698,28 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         else:
             for row in rows:
                 data[section['title']].update(row)
+
+    # Keep source content that could not be placed in the selected template.
+    # Mapping failures are shown in the import error dialog.
     if extras:
-        data[EXTRA] = [{'내용': '\n\n'.join((f'### {title}\n\n' if title else '') + value for title, value in extras if value), '내용__format': 'markdown'}]
-    return data, ([f'양식에 대응하지 않는 내용은 「{EXTRA}」에 보존했습니다.'] if extras else [])
+        original_parts = []
+        for extra_title, extra_value in extras:
+            if not extra_value:
+                continue
+            heading = f'### {extra_title}\n\n' if extra_title else ''
+            original_parts.append(f'{heading}{extra_value}')
+        if original_parts:
+            data[EXTRA] = [{
+                '내용': '## 원본 내용\n\n' + '\n\n'.join(original_parts),
+                '내용__format': 'markdown',
+            }]
+    if not mapping_messages:
+        return data, []
+    return data, [
+        {
+            'summary': True,
+            'message': f'Import에서 연결되지 않은 항목이 {len(mapping_messages)}건 있습니다.',
+            'recommendations': [],
+        },
+        *mapping_messages,
+    ]
