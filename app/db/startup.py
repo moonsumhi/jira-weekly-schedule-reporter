@@ -274,6 +274,13 @@ _RESULT_TEST_SUCCESS = {
         {"label": "담당자",          "type": "text", "required": False},
     ],
 }
+_RESULT_EXTRA_INFO = {
+    "title": "추가 정보",
+    "fields": [
+        {"label": "특이사항", "type": "textarea", "required": False},
+        {"label": "완료 여부", "type": "boolean", "required": False},
+    ],
+}
 
 # 반입신청서_한국보건의료정보원 (2).hwp 실제 양식에서 추출한 섹션 구조.
 _INTAKE_APPLICANT_INFO = {
@@ -357,6 +364,7 @@ _JOB_FORM_TEMPLATES = [
             _PLAN_REVIEW,
             _RESULT_BEFORE_AFTER,
             _RESULT_TEST_SUCCESS,
+            _RESULT_EXTRA_INFO,
         ],
     },
     {
@@ -716,6 +724,59 @@ async def migrate_job_test_case_sections() -> None:
                 data["테스트 케이스"] = {**legacy, **current}
             await entries.update_one({"_id": entry["_id"]}, {"$set": {"data": data}})
             logger.info("작업 결과서 테스트 케이스 데이터 이관: %s", entry["_id"])
+
+
+async def migrate_result_completion_field() -> None:
+    """작업결과서의 추가 정보에 완료 여부 선택 필드를 보장한다.
+
+    기존 설치본에는 실제 HWP 양식으로 재구성되는 과정에서 이 필드가 빠진
+    템플릿이 있어, 새 템플릿과 기존 템플릿 모두에서 같은 편집 UI를 사용할 수
+    있도록 멱등적으로 보완한다.
+    """
+    templates = MongoClientManager.get_form_templates_collection()
+    async for template in templates.find({"is_deleted": {"$ne": True}}):
+        if template.get("jira_issue_key") != "JOB-RESULT":
+            continue
+        sections = template.get("sections", [])
+        if not isinstance(sections, list):
+            continue
+        normalized = deepcopy(sections)
+        extra = next(
+            (
+                section for section in normalized
+                if _job_section_key(section.get("title")) == "추가정보"
+            ),
+            None,
+        )
+        changed = False
+        if extra is None:
+            normalized.append(deepcopy(_RESULT_EXTRA_INFO))
+            changed = True
+        else:
+            fields = extra.setdefault("fields", [])
+            ordered_fields: list[dict] = []
+            known_labels = {_job_section_key(field["label"]) for field in _RESULT_EXTRA_INFO["fields"]}
+            for field in _RESULT_EXTRA_INFO["fields"]:
+                label_key = _job_section_key(field["label"])
+                existing = next(
+                    (item for item in fields if isinstance(item, dict) and _job_section_key(item.get("label")) == label_key),
+                    None,
+                )
+                ordered_fields.append(deepcopy(existing) if existing is not None else deepcopy(field))
+            ordered_fields.extend(
+                deepcopy(field)
+                for field in fields
+                if isinstance(field, dict) and _job_section_key(field.get("label")) not in known_labels
+            )
+            if fields != ordered_fields:
+                extra["fields"] = ordered_fields
+                changed = True
+        if changed:
+            await templates.update_one(
+                {"_id": template["_id"]},
+                {"$set": {"sections": normalized}},
+            )
+            logger.info("작업결과서 완료 여부 필드 보완: %s", template.get("title"))
 
 
 def _split_result_work_period(value: object) -> tuple[str, str]:
@@ -1164,6 +1225,7 @@ async def run_startup() -> None:
     await migrate_env_submenu()
     await seed_job_form_templates()
     await migrate_job_test_case_sections()
+    await migrate_result_completion_field()
     await migrate_result_work_period_fields()
     await migrate_remove_development_image_field()
     await migrate_remove_result_work_image_field()

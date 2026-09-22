@@ -2,7 +2,6 @@
 import re
 import unicodedata
 import logging
-from difflib import SequenceMatcher
 from lxml import html
 from markdown_it import MarkdownIt
 from app.services.work_documents import html_markdown
@@ -34,28 +33,10 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
     extras = []
     mapping_messages: list[dict[str, object]] = []
     mapping_message_seen = set()
-    active_fields: list[dict] = []
 
     def preview(value):
         text = re.sub(r'\s+', ' ', str(value or '')).strip()
         return text[:240] + ('…' if len(text) > 240 else '')
-
-    def recommended_fields(field_title):
-        source_key = norm(field_title)
-        if not source_key or not active_fields:
-            return []
-        scored = []
-        for field in active_fields:
-            label = str(field.get('label') or '').strip()
-            target_key = norm(label)
-            if not target_key:
-                continue
-            score = SequenceMatcher(None, source_key, target_key).ratio()
-            if source_key in target_key or target_key in source_key:
-                score += 0.35
-            scored.append((score, label))
-        scored.sort(key=lambda item: (-item[0], item[1]))
-        return [label for score, label in scored[:3] if score >= 0.25]
 
     def readable_reason(reason):
         return {
@@ -85,7 +66,6 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                 'field': str(field_title or '').strip(),
                 'row': row_number,
                 'message': readable_reason(reason),
-                'recommendations': recommended_fields(field_title),
             }
             if source_value:
                 detail['source_preview'] = preview(source_value)
@@ -336,7 +316,6 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
 
     for title, nodes in blocks:
         source_key = norm(title)
-        active_fields = []
         # Prefer the canonical target for known source titles. Fall back to an
         # exact title when a custom template does not define that target.
         preferred_title = aliases.get(source_key) if source_key in preferred_alias_sources else None
@@ -417,7 +396,6 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             continue
         section = candidates[0]
         fields = section.get('fields', [])
-        active_fields = fields
         logger.debug('작업 문서 Import 섹션 매핑: source_title=%r target_section=%r fields=%s', title, section.get('title'), [f.get('label') for f in fields])
         rows = []
         current = {}
@@ -719,7 +697,6 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         {
             'summary': True,
             'message': f'Import에서 연결되지 않은 항목이 {len(mapping_messages)}건 있습니다.',
-            'recommendations': [],
         },
         *mapping_messages,
     ]

@@ -51,7 +51,7 @@
 
             <template v-if="editing">
               <div v-if="saveWarning" class="document-save-warning" role="alert"><q-icon name="info" size="19px" /><span>{{ saveWarning }}</span></div>
-              <div v-if="hasImportedExtraContent" class="document-save-warning" role="alert"><q-icon name="warning" size="19px" /><span>가져온 추가 내용을 모두 삭제해야 저장할 수 있습니다.</span></div>
+              <div v-if="hasImportedExtraContent" class="document-save-warning" role="alert"><q-icon name="warning" size="19px" /><span>가져온 내용 중 양식에 반영되지 않은 항목이 남아 있습니다. 필요한 내용은 해당 항목에 옮겨 작성한 뒤, 남은 미반영 내용만 정리하면 저장할 수 있습니다.</span></div>
               <WorkDocumentInspectionOptions v-if="inspectionLinks && canViewInspection" v-model="inspection"
                 :entry-id="creating ? undefined : entry.id" :assets="editableAssets" :data="editableData" :disable="!!saving" />
               <InlineDocumentEditor v-model="editableData" :sections="sections" @uploading="editorUploading = $event" />
@@ -100,7 +100,7 @@
                         </template>
                         <WorkResultContent v-else-if="developmentImages(section, field).length" :content="comparisonMarkdown(row, [field, ...developmentImages(section, field)])" />
                         <WorkResultContent v-else-if="isMarkdownValue(row[field.label], row[`${field.label}__format`])" :content="String(row[field.label] ?? '')" />
-                        <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayValue(row[field.label]) }}</div>
+                        <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayFieldValue(row[field.label], field) }}</div>
                       </td>
                     </tr>
                     </template>
@@ -130,7 +130,7 @@
                         </div><div v-else class="field-empty">등록된 이미지가 없습니다</div>
                       </template>
                       <WorkResultContent v-else-if="isMarkdownValue(row[field.label], row[`${field.label}__format`])" :content="String(row[field.label] ?? '')" />
-                      <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayValue(row[field.label]) }}</div>
+                      <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayFieldValue(row[field.label], field) }}</div>
                     </div>
                       </div>
                     </div>
@@ -151,7 +151,7 @@
                     </div><div v-else class="field-empty">등록된 이미지가 없습니다</div>
                   </template>
                   <WorkResultContent v-else-if="isMarkdownValue(sectionRecord(section)[field.label], sectionRecord(section)[`${field.label}__format`])" :content="String(sectionRecord(section)[field.label] ?? '')" />
-                  <div v-else :class="['field-value', { 'field-empty': isEmpty(sectionRecord(section)[field.label]) }]">{{ displayValue(sectionRecord(section)[field.label]) }}</div>
+                  <div v-else :class="['field-value', { 'field-empty': isEmpty(sectionRecord(section)[field.label]) }]">{{ displayFieldValue(sectionRecord(section)[field.label], field) }}</div>
                 </div>
               </div>
             </section>
@@ -203,7 +203,7 @@ import WorkDocumentInspectionOptions from './inspection/WorkDocumentInspectionOp
 import type { WorkDocumentInspection } from 'src/services/workDocumentInspection'
 
 type EditableData = Record<string, Record<string, unknown> | Record<string, unknown>[]>
-type ImportWarning = { summary?: boolean; section?: string; field?: string; row?: number | null; message: string; sourcePreview?: string; recommendations?: string[] }
+type ImportWarning = { summary?: boolean; section?: string; field?: string; row?: number | null; message: string; sourcePreview?: string }
 const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; creating?: boolean; exporting?: boolean; saving?: boolean; linkAssets?: boolean; inspectionLinks?: boolean; resultInspectionLinks?: boolean; saveWarning?: string; error?: string; backLabel?: string; importWarnings?: ImportWarning[] }>()
 const auth = useAuthStore()
 const canViewInspection = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('server_check'))
@@ -242,7 +242,7 @@ function startEdit() {
 }
 function requestSave(): void {
   if (hasImportedExtraContent.value) {
-    $q.notify({ type: 'warning', message: '가져온 추가 내용을 모두 삭제한 후 저장할 수 있습니다.' })
+    $q.notify({ type: 'warning', message: '가져온 내용 중 양식에 반영되지 않은 항목이 남아 있습니다. 필요한 내용은 해당 항목에 옮겨 작성한 뒤, 남은 미반영 내용만 정리하면 저장할 수 있습니다.', timeout: 10000 })
     return
   }
   emit('save', editableData.value, props.linkAssets ? editableAssets.value.map(asset => asset.id) : undefined, inspection.value)
@@ -388,10 +388,25 @@ function sectionRows(section: FormSection): DocumentRow[] {
   return Array.isArray(value) ? value.map(asRecord) : value ? [asRecord(value)] : []
 }
 function displayValue(value: unknown): string {
-  if (value == null || value === '') return '—'
+  if (value == null || value === '') return '-'
   if (typeof value === 'boolean') return value ? '예' : '아니오'
   if (typeof value === 'number' || typeof value === 'string') return String(value)
   return Array.isArray(value) ? value.map(displayValue).join('\n') : JSON.stringify(value)
+}
+function isCompletionField(field: FormField): boolean {
+  const label = field.label.replace(/[\s*_()[\]{}:：/\\-]/g, '')
+  return label === '완료여부' || (label.includes('완료') && label.includes('여부'))
+}
+function completionChoice(value: unknown): boolean | null {
+  if (value === true || value === false) return value
+  if (typeof value !== 'string') return null
+  if (value === 'true' || value === '성공' || value === '예') return true
+  if (value === 'false' || value === '실패' || value === '아니오') return false
+  return null
+}
+function displayFieldValue(value: unknown, field: FormField): string {
+  const choice = isCompletionField(field) ? completionChoice(value) : null
+  return choice === null ? displayValue(value) : (choice ? '성공' : '실패')
 }
 function isEmpty(value: unknown) { return value == null || value === '' || (Array.isArray(value) && !value.length) }
 function images(value: unknown): string[] { return (Array.isArray(value) ? value : [value]).filter((item): item is string => typeof item === 'string' && !!item.trim()) }

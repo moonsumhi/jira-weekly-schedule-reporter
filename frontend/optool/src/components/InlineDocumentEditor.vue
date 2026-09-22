@@ -26,7 +26,10 @@
               :class="{ 'editor-cell': row[`${field.label}__format`] === 'markdown' }"
               tabindex="0" @paste="pasteCellImage(section, rowIndex, field, $event)">
               <q-select v-if="field.type === 'select'" :model-value="row[field.label]" :options="field.options ?? []" borderless dense options-dense @update:model-value="updateField(row, field.label, $event)" />
-              <q-checkbox v-else-if="field.type === 'boolean'" :model-value="Boolean(row[field.label])" dense @update:model-value="updateField(row, field.label, $event)" />
+              <q-option-group v-else-if="isBooleanField(field) && isCompletionField(field)"
+                :model-value="completionChoice(row[field.label])" :options="completionOptions" type="radio" inline dense
+                @update:model-value="updateField(row, field.label, $event)" />
+              <q-checkbox v-else-if="isBooleanField(field)" :model-value="Boolean(row[field.label])" dense @update:model-value="updateField(row, field.label, $event)" />
               <div v-else-if="field.type === 'image'" class="image-cell">
                 <img v-for="(src, imageIndex) in imageValues(row[field.label])" :key="imageIndex" :src="src" :alt="field.label" />
                 <span v-if="!imageValues(row[field.label]).length" class="paste-hint">이미지를 붙여넣을 수 있습니다.</span>
@@ -59,7 +62,10 @@
             <td :class="{ 'editor-cell': record(section)[`${field.label}__format`] === 'markdown' }"
               tabindex="0" @paste="pasteCellImage(section, 0, field, $event)">
               <q-select v-if="field.type === 'select'" :model-value="record(section)[field.label]" :options="field.options ?? []" borderless dense options-dense @update:model-value="updateField(record(section), field.label, $event)" />
-              <q-checkbox v-else-if="field.type === 'boolean'" :model-value="Boolean(record(section)[field.label])" dense @update:model-value="updateField(record(section), field.label, $event)" />
+              <q-option-group v-else-if="isBooleanField(field) && isCompletionField(field)"
+                :model-value="completionChoice(record(section)[field.label])" :options="completionOptions" type="radio" inline dense
+                @update:model-value="updateField(record(section), field.label, $event)" />
+              <q-checkbox v-else-if="isBooleanField(field)" :model-value="Boolean(record(section)[field.label])" dense @update:model-value="updateField(record(section), field.label, $event)" />
               <div v-else-if="field.type === 'image'" class="image-cell">
                 <img v-for="(src, imageIndex) in imageValues(record(section)[field.label])" :key="imageIndex" :src="src" :alt="field.label" />
                 <span v-if="!imageValues(record(section)[field.label]).length" class="paste-hint">이미지를 붙여넣을 수 있습니다.</span>
@@ -97,6 +103,10 @@ type FormData = Record<string, Row | Row[]>
 defineProps<{ sections: FormSection[] }>()
 const model = defineModel<FormData>({ required: true })
 const emit = defineEmits<{ uploading: [value: boolean] }>()
+const completionOptions = [
+  { label: '성공', value: true },
+  { label: '실패', value: false },
+]
 const editorRoot = ref<HTMLElement | null>(null)
 const undoHistory: FormData[] = []
 const redoHistory: FormData[] = []
@@ -158,6 +168,20 @@ function updateField(target: Row, field: string, value: unknown) {
   if (target[field] === value) return
   checkpoint()
   target[field] = value
+}
+function isCompletionField(field: FormField): boolean {
+  const label = field.label.replace(/[\s*_()[\]{}:：/\\-]/g, '')
+  return label === '완료여부' || (label.includes('완료') && label.includes('여부'))
+}
+function isBooleanField(field: FormField): boolean {
+  return field.type === 'boolean' || field.type === 'checkbox'
+}
+function completionChoice(value: unknown): boolean | null {
+  if (value === true || value === false) return value
+  if (typeof value !== 'string') return null
+  if (value === 'true' || value === '성공' || value === '예') return true
+  if (value === 'false' || value === '실패' || value === '아니오') return false
+  return null
 }
 function undo() {
   const previous = undoHistory.pop()

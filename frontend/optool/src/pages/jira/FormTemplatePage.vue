@@ -184,7 +184,11 @@
                 <q-select v-else-if="field.type === 'select'" :model-value="getRowVal(section.title, rowIdx, field.label)"
                   @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)" :options="field.options ?? []"
                   outlined dense :aria-label="field.label" :disable="saving" />
-                <q-toggle v-else-if="field.type === 'boolean'" :model-value="getRowVal(section.title, rowIdx, field.label) === 'true'"
+                <q-option-group v-else-if="isBooleanField(field) && isCompletionField(field)"
+                  :model-value="completionChoice(getRowVal(section.title, rowIdx, field.label))"
+                  :options="completionOptions" type="radio" inline dense
+                  @update:model-value="setRowVal(section.title, rowIdx, field.label, String($event))" :disable="saving" />
+                <q-toggle v-else-if="isBooleanField(field)" :model-value="getRowVal(section.title, rowIdx, field.label) === 'true'"
                   @update:model-value="setRowVal(section.title, rowIdx, field.label, String($event))" :label="field.label" :disable="saving" />
                 <q-input v-else :model-value="getRowVal(section.title, rowIdx, field.label)"
                   @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)" :type="tableInputType(field.type)"
@@ -304,8 +308,7 @@
         </q-card-section>
         <q-separator />
         <q-card-section class="text-body2">
-          일부 내용을 선택한 양식의 입력 칸에 넣지 못했습니다. 아래 위치와 추천 항목을 확인해 주세요.
-          <div class="text-caption text-grey-7 q-mt-xs">추천 항목 중 실제 내용에 맞는 항목을 선택해 원본 양식의 항목명을 맞추면 됩니다.</div>
+          일부 내용을 선택한 양식에 넣지 못했습니다. 아래 항목을 확인해 주세요.
         </q-card-section>
         <q-card-section class="col scroll q-pt-none" style="min-height: 0">
           <q-list bordered separator>
@@ -314,22 +317,7 @@
                 <q-icon :name="warning.summary ? 'error' : 'error_outline'" color="negative" />
               </q-item-section>
               <q-item-section>
-                <q-item-label class="text-body2">{{ warning.message }}</q-item-label>
-                <q-item-label v-if="!warning.summary && warning.section" caption class="q-mt-xs">
-                  위치: {{ warning.section }}<span v-if="warning.field"> / {{ warning.field }}</span><span v-if="warning.row"> / {{ warning.row }}번째 행</span>
-                </q-item-label>
-                <q-item-label v-if="!warning.summary && warning.sourcePreview" caption class="q-mt-xs text-grey-7">
-                  원본 내용: {{ warning.sourcePreview }}
-                </q-item-label>
-                <div v-if="!warning.summary && warning.recommendations?.length" class="row items-center q-gutter-xs q-mt-sm">
-                  <span class="text-caption text-weight-medium">이 내용을 넣을 항목 후보:</span>
-                  <q-chip v-for="recommendation in warning.recommendations" :key="recommendation" dense color="blue-1" text-color="primary">
-                    {{ recommendation }}
-                  </q-chip>
-                </div>
-                <q-item-label v-else-if="!warning.summary" caption class="q-mt-xs text-grey-7">
-                  현재 양식에서 비슷한 항목을 찾지 못했습니다. 양식의 항목명을 확인해 주세요.
-                </q-item-label>
+                <q-item-label class="text-body2">{{ importWarningLabel(warning) }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -415,6 +403,28 @@ const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 const auth = useAuthStore()
+
+const completionOptions = [
+  { label: '성공', value: true },
+  { label: '실패', value: false },
+]
+
+function isCompletionField(field: FormField): boolean {
+  const label = field.label.replace(/[\s*_()[\]{}:：/\\-]/g, '')
+  return label === '완료여부' || (label.includes('완료') && label.includes('여부'))
+}
+
+function isBooleanField(field: FormField): boolean {
+  return field.type === 'boolean' || field.type === 'checkbox'
+}
+
+function completionChoice(value: unknown): boolean | null {
+  if (value === true || value === false) return value
+  if (typeof value !== 'string') return null
+  if (value === 'true' || value === '성공' || value === '예') return true
+  if (value === 'false' || value === '실패' || value === '아니오') return false
+  return null
+}
 
 const loading = ref(true)
 const tableLoading = ref(false)
@@ -503,9 +513,18 @@ type ImportMappingWarning = {
   row?: number | null
   message: string
   sourcePreview?: string
-  recommendations?: string[]
 }
 const importWarnings = ref<ImportMappingWarning[]>([])
+
+function importWarningLabel(warning: ImportMappingWarning): string {
+  if (warning.summary) return warning.message
+  const section = warning.section?.trim()
+  const field = warning.field?.trim()
+  if (section && field) return `${section}의 ${field} 내용이 없습니다.`
+  if (section) return `${section} 내용이 없습니다.`
+  if (field) return `${field} 내용이 없습니다.`
+  return warning.message
+}
 const importedImages = ref<string[]>([])
 const importedOriginalFile = ref<OriginalFile | null>(null)
 // 캡션을 추출할 수 없는 문서는 그룹 없이 flat하게 표시한다.
