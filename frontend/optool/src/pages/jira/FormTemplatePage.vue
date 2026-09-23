@@ -308,7 +308,7 @@
         </q-card-section>
         <q-separator />
         <q-card-section class="text-body2">
-          일부 내용을 선택한 양식에 넣지 못했습니다. 아래 항목을 확인해 주세요.
+          일부 내용을 양식에 넣지 못했습니다. 아래 항목을 확인해주시고, 자세한 부분은 가져온 추가 내용에서 확인 부탁드립니다.
         </q-card-section>
         <q-card-section class="col scroll q-pt-none" style="min-height: 0">
           <q-list bordered separator>
