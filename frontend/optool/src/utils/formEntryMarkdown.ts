@@ -90,7 +90,10 @@ function pairedFieldValue(values: Record<string, unknown>, section: FormSection,
 function tableCellValue(value: string): string {
   // Keep multiline Markdown readable inside one table cell and prevent pipes
   // in user-entered text from being interpreted as additional columns.
-  return value.replace(/\r?\n/g, '<br>').replace(/(^|[^\\])\|/g, '$1\\|')
+  // Normalize an existing escape first. Rich text editors can return an
+  // already escaped nested table, and escaping it a second time makes the
+  // saved detail view see `\\\\|` instead of a nested table delimiter.
+  return value.replace(/\r?\n/g, '<br>').replace(/\\*\|/g, '\\|')
 }
 
 function displaySectionTitle(section: FormSection): string {

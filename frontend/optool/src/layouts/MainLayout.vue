@@ -370,12 +370,19 @@ function boardChildrenOf(menuId: string) {
   return boards.map((b) => ({ title: b.title, icon: b.icon ?? 'fa-solid fa-clipboard-list', link: b.link ?? `/board/${b.id}` }))
 }
 
+type JobMenuItem = {
+  title: string
+  icon?: string
+  link: string
+}
+
 const jobMenuItems = computed<EssentialLinkProps[]>(() => {
   const menu = sortedVisibleMenus.value.find((m) => m.slug === 'job')
-  let items = templateItems.value
+  let items: JobMenuItem[] = templateItems.value
     .filter((item) => item.menu.toLowerCase() === 'job')
     .map((item) => ({
-      ...item,
+      title: item.title,
+      link: item.link,
       icon: menu?.subIcons?.[item.link] ?? item.icon,
     }))
   if (menu?.subOrder && menu.subOrder.length > 0) {
@@ -383,6 +390,13 @@ const jobMenuItems = computed<EssentialLinkProps[]>(() => {
     items = items.filter((item) => orderMap.has(item.link))
     items.sort((a, b) => (orderMap.get(a.link) ?? Infinity) - (orderMap.get(b.link) ?? Infinity))
   }
+  // 작업 관리의 서식 목록은 DB에서 동적으로 만들어지므로, 공통 사용 가이드는
+  // 별도 하위 메뉴로 항상 마지막에 노출한다.
+  items.push({
+    title: '사용 가이드',
+    icon: menu?.subIcons?.['/job/guide'] ?? 'fa-solid fa-circle-question',
+    link: '/job/guide',
+  })
   return items
 })
 

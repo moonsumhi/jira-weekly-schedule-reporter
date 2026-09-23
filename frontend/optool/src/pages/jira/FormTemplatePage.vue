@@ -20,6 +20,7 @@
           <div class="text-caption text-grey">{{ isAllJobs ? `전체 문서 ${rows.length}건` : template?.jiraIssueKey }}</div>
         </div>
         <q-space />
+        <HelpButton feature="work-management" guide-path="/job/guide" />
         <q-toggle v-model="includeDeleted" label="삭제 포함" dense @update:model-value="load" />
         <q-btn outline icon="refresh" label="새로고침" :loading="tableLoading" @click="load" />
         <q-btn outline icon="upload_file" label="Import" :loading="importing"
@@ -392,6 +393,7 @@ import { hasOriginalForm, synchronizedDocument } from 'src/utils/formEntryMarkdo
 import WorkDocumentDetail from 'src/components/WorkDocumentDetail.vue'
 import WorkDocumentEditor from 'src/components/WorkDocumentEditor.vue'
 import WorkDocumentAssets from 'src/components/WorkDocumentAssets.vue'
+import HelpButton from 'src/components/HelpButton.vue'
 import { useAuthStore } from 'src/stores/auth'
 import { comparisonFormatKey, comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
