@@ -312,7 +312,7 @@
         </q-card-section>
         <q-card-section class="col scroll q-pt-none" style="min-height: 0">
           <q-list bordered separator>
-            <q-item v-for="(warning, idx) in importWarnings" :key="idx" dense>
+            <q-item v-for="(warning, idx) in importWarningItems" :key="idx" dense>
               <q-item-section avatar>
                 <q-icon :name="warning.summary ? 'error' : 'error_outline'" color="negative" />
               </q-item-section>
@@ -516,13 +516,41 @@ type ImportMappingWarning = {
 }
 const importWarnings = ref<ImportMappingWarning[]>([])
 
+function normalizedImportWarningPart(value?: string): string {
+  return String(value ?? '').replace(/[\s\u00a0\u3000]+/g, '')
+}
+
+const importWarningItems = computed<ImportMappingWarning[]>(() => {
+  const items: ImportMappingWarning[] = []
+  let expandedResultPair = false
+  for (const warning of importWarnings.value) {
+    // 일부 결과서 변환본은 작업 전·후 열을 모두 ``작업 결과``로
+    // 내보낸다. 같은 경고를 그대로 보여주면 어느 칸을 채워야 하는지
+    // 알 수 없으므로 템플릿의 두 입력 항목으로 분리해 안내한다.
+    if (
+      !warning.summary
+      && normalizedImportWarningPart(warning.section) === '작업결과'
+      && normalizedImportWarningPart(warning.field) === '작업결과'
+    ) {
+      if (!expandedResultPair) {
+        items.push({ ...warning, field: '작업 전' })
+        items.push({ ...warning, field: '작업 후' })
+        expandedResultPair = true
+      }
+      continue
+    }
+    items.push(warning)
+  }
+  return items
+})
+
 function importWarningLabel(warning: ImportMappingWarning): string {
   if (warning.summary) return `템플릿에 넣지 못한 내용이 있습니다: ${warning.message}`
   const section = warning.section?.trim()
   const field = warning.field?.trim()
-  if (section && field) return `템플릿의 ${section} > ${field} 항목이 비어 있습니다.`
-  if (section) return `템플릿의 ${section} 항목이 비어 있습니다.`
-  if (field) return `템플릿의 ${field} 항목이 비어 있습니다.`
+  if (section && field) return `${section} > ${field} 항목이 비어 있습니다.`
+  if (section) return `${section} 항목이 비어 있습니다.`
+  if (field) return `${field} 항목이 비어 있습니다.`
   return warning.message
 }
 const importedImages = ref<string[]>([])
