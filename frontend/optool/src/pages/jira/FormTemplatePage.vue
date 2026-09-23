@@ -308,7 +308,7 @@
         </q-card-section>
         <q-separator />
         <q-card-section class="text-body2">
-          일부 내용을 양식에 넣지 못했습니다. 아래 항목을 확인해주시고, 자세한 부분은 가져온 추가 내용에서 확인 부탁드립니다.
+          선택한 템플릿의 아래 항목이 비어 있습니다. 가져온 추가 내용을 참고해 해당 항목을 입력해 주세요.
         </q-card-section>
         <q-card-section class="col scroll q-pt-none" style="min-height: 0">
           <q-list bordered separator>
@@ -517,12 +517,12 @@ type ImportMappingWarning = {
 const importWarnings = ref<ImportMappingWarning[]>([])
 
 function importWarningLabel(warning: ImportMappingWarning): string {
-  if (warning.summary) return warning.message
+  if (warning.summary) return `템플릿에 넣지 못한 내용이 있습니다: ${warning.message}`
   const section = warning.section?.trim()
   const field = warning.field?.trim()
-  if (section && field) return `${section}의 ${field} 내용이 없습니다.`
-  if (section) return `${section} 내용이 없습니다.`
-  if (field) return `${field} 내용이 없습니다.`
+  if (section && field) return `템플릿의 ${section} > ${field} 항목이 비어 있습니다.`
+  if (section) return `템플릿의 ${section} 항목이 비어 있습니다.`
+  if (field) return `템플릿의 ${field} 항목이 비어 있습니다.`
   return warning.message
 }
 const importedImages = ref<string[]>([])
