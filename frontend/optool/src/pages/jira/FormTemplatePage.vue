@@ -517,29 +517,95 @@ type ImportMappingWarning = {
 const importWarnings = ref<ImportMappingWarning[]>([])
 
 function normalizedImportWarningPart(value?: string): string {
-  return String(value ?? '').replace(/[\s\u00a0\u3000]+/g, '')
+  return String(value ?? '')
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\u00a0\u3000]+/g, '')
+    .replace(/[():：·•\\._-]+/g, '')
+    .replaceAll('/', '')
+    .replaceAll('[', '')
+    .replaceAll(']', '')
+}
+
+const importSectionAliases: Record<string, string[]> = {
+  기본정보: ['작업개요'],
+  백업및복구방법: ['백업및복구방안'],
+  작업자정보: ['작업자'],
+  검토서명: ['담당자', '검토서명', '검토의견'],
+  작업시간표: ['세부작업절차'],
+  세부작업절차: ['작업시간표'],
+  사전점검: ['사전작업'],
+  테스트케이스: ['테스트계획', '테스트결과', '테스트결과분석', '테스트케이스성공', '테스트케이스실패'],
+}
+
+function resolveImportWarningSection(rawSection?: string): FormSection | null {
+  const sections = template.value?.sections ?? []
+  const sourceKey = normalizedImportWarningPart(rawSection)
+  if (!sourceKey) return null
+  return sections.find((section) => normalizedImportWarningPart(section.title) === sourceKey)
+    ?? sections.find((section) => (importSectionAliases[normalizedImportWarningPart(section.title)] ?? []).includes(sourceKey))
+    ?? null
+}
+
+function warningTemplateFields(warning: ImportMappingWarning, section: FormSection): string[] {
+  const sourceKey = normalizedImportWarningPart(warning.field)
+  if (!sourceKey) return []
+  const direct = section.fields.find((field) => normalizedImportWarningPart(field.label) === sourceKey)
+  if (direct) return [direct.label]
+
+  const sectionKey = normalizedImportWarningPart(section.title)
+  if (sectionKey === '작업결과' && sourceKey === '작업결과') {
+    return section.fields
+      .filter((field) => ['작업전', '작업후'].includes(normalizedImportWarningPart(field.label)))
+      .map((field) => field.label)
+  }
+  if (sourceKey === '작업일시') {
+    return section.fields
+      .filter((field) => ['작업기간시작', '작업기간종료'].includes(normalizedImportWarningPart(field.label)))
+      .map((field) => field.label)
+  }
+  if (['테스트결과시간', '테스트결과시각', '결과시간', '결과시각', '시간'].includes(sourceKey)) {
+    const resultTime = section.fields.find((field) => {
+      const fieldKey = normalizedImportWarningPart(field.label)
+      return fieldKey === '결과시간' || fieldKey === '결과시각'
+    })
+    if (resultTime) return [resultTime.label]
+  }
+  if (sourceKey === '성함직책') {
+    return section.fields
+      .filter((field) => ['성함', '직책'].includes(normalizedImportWarningPart(field.label)))
+      .map((field) => field.label)
+  }
+  return []
 }
 
 const importWarningItems = computed<ImportMappingWarning[]>(() => {
   const items: ImportMappingWarning[] = []
-  let expandedResultPair = false
+  const expandedSourceWarnings = new Set<string>()
   for (const warning of importWarnings.value) {
-    // 일부 결과서 변환본은 작업 전·후 열을 모두 ``작업 결과``로
-    // 내보낸다. 같은 경고를 그대로 보여주면 어느 칸을 채워야 하는지
-    // 알 수 없으므로 템플릿의 두 입력 항목으로 분리해 안내한다.
-    if (
-      !warning.summary
-      && normalizedImportWarningPart(warning.section) === '작업결과'
-      && normalizedImportWarningPart(warning.field) === '작업결과'
-    ) {
-      if (!expandedResultPair) {
-        items.push({ ...warning, field: '작업 전' })
-        items.push({ ...warning, field: '작업 후' })
-        expandedResultPair = true
+    if (warning.summary) {
+      items.push(warning)
+      continue
+    }
+    const targetSection = resolveImportWarningSection(warning.section)
+    if (!targetSection) {
+      items.push(warning)
+      continue
+    }
+    const targetFields = warningTemplateFields(warning, targetSection)
+    const sourceKey = `${normalizedImportWarningPart(warning.section)}>${normalizedImportWarningPart(warning.field)}`
+    if (targetFields.length > 1) {
+      if (expandedSourceWarnings.has(sourceKey)) continue
+      expandedSourceWarnings.add(sourceKey)
+      for (const field of targetFields) {
+        items.push({ ...warning, section: targetSection.title, field })
       }
       continue
     }
-    items.push(warning)
+    // 매핑되지 않은 원본 열 제목은 화면에 그대로 노출하지 않고,
+    // 선택한 템플릿의 섹션만 표시해 사용자가 추가 내용을 참고하도록 한다.
+    items.push({ ...warning, section: targetSection.title, field: targetFields[0] ?? '' })
   }
   return items
 })
