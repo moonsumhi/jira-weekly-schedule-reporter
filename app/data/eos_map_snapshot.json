@@ -1,8 +1,10 @@
 {
-  "updated_at": "2026-09-15T21:21:35.217532+00:00",
+  "updated_at": "2026-09-26T21:10:52.951318+00:00",
   "source": "endoflife.date + curated fallbacks",
-  "successful_products": 14,
-  "failed_products": [],
+  "successful_products": 13,
+  "failed_products": [
+    "rhel"
+  ],
   "data": {
     "Amazon Linux|2": "2026-06",
     "Amazon Linux|2010.11": "2023-12",
@@ -127,7 +129,7 @@
     "MySQL|5.7": "2023-10",
     "MySQL|8.0": "2026-04",
     "MySQL|8.1": "2023-10",
-    "MySQL|8.2": "2023-12",
+    "MySQL|8.2": "2024-01",
     "MySQL|8.3": "2024-04",
     "MySQL|8.4": "2032-04",
     "MySQL|9.0": "2024-10",
