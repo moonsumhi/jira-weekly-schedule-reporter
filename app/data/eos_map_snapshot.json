@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-15T23:48:18.870733+00:00",
+  "updated_at": "2026-09-27T22:53:57.278974+00:00",
   "source": "endoflife.date + curated fallbacks",
   "successful_products": 14,
   "failed_products": [],
@@ -127,7 +127,7 @@
     "MySQL|5.7": "2023-10",
     "MySQL|8.0": "2026-04",
     "MySQL|8.1": "2023-10",
-    "MySQL|8.2": "2023-12",
+    "MySQL|8.2": "2024-01",
     "MySQL|8.3": "2024-04",
     "MySQL|8.4": "2032-04",
     "MySQL|9.0": "2024-10",
