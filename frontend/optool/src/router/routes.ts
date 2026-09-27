@@ -92,10 +92,6 @@ const routes: RouteRecordRaw[] = [
           {
             path: 'forms/:id',
             component: () => import('pages/jira/FormTemplatePage.vue')
-          },
-          {
-            path: 'guide',
-            component: () => import('pages/guide/WorkGuidePage.vue')
           }
         ]
       },
