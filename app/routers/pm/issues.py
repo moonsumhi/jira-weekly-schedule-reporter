@@ -88,6 +88,19 @@ async def create_issue(
     number = await next_issue_number(pid)
     now = datetime.now(timezone.utc)
 
+    # 하위 작업은 부모 Task가 속한 Epic을 자동으로 상속한다. 생성 요청에서
+    # Epic을 생략해도 백로그와 보고서의 계층이 동일하게 유지되도록 서버에서
+    # 최종 값을 결정한다.
+    inherited_epic_id = ObjectId(body.epic_id) if body.epic_id else None
+    parent_issue_id = ObjectId(body.parent_issue_id) if body.parent_issue_id else None
+    if body.type == "SUB_TASK" and parent_issue_id:
+        parent = await col.find_one(
+            {"_id": parent_issue_id, "project_id": pid},
+            {"epic_id": 1},
+        )
+        if parent and parent.get("epic_id"):
+            inherited_epic_id = parent["epic_id"]
+
     doc = {
         "project_id": pid,
         "number": number,
@@ -99,8 +112,8 @@ async def create_issue(
         "assignee_id": ObjectId(body.assignee_id) if body.assignee_id else None,
         "reporter_id": ObjectId(current_user.id),
         "sprint_id": ObjectId(body.sprint_id) if body.sprint_id else None,
-        "epic_id": ObjectId(body.epic_id) if body.epic_id else None,
-        "parent_issue_id": ObjectId(body.parent_issue_id) if body.parent_issue_id else None,
+        "epic_id": inherited_epic_id,
+        "parent_issue_id": parent_issue_id,
         "label_ids": [ObjectId(x) for x in body.label_ids],
         "start_date": body.start_date,
         "due_date": body.due_date,

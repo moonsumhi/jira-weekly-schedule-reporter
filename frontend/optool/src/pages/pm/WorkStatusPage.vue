@@ -159,6 +159,13 @@ function clearSelection() {
   selectedIds.value = new Set()
 }
 
+function calendarIssueTitle(issue: Issue): string {
+  if (issue.type === 'SUB_TASK' && issue.parentIssueTitle) {
+    return `${issue.parentIssueTitle} - ${issue.title}`
+  }
+  return issue.title
+}
+
 // ── 필터된 이벤트 ─────────────────────────────────────────────────────
 const filteredEvents = computed<EventInput[]>(() => {
   const base = selectedIds.value.size === 0
@@ -176,7 +183,7 @@ const filteredEvents = computed<EventInput[]>(() => {
         : null
       return {
         id: i.id,
-        title: `[${i.assigneeName ?? '미배정'}] ${i.title}`,
+        title: `[${i.assigneeName ?? '미배정'}] ${calendarIssueTitle(i)}`,
         start,
         ...(end && end !== start ? { end } : {}),
         allDay: true,
