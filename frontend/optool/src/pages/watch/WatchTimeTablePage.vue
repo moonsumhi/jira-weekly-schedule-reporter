@@ -97,7 +97,7 @@
       <q-card style="width:min(480px, 92vw);">
         <q-card-section>
           <div class="text-h6">
-            {{ dialog.mode === 'create' ? '근무 일정 생성' : '근무 일정 수정' }}
+            {{ dialogTitle }}
           </div>
           <div v-if="dialog.mode === 'create'" class="text-caption text-grey-7 q-mt-xs">
             {{ dialog.toDate && dialog.toDate !== dialog.date ? `${dialog.date} ~ ${dialog.toDate}` : dialog.date }}
@@ -129,6 +129,26 @@
         </q-card-section>
 
         <!-- 수정 모드: 단일 담당자 -->
+        <q-card-section v-else-if="dialog.mode === 'bulk-edit'" class="q-gutter-md">
+          <div class="text-caption text-grey-7">
+            {{ dialog.rangeLabel }} 범위의 {{ dialog.selectedIds.length }}개 일정을 한 번에 수정합니다.
+          </div>
+          <q-input
+            v-if="dialog.selectedAIds.length"
+            v-model="dialog.bulkAssigneeA"
+            label="A파트 담당자"
+            hint="비워 두면 기존 담당자를 유지합니다."
+          />
+          <q-input
+            v-if="dialog.selectedBIds.length"
+            v-model="dialog.bulkAssigneeB"
+            label="B파트 담당자"
+            hint="비워 두면 기존 담당자를 유지합니다."
+          />
+          <q-input v-model="dialog.note" label="메모 (입력 시 전체 변경)" />
+          <div v-if="dialog.error" class="text-negative text-caption">{{ dialog.error }}</div>
+        </q-card-section>
+
         <q-card-section v-else class="q-gutter-md">
           <q-input v-model="dialog.assignee" label="담당자" />
           <q-input v-model="dialog.note" label="메모 (선택)" />
@@ -158,7 +178,7 @@
   </q-page>
 </template>
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { Notify } from 'quasar'
 import { DateTime } from 'luxon'
 import * as XLSX from 'xlsx'
@@ -256,7 +276,19 @@ const dialog = ref({
   endLocal: '',     // edit 모드 전용
   note: '',
   version: 1,
-  error: ''
+  error: '',
+  selectedIds: [] as string[],
+  selectedAIds: [] as string[],
+  selectedBIds: [] as string[],
+  bulkAssigneeA: '',
+  bulkAssigneeB: '',
+  rangeLabel: ''
+})
+
+const dialogTitle = computed(() => {
+  if (dialog.value.mode === 'create') return '당직 일정 생성'
+  if (dialog.value.mode === 'bulk-edit') return '당직 일정 일괄 수정'
+  return '당직 일정 수정'
 })
 
 function openCreate(start: Date, end?: Date) {
@@ -277,7 +309,78 @@ function openCreate(start: Date, end?: Date) {
     endLocal: '',
     note: '',
     version: 1,
-    error: ''
+    error: '',
+    selectedIds: [],
+    selectedAIds: [],
+    selectedBIds: [],
+    bulkAssigneeA: '',
+    bulkAssigneeB: '',
+    rangeLabel: ''
+  }
+}
+
+function eventTimeMs(value: unknown): number | null {
+  if (value instanceof Date) return value.getTime()
+  if (typeof value !== 'string' && typeof value !== 'number') return null
+  const parsed = typeof value === 'number' ? value : DateTime.fromISO(value).toMillis()
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function eventSlot(value: unknown): 'A' | 'B' | null {
+  const time = eventTimeMs(value)
+  if (time === null) return null
+  const hour = DateTime.fromMillis(time, { zone: 'Asia/Seoul' }).hour
+  if (hour === 11) return 'A'
+  if (hour === 12) return 'B'
+  return null
+}
+
+function openSelection(start: Date, end: Date) {
+  const startMs = start.getTime()
+  const endMs = end.getTime()
+  const selected = events.value.filter(event => {
+    const eventStart = eventTimeMs(event.start)
+    if (eventStart === null) return false
+    const eventEnd = eventTimeMs(event.end) ?? eventStart + 60 * 60 * 1000
+    return eventStart < endMs && eventEnd > startMs
+  })
+
+  if (selected.length === 0) {
+    openCreate(start, end)
+    return
+  }
+
+  const rangeStart = DateTime.fromJSDate(start, { zone: 'Asia/Seoul' })
+  const rangeEnd = DateTime.fromJSDate(end, { zone: 'Asia/Seoul' })
+  const selectedIds = selected.map(event => String(event.id ?? '')).filter(Boolean)
+  const selectedAIds = selected
+    .filter(event => eventSlot(event.start) === 'A')
+    .map(event => String(event.id ?? ''))
+    .filter(Boolean)
+  const selectedBIds = selected
+    .filter(event => eventSlot(event.start) === 'B')
+    .map(event => String(event.id ?? ''))
+    .filter(Boolean)
+  dialog.value = {
+    open: true,
+    mode: 'bulk-edit',
+    id: '',
+    assignee: '',
+    assigneeA: '',
+    assigneeB: '',
+    date: '',
+    toDate: '',
+    startLocal: '',
+    endLocal: '',
+    note: '',
+    version: 1,
+    error: '',
+    selectedIds,
+    selectedAIds,
+    selectedBIds,
+    bulkAssigneeA: '',
+    bulkAssigneeB: '',
+    rangeLabel: `${rangeStart.toFormat('yyyy.MM.dd HH:mm')} ~ ${rangeEnd.toFormat('yyyy.MM.dd HH:mm')}`
   }
 }
 
@@ -301,7 +404,13 @@ function openEdit(arg: ClickArg) {
     endLocal: dateToKstDateTimeLocal(end),
     note: typeof ext.note === 'string' ? ext.note : '',
     version: typeof ext.version === 'number' ? ext.version : 1,
-    error: ''
+    error: '',
+    selectedIds: [],
+    selectedAIds: [],
+    selectedBIds: [],
+    bulkAssigneeA: '',
+    bulkAssigneeB: '',
+    rangeLabel: ''
   }
 }
 
@@ -344,6 +453,30 @@ async function saveDialog() {
         const endIso   = dt.set({ hour: 13, minute: 0, second: 0, millisecond: 0 }).toUTC().toISO()
         if (startIso && endIso) await createWatch({ assignee: assigneeB, start: startIso, end: endIso, fields: { note } })
       }
+    } else if (dialog.value.mode === 'bulk-edit') {
+      const ids = dialog.value.selectedIds
+      const assigneeA = dialog.value.bulkAssigneeA.trim()
+      const assigneeB = dialog.value.bulkAssigneeB.trim()
+      if (!ids.length) throw new Error('선택된 일정이 없습니다.')
+      if (!assigneeA && !assigneeB) throw new Error('A파트 또는 B파트 담당자를 입력해 주세요.')
+
+      const noteValue = dialog.value.note.trim()
+      const patchSelected = async (selectedIds: string[], assignee: string) => {
+        if (!assignee) return
+        await Promise.all(selectedIds.map(id => {
+          const event = events.value.find(item => String(item.id ?? '') === id)
+          const extended = isRecord(event?.extendedProps) ? event.extendedProps : {}
+          const patch: Parameters<typeof patchWatch>[1] = { assignee }
+          if (typeof extended.version === 'number') patch.version = extended.version
+          if (noteValue) patch.fields = { note: noteValue }
+          return patchWatch(id, patch)
+        }))
+      }
+
+      await Promise.all([
+        patchSelected(dialog.value.selectedAIds, assigneeA),
+        patchSelected(dialog.value.selectedBIds, assigneeB)
+      ])
     } else {
       const assignee = dialog.value.assignee.trim()
       if (!assignee) throw new Error('담당자를 입력해 주세요.')
@@ -647,7 +780,7 @@ const calendarOptions = ref<CalendarOptions>({
       })
   },
 
-  select: (arg) => openCreate(arg.start, arg.end),
+  select: (arg) => openSelection(arg.start, arg.end),
   eventClick: (arg) => openEdit(arg),
   eventDrop: (info) => { void onMoveOrResize(info) },
   eventResize: (info) => { void onMoveOrResize(info)}
