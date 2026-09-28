@@ -808,6 +808,11 @@ def _extract_form_data(text: str, sections: list) -> tuple[dict, list[dict]]:
             m = re.search(r'(\d{4})[./\-](\d{1,2})[./\-](\d{1,2})[^:\d]*(\d{1,2}):(\d{2})', value)
             if m:
                 return f"{m.group(1)}-{m.group(2).zfill(2)}-{m.group(3).zfill(2)}T{m.group(4).zfill(2)}:{m.group(5)}"
+            # HWP 표에서는 날짜를 ``2026년 9월 16일(수) 08:39``처럼
+            # 한글 단위와 요일을 포함해 내보내는 경우가 있다.
+            m = re.search(r'(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일(?:\s*\([^)]*\))?\s*(\d{1,2}):(\d{2})', value)
+            if m:
+                return f"{m.group(1)}-{m.group(2).zfill(2)}-{m.group(3).zfill(2)}T{m.group(4).zfill(2)}:{m.group(5)}"
         if field_type == 'time':
             m = re.search(r'(\d{1,2}):(\d{2})', value)
             if m:

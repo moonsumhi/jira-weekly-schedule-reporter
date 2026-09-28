@@ -295,6 +295,9 @@ renderer.table = (header, body) => {
   const headerText = header.replace(/<[^>]+>/g, ' ')
   const normalizedHeaderText = headerText.replace(/\s+/g, '')
   const tableClasses = [
+    /\uC2DC\uAC04\uB300/.test(normalizedHeaderText) && /\uC0C1\uC138\uB0B4\uC5ED/.test(normalizedHeaderText)
+      ? 'work-table-scroll--incident'
+      : '',
     /제목/.test(normalizedHeaderText) && /리스크/.test(normalizedHeaderText) ? 'work-table-scroll--development' : '',
     /시작시간/.test(normalizedHeaderText) && /종료시간/.test(normalizedHeaderText) && /세부작업내용/.test(normalizedHeaderText)
       ? 'work-table-scroll--work-schedule'
@@ -342,6 +345,10 @@ const rendered = computed(() => {
 .work-result-content :deep(.work-table-scroll--nested) { margin: 10px 0; border-color: #94a3b8; overflow-x: hidden; }
 .work-result-content :deep(.work-table-scroll:focus-visible) { outline: 2px solid var(--q-primary); outline-offset: 3px; }
 .work-result-content :deep(table) { width: 100%; max-width: 100%; min-width: 100%; border-collapse: collapse; table-layout: auto; }
+.work-result-content :deep(.work-table-scroll--incident table) { table-layout: fixed; }
+.work-result-content :deep(.work-table-scroll--incident th:first-child), .work-result-content :deep(.work-table-scroll--incident td:first-child) { width: 6%; }
+.work-result-content :deep(.work-table-scroll--incident th:nth-child(2)), .work-result-content :deep(.work-table-scroll--incident td:nth-child(2)) { width: 10%; }
+.work-result-content :deep(.work-table-scroll--incident th:nth-child(3)), .work-result-content :deep(.work-table-scroll--incident td:nth-child(3)) { width: 84%; }
 .work-result-content :deep(.work-table-scroll--development table) { table-layout: fixed; }
 .work-result-content :deep(.work-table-scroll--development th:first-child), .work-result-content :deep(.work-table-scroll--development td:first-child) { width: 5%; }
 .work-result-content :deep(.work-table-scroll--development th:nth-child(2)), .work-result-content :deep(.work-table-scroll--development td:nth-child(2)) { width: 15%; }

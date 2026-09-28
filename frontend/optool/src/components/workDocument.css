@@ -53,6 +53,10 @@
 .document-work-table th, .document-work-table td { min-width: 0; padding: 16px; vertical-align: top; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .document-work-table thead th { background: #f1f5f9; color: var(--muted); font-size: 12px; font-weight: 600; white-space: nowrap; text-align: center; }
 .document-work-table .row-number { min-width: 52px; width: 52px; text-align: center; color: var(--muted); font-size: 12px; }
+.document-work-table.incident-table { table-layout: fixed; }
+.document-work-table.incident-table .row-number { min-width: 32px; width: 6%; }
+.document-work-table.incident-table th:nth-child(2), .document-work-table.incident-table td:nth-child(2) { width: 10%; }
+.document-work-table.incident-table th:nth-child(3), .document-work-table.incident-table td:nth-child(3) { width: 84%; }
 .document-work-table .title-column { min-width: 200px; width: 22%; }
 .document-work-table td.title-column { word-break: keep-all; overflow-wrap: break-word; }
 .document-work-table tr > :last-child { border-right: 0; }

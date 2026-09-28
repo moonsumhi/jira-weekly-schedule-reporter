@@ -83,7 +83,7 @@
                 <h2>{{ displaySectionTitle(section) }}</h2><span v-if="section.multiple" class="section-count">{{ sectionRows(section).length }}개 항목</span></div>
 
               <div v-if="isWorkTable(section)" class="document-table-scroll" tabindex="0" role="region" :aria-label="`${displaySectionTitle(section)} 표, 가로 스크롤 가능`">
-                <table class="document-work-table">
+                <table :class="['document-work-table', { 'incident-table': isIncidentTimeline(section) }]">
                   <thead><tr><th scope="col" class="row-number">No.</th><th v-for="field in tableFields(section)" :key="field.label" scope="col" :class="fieldColumnClass(field)">{{ field.label }}</th></tr></thead>
                   <tbody>
                     <template v-for="(row, rowIndex) in sectionRows(section)" :key="rowIndex">
@@ -352,7 +352,10 @@ watch(() => [props.modelValue, props.entry?.id, props.entry?.version, props.load
 })
 function isWorkTable(section: FormSection): boolean {
   const title = section.title.replace(/\s/g, '')
-  return isWorkTarget(section) || (['작업내용', '개발내용', '세부작업내용'].includes(title) && section.fields.length > 1)
+  return isIncidentTimeline(section) || isWorkTarget(section) || (['작업내용', '개발내용', '세부작업내용'].includes(title) && section.fields.length > 1)
+}
+function isIncidentTimeline(section: FormSection): boolean {
+  return section.title.replace(/\s/g, '') === '발생경과및조치사항'
 }
 function isWorkTarget(section: FormSection): boolean { return section.title.replace(/\s/g, '') === '작업대상' }
 function isDevelopmentImage(field: FormField): boolean {

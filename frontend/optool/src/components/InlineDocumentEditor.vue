@@ -14,7 +14,7 @@
         />
       </article>
     </div>
-    <div v-else class="inline-table-scroll">
+    <div v-else :class="['inline-table-scroll', { 'incident-table-scroll': section.multiple && isIncidentTimeline(section) }]">
       <table v-if="section.multiple">
         <thead>
           <tr><th class="number-cell">No.</th><th v-for="field in visibleFields(section)" :key="field.label">{{ field.label }}</th><th class="action-cell" /></tr>
@@ -204,6 +204,9 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 function normalized(value: string) { return value.replace(/\s/g, '') }
+function isIncidentTimeline(section: FormSection): boolean {
+  return normalized(section.title) === '\uBC1C\uC0DD\uACBD\uACFC\uBC0F\uC870\uCE58\uC0AC\uD56D'
+}
 function displaySectionTitle(section: FormSection) {
   if (normalized(section.title) === '기본정보') return '작업 개요'
   if (normalized(section.title) === '작업시간표') return '세부 작업 절차'
@@ -423,6 +426,10 @@ onBeforeUnmount(() => {
 .imported-extra-editor-panel h3 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #94a3b8; font-size: 15px; text-align: center; }
 .imported-extra-editor-panel:last-child h3 { border-bottom-color: var(--q-primary); color: var(--q-primary); }
 table { width: 100%; max-width: 100%; min-width: 0; border-collapse: collapse; table-layout: auto; }
+.incident-table-scroll > table { table-layout: fixed; }
+.incident-table-scroll > table th.number-cell, .incident-table-scroll > table td.number-cell { width: 6%; }
+.incident-table-scroll > table th:nth-child(2), .incident-table-scroll > table td:nth-child(2) { width: 10%; }
+.incident-table-scroll > table th:nth-child(3), .incident-table-scroll > table td:nth-child(3) { width: 84%; }
 th, td { min-width: 0; max-width: 100%; border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; overflow-wrap: anywhere; }
 thead th { background: #64748b0d; font-weight: 600; text-align: center; padding: 12px 16px; }
 .label-column { width: 36%; }.field-label { width: 36%; text-align: left; font-weight: 400; }

@@ -315,6 +315,42 @@ _INTAKE_REVIEW = {
     ],
 }
 
+# 장애보고서 (장애보고서 (1).hwp) 양식에서 추출한 구조.
+# 작업 관리의 다른 문서와 동일하게 동적 폼 템플릿으로 저장하므로
+# 하위 메뉴에서 바로 작성·Import·상세·수정할 수 있다.
+_INCIDENT_INFO = {
+    "title": "장애 정보",
+    "fields": [
+        {"label": "제목",             "type": "text",     "required": True,  "placeholder": "장애 제목을 입력하세요"},
+        {"label": "구분",             "type": "select",   "required": True,  "options": ["서비스", "DB", "네트워크"]},
+        {"label": "처리결과",         "type": "select",   "required": True,  "options": ["규명해결", "미규명해결", "미해결"]},
+        {"label": "서비스 중단 시간", "type": "text",     "required": False, "placeholder": "예: 30분"},
+        {"label": "발생일시",         "type": "datetime", "required": True},
+        {"label": "서비스 복구일시",  "type": "datetime", "required": False},
+        {"label": "발견자",           "type": "text",     "required": False},
+        {"label": "서비스 복구자",    "type": "text",     "required": False},
+        {"label": "발생증상",         "type": "textarea", "required": False},
+        {"label": "발생범위",         "type": "text",     "required": False},
+        {"label": "원인",             "type": "textarea", "required": False},
+        {"label": "해결방안",         "type": "textarea", "required": False},
+    ],
+}
+_INCIDENT_TIMELINE = {
+    "title": "발생 경과 및 조치사항",
+    "multiple": True,
+    "fields": [
+        {"label": "시간대",   "type": "text",     "required": False},
+        {"label": "상세내역", "type": "textarea", "required": False},
+    ],
+}
+_INCIDENT_FOLLOWUP = {
+    "title": "개선사항 및 원인 분석",
+    "fields": [
+        {"label": "개선사항",  "type": "textarea", "required": False},
+        {"label": "원인 분석", "type": "textarea", "required": False},
+    ],
+}
+
 _JOB_FORM_TEMPLATES = [
     {
         "title": "작업계획서(서비스)",
@@ -376,6 +412,17 @@ _JOB_FORM_TEMPLATES = [
             _INTAKE_APPLICANT_INFO,
             _INTAKE_FILE_INFO,
             _INTAKE_REVIEW,
+        ],
+    },
+    {
+        "title": "장애보고서",
+        "jira_issue_key": "JOB-INCIDENT-REPORT",
+        "menu": "Job",
+        "sort_order": 5,
+        "sections": [
+            _INCIDENT_INFO,
+            _INCIDENT_TIMELINE,
+            _INCIDENT_FOLLOWUP,
         ],
     },
 ]
@@ -488,6 +535,17 @@ async def migrate_guide_submenus() -> None:
         if item["link"] not in existing_links:
             await menus_col.update_one({"slug": slug}, {"$push": {"submenus": item}})
             logger.info("가이드 서브메뉴 추가: %s → %s", slug, item["link"])
+
+
+async def migrate_remove_job_guide_submenu() -> None:
+    """더 이상 제공하지 않는 작업 관리 사용 가이드 메뉴를 제거한다 (멱등)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    result = await menus_col.update_many(
+        {"submenus.link": "/job/guide"},
+        {"$pull": {"submenus": {"link": "/job/guide"}}},
+    )
+    if result.modified_count:
+        logger.info("작업 관리 사용 가이드 서브메뉴 제거: %d건", result.modified_count)
 
 
 async def migrate_recurring_issue_submenu() -> None:
@@ -649,6 +707,19 @@ async def seed_job_form_templates() -> None:
                 "is_deleted": False,
                 "created_at": datetime.now(timezone.utc),
             })
+        elif tmpl["jira_issue_key"] == "JOB-INCIDENT-REPORT" and existing.get("sections") != tmpl["sections"]:
+            # 장애보고서는 원본 HWP의 흐름(해결방안 → 발생 경과 → 개선사항)에
+            # 맞춰 섹션 순서를 보완할 수 있으므로 기존 seed도 최신 구조로 맞춘다.
+            await col.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {
+                    "title": tmpl["title"],
+                    "menu": tmpl["menu"],
+                    "sort_order": tmpl["sort_order"],
+                    "sections": deepcopy(tmpl["sections"]),
+                }},
+            )
+            logger.info("장애보고서 템플릿 구조 보완: %s", existing["_id"])
         elif not existing.get("jira_issue_key"):
             await col.update_one(
                 {"_id": existing["_id"]},
@@ -1216,6 +1287,7 @@ async def run_startup() -> None:
     await report_indexes()
     await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
+    await migrate_remove_job_guide_submenu()
     await migrate_recurring_issue_submenu()
     await migrate_rack_submenu()
     await migrate_notice_submenu()

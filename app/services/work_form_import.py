@@ -18,12 +18,234 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         value = re.sub(r'[\s\u00a0\u3000]+', '', value)
         value = re.sub(r'[\[\]():：·•/\\._-]+', '', value)
         return value
+
+    def selected_options(value: str, options: list[object] | None) -> str:
+        """Read checked options from HWP/Word checkbox text."""
+        if not value or not options:
+            return ''
+        text = str(value)
+        checked = '■●✔✓☑☒▣◉xXvV'
+        option_pattern = '|'.join(
+            re.escape(str(option).strip())
+            for option in sorted(options, key=lambda item: len(str(item or '').strip()), reverse=True)
+            if str(option or '').strip()
+        )
+        selected: list[str] = []
+        for option in options:
+            label = str(option or '').strip()
+            if not label:
+                continue
+            escaped = re.escape(label)
+            boundary = r'(?<![0-9A-Za-z가-힣])'
+            before = rf'[{checked}]\s*[\[\(]?\s*{escaped}(?:\s*[\]\)])?'
+            # If another option follows the marker, it is the next option's
+            # leading checkbox (e.g. ``규명해결 ☒ 미규명해결``), so do not
+            # attribute that marker to the preceding label.
+            after = rf'{boundary}{escaped}(?:\s*[\]\)])?\s*[{checked}](?!\s*(?:{option_pattern}))'
+            if re.search(before, text, flags=re.IGNORECASE) or re.search(after, text, flags=re.IGNORECASE):
+                selected.append(label)
+        return ', '.join(selected)
+
+    def text_with_checkbox(node) -> str:
+        """Include a marker when HTML conversion keeps a checked control."""
+        value = ''.join(node.itertext())
+        checked_nodes = node.xpath('.//*[@checked or @selected or @data-checked="true"]')
+        return ('☑ ' if checked_nodes else '') + value
+
+    def map_incident_report() -> tuple[dict, list[dict]]:
+        """장애보고서 HWP의 무제 표를 항목명/값 쌍으로 매핑한다.
+
+        장애보고서 원본은 작업계획서처럼 ``[섹션명]`` 제목을 갖지 않고,
+        항목마다 작은 표가 이어지는 형태다. 공통 Markdown 매핑기에 맡기면
+        변환기가 만든 ``1번째 항목/내용``이 그대로 추가 내용으로 빠지므로,
+        장애보고서 템플릿에서만 표의 직접 셀 구조를 사용한다.
+        """
+        info = next(section for section in sections if norm(section.get('title')) == '장애정보')
+        timeline = next(section for section in sections if norm(section.get('title')) == '발생경과및조치사항')
+        field_targets = {
+            norm(field.get('label')): (section, field)
+            for section in sections
+            if section is not timeline
+            for field in section.get('fields', [])
+        }
+        timeline_fields = {norm(field.get('label')): field for field in timeline.get('fields', [])}
+        values: dict[str, object] = {
+            section['title']: [] if section.get('multiple') else {}
+            for section in sections
+        }
+        timeline_rows: list[dict[str, str]] = []
+
+        def cell_text(cell) -> str:
+            value = text_with_checkbox(cell).replace('\xa0', ' ')
+            return re.sub(r'\s+', ' ', value).strip()
+
+        def table_rows(table) -> list[list[str]]:
+            result: list[list[str]] = []
+            for row in table.xpath('./tr | ./thead/tr | ./tbody/tr'):
+                cells = [cell_text(cell) for cell in row.xpath('./th | ./td')]
+                if cells:
+                    result.append(cells)
+            return result
+
+        def nodes_markdown(nodes) -> str:
+            if not nodes:
+                return ''
+            source = ''.join(html.tostring(node, encoding='unicode', with_tail=False) for node in nodes)
+            return html_markdown(source, lambda src: src).strip()
+
+        def convert_value(field: dict, value: str) -> str:
+            value = value.strip()
+            if not value:
+                return ''
+            if value.strip('<> ') in {'미기입', '입력'}:
+                return ''
+            if field.get('type') == 'select':
+                options = [str(option) for option in field.get('options', [])]
+                checked = selected_options(value, options)
+                if checked:
+                    return checked
+                # 선택지 표가 값 셀에 함께 들어오는 경우는 선택값이 없는
+                # 원본이므로 전체 선택지 문구를 데이터로 저장하지 않는다.
+                if len(options) > 1 and all(norm(option) in norm(value) for option in options):
+                    return ''
+                exact = next((option for option in options if norm(option) == norm(value)), None)
+                return exact or value
+            if field.get('type') == 'datetime':
+                if re.search(r'Y{2,4}|M{1,2}|D{1,2}', value, re.IGNORECASE):
+                    return ''
+                match = re.search(
+                    r'(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일(?:\s*\([^)]*\))?\s*(\d{1,2}):(\d{2})',
+                    value,
+                )
+                if match:
+                    return f'{match.group(1)}-{match.group(2).zfill(2)}-{match.group(3).zfill(2)}T{match.group(4).zfill(2)}:{match.group(5)}'
+                return value
+            return value
+
+        def store_field(target: dict[str, str], field: dict, value: str) -> None:
+            label = str(field.get('label') or '')
+            target[label] = convert_value(field, value)
+            if field.get('type') in {'textarea', 'markdown'}:
+                target[f'{label}__format'] = 'markdown'
+
+        pending_select: tuple[dict[str, object], dict[str, object]] | None = None
+        for table in root.xpath('.//table'):
+            rows = table_rows(table)
+            if not rows:
+                continue
+
+            # HWP nested option tables are lifted into a separate Markdown
+            # table. The preceding one-cell table contains only the field
+            # label, so associate the next option table with that select.
+            if pending_select:
+                target, field = pending_select
+                options = [str(option) for option in field.get('options', [])]
+                option_text = ' '.join(' | '.join(row) for row in rows)
+                if options and all(norm(option) in norm(option_text) for option in options):
+                    store_field(target, field, option_text)
+                    pending_select = None
+                    continue
+                pending_select = None
+
+            header_keys = {norm(cell) for cell in rows[0]}
+            if {'시간대', '상세내역'}.issubset(header_keys):
+                # 발생 경과 및 조치사항의 시간대/상세내역 표
+                for row in rows[1:]:
+                    if not any(row):
+                        continue
+                    record = {field.get('label', ''): '' for field in timeline.get('fields', [])}
+                    for index, field in enumerate(timeline.get('fields', [])):
+                        column = next((i for i, header in enumerate(rows[0]) if norm(header) == norm(field.get('label'))), None)
+                        if column is not None and column < len(row):
+                            store_field(record, field, row[column])
+                    if any(str(value).strip() for key, value in record.items() if not key.endswith('__format')):
+                        timeline_rows.append(record)
+                continue
+
+            for row in rows:
+                # 변환기가 붙인 메타 헤더(1번째 내용 등)는 건너뛴다.
+                for index, raw_label in enumerate(row):
+                    target_info = field_targets.get(norm(raw_label))
+                    if target_info is None:
+                        continue
+                    target_section, field = target_info
+                    target = values[target_section['title']]
+                    if not isinstance(target, dict):
+                        continue
+                    value = row[index + 1] if index + 1 < len(row) else ''
+                    # 구분/처리결과 옆의 선택지 표는 실제 선택값이 아니다.
+                    store_field(target, field, value)
+                    if field.get('type') == 'select' and not value.strip():
+                        pending_select = (target, field)
+
+        # 일부 장애보고서는 발생 경과 표를 한 표로 저장하지 않고,
+        # ``시간대`` 표 + ``상세내역`` 문단을 항목별로 반복한다.
+        # 변환된 Markdown의 ``n번째 항목`` 블록을 순서대로 묶어 복원한다.
+        structured_timeline_rows: list[dict[str, str]] = []
+        top_nodes = list(root)
+        for index, node in enumerate(top_nodes):
+            if node.tag != 'h3' or not re.fullmatch(r'\d+번째항목', norm(''.join(node.itertext()))):
+                continue
+            end = next(
+                (candidate for candidate in range(index + 1, len(top_nodes))
+                 if top_nodes[candidate].tag == 'h3'
+                 and re.fullmatch(r'\d+번째항목', norm(''.join(top_nodes[candidate].itertext())))),
+                len(top_nodes),
+            )
+            block = top_nodes[index + 1:end]
+            detail_index = next(
+                (i for i, item in enumerate(block)
+                 if item.tag == 'h4' and norm(''.join(item.itertext())) == '상세내역'),
+                None,
+            )
+            before_detail = block if detail_index is None else block[:detail_index]
+            time_value = ''
+            for item in before_detail:
+                if item.tag != 'table':
+                    continue
+                rows = table_rows(item)
+                if not rows:
+                    continue
+                time_column = next((i for i, header in enumerate(rows[0]) if norm(header) == '시간대'), None)
+                if time_column is None:
+                    continue
+                time_value = next(
+                    (row[time_column] for row in rows[1:] if time_column < len(row) and row[time_column].strip()),
+                    '',
+                )
+                if time_value:
+                    break
+            detail_nodes = [] if detail_index is None else block[detail_index + 1:]
+            detail_value = nodes_markdown(detail_nodes)
+            if time_value or detail_value:
+                record = {field.get('label', ''): '' for field in timeline.get('fields', [])}
+                time_field = timeline_fields.get('시간대')
+                detail_field = timeline_fields.get('상세내역')
+                if time_field:
+                    store_field(record, time_field, time_value)
+                if detail_field:
+                    store_field(record, detail_field, detail_value)
+                structured_timeline_rows.append(record)
+
+        if structured_timeline_rows:
+            timeline_rows = structured_timeline_rows
+
+        if not timeline_rows:
+            timeline_rows = [{field.get('label', ''): '' for field in timeline.get('fields', [])}]
+        values[timeline['title']] = timeline_rows
+        return values, []
+
+    # 이 템플릿은 HWP 원본의 고유한 무제 표 구조를 사용한다.
+    if {norm(section.get('title')) for section in sections} >= {'장애정보', '발생경과및조치사항'}:
+        return map_incident_report()
+
     # Keys are normalized source titles. Values are preferred target section
     # titles used by the current work-document templates.
     aliases = {'작업개요': '기본정보', '백업및복구방안': '백업및복구방법', '작업자': '작업자정보',
                '검토서명': '검토의견', '검토의견': '검토/서명', '세부작업절차': '작업시간표', '사전작업': '사전점검',
                '테스트계획': '테스트케이스', '테스트결과': '테스트케이스', '테스트결과분석': '테스트케이스',
-               '테스트케이스성공': '테스트케이스', '테스트케이스실패': '테스트케이스'}
+               '테스트케이스성공': '테스트케이스', '테스트케이스실패': '테스트케이스',
+               '장애보고서': '장애정보'}
     preferred_alias_sources = {
         '작업개요', '백업및복구방안', '작업자', '검토서명', '세부작업절차',
         '사전작업', '테스트계획', '테스트결과', '테스트결과분석',
@@ -248,9 +470,8 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         if field.get('type') == 'textarea':
             row[name], row[name + '__format'] = plain, 'markdown'
             return
-        if field.get('type') == 'select' and '■' in plain:
-            selected = re.findall(r'[■●✔✓]\s*([^□■●✔✓]+)', plain)
-            plain = ', '.join(s.strip() for s in selected) or plain
+        if field.get('type') == 'select':
+            plain = selected_options(plain, field.get('options')) or plain
         row[name] = plain
 
     def combined_header_groups(headers, mapped, fields):
@@ -293,13 +514,12 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         if field.get('type') == 'image':
             row[name] = [src for node in nodes for src in node.xpath('.//img/@src|self::img/@src')]
             return
-        plain = '\n'.join(''.join(n.itertext()) for n in nodes).strip()
+        plain = '\n'.join(text_with_checkbox(n) for n in nodes).strip()
         if field.get('type') == 'textarea':
             row[name], row[name + '__format'] = value, 'markdown'
         else:
-            if field.get('type') == 'select' and '■' in plain:
-                selected = re.findall(r'[■●✔✓]\s*([^□■●✔✓]+)', plain)
-                plain = ', '.join(s.strip() for s in selected) or plain
+            if field.get('type') == 'select':
+                plain = selected_options(plain, field.get('options')) or plain
             row[name] = plain
 
     blocks = []

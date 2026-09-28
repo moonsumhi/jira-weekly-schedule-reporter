@@ -1,6 +1,7 @@
 """Work documents: ordered Markdown import, durable snapshots and HWPX export."""
 import base64
 import io
+import json
 import logging
 import re
 import subprocess
@@ -271,6 +272,85 @@ def html_markdown(source: str, image_reader) -> str:
     return re.sub(r'\n{3,}', '\n\n', walk(root)).strip() + '\n'
 
 
+def _hwp_checkbox_states(source: Path) -> list[bool]:
+    """Read native HWP checkbox values before hwp5html drops the controls.
+
+    ``hwp5html`` renders the option labels but omits the FormObject state.  The
+    state is still available in the HWP BodyText records and is represented by
+    ``Value:int:0|1`` in each FormObject payload.  Returning an empty list is
+    intentional when the optional CLI is unavailable or the document has no
+    form controls; regular text-marker parsing remains the fallback.
+    """
+    try:
+        listed = subprocess.run(
+            ['hwp5proc', 'ls', str(source)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    sections = re.findall(r'(?m)^BodyText/Section\d+$', listed)
+    if not sections:
+        return []
+    states: list[bool] = []
+    for section in sections:
+        try:
+            result = subprocess.run(
+                ['hwp5proc', 'models', '--json', str(source), section],
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+            models = json.loads(result.stdout)
+        except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+            continue
+        if not isinstance(models, list):
+            continue
+        for model in models:
+            if not isinstance(model, dict) or model.get('type') != 'FormObject':
+                continue
+            payload = model.get('payload') or []
+            try:
+                raw = bytes.fromhex(''.join(payload) if isinstance(payload, list) else str(payload))
+                decoded = raw.decode('utf-16le', errors='ignore')
+            except (TypeError, ValueError):
+                continue
+            value = re.search(r'\bValue:int:(\d+)', decoded)
+            if value:
+                states.append(value.group(1) == '1')
+    return states
+
+
+def _inject_hwp_checkbox_markers(source: str, states: list[bool]) -> str:
+    """Put visible markers beside option labels whose native controls are set.
+
+    HWP checkbox controls are emitted in document order.  We only annotate a
+    row when all of its known option labels are present, which prevents an
+    unrelated occurrence of a label in ordinary prose from being changed.
+    """
+    if len(states) < 6:
+        return source
+    root = html.fragment_fromstring(source, create_parent='div')
+    groups = (
+        (['서비스', 'DB', '네트워크'], 0),
+        (['규명해결', '미규명해결', '미해결'], 3),
+    )
+    for row in root.xpath('.//table/tr | .//table/thead/tr | .//table/tbody/tr'):
+        cells = row.xpath('./td | ./th')
+        labels = [re.sub(r'\s+', '', ''.join(cell.itertext())) for cell in cells]
+        for options, offset in groups:
+            positions = [labels.index(option) if option in labels else -1 for option in options]
+            if any(position < 0 for position in positions):
+                continue
+            for option, position in zip(options, positions):
+                marker = '☑ ' if states[offset + options.index(option)] else '☐ '
+                cell = cells[position]
+                cell.text = marker + (cell.text or '')
+    return html.tostring(root, encoding='unicode')
+
+
 def import_document(content: bytes, filename: str) -> tuple[str, list[str]]:
     suffix = Path(filename).suffix.lower()
     warnings = ['원본의 글꼴·페이지 배치·병합 표는 달라질 수 있습니다. 저장 전에 내용을 확인해 주세요.']
@@ -347,7 +427,9 @@ def import_document(content: bytes, filename: str) -> tuple[str, list[str]]:
                 if not path.is_relative_to(output.resolve()):
                     raise ValueError('잘못된 이미지 경로입니다.')
                 return store_image(path.read_bytes())
-            return html_markdown(index.read_text(encoding='utf-8'), read_image), warnings
+            converted = index.read_text(encoding='utf-8')
+            converted = _inject_hwp_checkbox_markers(converted, _hwp_checkbox_states(source))
+            return html_markdown(converted, read_image), warnings
     raise ValueError('HWP, HWPX, DOC, DOCX 파일을 선택해 주세요.')
 
 
