@@ -737,17 +737,35 @@ const columns = computed(() => [
   ...(isAllJobs.value ? [{ name: 'document_type', label: '문서 종류', field: (row: FormEntry) => entryTemplate(row)?.title ?? '—', align: 'left' as const, sortable: true }] : []),
   { name: 'preview', label: '내용 미리보기', field: 'id', align: 'left' as const },
   { name: 'created_by', label: '제출자', field: 'createdBy', align: 'left' as const },
-  { name: 'created_at', label: '작업 일시', field: 'createdAt', align: 'left' as const, sortable: true },
+  {
+    name: 'created_at',
+    label: !isAllJobs.value && template.value?.title === '장애보고서' ? '발생일시' : '작업 일시',
+    field: 'createdAt',
+    align: 'left' as const,
+    sortable: true,
+  },
   { name: 'actions', label: '', field: 'id', align: 'right' as const },
 ])
 
 function getWorkDate(row: FormEntry): string {
+  const incident = entryTemplate(row)?.title === '장애보고서'
   for (const sectionData of Object.values(row.data)) {
     const values = Array.isArray(sectionData) ? sectionData[0] : sectionData
-    const d = values?.['작업 일시'] ?? values?.['작업 기간 (시작)']
-    if (d) return String(d).slice(0, 10)
+    const d = incident
+      ? values?.['발생일시']
+      : values?.['작업 일시'] ?? values?.['작업 기간 (시작)']
+    if (d) return formatListDate(d)
   }
   return '-'
+}
+
+function formatListDate(value: unknown): string {
+  const text = typeof value === 'string' || typeof value === 'number' ? String(value).trim() : ''
+  const match = text.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/)
+  if (!match) return text.slice(0, 10).replace(/-/g, '.') || '-'
+  const [, year, month, day] = match
+  if (!year || !month || !day) return text.slice(0, 10).replace(/-/g, '.') || '-'
+  return `${year}.${month.padStart(2, '0')}.${day.padStart(2, '0')}`
 }
 
 function entryPreview(row: FormEntry): string {
