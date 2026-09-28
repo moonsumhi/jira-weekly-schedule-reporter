@@ -74,6 +74,26 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             for section in sections
         }
         timeline_rows: list[dict[str, str]] = []
+        extra_parts: list[tuple[str, str]] = []
+        mapping_warnings: list[dict[str, object]] = []
+
+        def preview(value: str) -> str:
+            text = re.sub(r'\s+', ' ', str(value or '')).strip()
+            return text[:240] + ('...' if len(text) > 240 else '')
+
+        def keep_extra(title: str, value: str) -> None:
+            """Preserve incident-report content that has no template target."""
+            content = str(value or '').strip()
+            if not content:
+                return
+            extra_parts.append((title, content))
+            mapping_warnings.append({
+                'section': title,
+                'field': '',
+                'row': None,
+                'message': '양식에 연결하지 못한 내용을 가져온 추가 내용에 보관했습니다.',
+                'source_preview': preview(content),
+            })
 
         def cell_text(cell) -> str:
             value = text_with_checkbox(cell).replace('\xa0', ' ')
@@ -150,6 +170,9 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             header_keys = {norm(cell) for cell in rows[0]}
             if {'시간대', '상세내역'}.issubset(header_keys):
                 # 발생 경과 및 조치사항의 시간대/상세내역 표
+                known_headers = {norm(field.get('label')) for field in timeline.get('fields', [])}
+                if any(norm(header) not in known_headers for header in rows[0] if header.strip()):
+                    keep_extra('발생 경과 및 조치사항 / 추가 열', nodes_markdown([table]))
                 for row in rows[1:]:
                     if not any(row):
                         continue
@@ -162,12 +185,15 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                         timeline_rows.append(record)
                 continue
 
+            unmatched_rows: list[list[str]] = []
             for row in rows:
                 # 변환기가 붙인 메타 헤더(1번째 내용 등)는 건너뛴다.
+                matched = False
                 for index, raw_label in enumerate(row):
                     target_info = field_targets.get(norm(raw_label))
                     if target_info is None:
                         continue
+                    matched = True
                     target_section, field = target_info
                     target = values[target_section['title']]
                     if not isinstance(target, dict):
@@ -177,6 +203,15 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                     store_field(target, field, value)
                     if field.get('type') == 'select' and not value.strip():
                         pending_select = (target, field)
+                if not matched and any(cell.strip() for cell in row):
+                    unmatched_rows.append(row)
+            if unmatched_rows:
+                # Unknown tables are kept as-is so a user can review and move
+                # their contents into the appropriate template field.
+                keep_extra(
+                    f'장애보고서 / 추가 표 {len(extra_parts) + 1}',
+                    nodes_markdown([table]),
+                )
 
         # 일부 장애보고서는 발생 경과 표를 한 표로 저장하지 않고,
         # ``시간대`` 표 + ``상세내역`` 문단을 항목별로 반복한다.
@@ -233,6 +268,21 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         if not timeline_rows:
             timeline_rows = [{field.get('label', ''): '' for field in timeline.get('fields', [])}]
         values[timeline['title']] = timeline_rows
+        if extra_parts:
+            original_parts = []
+            for extra_title, extra_value in extra_parts:
+                original_parts.append(f'### {extra_title}\n\n{extra_value}')
+            values[EXTRA] = [{
+                '내용': '## 원본 내용\n\n' + '\n\n'.join(original_parts),
+                '내용__format': 'markdown',
+            }]
+            return values, [
+                {
+                    'summary': True,
+                    'message': f'양식에 연결하지 못한 장애보고서 내용 {len(extra_parts)}건을 가져온 추가 내용에 보관했습니다.',
+                },
+                *mapping_warnings,
+            ]
         return values, []
 
     # 이 템플릿은 HWP 원본의 고유한 무제 표 구조를 사용한다.
