@@ -107,6 +107,11 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                     result.append(cells)
             return result
 
+        def is_metadata_row(row: list[str]) -> bool:
+            """Ignore HWP's synthetic ``n번째 내용`` header rows."""
+            cells = [norm(cell) for cell in row if cell.strip()]
+            return bool(cells) and all(re.fullmatch(r'\d+번째내용', cell) for cell in cells)
+
         def nodes_markdown(nodes) -> str:
             if not nodes:
                 return ''
@@ -185,9 +190,35 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                         timeline_rows.append(record)
                 continue
 
+            # The converter emits each timeline row as a separate one-column
+            # ``시간대`` table before the following ``상세내역`` block. Those
+            # tables are consumed by structured_timeline_rows below.
+            if header_keys == {'시간대'}:
+                continue
+
+            # A report title and the short ``조치`` heading are layout markers,
+            # not unmapped data fields.
+            flat_table_text = ' '.join(cell for row in rows for cell in row)
+            non_metadata_cells = [
+                norm(cell)
+                for row in rows
+                for cell in row
+                if cell.strip() and not re.fullmatch(r'\d+번째내용', norm(cell))
+            ]
+            if (
+                all(len(row) == 1 for row in rows)
+                and (
+                    '보고서' in norm(flat_table_text)
+                    or bool(non_metadata_cells) and set(non_metadata_cells) <= {'조치', '조치사항'}
+                )
+            ):
+                continue
+
             unmatched_rows: list[list[str]] = []
             for row in rows:
                 # 변환기가 붙인 메타 헤더(1번째 내용 등)는 건너뛴다.
+                if is_metadata_row(row):
+                    continue
                 matched = False
                 for index, raw_label in enumerate(row):
                     target_info = field_targets.get(norm(raw_label))
