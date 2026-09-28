@@ -336,6 +336,12 @@ const assignedRows = computed<(AssignedIssueRow | HierarchyContextRow)[]>(() => 
     }
   }
 
+  // 대시보드 API는 최근 수정일 순으로 반환할 수 있으므로, 하위 작업은
+  // 부모 Task에서 드래그해 저장한 order를 기준으로 다시 정렬한다.
+  for (const children of childrenByParent.values()) {
+    children.sort((a, b) => a.order - b.order || a.number - b.number)
+  }
+
   const blocks: IssueBlock[] = []
   for (const issue of mainIssues) {
     const children = childrenByParent.get(issue.id) ?? []
