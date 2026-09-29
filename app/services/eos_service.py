@@ -11,6 +11,8 @@ from typing import Any, Dict
 
 import httpx
 
+from app.lifecycle_mapping import update_vmware_dates
+
 logger = logging.getLogger(__name__)
 
 _SNAPSHOT_ENV = "EOS_SNAPSHOT_PATH"
@@ -175,6 +177,7 @@ async def _build_eos_map_with_status(base: Dict[str, str] | None = None) -> tupl
         for slug, display in _PRODUCT_DISPLAY.items():
             cycles, _ = fetched[slug]
             for entry in cycles:
+                update_vmware_dates(result, display, entry)
                 cycle = str(entry.get("cycle", ""))
                 eol = _parse_eol(entry.get("eol"))
                 if cycle and eol:

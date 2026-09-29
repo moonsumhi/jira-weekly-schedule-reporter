@@ -1,9 +1,12 @@
 import { api } from 'boot/axios'
+import vmwareLifecycleSnapshot from 'src/data/vmware_lifecycle_snapshot.json'
 
 // endoflife.date에 없는 제품 — 하드코딩 폴백
 // Rocky Linux / RHEL / CentOS 는 endoflife.date가 마이너 버전 단위로만 사이클을 제공하며
 // 현재 지원 중인 최신 마이너의 eol 이 false 이므로 메이저 버전 키를 직접 추가한다.
 const STATIC_FALLBACK: Record<string, string> = {
+  // VMware는 보안 패치 종료일과 일반 지원 종료일이 같다. API 장애 시에도 표시한다.
+  ...vmwareLifecycleSnapshot,
   // Rocky Linux (https://wiki.rockylinux.org/rocky/version/)
   'Rocky Linux|8':    '2029-05',
   'Rocky Linux|8.3':  '2021-06',

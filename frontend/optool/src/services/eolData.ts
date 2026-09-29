@@ -1,6 +1,7 @@
 import { DBMS_TREE } from 'src/constants/dbmsVersions'
 import eolMapSnapshot from 'src/data/eol_map_snapshot.json'
 import { requiresMinorVersion, resolveDistName } from 'src/services/eosDetection'
+import { normalizeVmware } from 'src/services/vmwareLifecycle'
 
 // 배포판|버전 → EoL 종료 일자 (YYYY-MM) 스냅샷
 // EoL = 무상 보안 패치가 완전히 종료되는 시점 (Standard/Full 지원 기준)
@@ -33,6 +34,9 @@ export function getAutoEol(dist: string, version: string): EolResult | null {
   dist = String(dist ?? '')
   version = String(version ?? '')
   if (!dist) return null
+
+  // VMware는 일반 지원과 계약 조건부 기술 가이드를 별도로 표시한다.
+  if (normalizeVmware(dist, version)) return null
 
   // dist|version 직접 조회
   let eolDate = EOL_MAP[`${dist}|${version}`]

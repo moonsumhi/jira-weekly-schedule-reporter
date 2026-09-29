@@ -52,11 +52,12 @@ function hasEol(dist, version) {
 }
 
 const combinations = []
-for (const distributions of Object.values(OS_TREE)) {
+for (const [family, distributions] of Object.entries(OS_TREE)) {
   for (const [dist, majors] of Object.entries(distributions)) {
     for (const [major, minors] of Object.entries(majors)) {
-      // 마이너 버전은 선택 사항이므로 메이저 버전만 저장하는 경우도 반드시 검증한다.
-      for (const version of new Set([major, ...minors])) combinations.push([dist, version])
+      // VMware는 마이너마다 지원 주기가 달라 메이저만으로 종료일을 확정하지 않는다.
+      const versions = family === 'VMware' && minors.length ? minors : [major, ...minors]
+      for (const version of new Set(versions)) combinations.push([dist, version])
     }
   }
 }
@@ -67,7 +68,7 @@ for (const [dist, seriesMap] of Object.entries(DBMS_TREE)) {
 }
 
 const missingEos = combinations.filter(([dist, version]) => !hasEos(dist, version))
-const missingEol = combinations.filter(([dist, version]) => !hasEol(dist, version))
+const missingEol = combinations.filter(([dist, version]) => !['ESXi', 'vCenter'].includes(dist) && !hasEol(dist, version))
 
 if (missingEos.length || missingEol.length) {
   if (missingEos.length) console.error('EoS 누락:', missingEos.map(v => v.join('|')).join(', '))

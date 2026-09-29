@@ -3,6 +3,7 @@ import { DBMS_TREE } from 'src/constants/dbmsVersions'
 import { OS_TREE } from 'src/constants/osVersions'
 import { NETWORK_EOS_LIST, NETWORK_MANUAL_LIST } from 'src/constants/networkEos'
 import { getEosMap } from 'src/services/eosData'
+import { normalizeVmware } from 'src/services/vmwareLifecycle'
 
 // ── OS 탐지 ──────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,8 @@ function norm(s: string): string {
 
 /** 정규화된 이름으로 OS_TREE 배포판 키를 찾아 정확한 키 반환 */
 export function resolveDistName(osName: string): string {
+  const vmware = normalizeVmware(osName)
+  if (vmware) return vmware.dist
   const n = norm(osName)
   for (const dists of Object.values(OS_TREE)) {
     for (const key of Object.keys(dists)) {
@@ -23,7 +26,7 @@ export function resolveDistName(osName: string): string {
 }
 
 export function detectOsFamily(osName: string): string {
-  const n = norm(osName)
+  const n = norm(resolveDistName(osName))
   for (const [family, dists] of Object.entries(OS_TREE)) {
     for (const key of Object.keys(dists)) {
       if (norm(key) === n) return family
@@ -51,6 +54,8 @@ export function osMinorOptions(dist: string, major: string): string[] {
 }
 
 export function detectOsMajor(dist: string, version: string): string {
+  const vmware = normalizeVmware(dist, version)
+  if (vmware) ({ dist, version } = vmware)
   const majors = osMajorOptions(dist)
   if (majors.includes(version)) return version
   for (const major of majors) {
@@ -85,6 +90,8 @@ export function getAutoEos(dist: string, version: string): { status: EosActionSt
   // fields는 느슨한 타입이라 실제로는 문자열이 아닌 값(숫자 등)이 들어올 수 있음
   dist = String(dist ?? '')
   version = String(version ?? '')
+  const vmware = normalizeVmware(dist, version)
+  if (vmware) ({ dist, version } = vmware)
   if (!dist || !version) return null
   let eosDate = lookupEosDate(`${dist}|${version}`)
   if (!eosDate) {

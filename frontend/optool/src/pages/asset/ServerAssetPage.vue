@@ -450,7 +450,14 @@
           <template #body-cell-field="props">
             <q-td :props="props" :class="{ 'cell-deleted': props.row.isDeleted }">
               <!-- EOS action badge -->
-              <template v-if="colKey(props.col) === EOS_STATUS_KEY">
+              <template v-if="isVmware(props.row.fields) && (colKey(props.col) === EOL_STATUS_KEY || colKey(props.col) === EOL_DATE_KEY)">
+                <q-badge v-if="colKey(props.col) === EOL_STATUS_KEY" :color="vmwareGuidanceState(props.row.fields).color" outline>
+                  {{ vmwareGuidanceState(props.row.fields).label }}
+                </q-badge>
+                <span v-else>{{ vmwareGuidance(props.row.fields) }}</span>
+                <q-tooltip>{{ VMWARE_GUIDANCE_NOTE }}</q-tooltip>
+              </template>
+              <template v-else-if="colKey(props.col) === EOS_STATUS_KEY">
                 <template v-if="props.row.fields?.['운영체제']">
                   <q-badge :color="getField(props.row, EOS_STATUS_KEY) ? eosStatusColor(getField(props.row, EOS_STATUS_KEY)) : 'grey'" outline>
                     {{ getField(props.row, EOS_STATUS_KEY) ? eosStatusLabel(getField(props.row, EOS_STATUS_KEY)) : '확인 불가' }}
@@ -795,14 +802,15 @@
               </div>
             </div>
             <!-- EoS 자동 표시 -->
-            <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
+            <VmwareSupportInfo v-if="isVmware(createFields)" :dist="createFields['운영체제'] ?? ''" :version="createFields['version'] ?? ''" />
+            <div v-else-if="createEosStatusText" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(createEosStatus)">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createEosStatus) }}</span><strong>{{ createEosDateText }}</strong></span>
             </div>
           </template>
-          <div v-if="createFields[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
+          <div v-if="!isVmware(createFields) && createFields[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
                :class="eosBannerClass(createFields[EOL_STATUS_KEY])">
             <span class="eos-item"><span class="eos-item-label">EoL 여부</span><strong>{{ eolStatusLabel(createFields[EOL_STATUS_KEY]) }}</strong></span>
             <span class="eos-sep">·</span>
@@ -1404,14 +1412,15 @@
               </div>
             </div>
             <!-- EoS 자동 표시 -->
-            <div v-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
+            <VmwareSupportInfo v-if="isVmware(rowEditValues)" :dist="rowEditValues['운영체제'] ?? ''" :version="rowEditValues['version'] ?? ''" />
+            <div v-else-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(rowEditValues[EOS_STATUS_KEY])">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(rowEditValues[EOS_STATUS_KEY]) }}</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
             </div>
           </template>
-          <div v-if="rowEditValues[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
+          <div v-if="!isVmware(rowEditValues) && rowEditValues[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
                :class="eosBannerClass(rowEditValues[EOL_STATUS_KEY])">
             <span class="eos-item"><span class="eos-item-label">EoL 여부</span><strong>{{ eolStatusLabel(rowEditValues[EOL_STATUS_KEY]) }}</strong></span>
             <span class="eos-sep">·</span>
@@ -1918,7 +1927,10 @@
                   <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
-              <div class="row q-col-gutter-x-md q-mt-sm">
+              <VmwareSupportInfo detail v-if="isVmware(detailEditing ? rowEditValues : detailTarget.fields)"
+                :dist="String((detailEditing ? rowEditValues : detailTarget.fields)?.['운영체제'] ?? '')"
+                :version="String((detailEditing ? rowEditValues : detailTarget.fields)?.['version'] ?? '')" />
+              <div v-else class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">EoS 여부</div>
                   <div class="detail-value">
@@ -1936,7 +1948,7 @@
                 </div>
               </div>
             </template>
-            <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+            <div v-if="!isVmware(detailEditing ? rowEditValues : detailTarget.fields)" class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
               <div class="col-4 form-field">
                 <div class="field-label">EoL 여부</div>
                 <div class="detail-value">
@@ -2707,6 +2719,8 @@ import type { ServerAsset, AssetHistory, FieldsMap, FieldValue, EosActionStatus 
 import { EOS_STATUS_KEY, EOS_DATE_KEY } from 'src/types/assets'
 import { fetchEosMap } from 'src/services/eosData'
 import { OS_TREE } from 'src/constants/osVersions'
+import VmwareSupportInfo from 'src/components/asset/VmwareSupportInfo.vue'
+import { normalizeVmware, getVmwareGuidanceDate, getVmwareGuidanceStatus, VMWARE_GUIDANCE_NOTE } from 'src/services/vmwareLifecycle'
 import { DBMS_TREE } from 'src/constants/dbmsVersions'
 import {
   detectOsFamily, resolveDistName, osDistOptions, osMajorOptions, osMinorOptions, detectOsMajor,
@@ -2854,6 +2868,12 @@ const PREFERRED_FIELD_KEYS = [
 // 필드 키 → 표시 레이블 매핑
 function fieldLabel(key: string): string {
   if (key === '운영체제' && ['네트워크', '정보보호시스템'].includes(category.value)) return '기종'
+  if (category.value === 'VMware') {
+    if (key === EOS_STATUS_KEY) return '일반 지원 상태'
+    if (key === EOS_DATE_KEY) return '일반 지원 종료'
+    if (key === EOL_STATUS_KEY) return '기술 가이드 여부'
+    if (key === EOL_DATE_KEY) return '기술 가이드 종료 (계약 조건부)'
+  }
   return FIELD_LABEL_MAP[key] ?? key
 }
 
@@ -3221,7 +3241,22 @@ function onPagination(p: NonNullable<QTableProps['pagination']>) {
   pagination.value = { ...p, sortBy: null, descending: false }
 }
 
+function lifecycleText(value: unknown): string {
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
+}
+function isVmware(fields: Record<string, unknown> | undefined): boolean {
+  return Boolean(normalizeVmware(lifecycleText(fields?.['운영체제'])))
+}
+function vmwareGuidance(fields: Record<string, unknown> | undefined): string {
+  return getVmwareGuidanceDate(lifecycleText(fields?.['운영체제']), lifecycleText(fields?.['version'])) ?? '확인 불가'
+}
+
+function vmwareGuidanceState(fields: Record<string, unknown> | undefined) {
+  return getVmwareGuidanceStatus(getVmwareGuidanceDate(lifecycleText(fields?.['운영체제']), lifecycleText(fields?.['version'])))
+}
+
 function getField(row: ServerAsset, key: string): FieldValue | undefined {
+  if (isVmware(row.fields) && (key === EOL_STATUS_KEY || key === EOL_DATE_KEY)) return undefined
   return row.fields?.[key]
 }
 
@@ -3555,6 +3590,10 @@ function enrichEosEol(row: ServerAsset): void {
     row.fields[EOS_DATE_KEY] = eos.date
   }
   const eol = getAutoEol(dist, version) ?? (series ? getAutoEol(dist, series) : null)
+  if (isVmware(row.fields)) {
+    row.fields[EOL_STATUS_KEY] = null
+    row.fields[EOL_DATE_KEY] = null
+  }
   if (eol) {
     row.fields[EOL_STATUS_KEY] = eol.status
     row.fields[EOL_DATE_KEY] = eol.date
@@ -3886,12 +3925,14 @@ function openEditField(row: ServerAsset, key: string) {
     editFieldText.value = typeof current === 'string' ? current : displayValue(current)
     editFieldValue.value = null
     if (key === '운영체제') {
+      const ver = row.fields?.['version']
+      const vmware = normalizeVmware(editFieldText.value, typeof ver === 'string' || typeof ver === 'number' ? String(ver) : '')
+      if (vmware) editFieldText.value = vmware.dist
       editFieldOsFamily.value = detectOsFamily(editFieldText.value)
       if (editFieldOsFamily.value && !osDistOptions(editFieldOsFamily.value).includes(editFieldText.value)) {
         editFieldOsFamily.value = ''
       }
-      const ver = row.fields?.['version']
-      editFieldVersionText.value = typeof ver === 'string' ? ver : ''
+      editFieldVersionText.value = vmware?.version ?? (typeof ver === 'string' ? ver : '')
       editFieldMajor.value = editFieldOsFamily.value ? detectOsMajor(editFieldText.value, editFieldVersionText.value) : ''
       editFieldLocationSelect.value = ''
     } else if (key === '위치') {
@@ -3939,10 +3980,11 @@ async function doEditField() {
     if (key === '운영체제' && editFieldOsFamily.value) {
       nextFields['version'] = editFieldVersionText.value || null
       const eos = getAutoEos(editFieldText.value, editFieldVersionText.value)
-      if (eos) {
-        nextFields[EOS_STATUS_KEY] = eos.status
-        nextFields[EOS_DATE_KEY] = eos.date
-      }
+      nextFields[EOS_STATUS_KEY] = eos?.status ?? null
+      nextFields[EOS_DATE_KEY] = eos?.date ?? null
+      const eol = getAutoEol(editFieldText.value, editFieldVersionText.value)
+      nextFields[EOL_STATUS_KEY] = eol?.status ?? null
+      nextFields[EOL_DATE_KEY] = eol?.date ?? null
     }
     const rowCat3 = (selectedRow.value.fields?.['자산유형'] as string) || category.value || '서버'
     const updated = await patchServer(String(selectedRow.value.id), { fields: nextFields }, rowCat3)
@@ -4251,7 +4293,9 @@ function prepareRowEdit(row: ServerAsset) {
   if (row.assetNo != null) vals['자산번호'] = row.assetNo
   rowEditValues.value = vals
   rowEditTags.value = Array.isArray(row.fields?.[TAGS_KEY]) ? [...(row.fields?.[TAGS_KEY] as string[])] : []
-  const osDist = resolveDistName((vals['운영체제'] ?? '').trim())
+  const vmware = normalizeVmware(vals['운영체제'] ?? '', vals['version'] ?? '')
+  if (vmware) vals['version'] = vmware.version
+  const osDist = vmware?.dist ?? resolveDistName((vals['운영체제'] ?? '').trim())
   if (osDist !== vals['운영체제']) vals['운영체제'] = osDist
   const detectedFamily = detectOsFamily(osDist)
   rowEditOsFamily.value = detectedFamily || (osDist === '기타' ? '기타' : '')
