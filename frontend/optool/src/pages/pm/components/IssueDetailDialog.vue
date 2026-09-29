@@ -922,6 +922,7 @@ async function submitSubTask() {
     const created = await createIssue(props.projectId, {
       title: newSubTaskTitle.value.trim(),
       type: 'SUB_TASK',
+      epic_id: localIssue.value.epicId,
       parent_issue_id: localIssue.value.id,
       assignee_id: localIssue.value.assigneeId,
     })

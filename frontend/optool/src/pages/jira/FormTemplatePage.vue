@@ -184,7 +184,11 @@
                 <q-select v-else-if="field.type === 'select'" :model-value="getRowVal(section.title, rowIdx, field.label)"
                   @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)" :options="field.options ?? []"
                   outlined dense :aria-label="field.label" :disable="saving" />
-                <q-toggle v-else-if="field.type === 'boolean'" :model-value="getRowVal(section.title, rowIdx, field.label) === 'true'"
+                <q-option-group v-else-if="isBooleanField(field) && isCompletionField(field)"
+                  :model-value="completionChoice(getRowVal(section.title, rowIdx, field.label))"
+                  :options="completionOptions" type="radio" inline dense
+                  @update:model-value="setRowVal(section.title, rowIdx, field.label, String($event))" :disable="saving" />
+                <q-toggle v-else-if="isBooleanField(field)" :model-value="getRowVal(section.title, rowIdx, field.label) === 'true'"
                   @update:model-value="setRowVal(section.title, rowIdx, field.label, String($event))" :label="field.label" :disable="saving" />
                 <q-input v-else :model-value="getRowVal(section.title, rowIdx, field.label)"
                   @update:model-value="setRowVal(section.title, rowIdx, field.label, $event)" :type="tableInputType(field.type)"
@@ -293,6 +297,38 @@
       </q-card>
     </q-dialog>
 
+    <!-- Import mapping warning dialog -->
+    <q-dialog v-model="importWarningDialog">
+      <q-card style="width: 760px; max-width: 96vw; max-height: 82vh; display: flex; flex-direction: column">
+        <q-card-section class="row items-center q-pb-none">
+          <q-icon name="warning" color="warning" size="sm" class="q-mr-sm" />
+          <div class="text-h6">Import 매핑 확인</div>
+          <q-space />
+          <q-btn flat dense icon="close" v-close-popup />
+        </q-card-section>
+        <q-separator />
+        <q-card-section class="text-body2">
+          선택한 템플릿의 아래 항목이 비어 있습니다. 가져온 추가 내용을 참고해 해당 항목을 입력해 주세요.
+        </q-card-section>
+        <q-card-section class="col scroll q-pt-none" style="min-height: 0">
+          <q-list bordered separator>
+            <q-item v-for="(warning, idx) in importWarningItems" :key="idx" dense>
+              <q-item-section avatar>
+                <q-icon :name="warning.summary ? 'error' : 'error_outline'" color="negative" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-body2">{{ importWarningLabel(warning) }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+        <q-separator />
+        <q-card-actions align="right">
+          <q-btn flat label="닫기" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Extracted Image Panel (shown inside form dialog area, below form) -->
     <!-- Rendered as a floating panel attached to the page, visible when formDialog is open -->
 
@@ -329,6 +365,7 @@
       :sections="sections"
       :creating="creatingDetail"
       :saving="detailSaving" :save-warning="detailSaveWarning"
+      :import-warnings="importWarnings"
       :link-assets="canLinkWorkDocument"
       :inspection-links="canLinkWorkDocument && isWorkPlanTemplate(template)"
       :result-inspection-links="canLinkWorkDocument && isWorkResultTemplate(template)"
@@ -337,13 +374,14 @@
       @export="exportDetailMarkdown"
       @export-file="exportDetailFile"
       @download-original="downloadOriginalFile"
+      @show-import-warnings="importWarningDialog = true"
       :exporting="exportingDocument"
     />
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, toRaw } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, toRaw, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { isAxiosError } from 'axios'
@@ -365,6 +403,28 @@ const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 const auth = useAuthStore()
+
+const completionOptions = [
+  { label: '성공', value: true },
+  { label: '실패', value: false },
+]
+
+function isCompletionField(field: FormField): boolean {
+  const label = field.label.replace(/[\s*_()[\]{}:：/\\-]/g, '')
+  return label === '완료여부' || (label.includes('완료') && label.includes('여부'))
+}
+
+function isBooleanField(field: FormField): boolean {
+  return field.type === 'boolean' || field.type === 'checkbox'
+}
+
+function completionChoice(value: unknown): boolean | null {
+  if (value === true || value === false) return value
+  if (typeof value !== 'string') return null
+  if (value === 'true' || value === '성공' || value === '예') return true
+  if (value === 'false' || value === '실패' || value === '아니오') return false
+  return null
+}
 
 const loading = ref(true)
 const tableLoading = ref(false)
@@ -445,6 +505,120 @@ const importing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const skippedDialog = ref(false)
 const skippedItems = ref<ImportSkipped[]>([])
+const importWarningDialog = ref(false)
+type ImportMappingWarning = {
+  summary?: boolean
+  section?: string
+  field?: string
+  row?: number | null
+  message: string
+  sourcePreview?: string
+}
+const importWarnings = ref<ImportMappingWarning[]>([])
+
+function normalizedImportWarningPart(value?: string): string {
+  return String(value ?? '')
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\u00a0\u3000]+/g, '')
+    .replace(/[():：·•\\._-]+/g, '')
+    .replaceAll('/', '')
+    .replaceAll('[', '')
+    .replaceAll(']', '')
+}
+
+const importSectionAliases: Record<string, string[]> = {
+  기본정보: ['작업개요'],
+  백업및복구방법: ['백업및복구방안'],
+  작업자정보: ['작업자'],
+  검토서명: ['담당자', '검토서명', '검토의견'],
+  작업시간표: ['세부작업절차'],
+  세부작업절차: ['작업시간표'],
+  사전점검: ['사전작업'],
+  테스트케이스: ['테스트계획', '테스트결과', '테스트결과분석', '테스트케이스성공', '테스트케이스실패'],
+}
+
+function resolveImportWarningSection(rawSection?: string): FormSection | null {
+  const sections = template.value?.sections ?? []
+  const sourceKey = normalizedImportWarningPart(rawSection)
+  if (!sourceKey) return null
+  return sections.find((section) => normalizedImportWarningPart(section.title) === sourceKey)
+    ?? sections.find((section) => (importSectionAliases[normalizedImportWarningPart(section.title)] ?? []).includes(sourceKey))
+    ?? null
+}
+
+function warningTemplateFields(warning: ImportMappingWarning, section: FormSection): string[] {
+  const sourceKey = normalizedImportWarningPart(warning.field)
+  if (!sourceKey) return []
+  const direct = section.fields.find((field) => normalizedImportWarningPart(field.label) === sourceKey)
+  if (direct) return [direct.label]
+
+  const sectionKey = normalizedImportWarningPart(section.title)
+  if (sectionKey === '작업결과' && sourceKey === '작업결과') {
+    return section.fields
+      .filter((field) => ['작업전', '작업후'].includes(normalizedImportWarningPart(field.label)))
+      .map((field) => field.label)
+  }
+  if (sourceKey === '작업일시') {
+    return section.fields
+      .filter((field) => ['작업기간시작', '작업기간종료'].includes(normalizedImportWarningPart(field.label)))
+      .map((field) => field.label)
+  }
+  if (['테스트결과시간', '테스트결과시각', '결과시간', '결과시각', '시간'].includes(sourceKey)) {
+    const resultTime = section.fields.find((field) => {
+      const fieldKey = normalizedImportWarningPart(field.label)
+      return fieldKey === '결과시간' || fieldKey === '결과시각'
+    })
+    if (resultTime) return [resultTime.label]
+  }
+  if (sourceKey === '성함직책') {
+    return section.fields
+      .filter((field) => ['성함', '직책'].includes(normalizedImportWarningPart(field.label)))
+      .map((field) => field.label)
+  }
+  return []
+}
+
+const importWarningItems = computed<ImportMappingWarning[]>(() => {
+  const items: ImportMappingWarning[] = []
+  const expandedSourceWarnings = new Set<string>()
+  for (const warning of importWarnings.value) {
+    if (warning.summary) {
+      items.push(warning)
+      continue
+    }
+    const targetSection = resolveImportWarningSection(warning.section)
+    if (!targetSection) {
+      items.push(warning)
+      continue
+    }
+    const targetFields = warningTemplateFields(warning, targetSection)
+    const sourceKey = `${normalizedImportWarningPart(warning.section)}>${normalizedImportWarningPart(warning.field)}`
+    if (targetFields.length > 1) {
+      if (expandedSourceWarnings.has(sourceKey)) continue
+      expandedSourceWarnings.add(sourceKey)
+      for (const field of targetFields) {
+        items.push({ ...warning, section: targetSection.title, field })
+      }
+      continue
+    }
+    // 매핑되지 않은 원본 열 제목은 화면에 그대로 노출하지 않고,
+    // 선택한 템플릿의 섹션만 표시해 사용자가 추가 내용을 참고하도록 한다.
+    items.push({ ...warning, section: targetSection.title, field: targetFields[0] ?? '' })
+  }
+  return items
+})
+
+function importWarningLabel(warning: ImportMappingWarning): string {
+  if (warning.summary) return `템플릿에 넣지 못한 내용이 있습니다: ${warning.message}`
+  const section = warning.section?.trim()
+  const field = warning.field?.trim()
+  if (section && field) return `${section} > ${field} 항목이 비어 있습니다.`
+  if (section) return `${section} 항목이 비어 있습니다.`
+  if (field) return `${field} 항목이 비어 있습니다.`
+  return warning.message
+}
 const importedImages = ref<string[]>([])
 const importedOriginalFile = ref<OriginalFile | null>(null)
 // 캡션을 추출할 수 없는 문서는 그룹 없이 flat하게 표시한다.
@@ -563,17 +737,35 @@ const columns = computed(() => [
   ...(isAllJobs.value ? [{ name: 'document_type', label: '문서 종류', field: (row: FormEntry) => entryTemplate(row)?.title ?? '—', align: 'left' as const, sortable: true }] : []),
   { name: 'preview', label: '내용 미리보기', field: 'id', align: 'left' as const },
   { name: 'created_by', label: '제출자', field: 'createdBy', align: 'left' as const },
-  { name: 'created_at', label: '작업 일시', field: 'createdAt', align: 'left' as const, sortable: true },
+  {
+    name: 'created_at',
+    label: !isAllJobs.value && template.value?.title === '장애보고서' ? '발생일시' : '작업 일시',
+    field: 'createdAt',
+    align: 'left' as const,
+    sortable: true,
+  },
   { name: 'actions', label: '', field: 'id', align: 'right' as const },
 ])
 
 function getWorkDate(row: FormEntry): string {
+  const incident = entryTemplate(row)?.title === '장애보고서'
   for (const sectionData of Object.values(row.data)) {
     const values = Array.isArray(sectionData) ? sectionData[0] : sectionData
-    const d = values?.['작업 일시'] ?? values?.['작업 기간 (시작)']
-    if (d) return String(d).slice(0, 10)
+    const d = incident
+      ? values?.['발생일시']
+      : values?.['작업 일시'] ?? values?.['작업 기간 (시작)']
+    if (d) return formatListDate(d)
   }
   return '-'
+}
+
+function formatListDate(value: unknown): string {
+  const text = typeof value === 'string' || typeof value === 'number' ? String(value).trim() : ''
+  const match = text.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/)
+  if (!match) return text.slice(0, 10).replace(/-/g, '.') || '-'
+  const [, year, month, day] = match
+  if (!year || !month || !day) return text.slice(0, 10).replace(/-/g, '.') || '-'
+  return `${year}.${month.padStart(2, '0')}.${day.padStart(2, '0')}`
 }
 
 function entryPreview(row: FormEntry): string {
@@ -858,17 +1050,30 @@ async function handleFileImport(event: Event) {
   const targetTemplate = template.value
   const request = pageRequest
   importing.value = true
+  importWarnings.value = []
+  importWarningDialog.value = false
   try {
     if (isJobPage.value) {
       const body = new FormData()
       body.append('file', file)
       body.append('template_id', targetTemplate.id)
-      const { data } = await api.post<{ data: Record<string, SectionValue>; warnings: string[]; originalFile?: OriginalFile | null }>('/form-entries/import-form', body)
+      const { data } = await api.post<{
+        data: Record<string, SectionValue>
+        warnings: string[]
+        mappingWarnings?: ImportMappingWarning[]
+        originalFile?: OriginalFile | null
+      }>('/form-entries/import-form', body)
       if (request !== pageRequest) return
       template.value = targetTemplate
+      importWarnings.value = data.mappingWarnings ?? []
       const importedData = cloneFormData(data.data)
       openDetailCreate(importedData, data.originalFile ?? null)
-      $q.notify({ type: 'info', message: `Import 완료. 표 형식으로 내용을 확인하고 저장해주세요. ${data.warnings.join(' ')}`.trim(), timeout: 10000 })
+      if (importWarnings.value.length > 0) {
+        await nextTick()
+        importWarningDialog.value = true
+        $q.notify({ type: 'warning', message: '연결되지 않은 항목이 있어 수정 화면에서 확인해 주세요.' })
+      }
+      $q.notify({ type: 'info', message: 'Import 완료. 표 형식으로 내용을 확인하고 저장해주세요.', timeout: 10000 })
       return
     }
     const result = await formEntryService.importFromFile(targetTemplate.id, file)
@@ -1210,16 +1415,19 @@ watch(() => route.query.entryId, () => { if (!loading.value) void openLinkedEntr
 .edit-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .edit-field-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .edit-field-group { grid-column: 1 / -1; min-width: 0; }
-.edit-field-group.comparison-side { grid-column: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; }
+.edit-field-group.comparison-side { grid-column: auto; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; display: flex; flex-direction: column; }
 .edit-field-group.whole-document { grid-column: 1 / -1; }
 .comparison-side .edit-fields { grid-template-columns: minmax(0, 1fr); }
-.comparison-editor { min-width: 0; }
+.comparison-editor { width: 100%; max-width: 100%; min-width: 0; min-height: 0; overflow: hidden; display: flex; flex: 1 1 auto; flex-direction: column; }
+.comparison-editor > div { width: 100%; max-width: 100%; min-width: 0; min-height: 0; display: flex; flex: 1 1 auto; flex-direction: column; }
+.comparison-editor :deep(.toastui-editor-defaultUI), .comparison-editor :deep(.toastui-editor-main), .comparison-editor :deep(.toastui-editor-main-container), .comparison-editor :deep(.toastui-editor-ww-container), .comparison-editor :deep(.toastui-editor-contents) { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+.comparison-editor :deep(.toastui-editor-main), .comparison-editor :deep(.toastui-editor-main-container), .comparison-editor :deep(.toastui-editor-ww-container), .comparison-editor :deep(.toastui-editor-contents) { height: auto; overflow: visible; }
 .comparison-editor :deep(.toastui-editor-defaultUI-toolbar) { flex-wrap: wrap; height: auto; min-height: 45px; padding: 4px; }
 .comparison-editor :deep(.toastui-editor-toolbar-group) { margin: 0; }
 .comparison-editor :deep(.toastui-editor-contents img) { max-width: 100%; height: auto; }
-.comparison-editor :deep(.toastui-editor-contents) { overflow-x: auto; }
-.comparison-editor :deep(.toastui-editor-contents table) { width: 100%; table-layout: auto; }
-.comparison-editor :deep(.toastui-editor-contents td), .comparison-editor :deep(.toastui-editor-contents th) { min-width: 180px; vertical-align: top; word-break: keep-all; overflow-wrap: anywhere; }
+.comparison-editor :deep(.toastui-editor-contents) { overflow-wrap: anywhere; word-break: break-word; }
+.comparison-editor :deep(.toastui-editor-contents table) { width: 100%; max-width: 100%; table-layout: fixed; }
+.comparison-editor :deep(.toastui-editor-contents td), .comparison-editor :deep(.toastui-editor-contents th) { min-width: 0; max-width: 100%; vertical-align: top; word-break: break-word; overflow-wrap: anywhere; }
 .comparison-heading { font-size: 15px; font-weight: 650; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 2px solid #94a3b8; }
 .comparison-side:nth-child(2) .comparison-heading { border-bottom-color: var(--q-primary); color: var(--q-primary); }
 @media (max-width: 700px) { .edit-field-groups { grid-template-columns: minmax(0, 1fr); } }
@@ -1267,4 +1475,6 @@ watch(() => route.query.entryId, () => { if (!loading.value) void openLinkedEntr
 .image-panel-scroll { overflow-x: auto; flex-wrap: nowrap; }
 .image-thumb { border: 1px solid #ddd; border-radius: 4px; padding: 4px; background: white; cursor: pointer; }
 .image-thumb--selected { border: 2px solid #43a047; background: #f1f8e9; box-shadow: 0 0 0 2px #43a04766; }
+.import-warning-resolved { opacity: 0.58; }
+.import-warning-resolved .text-body2 { text-decoration: line-through; }
 </style>

@@ -1,6 +1,7 @@
 """Work documents: ordered Markdown import, durable snapshots and HWPX export."""
 import base64
 import io
+import json
 import logging
 import re
 import subprocess
@@ -70,8 +71,17 @@ def store_image(raw: bytes) -> str:
 def html_markdown(source: str, image_reader) -> str:
     """Walk in document order, including images between text inside table cells."""
     root = html.fragment_fromstring(source, create_parent='div')
+    # HWP can emit one long visual table as several adjacent HTML tables when
+    # it crosses a page. Continuation tables omit the original header, so keep
+    # the last repeatable work-table header while walking the document.
+    continuation_headers: list[str] | None = None
+
+    def is_repeatable_work_header(values: list[str]) -> bool:
+        normalized = {re.sub(r'\s+|<br>', '', value) for value in values}
+        return '제목' in normalized and '리스크' in normalized and '세부작업내용' in normalized
 
     def walk(node):
+        nonlocal continuation_headers
         if not isinstance(node.tag, str):
             return ''
         tag = node.tag.lower() if isinstance(node.tag, str) else ''
@@ -102,6 +112,7 @@ def html_markdown(source: str, image_reader) -> str:
             if not source_rows:
                 return ''
             cell_rows = [row.xpath('./td|./th') for row in source_rows]
+            table_is_top_level = not node.xpath('ancestor::table')
             def label(cell):
                 return re.sub(r'\s+', '', ''.join(cell.itertext()))
             # Omit only the cover approval table, keeping the document title.
@@ -136,8 +147,26 @@ def html_markdown(source: str, image_reader) -> str:
                 header = cell_rows[0]
                 has_header = all(not cell.xpath('.//table|.//img') and len(label(cell)) < 40 for cell in header)
                 headers = [walk(cell).strip() for cell in header] if has_header else []
+                continuation = False
+                if (
+                    not has_header
+                    and table_is_top_level
+                    and continuation_headers
+                    and cell_rows
+                    and re.fullmatch(r'\d+\.?', label(cell_rows[0][0]))
+                    and len(cell_rows[0]) == len(continuation_headers)
+                ):
+                    # This is a page-split continuation of the previous work
+                    # table. Reuse its field headers instead of inventing
+                    # "1번째 내용" labels from the data row.
+                    headers = continuation_headers
+                    has_header = True
+                    continuation = True
+                if table_is_top_level and has_header and is_repeatable_work_header(headers):
+                    continuation_headers = headers
                 parts = []
-                for index, cells in enumerate(cell_rows[1:] if has_header else cell_rows, 1):
+                table_data_rows = cell_rows if continuation else (cell_rows[1:] if has_header else cell_rows)
+                for index, cells in enumerate(table_data_rows, 1):
                     parts.append(f'### {index}번째 항목')
                     compact = []
                     def flush():
@@ -193,6 +222,20 @@ def html_markdown(source: str, image_reader) -> str:
                             rows[0][c] = parent + ' / ' + value
                 if not rows[0][0] and {'IP', 'HOSTNAME'} <= second_labels:
                     rows[0][0] = 'No.'
+            continuation = False
+            if (
+                table_is_top_level
+                and continuation_headers
+                and rows
+                and re.fullmatch(r'\d+\.?', re.sub(r'\s+', '', rows[0][0]))
+                and len(rows[0]) == len(continuation_headers)
+            ):
+                rows.insert(0, continuation_headers)
+                continuation = True
+            if table_is_top_level and rows and is_repeatable_work_header(rows[0]):
+                continuation_headers = rows[0]
+            elif table_is_top_level and not continuation:
+                continuation_headers = None
             title = ''
             for c, value in enumerate(rows[0]):
                 normalized = re.sub(r'\s+|<br>', '', value)
@@ -221,11 +264,91 @@ def html_markdown(source: str, image_reader) -> str:
         if tag in ('p', 'div', 'ul', 'ol'):
             section = re.fullmatch(r'\[([^\[\]\n]+)\]', ''.join(node.itertext()).strip()) if tag == 'p' else None
             if section and not node.xpath('.//table|.//img'):
+                continuation_headers = None
                 return '\n\n## ' + escape(section.group(1)) + '\n\n'
             return '\n\n' + value.strip() + '\n\n'
         return value
 
     return re.sub(r'\n{3,}', '\n\n', walk(root)).strip() + '\n'
+
+
+def _hwp_checkbox_states(source: Path) -> list[bool]:
+    """Read native HWP checkbox values before hwp5html drops the controls.
+
+    ``hwp5html`` renders the option labels but omits the FormObject state.  The
+    state is still available in the HWP BodyText records and is represented by
+    ``Value:int:0|1`` in each FormObject payload.  Returning an empty list is
+    intentional when the optional CLI is unavailable or the document has no
+    form controls; regular text-marker parsing remains the fallback.
+    """
+    try:
+        listed = subprocess.run(
+            ['hwp5proc', 'ls', str(source)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    sections = re.findall(r'(?m)^BodyText/Section\d+$', listed)
+    if not sections:
+        return []
+    states: list[bool] = []
+    for section in sections:
+        try:
+            result = subprocess.run(
+                ['hwp5proc', 'models', '--json', str(source), section],
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+            models = json.loads(result.stdout)
+        except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
+            continue
+        if not isinstance(models, list):
+            continue
+        for model in models:
+            if not isinstance(model, dict) or model.get('type') != 'FormObject':
+                continue
+            payload = model.get('payload') or []
+            try:
+                raw = bytes.fromhex(''.join(payload) if isinstance(payload, list) else str(payload))
+                decoded = raw.decode('utf-16le', errors='ignore')
+            except (TypeError, ValueError):
+                continue
+            value = re.search(r'\bValue:int:(\d+)', decoded)
+            if value:
+                states.append(value.group(1) == '1')
+    return states
+
+
+def _inject_hwp_checkbox_markers(source: str, states: list[bool]) -> str:
+    """Put visible markers beside option labels whose native controls are set.
+
+    HWP checkbox controls are emitted in document order.  We only annotate a
+    row when all of its known option labels are present, which prevents an
+    unrelated occurrence of a label in ordinary prose from being changed.
+    """
+    if len(states) < 6:
+        return source
+    root = html.fragment_fromstring(source, create_parent='div')
+    groups = (
+        (['서비스', 'DB', '네트워크'], 0),
+        (['규명해결', '미규명해결', '미해결'], 3),
+    )
+    for row in root.xpath('.//table/tr | .//table/thead/tr | .//table/tbody/tr'):
+        cells = row.xpath('./td | ./th')
+        labels = [re.sub(r'\s+', '', ''.join(cell.itertext())) for cell in cells]
+        for options, offset in groups:
+            positions = [labels.index(option) if option in labels else -1 for option in options]
+            if any(position < 0 for position in positions):
+                continue
+            for option, position in zip(options, positions):
+                marker = '☑ ' if states[offset + options.index(option)] else '☐ '
+                cell = cells[position]
+                cell.text = marker + (cell.text or '')
+    return html.tostring(root, encoding='unicode')
 
 
 def import_document(content: bytes, filename: str) -> tuple[str, list[str]]:
@@ -304,7 +427,9 @@ def import_document(content: bytes, filename: str) -> tuple[str, list[str]]:
                 if not path.is_relative_to(output.resolve()):
                     raise ValueError('잘못된 이미지 경로입니다.')
                 return store_image(path.read_bytes())
-            return html_markdown(index.read_text(encoding='utf-8'), read_image), warnings
+            converted = index.read_text(encoding='utf-8')
+            converted = _inject_hwp_checkbox_markers(converted, _hwp_checkbox_states(source))
+            return html_markdown(converted, read_image), warnings
     raise ValueError('HWP, HWPX, DOC, DOCX 파일을 선택해 주세요.')
 
 

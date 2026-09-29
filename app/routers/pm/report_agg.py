@@ -51,6 +51,7 @@ async def aggregate_period(
     _user_cache:   dict = {}
     _sprint_cache: dict = {}
     _epic_cache:   dict = {}
+    _parent_cache: dict = {}
 
     async def get_proj(pid):
         k = str(pid)
@@ -88,6 +89,14 @@ async def aggregate_period(
             _epic_cache[k] = await issues_col.find_one({"_id": eid}, {"title": 1})
         return _epic_cache[k]
 
+    async def get_parent(pid):
+        if not pid:
+            return None
+        k = str(pid)
+        if k not in _parent_cache:
+            _parent_cache[k] = await issues_col.find_one({"_id": pid}, {"title": 1})
+        return _parent_cache[k]
+
     async def doc_to_item(doc) -> Optional[WorkItem]:
         proj = await get_proj(doc["project_id"])
         if not proj:
@@ -96,6 +105,7 @@ async def aggregate_period(
         user = await get_user(doc.get("assignee_id"))
         sprint = await get_sprint(doc.get("sprint_id"))
         epic = await get_epic(doc.get("epic_id"))
+        parent = await get_parent(doc.get("parent_issue_id"))
 
         due_date = doc.get("due_date")
         status = doc.get("status", "BACKLOG")
@@ -104,7 +114,11 @@ async def aggregate_period(
         return WorkItem(
             issue_id=str(doc["_id"]),
             issue_number=doc["number"],
-            title=doc["title"],
+            title=(
+                f"{parent['title']} - {doc['title']}"
+                if doc.get("type") == "SUB_TASK" and parent and parent.get("title")
+                else doc["title"]
+            ),
             type=doc["type"],
             project_id=str(proj["_id"]),
             project_name=proj["name"],

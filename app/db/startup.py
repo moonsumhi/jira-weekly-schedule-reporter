@@ -274,6 +274,13 @@ _RESULT_TEST_SUCCESS = {
         {"label": "담당자",          "type": "text", "required": False},
     ],
 }
+_RESULT_EXTRA_INFO = {
+    "title": "추가 정보",
+    "fields": [
+        {"label": "특이사항", "type": "textarea", "required": False},
+        {"label": "완료 여부", "type": "boolean", "required": False},
+    ],
+}
 
 # 반입신청서_한국보건의료정보원 (2).hwp 실제 양식에서 추출한 섹션 구조.
 _INTAKE_APPLICANT_INFO = {
@@ -305,6 +312,42 @@ _INTAKE_REVIEW = {
         {"label": "성함",     "type": "text",     "required": False},
         {"label": "검토의견", "type": "textarea", "required": False},
         {"label": "서명",     "type": "image",    "required": False},
+    ],
+}
+
+# 장애보고서 (장애보고서 (1).hwp) 양식에서 추출한 구조.
+# 작업 관리의 다른 문서와 동일하게 동적 폼 템플릿으로 저장하므로
+# 하위 메뉴에서 바로 작성·Import·상세·수정할 수 있다.
+_INCIDENT_INFO = {
+    "title": "장애 정보",
+    "fields": [
+        {"label": "제목",             "type": "text",     "required": True,  "placeholder": "장애 제목을 입력하세요"},
+        {"label": "구분",             "type": "select",   "required": True,  "options": ["서비스", "DB", "네트워크"]},
+        {"label": "처리결과",         "type": "select",   "required": True,  "options": ["규명해결", "미규명해결", "미해결"]},
+        {"label": "서비스 중단 시간", "type": "text",     "required": False, "placeholder": "예: 30분"},
+        {"label": "발생일시",         "type": "datetime", "required": True},
+        {"label": "서비스 복구일시",  "type": "datetime", "required": False},
+        {"label": "발견자",           "type": "text",     "required": False},
+        {"label": "서비스 복구자",    "type": "text",     "required": False},
+        {"label": "발생증상",         "type": "textarea", "required": False},
+        {"label": "발생범위",         "type": "text",     "required": False},
+        {"label": "원인",             "type": "textarea", "required": False},
+        {"label": "해결방안",         "type": "textarea", "required": False},
+    ],
+}
+_INCIDENT_TIMELINE = {
+    "title": "발생 경과 및 조치사항",
+    "multiple": True,
+    "fields": [
+        {"label": "시간대",   "type": "text",     "required": False},
+        {"label": "상세내역", "type": "textarea", "required": False},
+    ],
+}
+_INCIDENT_FOLLOWUP = {
+    "title": "개선사항 및 원인 분석",
+    "fields": [
+        {"label": "개선사항",  "type": "textarea", "required": False},
+        {"label": "원인 분석", "type": "textarea", "required": False},
     ],
 }
 
@@ -357,6 +400,7 @@ _JOB_FORM_TEMPLATES = [
             _PLAN_REVIEW,
             _RESULT_BEFORE_AFTER,
             _RESULT_TEST_SUCCESS,
+            _RESULT_EXTRA_INFO,
         ],
     },
     {
@@ -368,6 +412,17 @@ _JOB_FORM_TEMPLATES = [
             _INTAKE_APPLICANT_INFO,
             _INTAKE_FILE_INFO,
             _INTAKE_REVIEW,
+        ],
+    },
+    {
+        "title": "장애보고서",
+        "jira_issue_key": "JOB-INCIDENT-REPORT",
+        "menu": "Job",
+        "sort_order": 5,
+        "sections": [
+            _INCIDENT_INFO,
+            _INCIDENT_TIMELINE,
+            _INCIDENT_FOLLOWUP,
         ],
     },
 ]
@@ -480,6 +535,17 @@ async def migrate_guide_submenus() -> None:
         if item["link"] not in existing_links:
             await menus_col.update_one({"slug": slug}, {"$push": {"submenus": item}})
             logger.info("가이드 서브메뉴 추가: %s → %s", slug, item["link"])
+
+
+async def migrate_remove_job_guide_submenu() -> None:
+    """더 이상 제공하지 않는 작업 관리 사용 가이드 메뉴를 제거한다 (멱등)."""
+    menus_col = MongoClientManager.get_menus_collection()
+    result = await menus_col.update_many(
+        {"submenus.link": "/job/guide"},
+        {"$pull": {"submenus": {"link": "/job/guide"}}},
+    )
+    if result.modified_count:
+        logger.info("작업 관리 사용 가이드 서브메뉴 제거: %d건", result.modified_count)
 
 
 async def migrate_recurring_issue_submenu() -> None:
@@ -641,6 +707,19 @@ async def seed_job_form_templates() -> None:
                 "is_deleted": False,
                 "created_at": datetime.now(timezone.utc),
             })
+        elif tmpl["jira_issue_key"] == "JOB-INCIDENT-REPORT" and existing.get("sections") != tmpl["sections"]:
+            # 장애보고서는 원본 HWP의 흐름(해결방안 → 발생 경과 → 개선사항)에
+            # 맞춰 섹션 순서를 보완할 수 있으므로 기존 seed도 최신 구조로 맞춘다.
+            await col.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {
+                    "title": tmpl["title"],
+                    "menu": tmpl["menu"],
+                    "sort_order": tmpl["sort_order"],
+                    "sections": deepcopy(tmpl["sections"]),
+                }},
+            )
+            logger.info("장애보고서 템플릿 구조 보완: %s", existing["_id"])
         elif not existing.get("jira_issue_key"):
             await col.update_one(
                 {"_id": existing["_id"]},
@@ -716,6 +795,59 @@ async def migrate_job_test_case_sections() -> None:
                 data["테스트 케이스"] = {**legacy, **current}
             await entries.update_one({"_id": entry["_id"]}, {"$set": {"data": data}})
             logger.info("작업 결과서 테스트 케이스 데이터 이관: %s", entry["_id"])
+
+
+async def migrate_result_completion_field() -> None:
+    """작업결과서의 추가 정보에 완료 여부 선택 필드를 보장한다.
+
+    기존 설치본에는 실제 HWP 양식으로 재구성되는 과정에서 이 필드가 빠진
+    템플릿이 있어, 새 템플릿과 기존 템플릿 모두에서 같은 편집 UI를 사용할 수
+    있도록 멱등적으로 보완한다.
+    """
+    templates = MongoClientManager.get_form_templates_collection()
+    async for template in templates.find({"is_deleted": {"$ne": True}}):
+        if template.get("jira_issue_key") != "JOB-RESULT":
+            continue
+        sections = template.get("sections", [])
+        if not isinstance(sections, list):
+            continue
+        normalized = deepcopy(sections)
+        extra = next(
+            (
+                section for section in normalized
+                if _job_section_key(section.get("title")) == "추가정보"
+            ),
+            None,
+        )
+        changed = False
+        if extra is None:
+            normalized.append(deepcopy(_RESULT_EXTRA_INFO))
+            changed = True
+        else:
+            fields = extra.setdefault("fields", [])
+            ordered_fields: list[dict] = []
+            known_labels = {_job_section_key(field["label"]) for field in _RESULT_EXTRA_INFO["fields"]}
+            for field in _RESULT_EXTRA_INFO["fields"]:
+                label_key = _job_section_key(field["label"])
+                existing = next(
+                    (item for item in fields if isinstance(item, dict) and _job_section_key(item.get("label")) == label_key),
+                    None,
+                )
+                ordered_fields.append(deepcopy(existing) if existing is not None else deepcopy(field))
+            ordered_fields.extend(
+                deepcopy(field)
+                for field in fields
+                if isinstance(field, dict) and _job_section_key(field.get("label")) not in known_labels
+            )
+            if fields != ordered_fields:
+                extra["fields"] = ordered_fields
+                changed = True
+        if changed:
+            await templates.update_one(
+                {"_id": template["_id"]},
+                {"$set": {"sections": normalized}},
+            )
+            logger.info("작업결과서 완료 여부 필드 보완: %s", template.get("title"))
 
 
 def _split_result_work_period(value: object) -> tuple[str, str]:
@@ -1155,6 +1287,7 @@ async def run_startup() -> None:
     await report_indexes()
     await migrate_pm_report_submenu_access()
     await migrate_guide_submenus()
+    await migrate_remove_job_guide_submenu()
     await migrate_recurring_issue_submenu()
     await migrate_rack_submenu()
     await migrate_notice_submenu()
@@ -1164,6 +1297,7 @@ async def run_startup() -> None:
     await migrate_env_submenu()
     await seed_job_form_templates()
     await migrate_job_test_case_sections()
+    await migrate_result_completion_field()
     await migrate_result_work_period_fields()
     await migrate_remove_development_image_field()
     await migrate_remove_result_work_image_field()

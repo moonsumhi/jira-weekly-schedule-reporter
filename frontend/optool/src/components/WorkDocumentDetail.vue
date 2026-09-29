@@ -3,11 +3,11 @@
     @update:model-value="handleDialogUpdate">
     <q-card class="work-document">
       <header class="document-topbar">
-        <q-btn flat round dense icon="arrow_back" :aria-label="backLabel || '목록으로 돌아가기'" :disable="saving" @click="close" />
+        <q-btn flat round dense icon="arrow_back" :aria-label="backLabel || '목록으로 돌아가기'" :disable="saving || editorUploading" @click="close" />
         <div class="document-breadcrumb"><span>작업 관리</span><q-icon name="chevron_right" size="16px" /><strong>{{ title }}</strong></div>
         <q-space />
         <span class="reading-badge"><span />{{ editing ? (creating ? '작성 모드' : '수정 모드') : '읽기 모드' }}</span>
-        <q-btn flat round dense icon="close" aria-label="상세 닫기" :disable="saving" @click="close" />
+        <q-btn flat round dense icon="close" aria-label="상세 닫기" :disable="saving || editorUploading" @click="close" />
       </header>
 
       <div v-if="loading" class="document-loading"><q-spinner size="36px" color="primary" /><span>문서를 불러오고 있습니다</span></div>
@@ -51,12 +51,31 @@
 
             <template v-if="editing">
               <div v-if="saveWarning" class="document-save-warning" role="alert"><q-icon name="info" size="19px" /><span>{{ saveWarning }}</span></div>
+              <div v-if="hasImportedExtraContent" class="document-save-warning" role="alert"><q-icon name="warning" size="19px" /><span>가져온 내용 중 양식에 반영되지 않은 항목이 남아 있습니다. 필요한 내용은 해당 항목에 옮겨 작성한 뒤, 남은 미반영 내용만 정리하면 저장할 수 있습니다.</span></div>
               <WorkDocumentInspectionOptions v-if="inspectionLinks && canViewInspection" v-model="inspection"
                 :entry-id="creating ? undefined : entry.id" :assets="editableAssets" :data="editableData" :disable="!!saving" />
-              <InlineDocumentEditor v-model="editableData" :sections="sections" />
+              <InlineDocumentEditor v-model="editableData" :sections="sections" @uploading="editorUploading = $event" />
             </template>
             <template v-else-if="view === 'markdown'">
-              <WorkResultContent :content="markdown" :section-titles="markdownSectionTitles" />
+              <WorkResultContent v-if="importedExtraPanels" :content="importedExtraPanels.base" :section-titles="markdownSectionTitles" />
+              <WorkResultContent v-else :content="markdown" :section-titles="markdownSectionTitles" />
+              <section
+                v-if="importedExtraPanels"
+                :data-section-index="importedExtraPanels.index"
+                class="document-section imported-extra-section"
+              >
+                <div class="section-heading">
+                  <span class="section-number">{{ String(importedExtraPanels.index + 1).padStart(2, '0') }}</span>
+                  <h2>가져온 추가 내용</h2>
+                </div>
+                <div class="imported-extra-columns">
+                  <article class="imported-extra-panel">
+                    <h3>원본 확인</h3>
+                    <WorkResultContent v-if="importedExtraPanels.original" :content="importedExtraPanels.original" />
+                    <div v-else class="section-empty">원본 내용이 없습니다.</div>
+                  </article>
+                </div>
+              </section>
             </template>
             <template v-else>
             <section v-for="(section, index) in sections" :key="index" :data-section-index="index" class="document-section">
@@ -64,7 +83,7 @@
                 <h2>{{ displaySectionTitle(section) }}</h2><span v-if="section.multiple" class="section-count">{{ sectionRows(section).length }}개 항목</span></div>
 
               <div v-if="isWorkTable(section)" class="document-table-scroll" tabindex="0" role="region" :aria-label="`${displaySectionTitle(section)} 표, 가로 스크롤 가능`">
-                <table class="document-work-table">
+                <table :class="['document-work-table', { 'incident-table': isIncidentTimeline(section) }]">
                   <thead><tr><th scope="col" class="row-number">No.</th><th v-for="field in tableFields(section)" :key="field.label" scope="col" :class="fieldColumnClass(field)">{{ field.label }}</th></tr></thead>
                   <tbody>
                     <template v-for="(row, rowIndex) in sectionRows(section)" :key="rowIndex">
@@ -81,7 +100,7 @@
                         </template>
                         <WorkResultContent v-else-if="developmentImages(section, field).length" :content="comparisonMarkdown(row, [field, ...developmentImages(section, field)])" />
                         <WorkResultContent v-else-if="isMarkdownValue(row[field.label], row[`${field.label}__format`])" :content="String(row[field.label] ?? '')" />
-                        <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayValue(row[field.label]) }}</div>
+                        <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayFieldValue(row[field.label], field) }}</div>
                       </td>
                     </tr>
                     </template>
@@ -111,7 +130,7 @@
                         </div><div v-else class="field-empty">등록된 이미지가 없습니다</div>
                       </template>
                       <WorkResultContent v-else-if="isMarkdownValue(row[field.label], row[`${field.label}__format`])" :content="String(row[field.label] ?? '')" />
-                      <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayValue(row[field.label]) }}</div>
+                      <div v-else :class="['field-value', { 'field-empty': isEmpty(row[field.label]) }]">{{ displayFieldValue(row[field.label], field) }}</div>
                     </div>
                       </div>
                     </div>
@@ -132,7 +151,7 @@
                     </div><div v-else class="field-empty">등록된 이미지가 없습니다</div>
                   </template>
                   <WorkResultContent v-else-if="isMarkdownValue(sectionRecord(section)[field.label], sectionRecord(section)[`${field.label}__format`])" :content="String(sectionRecord(section)[field.label] ?? '')" />
-                  <div v-else :class="['field-value', { 'field-empty': isEmpty(sectionRecord(section)[field.label]) }]">{{ displayValue(sectionRecord(section)[field.label]) }}</div>
+                  <div v-else :class="['field-value', { 'field-empty': isEmpty(sectionRecord(section)[field.label]) }]">{{ displayFieldValue(sectionRecord(section)[field.label], field) }}</div>
                 </div>
               </div>
             </section>
@@ -146,8 +165,9 @@
 
       <footer class="document-footer">
         <span class="footer-note"><q-icon name="description" />{{ title }}</span><q-space />
-        <q-btn flat no-caps :label="editing ? (creating ? '작성 취소' : '수정 취소') : '닫기'" :disable="saving" @click="editing ? cancelEdit() : close()" />
-        <q-btn v-if="editing" color="primary" no-caps icon="save" label="저장" :loading="saving" @click="emit('save', editableData, linkAssets ? editableAssets.map(a => a.id) : undefined, inspection)" />
+        <q-btn v-if="editing && importWarnings?.length" flat no-caps icon="error_outline" color="negative" label="에러 메시지" @click="emit('show-import-warnings')" />
+        <q-btn flat no-caps :label="editing ? (creating ? '작성 취소' : '수정 취소') : '닫기'" :disable="saving || editorUploading" @click="editing ? cancelEdit() : close()" />
+        <q-btn v-if="editing" color="primary" no-caps icon="save" label="저장" :disable="editorUploading" :loading="saving" @click="requestSave" />
         <q-btn v-else-if="!creating" outline no-caps icon="edit_note" label="수정" :disable="loading || !entry || entry.isDeleted" @click="startEdit" />
         <q-btn-dropdown v-if="!editing" outline no-caps icon="download" label="내보내기" :loading="exporting" :disable="loading || !entry || exporting">
           <q-list>
@@ -183,7 +203,8 @@ import WorkDocumentInspectionOptions from './inspection/WorkDocumentInspectionOp
 import type { WorkDocumentInspection } from 'src/services/workDocumentInspection'
 
 type EditableData = Record<string, Record<string, unknown> | Record<string, unknown>[]>
-const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; creating?: boolean; exporting?: boolean; saving?: boolean; linkAssets?: boolean; inspectionLinks?: boolean; resultInspectionLinks?: boolean; saveWarning?: string; error?: string; backLabel?: string }>()
+type ImportWarning = { summary?: boolean; section?: string; field?: string; row?: number | null; message: string; sourcePreview?: string }
+const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; creating?: boolean; exporting?: boolean; saving?: boolean; linkAssets?: boolean; inspectionLinks?: boolean; resultInspectionLinks?: boolean; saveWarning?: string; error?: string; backLabel?: string; importWarnings?: ImportWarning[] }>()
 const auth = useAuthStore()
 const canViewInspection = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('server_check'))
 const view = ref<'markdown'>('markdown')
@@ -191,21 +212,44 @@ const editing = ref(false)
 const inspection = ref<WorkDocumentInspection | null>(null)
 const editableData = ref<EditableData>({})
 const editableAssets = ref<WorkDocumentAsset[]>([])
+const editorUploading = ref(false)
 const editSnapshot = ref('')
 const $q = useQuasar()
 function cloneEntryData(): EditableData { return JSON.parse(JSON.stringify(props.entry?.data ?? {})) as EditableData }
 function cloneEntryAssets() { return (props.entry?.linkedAssets ?? []).map(asset => ({ ...asset })) }
 function snapshot(value: EditableData): string { return JSON.stringify({ data: value, assets: editableAssets.value.map(a => a.id) }) }
 const isEditDirty = computed(() => editing.value && (!!inspection.value || snapshot(editableData.value) !== editSnapshot.value))
+const hasImportedExtraContent = computed(() => {
+  if (!editing.value) return false
+  const section = props.sections.find((item) => item.title.replaceAll(' ', '') === '가져온추가내용')
+  if (!section) return false
+  const stored = editableData.value[section.title]
+  const rows = Array.isArray(stored) ? stored : stored ? [stored] : []
+  return rows.some((row) => {
+    if (!row || typeof row !== 'object') return false
+    return Object.entries(row).some(([key, value]) =>
+      !key.endsWith('__format') && typeof value === 'string' && value.trim().length > 0,
+    )
+  })
+})
 function startEdit() {
   inspection.value = null
+  editorUploading.value = false
   editableData.value = cloneEntryData()
   editableAssets.value = cloneEntryAssets()
   editSnapshot.value = snapshot(editableData.value)
   editing.value = true
 }
+function requestSave(): void {
+  if (hasImportedExtraContent.value) {
+    $q.notify({ type: 'warning', message: '가져온 내용 중 양식에 반영되지 않은 항목이 남아 있습니다. 필요한 내용은 해당 항목에 옮겨 작성한 뒤, 남은 미반영 내용만 정리하면 저장할 수 있습니다.', timeout: 10000 })
+    return
+  }
+  emit('save', editableData.value, props.linkAssets ? editableAssets.value.map(asset => asset.id) : undefined, inspection.value)
+}
 function discardEdit() {
   inspection.value = null
+  editorUploading.value = false
   editableData.value = cloneEntryData()
   editableAssets.value = cloneEntryAssets()
   editSnapshot.value = snapshot(editableData.value)
@@ -243,6 +287,49 @@ const markdown = computed(() => withoutDocumentTitle(formEntryMarkdown(
   props.entry?.data ?? {},
   window.location.origin,
 )))
+type ImportedExtraPanels = { index: number; base: string; original: string; mapping: string }
+function normalizedHeading(value: string): string {
+  return value.replace(/[\s*_`~]/g, '').toLocaleLowerCase()
+}
+function markdownSectionBody(source: string, headings: RegExpMatchArray[], index: number): string {
+  const current = headings[index]
+  if (!current || current.index == null) return ''
+  const start = current.index + current[0].length
+  const next = headings[index + 1]
+  const end = next?.index ?? source.length
+  return source.slice(start, end).trim()
+}
+const importedExtraPanels = computed<ImportedExtraPanels | null>(() => {
+  const source = markdown.value
+  const headingPattern = /^##\s+([^\n]+?)\s*$/gm
+  const headings = [...source.matchAll(headingPattern)]
+  const extraIndex = headings.findIndex((heading) => normalizedHeading(heading[1] ?? '') === '가져온추가내용')
+  const extraSection = props.sections.findIndex((section) => normalizedHeading(section.title) === '가져온추가내용')
+  if (extraSection < 0) return null
+
+  const storedExtra = props.entry?.data[props.sections[extraSection]?.title ?? '']
+  const storedRows = Array.isArray(storedExtra) ? storedExtra : storedExtra ? [storedExtra] : []
+  const rawExtra = storedRows.map((row) => {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) return ''
+    const record = row as Record<string, unknown>
+    const value = record['내용'] ?? record['문서 본문'] ?? Object.values(record).find((item) => typeof item === 'string')
+    return typeof value === 'string' ? value : ''
+  }).filter(Boolean).join('\n\n').trim()
+
+  const extraHeading = extraIndex >= 0 ? headings[extraIndex] : undefined
+  const base = extraHeading?.index != null ? source.slice(0, extraHeading.index).trim() : source
+  // The imported-extra block may contain its own level-two headings
+  // ("원본 내용" and "매핑 확인"), so it extends to the end of the document.
+  const generatedExtra = extraHeading ? source.slice(extraHeading.index + extraHeading[0].length).trim() : ''
+  const extraSource = rawExtra || generatedExtra
+  if (!extraSource) return null
+  const extraHeadings = [...extraSource.matchAll(headingPattern)]
+  const originalIndex = extraHeadings.findIndex((heading) => normalizedHeading(heading[1] ?? '') === '원본내용')
+  const mappingIndex = extraHeadings.findIndex((heading) => normalizedHeading(heading[1] ?? '') === '매핑확인')
+  const original = originalIndex >= 0 ? markdownSectionBody(extraSource, extraHeadings, originalIndex) : extraSource
+  const mapping = mappingIndex >= 0 ? markdownSectionBody(extraSource, extraHeadings, mappingIndex) : ''
+  return { index: extraSection, base, original, mapping }
+})
 function displaySectionTitle(section: FormSection): string {
   const normalized = section.title.replace(/\s/g, '')
   if (normalized === '기본정보') return '작업 개요'
@@ -256,6 +343,7 @@ const originalDownloadLabel = '원본 파일 다운로드'
 watch(() => [props.modelValue, props.entry?.id, props.entry?.version, props.loading, props.creating], () => {
   if (props.modelValue && editing.value && props.saveWarning) return
   inspection.value = null
+  editorUploading.value = false
   view.value = 'markdown'
   editing.value = Boolean(props.creating && props.modelValue && props.entry)
   editableData.value = cloneEntryData()
@@ -264,7 +352,10 @@ watch(() => [props.modelValue, props.entry?.id, props.entry?.version, props.load
 })
 function isWorkTable(section: FormSection): boolean {
   const title = section.title.replace(/\s/g, '')
-  return isWorkTarget(section) || (['작업내용', '개발내용', '세부작업내용'].includes(title) && section.fields.length > 1)
+  return isIncidentTimeline(section) || isWorkTarget(section) || (['작업내용', '개발내용', '세부작업내용'].includes(title) && section.fields.length > 1)
+}
+function isIncidentTimeline(section: FormSection): boolean {
+  return section.title.replace(/\s/g, '') === '발생경과및조치사항'
 }
 function isWorkTarget(section: FormSection): boolean { return section.title.replace(/\s/g, '') === '작업대상' }
 function isDevelopmentImage(field: FormField): boolean {
@@ -288,7 +379,7 @@ function tableFields(section: FormSection): FormField[] {
   ordered.splice(hostnameIndex >= 0 ? hostnameIndex + 1 : ordered.length, 0, note)
   return ordered
 }
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; save: [value: EditableData, assetIds?: string[], inspection?: WorkDocumentInspection | null]; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': []; retry: [] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; save: [value: EditableData, assetIds?: string[], inspection?: WorkDocumentInspection | null]; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': []; 'show-import-warnings': []; retry: [] }>()
 const scrollArea = ref<HTMLElement | null>(null)
 const activeSection = ref(0)
 const previewSource = ref('')
@@ -300,10 +391,25 @@ function sectionRows(section: FormSection): DocumentRow[] {
   return Array.isArray(value) ? value.map(asRecord) : value ? [asRecord(value)] : []
 }
 function displayValue(value: unknown): string {
-  if (value == null || value === '') return '—'
+  if (value == null || value === '') return '-'
   if (typeof value === 'boolean') return value ? '예' : '아니오'
   if (typeof value === 'number' || typeof value === 'string') return String(value)
   return Array.isArray(value) ? value.map(displayValue).join('\n') : JSON.stringify(value)
+}
+function isCompletionField(field: FormField): boolean {
+  const label = field.label.replace(/[\s*_()[\]{}:：/\\-]/g, '')
+  return label === '완료여부' || (label.includes('완료') && label.includes('여부'))
+}
+function completionChoice(value: unknown): boolean | null {
+  if (value === true || value === false) return value
+  if (typeof value !== 'string') return null
+  if (value === 'true' || value === '성공' || value === '예') return true
+  if (value === 'false' || value === '실패' || value === '아니오') return false
+  return null
+}
+function displayFieldValue(value: unknown, field: FormField): string {
+  const choice = isCompletionField(field) ? completionChoice(value) : null
+  return choice === null ? displayValue(value) : (choice ? '성공' : '실패')
 }
 function isEmpty(value: unknown) { return value == null || value === '' || (Array.isArray(value) && !value.length) }
 function images(value: unknown): string[] { return (Array.isArray(value) ? value : [value]).filter((item): item is string => typeof item === 'string' && !!item.trim()) }
@@ -366,4 +472,9 @@ watch(() => [props.modelValue, props.entry?.id, props.loading], async () => {
 .document-save-warning { display: flex; gap: 8px; padding: 12px; margin-bottom: 16px; border-radius: 8px; background: #fff4de; color: #775521; font-size: 13px; line-height: 1.7; }
 .document-save-warning .q-icon { flex-shrink: 0; margin-top: 2px; }
 .document-inspection-link { display: flex; justify-content: flex-end; margin: 0 0 12px; }
+.imported-extra-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.imported-extra-panel { min-width: 0; padding: 18px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }
+.imported-extra-panel h3 { margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #94a3b8; font-size: 16px; font-weight: 700; text-align: center; }
+.imported-extra-panel:last-child h3 { border-bottom-color: var(--q-primary); color: var(--q-primary); }
+.imported-extra-panel :deep(.work-result-content) { font-size: 13px; }
 </style>

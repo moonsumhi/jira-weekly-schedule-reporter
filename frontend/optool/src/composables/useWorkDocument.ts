@@ -4,7 +4,7 @@ import { api } from 'src/boot/axios'
 import type { FormEntry } from 'src/services/formEntries'
 import type { FormTemplate, FormSection } from 'src/services/formTemplates'
 import { downloadAttachment } from 'src/utils/attachment'
-import { formEntryMarkdown, markdownFileName, hasOriginalForm, synchronizedDocument } from 'src/utils/formEntryMarkdown'
+import { formEntryMarkdown, hasOriginalForm, synchronizedDocument } from 'src/utils/formEntryMarkdown'
 
 export type WorkDocumentData = Record<string, Record<string, unknown> | Record<string, unknown>[]>
 
@@ -111,7 +111,7 @@ export function useWorkDocumentExport(
     return dateYear && dateMonth && dateDay ? `${dateYear}-${dateMonth}-${dateDay}` : ''
   }
 
-  function exportDocumentFileName(format: 'hwp' | 'docx'): string {
+  function exportDocumentFileName(format: 'hwp' | 'docx' | 'md'): string {
     const templateName = template.value?.title || '작업템플릿'
     const serviceName = detailValueForLabels(['서비스 명', '서비스명']) || '서비스'
     const workDate = detailValueForLabels(['작업 일시', '작업 기간 (시작)', '작업기간 시작'])
@@ -168,7 +168,7 @@ export function useWorkDocumentExport(
     if (detailLoading.value || !detailRow.value || !template.value) return
     const title = template.value.title
     const markdown = formEntryMarkdown(title, sections.value, detailRow.value.data, window.location.origin)
-    const result = exportFile(markdownFileName(title, detailRow.value.id), markdown, 'text/markdown;charset=utf-8')
+    const result = exportFile(exportDocumentFileName('md'), markdown, 'text/markdown;charset=utf-8')
     if (result !== true) {
       $q.notify({ type: 'negative', message: '파일을 내려받지 못했습니다. 브라우저의 다운로드 설정을 확인해 주세요.' })
     }

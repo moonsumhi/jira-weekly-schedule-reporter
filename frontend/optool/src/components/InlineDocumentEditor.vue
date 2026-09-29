@@ -1,9 +1,20 @@
 <template>
-  <div ref="editorRoot" class="inline-editor" @keydown="handleKeydown">
+  <div ref="editorRoot" class="inline-editor" @keydown.capture="handleKeydown">
   <section v-for="(section, sectionIndex) in sections" :key="section.title" :data-section-index="sectionIndex" class="inline-section">
     <h2>{{ displaySectionTitle(section) }}</h2>
 
-    <div class="inline-table-scroll">
+    <div v-if="isImportedExtraSection(section)" class="imported-extra-editor-columns">
+      <article class="imported-extra-editor-panel">
+        <h3>원본 확인</h3>
+        <MarkdownEditor
+          :model-value="importedExtraPanels(section).original"
+          placeholder="원본 내용"
+          @uploading="setImportedExtraUploading('original', $event)"
+          @update:model-value="updateImportedExtraPanel(section, 'original', $event)"
+        />
+      </article>
+    </div>
+    <div v-else :class="['inline-table-scroll', { 'incident-table-scroll': section.multiple && isIncidentTimeline(section) }]">
       <table v-if="section.multiple">
         <thead>
           <tr><th class="number-cell">No.</th><th v-for="field in visibleFields(section)" :key="field.label">{{ field.label }}</th><th class="action-cell" /></tr>
@@ -15,16 +26,25 @@
               :class="{ 'editor-cell': row[`${field.label}__format`] === 'markdown' }"
               tabindex="0" @paste="pasteCellImage(section, rowIndex, field, $event)">
               <q-select v-if="field.type === 'select'" :model-value="row[field.label]" :options="field.options ?? []" borderless dense options-dense @update:model-value="updateField(row, field.label, $event)" />
-              <q-checkbox v-else-if="field.type === 'boolean'" :model-value="Boolean(row[field.label])" dense @update:model-value="updateField(row, field.label, $event)" />
+              <q-option-group v-else-if="isBooleanField(field) && isCompletionField(field)"
+                :model-value="completionChoice(row[field.label])" :options="completionOptions" type="radio" inline dense
+                @update:model-value="updateField(row, field.label, $event)" />
+              <q-checkbox v-else-if="isBooleanField(field)" :model-value="Boolean(row[field.label])" dense @update:model-value="updateField(row, field.label, $event)" />
               <div v-else-if="field.type === 'image'" class="image-cell">
                 <img v-for="(src, imageIndex) in imageValues(row[field.label])" :key="imageIndex" :src="src" :alt="field.label" />
                 <span v-if="!imageValues(row[field.label]).length" class="paste-hint">이미지를 붙여넣을 수 있습니다.</span>
               </div>
-              <MarkdownEditor v-else-if="row[`${field.label}__format`] === 'markdown'"
+              <MarkdownEditor v-else-if="isMarkdownEditor(field, row)"
                 :model-value="scalarValue(row[field.label])?.toString() ?? ''"
                 :placeholder="`${field.label}`"
                 @update:model-value="updateField(row, field.label, $event)" />
               <div v-else class="content-cell">
+                <q-btn
+                  v-if="canUseRichEditor(field)"
+                  flat dense no-caps color="primary" icon="table_chart"
+                  label="표/이미지 입력" class="rich-editor-button"
+                  @click="enableMarkdownEditor(row, field.label)"
+                />
                 <q-input :model-value="scalarValue(row[field.label])" borderless dense autogrow :type="inputType(field)" :placeholder="`${field.label} 입력`" @update:model-value="updateField(row, field.label, $event ?? '')" />
               </div>
             </td>
@@ -42,16 +62,25 @@
             <td :class="{ 'editor-cell': record(section)[`${field.label}__format`] === 'markdown' }"
               tabindex="0" @paste="pasteCellImage(section, 0, field, $event)">
               <q-select v-if="field.type === 'select'" :model-value="record(section)[field.label]" :options="field.options ?? []" borderless dense options-dense @update:model-value="updateField(record(section), field.label, $event)" />
-              <q-checkbox v-else-if="field.type === 'boolean'" :model-value="Boolean(record(section)[field.label])" dense @update:model-value="updateField(record(section), field.label, $event)" />
+              <q-option-group v-else-if="isBooleanField(field) && isCompletionField(field)"
+                :model-value="completionChoice(record(section)[field.label])" :options="completionOptions" type="radio" inline dense
+                @update:model-value="updateField(record(section), field.label, $event)" />
+              <q-checkbox v-else-if="isBooleanField(field)" :model-value="Boolean(record(section)[field.label])" dense @update:model-value="updateField(record(section), field.label, $event)" />
               <div v-else-if="field.type === 'image'" class="image-cell">
                 <img v-for="(src, imageIndex) in imageValues(record(section)[field.label])" :key="imageIndex" :src="src" :alt="field.label" />
                 <span v-if="!imageValues(record(section)[field.label]).length" class="paste-hint">이미지를 붙여넣을 수 있습니다.</span>
               </div>
-              <MarkdownEditor v-else-if="record(section)[`${field.label}__format`] === 'markdown'"
+              <MarkdownEditor v-else-if="isMarkdownEditor(field, record(section))"
                 :model-value="scalarValue(record(section)[field.label])?.toString() ?? ''"
                 :placeholder="`${field.label}`"
                 @update:model-value="updateField(record(section), field.label, $event)" />
               <div v-else class="content-cell">
+                <q-btn
+                  v-if="canUseRichEditor(field)"
+                  flat dense no-caps color="primary" icon="table_chart"
+                  label="표/이미지 입력" class="rich-editor-button"
+                  @click="enableMarkdownEditor(record(section), field.label)"
+                />
                 <q-input :model-value="scalarValue(record(section)[field.label])" borderless dense autogrow :type="inputType(field)" :placeholder="`${field.label} 입력`" @update:model-value="updateField(record(section), field.label, $event ?? '')" />
               </div>
             </td>
@@ -73,11 +102,17 @@ type Row = Record<string, unknown>
 type FormData = Record<string, Row | Row[]>
 defineProps<{ sections: FormSection[] }>()
 const model = defineModel<FormData>({ required: true })
+const emit = defineEmits<{ uploading: [value: boolean] }>()
+const completionOptions = [
+  { label: '성공', value: true },
+  { label: '실패', value: false },
+]
 const editorRoot = ref<HTMLElement | null>(null)
 const undoHistory: FormData[] = []
 const redoHistory: FormData[] = []
 let editorHeightFrame: number | null = null
 let layoutObserver: ResizeObserver | null = null
+let contentObserver: MutationObserver | null = null
 
 function syncEditorHeights() {
   const root = editorRoot.value
@@ -96,7 +131,15 @@ function syncEditorHeights() {
 
     cells.forEach(cell => cell.style.removeProperty('--editor-row-height'))
     editors.forEach(editor => editor.style.setProperty('height', 'auto', 'important'))
-    const maxHeight = Math.max(...editors.map(editor => editor.getBoundingClientRect().height))
+    // Toast UI updates the contenteditable DOM after its Vue model event. Measure
+    // the content area as well as the editor shell so the longer side wins even
+    // when the editor was previously constrained to the shorter row height.
+    const editorHeights = editors.map((editor) => {
+      const content = editor.querySelector<HTMLElement>('.toastui-editor-contents, .ProseMirror')
+      const contentHeight = content?.scrollHeight ?? 0
+      return Math.max(editor.getBoundingClientRect().height, editor.scrollHeight, contentHeight)
+    })
+    const maxHeight = Math.max(...editorHeights)
     if (!Number.isFinite(maxHeight) || maxHeight <= 0) continue
     const rowHeight = `${Math.ceil(maxHeight)}px`
     cells.forEach(cell => cell.style.setProperty('--editor-row-height', rowHeight))
@@ -107,8 +150,12 @@ function syncEditorHeights() {
 function queueEditorHeightSync() {
   if (editorHeightFrame !== null) cancelAnimationFrame(editorHeightFrame)
   editorHeightFrame = requestAnimationFrame(() => {
-    editorHeightFrame = null
-    syncEditorHeights()
+    // The editor emits its change event before ProseMirror has painted the new
+    // paragraph/image. A second frame makes the measurement deterministic.
+    editorHeightFrame = requestAnimationFrame(() => {
+      editorHeightFrame = null
+      syncEditorHeights()
+    })
   })
 }
 function snapshot(): FormData { return JSON.parse(JSON.stringify(model.value)) as FormData }
@@ -121,6 +168,20 @@ function updateField(target: Row, field: string, value: unknown) {
   if (target[field] === value) return
   checkpoint()
   target[field] = value
+}
+function isCompletionField(field: FormField): boolean {
+  const label = field.label.replace(/[\s*_()[\]{}:：/\\-]/g, '')
+  return label === '완료여부' || (label.includes('완료') && label.includes('여부'))
+}
+function isBooleanField(field: FormField): boolean {
+  return field.type === 'boolean' || field.type === 'checkbox'
+}
+function completionChoice(value: unknown): boolean | null {
+  if (value === true || value === false) return value
+  if (typeof value !== 'string') return null
+  if (value === 'true' || value === '성공' || value === '예') return true
+  if (value === 'false' || value === '실패' || value === '아니오') return false
+  return null
 }
 function undo() {
   const previous = undoHistory.pop()
@@ -137,11 +198,15 @@ function redo() {
 function handleKeydown(event: KeyboardEvent) {
   if (!event.ctrlKey || event.key.toLowerCase() !== 'z') return
   event.preventDefault()
+  event.stopPropagation()
   if (event.shiftKey) redo()
   else undo()
 }
 
 function normalized(value: string) { return value.replace(/\s/g, '') }
+function isIncidentTimeline(section: FormSection): boolean {
+  return normalized(section.title) === '\uBC1C\uC0DD\uACBD\uACFC\uBC0F\uC870\uCE58\uC0AC\uD56D'
+}
 function displaySectionTitle(section: FormSection) {
   if (normalized(section.title) === '기본정보') return '작업 개요'
   if (normalized(section.title) === '작업시간표') return '세부 작업 절차'
@@ -152,6 +217,71 @@ function displaySectionTitle(section: FormSection) {
 function visibleFields(section: FormSection) {
   const hiddenFields = new Set(['개발이미지', '작업전사진', '작업후사진'])
   return section.fields.filter(field => !hiddenFields.has(normalized(field.label)))
+}
+function canUseRichEditor(field: FormField): boolean {
+  return field.type === 'textarea' || field.type === 'markdown' || field.fullWidth === true
+}
+function isMarkdownEditor(field: FormField, target: Row): boolean {
+  return field.type === 'markdown' || target[`${field.label}__format`] === 'markdown'
+}
+function enableMarkdownEditor(target: Row, field: string): void {
+  if (target[`${field}__format`] === 'markdown') return
+  checkpoint()
+  target[field] = scalarValue(target[field]) ?? ''
+  target[`${field}__format`] = 'markdown'
+}
+function isImportedExtraSection(section: FormSection): boolean {
+  return normalized(section.title) === '가져온추가내용'
+}
+type ImportedExtraPanel = 'original' | 'mapping'
+const pendingImportedUploads = ref(new Set<ImportedExtraPanel>())
+function setImportedExtraUploading(panel: ImportedExtraPanel, uploading: boolean): void {
+  const next = new Set(pendingImportedUploads.value)
+  if (uploading) next.add(panel)
+  else next.delete(panel)
+  pendingImportedUploads.value = next
+  emit('uploading', next.size > 0)
+}
+function importedExtraField(section: FormSection): string {
+  return section.fields.find(field => normalized(field.label) === '내용')?.label ?? section.fields[0]?.label ?? '내용'
+}
+function importedExtraRaw(section: FormSection): string {
+  const value = model.value[section.title]
+  const rowsArr = Array.isArray(value) ? value : value ? [value] : []
+  const field = importedExtraField(section)
+  return rowsArr.map(row => scalarValue(row[field]) ?? '').filter(Boolean).join('\n\n')
+}
+function importedExtraPanels(section: FormSection): { original: string; mapping: string } {
+  const source = importedExtraRaw(section)
+  const headings = [...source.matchAll(/^##\s+([^\n]+?)\s*$/gm)]
+  const normalizedHeading = (value: string) => value.replace(/[\s*_`~]/g, '').toLocaleLowerCase()
+  const body = (index: number) => {
+    const current = headings[index]
+    if (!current || current.index == null) return ''
+    const end = headings[index + 1]?.index ?? source.length
+    return source.slice(current.index + current[0].length, end).trim()
+  }
+  const originalIndex = headings.findIndex(heading => normalizedHeading(heading[1] ?? '') === '원본내용')
+  const mappingIndex = headings.findIndex(heading => normalizedHeading(heading[1] ?? '') === '매핑확인')
+  if (originalIndex < 0 && mappingIndex < 0) return { original: source, mapping: '' }
+  return {
+    original: originalIndex >= 0 ? body(originalIndex) : '',
+    mapping: mappingIndex >= 0 ? body(mappingIndex) : '',
+  }
+}
+function updateImportedExtraPanel(section: FormSection, panel: ImportedExtraPanel, value: string): void {
+  const rowsArr = rows(section)
+  const target = rowsArr[0] ?? {}
+  if (!rowsArr.length) rowsArr.push(target)
+  const original = panel === 'original' ? value : importedExtraPanels(section).original
+  checkpoint()
+  if (!original.trim()) {
+    delete model.value[section.title]
+    return
+  }
+  if (rowsArr.length > 1) rowsArr.splice(1)
+  target[importedExtraField(section)] = '## 원본 내용\n\n' + original.trim()
+  target[importedExtraField(section) + '__format'] = 'markdown'
 }
 function record(section: FormSection): Row {
   const value = model.value[section.title]
@@ -266,13 +396,19 @@ onMounted(async () => {
   if (editorRoot.value) {
     layoutObserver = new ResizeObserver(queueEditorHeightSync)
     layoutObserver.observe(editorRoot.value)
+    contentObserver = new MutationObserver(queueEditorHeightSync)
+    contentObserver.observe(editorRoot.value, { childList: true, characterData: true, subtree: true })
   }
 })
 
 onBeforeUnmount(() => {
+  pendingImportedUploads.value = new Set()
+  emit('uploading', false)
   window.removeEventListener('resize', queueEditorHeightSync)
   layoutObserver?.disconnect()
   layoutObserver = null
+  contentObserver?.disconnect()
+  contentObserver = null
   if (editorHeightFrame !== null) cancelAnimationFrame(editorHeightFrame)
   editorHeightFrame = null
 })
@@ -280,11 +416,21 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .inline-section { margin: 0 0 32px; scroll-margin-top: 28px; }
-.inline-editor { min-width: 0; }
+.inline-editor { width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden; }
 .inline-section h2 { margin: 32px 0 14px; font-size: 24px; line-height: 1.45; text-align: center; font-weight: 700; }
-.inline-table-scroll { width: 100%; overflow-x: auto; margin: 16px 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; }
-table { width: 100%; min-width: 100%; border-collapse: collapse; table-layout: auto; }
-th, td { min-width: 0; border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; overflow-wrap: anywhere; }
+.inline-editor { width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden; }
+.inline-section h2 { margin: 32px 0 14px; font-size: 24px; line-height: 1.45; text-align: center; font-weight: 700; }
+.inline-table-scroll { width: 100%; max-width: 100%; overflow-x: hidden; overflow-y: visible; margin: 16px 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.imported-extra-editor-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin: 16px 0 10px; }
+.imported-extra-editor-panel { min-width: 0; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+.imported-extra-editor-panel h3 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #94a3b8; font-size: 15px; text-align: center; }
+.imported-extra-editor-panel:last-child h3 { border-bottom-color: var(--q-primary); color: var(--q-primary); }
+table { width: 100%; max-width: 100%; min-width: 0; border-collapse: collapse; table-layout: auto; }
+.incident-table-scroll > table { table-layout: fixed; }
+.incident-table-scroll > table th.number-cell, .incident-table-scroll > table td.number-cell { width: 6%; }
+.incident-table-scroll > table th:nth-child(2), .incident-table-scroll > table td:nth-child(2) { width: 10%; }
+.incident-table-scroll > table th:nth-child(3), .incident-table-scroll > table td:nth-child(3) { width: 84%; }
+th, td { min-width: 0; max-width: 100%; border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; overflow-wrap: anywhere; }
 thead th { background: #64748b0d; font-weight: 600; text-align: center; padding: 12px 16px; }
 .label-column { width: 36%; }.field-label { width: 36%; text-align: left; font-weight: 400; }
 .number-cell { width: 6%; text-align: center; }.action-cell { width: 42px; padding: 4px; text-align: center; }
@@ -294,7 +440,15 @@ thead th { background: #64748b0d; font-weight: 600; text-align: center; padding:
 :deep(textarea.q-field__native) { resize: vertical; }
 .image-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .image-cell img { display: block; max-width: 240px; max-height: 180px; object-fit: contain; border-radius: 6px; }
-.content-cell { min-width: 160px; }
+.inline-editor { width: 100%; max-width: 100%; min-width: 0; overflow-x: hidden; }
+.inline-section h2 { margin: 32px 0 14px; font-size: 24px; line-height: 1.45; text-align: center; font-weight: 700; }
+.inline-table-scroll { width: 100%; max-width: 100%; overflow-x: hidden; overflow-y: visible; margin: 16px 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.imported-extra-editor-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin: 16px 0 10px; }
+.imported-extra-editor-panel { min-width: 0; padding: 14px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+.imported-extra-editor-panel h3 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #94a3b8; font-size: 15px; text-align: center; }
+.imported-extra-editor-panel:last-child h3 { border-bottom-color: var(--q-primary); color: var(--q-primary); }
+table { width: 100%; max-width: 100%; min-width: 0; border-collapse: collapse; table-layout: auto; }
+th, td { min-width: 0; max-width: 100%; border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; overflow-wrap: anywhere; }
 .paste-hint { color: #94a3b8; font-size: 12px; }
 td:focus-visible { outline: 2px solid var(--q-primary); outline-offset: -2px; }
 
@@ -308,6 +462,13 @@ td:focus-visible { outline: 2px solid var(--q-primary); outline-offset: -2px; }
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
+}
+.inline-table-scroll :deep(.toastui-editor-main),
+.inline-table-scroll :deep(.toastui-editor-main-container),
+.inline-table-scroll :deep(.toastui-editor-ww-container),
+.inline-table-scroll :deep(.toastui-editor-contents) {
+  height: auto;
+  overflow: visible;
 }
 .inline-table-scroll :deep(.toastui-editor-defaultUI-toolbar) {
   display: flex;
@@ -325,6 +486,19 @@ td:focus-visible { outline: 2px solid var(--q-primary); outline-offset: -2px; }
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: break-word;
+  white-space: pre-wrap;
+}
+.inline-table-scroll :deep(.toastui-editor-contents table) {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+}
+.inline-table-scroll :deep(.toastui-editor-contents th),
+.inline-table-scroll :deep(.toastui-editor-contents td) {
+  min-width: 0;
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .inline-table-scroll td.editor-cell { vertical-align: stretch; }
 .inline-table-scroll td.editor-cell > div {

@@ -30,6 +30,22 @@ class OriginalFormImportTests(unittest.TestCase):
         self.assertEqual([r['IP'] for r in data['작업 대상']], ['첫번째', '두번째'])
         self.assertIn('보존', data[EXTRA][0]['내용'])
 
+    def test_unmapped_locations_are_listed_before_preserved_content(self):
+        sections = [{'title': '작업 대상', 'multiple': True, 'fields': [{'label': 'IP', 'type': 'text'}]}]
+        markdown = '''## 작업 대상
+
+| IP | HOSTNAME |
+| --- | --- |
+| 10.0.0.1 | web01 |'''
+        data, warnings = map_document(markdown, sections)
+        content = data[EXTRA][0]['내용']
+        self.assertIn('## 매핑 확인', content)
+        self.assertIn('| 작업 대상 | HOSTNAME |', content)
+        self.assertIn('| 작업 대상 | HOSTNAME | web01 |', content)
+        self.assertIn('표의 열 제목에 대응하는 템플릿 필드를 찾지 못함', content)
+        self.assertIn('## 원본 내용', content)
+        self.assertIn('매핑 실패 위치 1건', warnings[0])
+
     def test_legacy_review_and_test_titles_map_to_current_sections(self):
         sections = [
             {'title': '검토의견', 'fields': [{'label': '성함/직책', 'type': 'text'}]},

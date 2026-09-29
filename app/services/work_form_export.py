@@ -44,6 +44,11 @@ def original_form_markup(form: dict) -> str:
                 return [16, 30, 22, 32]
             return [18, 32, 18, 32] if columns == 4 else [22, 78]
         title = section.get('title', '').replace(' ', '')
+        if title == '발생경과및조치사항':
+            # 장애보고서의 경과 표도 작업계획서와 같은 No. 기준 폭을 사용한다.
+            if columns == 3:
+                return [6, 10, 84]
+            return [6] + [94 / max(columns - 1, 1)] * (columns - 1)
         if title == '작업대상' and columns == 5:
             return [6, 27, 24, 27, 16]
         if title in {'백업및복구방법', '백업및복구방안'} and columns == 3:
