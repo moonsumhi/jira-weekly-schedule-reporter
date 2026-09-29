@@ -58,7 +58,7 @@
         <!-- MENU AREA -->
         <q-scroll-area class="col">
           <q-list>
-            <q-item-label header class="cursor-pointer" @click="$router.push('/app')">데이터운영팀</q-item-label>
+            <q-item-label header class="cursor-pointer" @click="goHome">데이터운영팀</q-item-label>
 
             <!-- 모든 메뉴를 sortOrder 순서대로 렌더링 -->
             <template v-for="menu in sortedVisibleMenus" :key="menu.id">
@@ -293,6 +293,7 @@ import type { MenuOut } from 'src/services/menus'
 import { useQuasar } from 'quasar'
 import { fetchLinks, createLink, patchLink, deleteLink, type Link } from 'src/services/links'
 import { SLUG_PERM } from 'src/constants/menuPermissions'
+import { api } from 'boot/axios'
 
 const auth = useAuthStore()
 const menuStore = useMenuStore()
@@ -303,6 +304,22 @@ const $q = useQuasar()
 const { sidebarMenus, sidebarBoards, templateItems } = storeToRefs(menuStore)
 const router = useRouter()
 const route = useRoute()
+
+function recordHomeVisit() {
+  void api.get('/auth/home-ping')
+}
+
+function goHome() {
+  if (route.name === 'app-home') {
+    recordHomeVisit()
+    return
+  }
+  void router.push({ name: 'app-home' })
+}
+
+watch(() => route.name, (name) => {
+  if (name === 'app-home') recordHomeVisit()
+}, { immediate: true })
 
 function hasPerm(perm: string): boolean {
   if (auth.me?.isAdmin) return true
