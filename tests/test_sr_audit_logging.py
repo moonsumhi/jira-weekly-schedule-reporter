@@ -98,6 +98,16 @@ class ActivityTests(unittest.IsolatedAsyncioTestCase):
                 await self.log("GET", "/pm/projects/abc/issues/def/history")
         self.assertEqual(col.insert_one.await_count, 2)
 
+    def test_dashboard_watch_fetch_is_not_timetable_page_view(self):
+        self.assertIsNone(activity._match_page("/watch", {"start": "2026-09-29T00:00:00Z", "end": "2026-09-30T00:00:00Z"}))
+        self.assertEqual(activity._match_page("/watch", {"include_deleted": "false"}), "당직 시간표")
+        self.assertEqual(activity._match_page("/auth/home-ping", {}), "메인 페이지")
+        self.assertEqual(activity._match_page("/admin/audit-log/ping", {}), "Audit Log")
+        self.assertEqual(activity._business_category("/form-entries/entry-id"), "작업 관리")
+        self.assertEqual(activity._business_category("/watch/assignment-id"), "당직 시간표")
+        self.assertEqual(activity._business_category("/boards/board-id/posts"), "게시판")
+        self.assertEqual(activity._business_category("/admin/users/user-id"), "회원 관리")
+
 
 class SrHistoryTests(unittest.IsolatedAsyncioTestCase):
     async def test_requester_and_admin_record_previously_omitted_fields(self):

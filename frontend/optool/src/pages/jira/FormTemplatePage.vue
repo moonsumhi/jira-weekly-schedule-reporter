@@ -1062,7 +1062,7 @@ async function handleFileImport(event: Event) {
         warnings: string[]
         mappingWarnings?: ImportMappingWarning[]
         originalFile?: OriginalFile | null
-      }>('/form-entries/import-form', body)
+      }>('/form-entries/import-form', body, { params: { template_id: targetTemplate.id } })
       if (request !== pageRequest) return
       template.value = targetTemplate
       importWarnings.value = data.mappingWarnings ?? []

@@ -307,6 +307,19 @@ const categoryOptions = [
   { label: '활동', value: '활동' },
   { label: 'SR', value: 'SR' },
   { label: '스케줄 관리', value: '스케줄 관리' },
+  { label: '작업 관리', value: '작업 관리' },
+  { label: '작업계획서(서비스)', value: '작업계획서(서비스)' },
+  { label: '작업계획서(서비스외)', value: '작업계획서(서비스외)' },
+  { label: '작업결과서', value: '작업결과서' },
+  { label: '반입신청서', value: '반입신청서' },
+  { label: '장애보고서', value: '장애보고서' },
+  { label: '당직 시간표', value: '당직 시간표' },
+  { label: '게시판', value: '게시판' },
+  { label: '메뉴 관리', value: '메뉴 관리' },
+  { label: '회원 관리', value: '회원 관리' },
+  { label: '자산 관리', value: '자산 관리' },
+  { label: '관리자 설정', value: '관리자 설정' },
+  { label: '서버실 점검', value: '서버실 점검' },
 ]
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
@@ -340,6 +353,11 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function recordAuditLogVisit() {
+  await api.get('/admin/audit-log/ping')
+  await load()
 }
 
 async function doExport() {
@@ -423,7 +441,7 @@ function categoryColor(cat: string): string {
 
 onMounted(() => {
   void loadActors()
-  void load()
+  void recordAuditLogVisit()
 })
 </script>
 

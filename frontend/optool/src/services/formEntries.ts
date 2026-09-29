@@ -110,7 +110,7 @@ export const formEntryService = {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('template_id', templateId)
-    const { data } = await api.post<ImportResult>('/form-entries/import', formData)
+    const { data } = await api.post<ImportResult>('/form-entries/import', formData, { params: { template_id: templateId } })
     return data
   },
 }

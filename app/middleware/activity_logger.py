@@ -9,6 +9,7 @@ import re
 from datetime import datetime, timezone, timedelta
 from typing import Any, Optional
 
+from bson import ObjectId
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -24,7 +25,81 @@ def _business_category(path: str) -> Optional[str]:
         return "SR"
     if re.match(r"^/pm(?:/|$)", path):
         return "스케줄 관리"
+    if re.match(r"^/watch(?:/|$)", path):
+        return "당직 시간표"
+    if re.match(r"^/(?:form-entries|form-templates|job|job-result|job-non-service)(?:/|$)", path):
+        return "작업 관리"
+    if re.match(r"^/(?:inspection|inspection-tasks|inspection-resources|monthly-inspection-reports|health-reports)(?:/|$)", path):
+        return "서버실 점검"
+    if re.match(r"^/boards(?:/|$)", path):
+        return "게시판"
+    if re.match(r"^/menus(?:/|$)", path):
+        return "메뉴 관리"
+    if re.match(r"^/admin/users(?:/|$)", path):
+        return "회원 관리"
+    if re.match(r"^/assets(?:/|$)", path):
+        return "자산 관리"
+    if re.match(r"^/(?:settings|env-categories|links|ddays|notices|branding)(?:/|$)", path):
+        return "관리자 설정"
     return None
+
+
+def _work_document_category(title: str | None) -> str:
+    normalized = re.sub(r"\s+", "", title or "")
+    if normalized.startswith("작업계획서(서비스외)") or normalized.startswith("작업계획서(비서비스)"):
+        return "작업계획서(서비스외)"
+    if normalized.startswith("작업계획서(서비스)"):
+        return "작업계획서(서비스)"
+    if normalized.startswith("작업결과서"):
+        return "작업결과서"
+    if normalized.startswith("반입신청서"):
+        return "반입신청서"
+    if normalized.startswith("장애보고서"):
+        return "장애보고서"
+    return title.strip() if title and title.strip() else "작업 관리"
+
+
+async def _resolve_business_category(
+    path: str,
+    query_params: dict[str, str],
+    payload: Any,
+    fallback: Optional[str],
+) -> Optional[str]:
+    """Resolve a work-document request to its template-specific audit category."""
+    if fallback != "작업 관리":
+        return fallback
+
+    template_id = query_params.get("template_id")
+    if isinstance(payload, dict):
+        template_id = payload.get("template_id") or template_id
+
+    if not template_id:
+        match = re.fullmatch(r"/form-templates/([^/]+)", path)
+        if match:
+            template_id = match.group(1)
+
+    if not template_id:
+        match = re.fullmatch(r"/form-entries/([^/]+)", path)
+        if match and ObjectId.is_valid(match.group(1)):
+            try:
+                entry = await MongoClientManager.get_form_entries_collection().find_one(
+                    {"_id": ObjectId(match.group(1))}, {"template_id": 1}
+                )
+                template_id = entry.get("template_id") if entry else None
+            except Exception:
+                logger.debug("작업 문서 감사 로그의 템플릿 조회 실패", exc_info=True)
+
+    if not template_id or not ObjectId.is_valid(str(template_id)):
+        return fallback
+
+    try:
+        template = await MongoClientManager.get_form_templates_collection().find_one(
+            {"_id": ObjectId(str(template_id))}, {"title": 1}
+        )
+        return _work_document_category(template.get("title") if template else None)
+    except Exception:
+        logger.debug("작업 문서 감사 로그의 템플릿 분류 실패", exc_info=True)
+        return fallback
 
 # Only log the list-level GET, not individual resource fetches.
 # Returns (page_name) or None.
@@ -40,13 +115,25 @@ def _match_page(path: str, query_params: dict) -> Optional[str]:
             "VMware":        "VMware 자산",
         }.get(cat, "자산 목록")
 
+    # The dashboard also reads /watch to render the upcoming-duty card. The
+    # timetable page sends include_deleted explicitly, so use that marker to
+    # avoid recording a dashboard data fetch as a timetable page visit.
+    if re.match(r"^/watch$", path) and "include_deleted" in query_params:
+        return "당직 시간표"
+
     _RULES: list[tuple[re.Pattern, str]] = [
         (re.compile(r"^/auth/home-ping$"),          "메인 페이지"),
+        (re.compile(r"^/admin/audit-log/ping$"),    "Audit Log"),
         (re.compile(r"^/form-entries$"),           "작업 관리"),
-        (re.compile(r"^/watch$"),                  "당직 시간표"),
+        (re.compile(r"^/form-templates$"),         "작업 관리"),
+        (re.compile(r"^/(?:job|job-result|job-non-service)$"), "작업 관리"),
+        (re.compile(r"^/(?:inspection|inspection-tasks|inspection-resources|monthly-inspection-reports|health-reports)$"), "서버실 점검"),
         (re.compile(r"^/inspection$"),             "서버실 점검"),
         (re.compile(r"^/issues/today-tasks"),      "Jira 검색"),
+        (re.compile(r"^/boards$"),                 "게시판"),
         (re.compile(r"^/boards/[^/]+/posts$"),     "게시판"),
+        (re.compile(r"^/menus$"),                  "메뉴 관리"),
+        (re.compile(r"^/admin/users(?:/pending)?$"), "회원 관리"),
         (re.compile(r"^/admin/audit-log$"),        "Audit Log"),
         (re.compile(r"^/admin/users$"),            "회원 관리"),
     ]
@@ -156,12 +243,14 @@ class ActivityLoggerMiddleware(BaseHTTPMiddleware):
             return response
 
         query_params = dict(request.query_params)
+        category = await _resolve_business_category(path, query_params, payload, category)
         page = _match_page(path, query_params) if request.method == "GET" else None
         # Record the primary SR/PM resource fetches, not polling subrequests.
         if category and request.method == "GET" and re.fullmatch(
             r"/(?:admin/)?schedule/service-requests(?:/[a-fA-F0-9]{24})?"
             r"|/pm/(?:organizations|projects|weekly-reports|monthly-reports|recurring-issue-templates)(?:/[a-fA-F0-9]{24})?"
-            r"|/pm/projects/[a-fA-F0-9]{24}/(?:issues|sprints)(?:/[a-fA-F0-9]{24})?", path
+            r"|/pm/projects/[a-fA-F0-9]{24}/(?:issues|sprints)(?:/[a-fA-F0-9]{24})?"
+            r"|/form-(?:entries|templates)(?:/[a-fA-F0-9]{24})?", path
         ):
             page = category
         if mutation:
@@ -180,7 +269,10 @@ class ActivityLoggerMiddleware(BaseHTTPMiddleware):
         now = datetime.now(timezone.utc)
         key = (email, path if category else page)
         last = _cache.get(key)
-        if not mutation and last and (now - last) < _COOLDOWN:
+        # home-ping is an explicit navigation event from the shell. Record
+        # each one so returning to the main page is visible in the audit log;
+        # background/list page reads keep the normal cooldown.
+        if path not in {"/auth/home-ping", "/admin/audit-log/ping"} and not mutation and last and (now - last) < _COOLDOWN:
             return response
 
         try:

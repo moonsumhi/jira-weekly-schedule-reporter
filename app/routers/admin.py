@@ -313,6 +313,12 @@ async def get_audit_log_actors(admin: UserPublic = Depends(require_admin)):
     return sorted(options, key=lambda o: o.name)
 
 
+@router.get("/audit-log/ping", status_code=204)
+async def audit_log_ping(admin: UserPublic = Depends(require_admin)):
+    """Record the audit-log page visit before its first list query."""
+    return None
+
+
 _INTERNAL_KEYS = {
     "id", "asset_id", "plan_id", "result_id", "checklist_id",
     "is_deleted", "created_at", "updated_at", "changed_at", "changed_by",
@@ -366,6 +372,19 @@ async def get_audit_log(
         "활동": MongoClientManager.ACTIVITY_LOGS,
         "SR": MongoClientManager.ACTIVITY_LOGS,
         "스케줄 관리": MongoClientManager.ACTIVITY_LOGS,
+        "작업 관리": MongoClientManager.ACTIVITY_LOGS,
+        "작업계획서(서비스)": MongoClientManager.ACTIVITY_LOGS,
+        "작업계획서(서비스외)": MongoClientManager.ACTIVITY_LOGS,
+        "작업결과서": MongoClientManager.ACTIVITY_LOGS,
+        "반입신청서": MongoClientManager.ACTIVITY_LOGS,
+        "장애보고서": MongoClientManager.ACTIVITY_LOGS,
+        "당직 시간표": MongoClientManager.ACTIVITY_LOGS,
+        "게시판": MongoClientManager.ACTIVITY_LOGS,
+        "메뉴 관리": MongoClientManager.ACTIVITY_LOGS,
+        "회원 관리": MongoClientManager.ACTIVITY_LOGS,
+        "자산 관리": MongoClientManager.ACTIVITY_LOGS,
+        "관리자 설정": MongoClientManager.ACTIVITY_LOGS,
+        "서버실 점검": MongoClientManager.ACTIVITY_LOGS,
     }
 
     if category and category in category_map:
@@ -374,6 +393,12 @@ async def get_audit_log(
         target_categories = asset_category_map
     else:
         target_categories = category_map
+
+    activity_specific_categories = {
+        "SR", "스케줄 관리", "작업 관리", "작업계획서(서비스)", "작업계획서(서비스외)",
+        "작업결과서", "반입신청서", "장애보고서", "당직 시간표", "게시판", "메뉴 관리",
+        "회원 관리", "자산 관리", "관리자 설정", "서버실 점검",
+    }
 
     # Build email→name lookup for display and actor filtering.  Older audit
     # records use either the user's email or their display name, so selecting
@@ -409,13 +434,13 @@ async def get_audit_log(
         category_query = dict(query)
         if col_name == MongoClientManager.ACTIVITY_LOGS:
             category_query["category"] = (
-                {"$nin": ["SR", "스케줄 관리"]} if cat_name == "활동" else cat_name
+                {"$nin": list(activity_specific_categories)} if cat_name == "활동" else cat_name
             )
         async for doc in col.find(category_query):
             raw_by = doc.get("changed_by", "")
             all_items.append({
                 "id": str(doc["_id"]),
-                "category": cat_name,
+                "category": doc.get("category", cat_name) if col_name == MongoClientManager.ACTIVITY_LOGS else cat_name,
                 "asset_id": str(doc.get("asset_id", "")),
                 "action": doc.get("action", ""),
                 "source": doc.get("source"),
