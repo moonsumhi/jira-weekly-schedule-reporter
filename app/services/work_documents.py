@@ -25,6 +25,130 @@ class DocumentImportError(ValueError):
     """An import problem with a message safe to display to the user."""
 
 
+def _render_nested_tables_for_markdown(markdown: str) -> str:
+    """Render escaped pipe tables inside outer Markdown cells as inline HTML."""
+    renderer = MarkdownIt('commonmark', {'html': True}).enable('table')
+
+    def escaped_cells(fragment: str) -> list[str] | None:
+        fragment = fragment.strip()
+        if not (fragment.startswith(r'\|') and fragment.endswith(r'\|')):
+            return None
+        return [cell.strip() for cell in fragment[2:-2].split(r'\|')]
+
+    def convert_cell(cell: str) -> str:
+        fragments = re.split(r'<br\s*/?>', cell, flags=re.IGNORECASE)
+        index = 0
+        while index + 1 < len(fragments):
+            headers = escaped_cells(fragments[index])
+            separators = escaped_cells(fragments[index + 1])
+            if (not headers or len(headers) < 2 or not separators
+                    or len(separators) != len(headers)
+                    or not all(re.fullmatch(r':?-{3,}:?', item) for item in separators)):
+                index += 1
+                continue
+
+            rows: list[list[str]] = []
+            end = index + 2
+            while end < len(fragments) and fragments[end].strip().startswith(r'\|'):
+                row = fragments[end]
+                next_fragment = end + 1
+                while row.count(r'\|') < len(headers) + 1 and next_fragment < len(fragments):
+                    row += '<br>' + fragments[next_fragment]
+                    next_fragment += 1
+                cells = escaped_cells(row)
+                if cells is None or len(cells) != len(headers):
+                    break
+                rows.append(cells)
+                end = next_fragment
+            if not rows:
+                index += 1
+                continue
+
+            def html_row(tag: str, values: list[str]) -> str:
+                return '<tr>' + ''.join(
+                    f'<{tag}>{renderer.renderInline(value)}</{tag}>' for value in values
+                ) + '</tr>'
+
+            table = '<table><thead>' + html_row('th', headers) + '</thead><tbody>'
+            table += ''.join(html_row('td', row) for row in rows) + '</tbody></table>'
+            # A literal pipe in generated HTML would split the outer Markdown row.
+            fragments[index:end] = [table.replace('|', '&#124;')]
+            index += 1
+        return '<br>'.join(fragments)
+
+    lines = []
+    for line in markdown.splitlines(keepends=True):
+        if not line.lstrip().startswith('|') or r'\|' not in line:
+            lines.append(line)
+            continue
+        cells = re.split(r'(?<!\\)\|', line)
+        for index in range(1, len(cells) - 1):
+            cells[index] = convert_cell(cells[index])
+        lines.append('|'.join(cells))
+    return ''.join(lines)
+
+
+def export_markdown_zip(markdown: str, markdown_filename: str) -> bytes:
+    """Bundle Markdown with locally uploaded images and rewrite them to relative paths."""
+    root = UPLOAD_ROOT.resolve()
+    filename = Path(markdown_filename.replace('\\', '/')).name
+    if not filename.lower().endswith('.md'):
+        filename = f'{filename or "document"}.md'
+
+    image_refs = re.compile(r'(!\[[^\]]*\]\()<?([^>\s)]+)>?(\))')
+    archive = io.BytesIO()
+    bundled: dict[Path, str] = {}
+    image_payloads: list[tuple[str, bytes]] = []
+    total_size = 0
+
+    def rewrite_image(match: re.Match[str]) -> str:
+        nonlocal total_size
+        destination = match.group(2)
+        parsed = urlparse(destination)
+        path = unquote(parsed.path)
+        if path.startswith('/api/uploads/'):
+            relative = path[len('/api/uploads/'):]
+        elif path.startswith('/uploads/'):
+            relative = path[len('/uploads/'):]
+        else:
+            return match.group(0)
+
+        image_path = (root / relative).resolve()
+        if not image_path.is_relative_to(root) or not image_path.is_file():
+            raise ValueError('문서에서 참조한 이미지 파일을 서버에서 찾을 수 없습니다.')
+
+        archive_path = bundled.get(image_path)
+        if archive_path is None:
+            image_size = image_path.stat().st_size
+            total_size += image_size
+            if len(bundled) >= 200 or image_size > 25 * 1024 * 1024 or total_size > 100 * 1024 * 1024:
+                raise ValueError('이미지 용량이 너무 커서 ZIP 파일로 내보낼 수 없습니다.')
+            suffix = image_path.suffix.lower()
+            if not re.fullmatch(r'\.[a-z0-9]{1,10}', suffix):
+                suffix = '.img'
+            archive_path = f'images/image-{len(bundled) + 1:03d}{suffix}'
+            bundled[image_path] = archive_path
+            image_payloads.append((archive_path, image_path.read_bytes()))
+        return f'{match.group(1)}<{archive_path}>{match.group(3)}'
+
+    rewritten = image_refs.sub(rewrite_image, markdown)
+    # Markdown pipe tables cannot contain another pipe table. Some imported
+    # documents wrap a single photo in a one-column table; once that table is
+    # placed inside an outer cell, its escaped pipes become visible text.
+    image_only_table = re.compile(
+        r'\\?\|\s*(!\[[^\]]*\]\((?:<[^>]+>|[^)\s]+)\))\s*\\?\|'
+        r'(?:<br\s*/?>|\r?\n)\s*\\?\|\s*:?-{3,}:?\s*\\?\|',
+        re.IGNORECASE,
+    )
+    rewritten = image_only_table.sub(r'\1', rewritten)
+    rewritten = _render_nested_tables_for_markdown(rewritten)
+    with ZipFile(archive, 'w') as zip_file:
+        zip_file.writestr(filename, rewritten.encode('utf-8'))
+        for image_name, content in image_payloads:
+            zip_file.writestr(image_name, content)
+    return archive.getvalue()
+
+
 def _image_import_location(node) -> str:
     """Identify the surrounding row and column without exposing file paths."""
     cell = next((parent for parent in node.iterancestors() if parent.tag in ('td', 'th')), None)

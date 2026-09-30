@@ -23,7 +23,8 @@ class ExportOriginalForm(BaseModel):
 
 class FormDocumentExport(BaseModel):
     markdown: str = Field(min_length=1, max_length=2_000_000)
-    format: Literal['hwp', 'docx']
+    format: Literal['hwp', 'docx', 'md-zip']
+    markdown_filename: str = Field(default='document.md', max_length=255)
     original_form: ExportOriginalForm | None = None
 
 

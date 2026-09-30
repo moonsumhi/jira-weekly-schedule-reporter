@@ -171,7 +171,7 @@
         <q-btn v-else-if="!creating" outline no-caps icon="edit_note" label="수정" :disable="loading || !entry || entry.isDeleted" @click="startEdit" />
         <q-btn-dropdown v-if="!editing" outline no-caps icon="download" label="내보내기" :loading="exporting" :disable="loading || !entry || exporting">
           <q-list>
-            <q-item clickable v-close-popup @click="emit('export')"><q-item-section>Markdown (.md)</q-item-section></q-item>
+            <q-item clickable v-close-popup @click="emit('export')"><q-item-section>Markdown + 이미지 (.zip)</q-item-section></q-item>
             <q-item clickable v-close-popup :disable="!entry?.originalFile" @click="emit('download-original')"><q-item-section>{{ originalDownloadLabel }}</q-item-section></q-item>
             <q-item clickable v-close-popup @click="emit('export-file', 'hwp')"><q-item-section>HWP 내보내기</q-item-section></q-item>
             <q-item clickable v-close-popup @click="emit('export-file', 'docx')"><q-item-section>Word (.docx)</q-item-section></q-item>
