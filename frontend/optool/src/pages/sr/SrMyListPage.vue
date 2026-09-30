@@ -275,13 +275,39 @@ const categoryFilter = ref<string | null>(null)
 const requesterFilter = ref<string | null>(null)
 const assigneeFilter = ref<string | null>(null)
 const statusFilter = ref<string | null>(null)
-const showReceivedDate = ref(true)
 const page = ref(1)
 const rowsPerPage = ref(20)
 const rowsPerPageOptions = [20, 50, 100]
 const currentUserId = computed(() => String(authStore.me?.id ?? ''))
+const detailPreferenceKey = computed(() => `sr-my-list:show-details:${currentUserId.value || 'anonymous'}`)
+
+function readShowDetailsPreference(key: string): boolean {
+  try {
+    const saved = localStorage.getItem(key)
+    return saved === null ? true : saved === 'true'
+  } catch {
+    return true
+  }
+}
+
+function saveShowDetailsPreference(key: string, value: boolean) {
+  try {
+    localStorage.setItem(key, String(value))
+  } catch {
+    // 저장소를 사용할 수 없는 환경에서도 SR 목록은 정상적으로 사용할 수 있게 합니다.
+  }
+}
+
+const showReceivedDate = ref(readShowDetailsPreference(detailPreferenceKey.value))
 const excludedStatusGroups = ref<string[]>([])
 const activeFilterCount = computed(() => [categoryFilter.value, requesterFilter.value, assigneeFilter.value, statusFilter.value].filter(Boolean).length + excludedStatusGroups.value.length)
+
+watch(detailPreferenceKey, key => {
+  showReceivedDate.value = readShowDetailsPreference(key)
+})
+watch(showReceivedDate, value => {
+  saveShowDetailsPreference(detailPreferenceKey.value, value)
+})
 
 function resetDetailFilters() {
   categoryFilter.value = null
