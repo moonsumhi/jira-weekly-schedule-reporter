@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-28T07:08:13.283914+00:00",
+  "updated_at": "2026-09-30T08:10:49.251858+00:00",
   "source": "endoflife.date + curated fallbacks",
   "successful_products": 14,
   "failed_products": [],
@@ -327,6 +327,8 @@
     "Windows 11|25h2-w": "2027-10",
     "Windows 11|26h1-e": "2029-03",
     "Windows 11|26h1-w": "2028-03",
+    "Windows 11|26h2-e": "2029-10",
+    "Windows 11|26h2-w": "2028-10",
     "Windows 11|Windows 11": "2034-10",
     "Windows Server|1709-sac": "2019-04",
     "Windows Server|1803-sac": "2019-11",
