@@ -27,7 +27,7 @@ _DATA_URL_RE = re.compile(r"^data:image/(?P<ext>[a-zA-Z0-9.+-]+);base64,(?P<b64>
 from bson import ObjectId
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
-from app.services.work_documents import DocumentImportError, import_document, markdown_from_data, save_markdown_snapshot, export_hwpx, export_hwp, export_docx
+from app.services.work_documents import DocumentImportError, import_document, markdown_from_data, save_markdown_snapshot, export_hwpx, export_hwp, export_docx, export_markdown_zip
 from app.services import work_document_assets
 
 from app.db.mongo import MongoClientManager
@@ -1526,16 +1526,20 @@ async def import_original_form(file: UploadFile = File(...), template_id: str = 
 @router.post('/export-document')
 async def export_document(payload: FormDocumentExport, current_user: UserPublic = Depends(get_current_user)):
     try:
-        from app.services.work_form_export import original_form_markup
-        markup = original_form_markup(payload.original_form.model_dump()) if payload.original_form else payload.markdown
-        content = await asyncio.to_thread(export_hwp if payload.format == 'hwp' else export_docx, markup)
+        if payload.format == 'md-zip':
+            content = await asyncio.to_thread(export_markdown_zip, payload.markdown, payload.markdown_filename)
+        else:
+            from app.services.work_form_export import original_form_markup
+            markup = original_form_markup(payload.original_form.model_dump()) if payload.original_form else payload.markdown
+            content = await asyncio.to_thread(export_hwp if payload.format == 'hwp' else export_docx, markup)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         logger.warning('Document export failed: %s', type(exc).__name__)
         raise HTTPException(status_code=503, detail='문서 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.') from exc
-    mime = 'application/x-hwp' if payload.format == 'hwp' else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    return Response(content, media_type=mime, headers={'Content-Disposition': f'attachment; filename="work-document.{payload.format}"'})
+    mime = 'application/zip' if payload.format == 'md-zip' else ('application/x-hwp' if payload.format == 'hwp' else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    extension = 'zip' if payload.format == 'md-zip' else payload.format
+    return Response(content, media_type=mime, headers={'Content-Disposition': f'attachment; filename="work-document.{extension}"'})
 
 
 # Legacy helpers retained for recovery; the UI uses export-document.
