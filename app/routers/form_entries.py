@@ -35,6 +35,7 @@ from app.models.form_entry import FormEntryCreate, FormEntryOut, FormEntryPatch,
 from app.models.user import UserPublic
 from app.models.asset_link import AssetCategory
 from app.routers.auth import get_current_user
+from app.routers.admin import require_admin
 from app.utils.mongo import fmt_dt, oid as parse_oid
 
 router = APIRouter()
@@ -1674,9 +1675,57 @@ async def delete_entry(
     col = MongoClientManager.get_form_entries_collection()
     entry_oid = parse_oid(entry_id, "잘못된 항목 ID입니다.")
 
+    now = _now()
+    actor = current_user.full_name or current_user.email
     result = await col.update_one(
         {"_id": entry_oid, "is_deleted": {"$ne": True}},
-        {"$set": {"is_deleted": True, "updated_at": _now(), "updated_by": current_user.full_name or current_user.email}},
+        {"$set": {
+            "is_deleted": True,
+            "deleted_at": now,
+            "deleted_by": actor,
+            "updated_at": now,
+            "updated_by": actor,
+        }, "$inc": {"version": 1}},
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
+
+@router.post("/{entry_id}/restore", response_model=FormEntryOut)
+async def restore_entry(
+    entry_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """Restore a soft-deleted work document from the trash."""
+    work_document_assets.require_job(current_user)
+    col = MongoClientManager.get_form_entries_collection()
+    entry_oid = parse_oid(entry_id, "Invalid form entry id")
+    now = _now()
+    actor = current_user.full_name or current_user.email
+    result = await col.update_one(
+        {"_id": entry_oid, "is_deleted": True},
+        {
+            "$set": {"is_deleted": False, "updated_at": now, "updated_by": actor},
+            "$unset": {"deleted_at": "", "deleted_by": ""},
+            "$inc": {"version": 1},
+        },
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Deleted form entry was not found")
+    doc = await col.find_one({"_id": entry_oid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Form entry was not found")
+    await work_document_assets.hydrate([doc])
+    return _to_out(doc)
+
+
+@router.delete("/{entry_id}/purge", status_code=status.HTTP_204_NO_CONTENT)
+async def purge_entry(
+    entry_id: str,
+    current_user: UserPublic = Depends(require_admin),
+):
+    """Permanently delete a work document from the trash."""
+    col = MongoClientManager.get_form_entries_collection()
+    entry_oid = parse_oid(entry_id, "Invalid form entry id")
+    result = await col.delete_one({"_id": entry_oid, "is_deleted": True})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Deleted form entry was not found")

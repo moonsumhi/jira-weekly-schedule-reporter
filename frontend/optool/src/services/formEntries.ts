@@ -106,6 +106,15 @@ export const formEntryService = {
     await api.delete(`/form-entries/${id}`)
   },
 
+  async restore(id: string): Promise<FormEntry> {
+    const { data } = await api.post<FormEntry>(`/form-entries/${id}/restore`)
+    return data
+  },
+
+  async purge(id: string): Promise<void> {
+    await api.delete(`/form-entries/${id}/purge`)
+  },
+
   async importFromFile(templateId: string, file: File): Promise<ImportResult> {
     const formData = new FormData()
     formData.append('file', file)
