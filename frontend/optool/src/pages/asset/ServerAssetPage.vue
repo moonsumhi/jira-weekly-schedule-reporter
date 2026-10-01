@@ -802,19 +802,18 @@
               </div>
             </div>
             <!-- EoS 자동 표시 -->
-            <VmwareSupportInfo v-if="isVmware(createFields)" :dist="createFields['운영체제'] ?? ''" :version="createFields['version'] ?? ''" />
-            <div v-else-if="createEosStatusText" class="eos-banner q-mt-sm"
+            <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(createEosStatus)">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createEosStatus) }}</span><strong>{{ createEosDateText }}</strong></span>
             </div>
           </template>
-          <div v-if="!isVmware(createFields) && createFields[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
-               :class="eosBannerClass(createFields[EOL_STATUS_KEY])">
-            <span class="eos-item"><span class="eos-item-label">EoL 여부</span><strong>{{ eolStatusLabel(createFields[EOL_STATUS_KEY]) }}</strong></span>
+          <div v-if="isVmware(createFields) ? secondaryLifecycle(createFields).date : createFields[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
+               :class="secondaryLifecycle(createFields).bannerClass">
+            <span class="eos-item"><span class="eos-item-label">{{ secondaryLifecycle(createFields).label }}<LifecycleGuidanceNote v-if="isVmware(createFields)" /></span><strong>{{ secondaryLifecycle(createFields).statusLabel }}</strong></span>
             <span class="eos-sep">·</span>
-            <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createFields[EOL_STATUS_KEY]) }}</span><strong>{{ createFields[EOL_DATE_KEY] || '확인 불가' }}</strong></span>
+            <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createFields[EOL_STATUS_KEY]) }}</span><strong>{{ secondaryLifecycle(createFields).date || '확인 불가' }}</strong></span>
           </div>
         </q-card-section>
 
@@ -1412,19 +1411,18 @@
               </div>
             </div>
             <!-- EoS 자동 표시 -->
-            <VmwareSupportInfo v-if="isVmware(rowEditValues)" :dist="rowEditValues['운영체제'] ?? ''" :version="rowEditValues['version'] ?? ''" />
-            <div v-else-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
+            <div v-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(rowEditValues[EOS_STATUS_KEY])">
               <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(rowEditValues[EOS_STATUS_KEY]) }}</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
             </div>
           </template>
-          <div v-if="!isVmware(rowEditValues) && rowEditValues[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
-               :class="eosBannerClass(rowEditValues[EOL_STATUS_KEY])">
-            <span class="eos-item"><span class="eos-item-label">EoL 여부</span><strong>{{ eolStatusLabel(rowEditValues[EOL_STATUS_KEY]) }}</strong></span>
+          <div v-if="isVmware(rowEditValues) ? secondaryLifecycle(rowEditValues).date : rowEditValues[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
+               :class="secondaryLifecycle(rowEditValues).bannerClass">
+            <span class="eos-item"><span class="eos-item-label">{{ secondaryLifecycle(rowEditValues).label }}<LifecycleGuidanceNote v-if="isVmware(rowEditValues)" /></span><strong>{{ secondaryLifecycle(rowEditValues).statusLabel }}</strong></span>
             <span class="eos-sep">·</span>
-            <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(rowEditValues[EOL_STATUS_KEY]) }}</span><strong>{{ rowEditValues[EOL_DATE_KEY] || '확인 불가' }}</strong></span>
+            <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(rowEditValues[EOL_STATUS_KEY]) }}</span><strong>{{ secondaryLifecycle(rowEditValues).date || '확인 불가' }}</strong></span>
           </div>
         </q-card-section>
 
@@ -1927,10 +1925,7 @@
                   <div class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
-              <VmwareSupportInfo detail v-if="isVmware(detailEditing ? rowEditValues : detailTarget.fields)"
-                :dist="String((detailEditing ? rowEditValues : detailTarget.fields)?.['운영체제'] ?? '')"
-                :version="String((detailEditing ? rowEditValues : detailTarget.fields)?.['version'] ?? '')" />
-              <div v-else class="row q-col-gutter-x-md q-mt-sm">
+              <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
                   <div class="field-label">EoS 여부</div>
                   <div class="detail-value">
@@ -1948,19 +1943,19 @@
                 </div>
               </div>
             </template>
-            <div v-if="!isVmware(detailEditing ? rowEditValues : detailTarget.fields)" class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+            <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
               <div class="col-4 form-field">
-                <div class="field-label">EoL 여부</div>
+                <div class="field-label">{{ secondaryLifecycle(detailLifecycleFields).label }}<LifecycleGuidanceNote v-if="isVmware(detailLifecycleFields)" /></div>
                 <div class="detail-value">
-                  <q-badge v-if="(detailEditing ? rowEditValues[EOL_STATUS_KEY] : detailTarget.fields?.[EOL_STATUS_KEY])" :color="eolStatusColor((detailEditing ? rowEditValues[EOL_STATUS_KEY] : detailTarget.fields?.[EOL_STATUS_KEY]) as string)" outline>
-                    {{ eolStatusLabel((detailEditing ? rowEditValues[EOL_STATUS_KEY] : detailTarget.fields?.[EOL_STATUS_KEY]) as string) }}
+                  <q-badge v-if="isVmware(detailLifecycleFields) || detailLifecycleFields?.[EOL_STATUS_KEY]" :color="secondaryLifecycle(detailLifecycleFields).color" outline>
+                    {{ secondaryLifecycle(detailLifecycleFields).statusLabel }}
                   </q-badge>
                   <span v-else>-</span>
                 </div>
               </div>
               <div class="col form-field">
-                <div class="field-label">{{ lifecycleDateLabel((detailEditing ? rowEditValues[EOL_STATUS_KEY] : detailTarget.fields?.[EOL_STATUS_KEY]), 'EoL') }}</div>
-                <div class="detail-value">{{ (detailEditing ? rowEditValues[EOL_DATE_KEY] : detailTarget.fields?.[EOL_DATE_KEY]) || '-' }}</div>
+                <div class="field-label">{{ lifecycleDateLabel(detailLifecycleFields?.[EOL_STATUS_KEY], isVmware(detailLifecycleFields) ? 'EoTG' : 'EoL') }}</div>
+                <div class="detail-value">{{ secondaryLifecycle(detailLifecycleFields).date || '-' }}</div>
               </div>
             </div>
           </q-card-section>
@@ -2719,7 +2714,7 @@ import type { ServerAsset, AssetHistory, FieldsMap, FieldValue, EosActionStatus 
 import { EOS_STATUS_KEY, EOS_DATE_KEY } from 'src/types/assets'
 import { fetchEosMap } from 'src/services/eosData'
 import { OS_TREE } from 'src/constants/osVersions'
-import VmwareSupportInfo from 'src/components/asset/VmwareSupportInfo.vue'
+import LifecycleGuidanceNote from 'src/components/asset/LifecycleGuidanceNote.vue'
 import { normalizeVmware, getVmwareGuidanceDate, getVmwareGuidanceStatus, VMWARE_GUIDANCE_NOTE } from 'src/services/vmwareLifecycle'
 import { DBMS_TREE } from 'src/constants/dbmsVersions'
 import {
@@ -2869,10 +2864,8 @@ const PREFERRED_FIELD_KEYS = [
 function fieldLabel(key: string): string {
   if (key === '운영체제' && ['네트워크', '정보보호시스템'].includes(category.value)) return '기종'
   if (category.value === 'VMware') {
-    if (key === EOS_STATUS_KEY) return '일반 지원 상태'
-    if (key === EOS_DATE_KEY) return '일반 지원 종료'
-    if (key === EOL_STATUS_KEY) return '기술 가이드 여부'
-    if (key === EOL_DATE_KEY) return '기술 가이드 종료 (계약 조건부)'
+    if (key === EOL_STATUS_KEY) return 'EoTG 여부'
+    if (key === EOL_DATE_KEY) return 'EoTG 기간'
   }
   return FIELD_LABEL_MAP[key] ?? key
 }
@@ -3248,11 +3241,26 @@ function isVmware(fields: Record<string, unknown> | undefined): boolean {
   return Boolean(normalizeVmware(lifecycleText(fields?.['운영체제'])))
 }
 function vmwareGuidance(fields: Record<string, unknown> | undefined): string {
-  return getVmwareGuidanceDate(lifecycleText(fields?.['운영체제']), lifecycleText(fields?.['version'])) ?? '확인 불가'
+  return getVmwareGuidanceDate(lifecycleText(fields?.['운영체제']), lifecycleText(fields?.['version']))?.slice(0, 7) ?? '확인 불가'
 }
 
 function vmwareGuidanceState(fields: Record<string, unknown> | undefined) {
   return getVmwareGuidanceStatus(getVmwareGuidanceDate(lifecycleText(fields?.['운영체제']), lifecycleText(fields?.['version'])))
+}
+
+function secondaryLifecycle(fields: Record<string, unknown> | undefined) {
+  if (isVmware(fields)) {
+    const status = vmwareGuidanceState(fields)
+    return {
+      label: 'EoTG 여부', statusLabel: status.label, color: status.color,
+      date: getVmwareGuidanceDate(lifecycleText(fields?.['운영체제']), lifecycleText(fields?.['version']))?.slice(0, 7) ?? '',
+      bannerClass: status.color === 'negative' ? 'eos-banner--eos' : status.color === 'warning' ? 'eos-banner--warning' : 'eos-banner--unknown',
+    }
+  }
+  return {
+    label: 'EoL 여부', statusLabel: eolStatusLabel(fields?.[EOL_STATUS_KEY]), color: eolStatusColor(fields?.[EOL_STATUS_KEY]),
+    date: lifecycleText(fields?.[EOL_DATE_KEY]), bannerClass: eosBannerClass(fields?.[EOL_STATUS_KEY]),
+  }
 }
 
 function getField(row: ServerAsset, key: string): FieldValue | undefined {
@@ -4185,6 +4193,7 @@ const detailTab = ref('basic')
 const detailHistory = ref<AssetHistory[]>([])
 const loadingDetailHistory = ref(false)
 const detailEditing = ref(false)
+const detailLifecycleFields = computed(() => detailEditing.value ? rowEditValues.value : detailTarget.value?.fields)
 
 async function openDetailView(row: ServerAsset) {
   detailEditing.value = false
@@ -5491,6 +5500,7 @@ tbody .sticky-actions-col {
 }
 
 /* EoS 배너 */
+.eos-banner--unknown { background: #f5f5f5; color: #616161; }
 .eos-banner {
   display: flex;
   align-items: center;
