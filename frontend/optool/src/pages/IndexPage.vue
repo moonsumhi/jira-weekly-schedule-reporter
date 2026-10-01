@@ -320,6 +320,15 @@
             :options="ddayColorOptions"
             emit-value map-options
           />
+          <q-select
+            v-model="ddayForm.visibleUserIds"
+            outlined dense multiple use-chips clearable
+            label="표시할 사람"
+            :options="ddayUserOptions"
+            emit-value map-options
+            hint="선택하지 않으면 모든 사용자에게 표시됩니다."
+            :loading="ddayUsersLoading"
+          />
           <q-input v-model="ddayForm.note" outlined dense label="메모" type="textarea" rows="2" />
         </q-card-section>
         <q-card-actions align="right">
@@ -511,7 +520,9 @@ function openInspectionEdit() {
     date: inspectionDate.value,
     color: 'teal',
     note: existing?.note ?? '',
+    visibleUserIds: existing?.visibleUserIds ?? [],
   }
+  void loadDDayUsers()
   ddayDialog.value = true
 }
 
@@ -526,7 +537,17 @@ const ddays = ref<DDay[]>([])
 const ddaysLoading = ref(false)
 const ddayDialog = ref(false)
 const ddaySaving = ref(false)
-const ddayForm = ref({ id: '', title: '', date: '', color: 'blue', note: '' })
+const ddayUsersLoading = ref(false)
+const ddayUsers = ref<{ id: string; fullName?: string | null; email: string; team?: string | null; isBlocked?: boolean }[]>([])
+const ddayForm = ref({ id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] as string[] })
+const ddayUserOptions = computed(() =>
+  ddayUsers.value
+    .filter((user) => !user.isBlocked)
+    .map((user) => ({
+      value: user.id,
+      label: `${user.fullName || user.email}${user.team ? ` (${user.team})` : ''}`,
+    }))
+)
 
 const ddayColorMap: Record<string, string> = {
   red: '#e53935', orange: '#fb8c00', yellow: '#f9a825',
@@ -549,19 +570,19 @@ function isDatePast(dateStr: string, daysAfter: number): boolean {
   return diff > daysAfter
 }
 
-// 서버 점검일 override key가 아닌 것만, 2주 초과 지난 것 제외
+// 서버 점검일 override key가 아닌 것만, 날짜가 지난 D-Day는 목록에서 제외
 const visibleDDays = computed(() =>
   ddays.value.filter((d) => {
     if (d.title.startsWith(INSPECTION_KEY_PREFIX)) return false  // 서버 점검일 override는 목록에서 숨김
-    return !isDatePast(d.date, 14)
+    return !isDatePast(d.date, 0)
   })
 )
 
-// 이슈 추가 시 'D-Day 표시'를 체크한 내 담당 이슈 — 완료 처리 전까지 개인별로만 노출
+// 이슈 추가 시 'D-Day 표시'를 체크한 내 담당 이슈 — 기한 당일까지 개인별로만 노출
 // (/pm/dashboard의 myIssues는 이미 status != DONE, assignee = 나 로 필터링되어 옴)
 const issueDDayItems = computed(() =>
   pmMyIssues.value
-    .filter((i) => i.showOnDashboard && i.dueDate)
+    .filter((i) => i.showOnDashboard && i.dueDate && !isDatePast(i.dueDate.slice(0, 10), 0))
     .map((i) => ({
       id: `issue-${i.id}`,
       title: `${i.projectKey ?? ''}-${i.number} ${i.title}`,
@@ -591,13 +612,35 @@ async function loadDDays() {
 }
 
 function openDDayCreate() {
-  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '' }
+  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] }
+  void loadDDayUsers()
   ddayDialog.value = true
 }
 
 function openDDayEdit(d: DDay) {
-  ddayForm.value = { id: d.id, title: d.title, date: d.date, color: d.color, note: d.note ?? '' }
+  ddayForm.value = {
+    id: d.id,
+    title: d.title,
+    date: d.date,
+    color: d.color,
+    note: d.note ?? '',
+    visibleUserIds: d.visibleUserIds ?? [],
+  }
+  void loadDDayUsers()
   ddayDialog.value = true
+}
+
+async function loadDDayUsers() {
+  if (ddayUsers.value.length > 0) return
+  ddayUsersLoading.value = true
+  try {
+    const response = await api.get<{ id: string; fullName?: string | null; email: string; team?: string | null; isBlocked?: boolean }[]>('/admin/users')
+    ddayUsers.value = response.data
+  } catch {
+    $q.notify({ type: 'negative', message: '사용자 목록을 불러오지 못했습니다.' })
+  } finally {
+    ddayUsersLoading.value = false
+  }
 }
 
 async function saveDDay() {
@@ -612,6 +655,7 @@ async function saveDDay() {
       date: ddayForm.value.date,
       color: ddayForm.value.color,
       note: ddayForm.value.note || null,
+      visible_user_ids: ddayForm.value.visibleUserIds,
     }
     if (ddayForm.value.id) {
       await patchDDay(ddayForm.value.id, payload)

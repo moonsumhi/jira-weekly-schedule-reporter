@@ -21,6 +21,7 @@ def _to_out(doc: dict) -> DDayOut:
         date=doc.get("date", ""),
         color=doc.get("color", "blue"),
         note=doc.get("note"),
+        visible_user_ids=[str(user_id) for user_id in (doc.get("visible_user_ids") or [])],
         created_at=fmt_dt(doc.get("created_at")),
     )
 
@@ -28,7 +29,15 @@ def _to_out(doc: dict) -> DDayOut:
 @router.get("", response_model=list[DDayOut])
 async def list_ddays(current_user: UserPublic = Depends(get_current_user)):
     col = MongoClientManager.get_ddays_collection()
-    docs = [doc async for doc in col.find({})]
+    query = {} if current_user.is_admin else {
+        "$or": [
+            {"visible_user_ids": {"$exists": False}},
+            {"visible_user_ids": None},
+            {"visible_user_ids": []},
+            {"visible_user_ids": current_user.id},
+        ]
+    }
+    docs = [doc async for doc in col.find(query)]
     docs.sort(key=lambda d: d.get("date", ""))
     return [_to_out(doc) for doc in docs]
 
@@ -41,6 +50,7 @@ async def create_dday(payload: DDayCreate, _=Depends(require_admin)):
         "date": payload.date,
         "color": payload.color,
         "note": payload.note,
+        "visible_user_ids": payload.visible_user_ids,
         "created_at": datetime.now(timezone.utc),
     }
     result = await col.insert_one(doc)

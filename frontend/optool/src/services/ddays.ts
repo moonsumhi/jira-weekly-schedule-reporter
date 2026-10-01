@@ -6,6 +6,7 @@ export interface DDay {
   date: string
   color: string
   note?: string | null
+  visibleUserIds?: string[]
   createdAt?: string | null
 }
 
@@ -14,6 +15,7 @@ export interface DDayCreate {
   date: string
   color?: string
   note?: string | null
+  visible_user_ids?: string[]
 }
 
 export interface DDayPatch {
@@ -21,6 +23,7 @@ export interface DDayPatch {
   date?: string
   color?: string
   note?: string | null
+  visible_user_ids?: string[]
 }
 
 export async function fetchDDays(): Promise<DDay[]> {
