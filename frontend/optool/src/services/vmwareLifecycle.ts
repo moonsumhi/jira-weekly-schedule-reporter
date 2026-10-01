@@ -14,7 +14,8 @@ export function normalizeVmware(dist: string, version = ''): { dist: string; ver
 }
 
 export const VMWARE_GUIDANCE_NOTE = '기술 가이드는 유효한 기존 VMware 계약에만 적용되며 Broadcom 계약에는 적용되지 않습니다. 보안 패치 제공 기간을 의미하지 않습니다.'
-export const VMWARE_GUIDANCE_SOURCE = 'https://ftpdocs.broadcom.com/cadocs/0/contentimages/Product_EOTG_Dates.pdf'
+// 내부망 배포용 공식 문서 사본. 원본: https://ftpdocs.broadcom.com/cadocs/0/contentimages/Product_EOTG_Dates.pdf
+export const VMWARE_GUIDANCE_SOURCE = '/reference/Product_EOTG_Dates.pdf'
 
 export function getVmwareGuidanceDate(dist: string, version = ''): string | null {
   const product = normalizeVmware(dist, version)
@@ -30,6 +31,6 @@ export function getVmwareGeneralSupportDate(dist: string, version: string, fallb
 export function getVmwareGuidanceStatus(date: string | null): { label: string; color: string } {
   if (!date) return { label: '확인 불가', color: 'grey' }
   return date <= new Date().toISOString().slice(0, 10)
-    ? { label: '기술 가이드 종료', color: 'negative' }
+    ? { label: 'EoTG 지남', color: 'negative' }
     : { label: '계약 확인 필요', color: 'warning' }
 }
