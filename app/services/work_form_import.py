@@ -153,6 +153,10 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             if field.get('type') in {'textarea', 'markdown'}:
                 target[f'{label}__format'] = 'markdown'
 
+        composite_incident_labels = {
+            '장애등급조치예정시간': ('장애등급', '조치예정시간'),
+        }
+
         pending_select: tuple[dict[str, object], dict[str, object]] | None = None
         for table in root.xpath('.//table'):
             rows = table_rows(table)
@@ -221,6 +225,19 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                     continue
                 matched = False
                 for index, raw_label in enumerate(row):
+                    composite_labels = composite_incident_labels.get(norm(raw_label))
+                    if composite_labels:
+                        value = row[index + 1] if index + 1 < len(row) else ''
+                        for composite_label in composite_labels:
+                            target_info = field_targets.get(norm(composite_label))
+                            if target_info is None:
+                                continue
+                            target_section, field = target_info
+                            target = values[target_section['title']]
+                            if isinstance(target, dict):
+                                store_field(target, field, value)
+                                matched = True
+                        continue
                     target_info = field_targets.get(norm(raw_label))
                     if target_info is None:
                         continue

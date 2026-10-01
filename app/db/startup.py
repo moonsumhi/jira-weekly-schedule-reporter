@@ -315,20 +315,24 @@ _INTAKE_REVIEW = {
     ],
 }
 
-# 장애보고서 (장애보고서 (1).hwp) 양식에서 추출한 구조.
+# 장애보고서 (장애보고서.hwp) 양식에서 추출한 구조.
 # 작업 관리의 다른 문서와 동일하게 동적 폼 템플릿으로 저장하므로
 # 하위 메뉴에서 바로 작성·Import·상세·수정할 수 있다.
+INCIDENT_TEMPLATE_VERSION = "2026-10-01-hwp"
 _INCIDENT_INFO = {
     "title": "장애 정보",
     "fields": [
+        {"label": "구분",             "type": "select",   "required": True,  "options": ["서비스", "DB", "네트워크", "서버"]},
         {"label": "제목",             "type": "text",     "required": True,  "placeholder": "장애 제목을 입력하세요"},
-        {"label": "구분",             "type": "select",   "required": True,  "options": ["서비스", "DB", "네트워크"]},
         {"label": "처리결과",         "type": "select",   "required": True,  "options": ["규명해결", "미규명해결", "미해결"]},
-        {"label": "서비스 중단 시간", "type": "text",     "required": False, "placeholder": "예: 30분"},
+        {"label": "장애등급",         "type": "text",     "required": False},
+        {"label": "조치예정시간",     "type": "text",     "required": False},
         {"label": "발생일시",         "type": "datetime", "required": True},
-        {"label": "서비스 복구일시",  "type": "datetime", "required": False},
+        {"label": "발견일시",         "type": "datetime", "required": False},
         {"label": "발견자",           "type": "text",     "required": False},
-        {"label": "서비스 복구자",    "type": "text",     "required": False},
+        {"label": "복구일시",         "type": "datetime", "required": False},
+        {"label": "조치 시간",        "type": "text",     "required": False},
+        {"label": "복구자",           "type": "text",     "required": False},
         {"label": "발생증상",         "type": "textarea", "required": False},
         {"label": "발생범위",         "type": "text",     "required": False},
         {"label": "원인",             "type": "textarea", "required": False},
@@ -344,10 +348,9 @@ _INCIDENT_TIMELINE = {
     ],
 }
 _INCIDENT_FOLLOWUP = {
-    "title": "개선사항 및 원인 분석",
+    "title": "개선사항",
     "fields": [
-        {"label": "개선사항",  "type": "textarea", "required": False},
-        {"label": "원인 분석", "type": "textarea", "required": False},
+        {"label": "개선사항", "type": "textarea", "required": False},
     ],
 }
 
@@ -419,6 +422,8 @@ _JOB_FORM_TEMPLATES = [
         "jira_issue_key": "JOB-INCIDENT-REPORT",
         "menu": "Job",
         "sort_order": 5,
+        "schema_version": INCIDENT_TEMPLATE_VERSION,
+        "source_file_name": "장애보고서.hwp",
         "sections": [
             _INCIDENT_INFO,
             _INCIDENT_TIMELINE,
@@ -691,6 +696,31 @@ async def migrate_env_submenu() -> None:
         logger.info("환경설정 서브메뉴 추가")
 
 
+async def migrate_incident_entries(template_id) -> None:
+    """Move renamed 장애보고서 fields without dropping the original values."""
+    entries = MongoClientManager.get_form_entries_collection()
+    async for entry in entries.find({"template_id": str(template_id)}):
+        data = entry.get("data")
+        if not isinstance(data, dict):
+            continue
+        changed = False
+        info = data.get("장애 정보")
+        if isinstance(info, dict):
+            for old_label, new_label in (
+                ("서비스 복구일시", "복구일시"),
+                ("서비스 복구자", "복구자"),
+            ):
+                if old_label in info and not str(info.get(new_label) or "").strip():
+                    info[new_label] = info[old_label]
+                    changed = True
+        old_followup = data.get("개선사항 및 원인 분석")
+        if old_followup is not None and "개선사항" not in data:
+            data["개선사항"] = old_followup
+            changed = True
+        if changed:
+            await entries.update_one({"_id": entry["_id"]}, {"$set": {"data": data}})
+
+
 async def seed_job_form_templates() -> None:
     """Job 폼 템플릿이 없으면 초기 데이터를 삽입한다."""
     col = MongoClientManager.get_form_templates_collection()
@@ -707,9 +737,17 @@ async def seed_job_form_templates() -> None:
                 "is_deleted": False,
                 "created_at": datetime.now(timezone.utc),
             })
-        elif tmpl["jira_issue_key"] == "JOB-INCIDENT-REPORT" and existing.get("sections") != tmpl["sections"]:
-            # 장애보고서는 원본 HWP의 흐름(해결방안 → 발생 경과 → 개선사항)에
-            # 맞춰 섹션 순서를 보완할 수 있으므로 기존 seed도 최신 구조로 맞춘다.
+        elif tmpl["jira_issue_key"] == "JOB-INCIDENT-REPORT" and existing.get("schema_version") != INCIDENT_TEMPLATE_VERSION:
+            # 기존 템플릿을 삭제하거나 새 ID로 교체하지 않는다. 기존 문서가
+            # 참조하는 template_id를 유지하면서 이전 섹션을 문서 안에 보관하고,
+            # 새 HWP 구조를 활성 템플릿으로 적용한다.
+            previous_versions = list(existing.get("previous_versions") or [])
+            if not any(item.get("schema_version") == existing.get("schema_version") for item in previous_versions):
+                previous_versions.append({
+                    "schema_version": existing.get("schema_version", "legacy"),
+                    "sections": deepcopy(existing.get("sections", [])),
+                    "archived_at": datetime.now(timezone.utc),
+                })
             await col.update_one(
                 {"_id": existing["_id"]},
                 {"$set": {
@@ -717,9 +755,13 @@ async def seed_job_form_templates() -> None:
                     "menu": tmpl["menu"],
                     "sort_order": tmpl["sort_order"],
                     "sections": deepcopy(tmpl["sections"]),
+                    "schema_version": tmpl["schema_version"],
+                    "source_file_name": tmpl["source_file_name"],
+                    "previous_versions": previous_versions,
                 }},
             )
-            logger.info("장애보고서 템플릿 구조 보완: %s", existing["_id"])
+            await migrate_incident_entries(existing["_id"])
+            logger.info("장애보고서 템플릿 교체 및 이전 버전 보관: %s", existing["_id"])
         elif not existing.get("jira_issue_key"):
             await col.update_one(
                 {"_id": existing["_id"]},
