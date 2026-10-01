@@ -318,15 +318,14 @@ _INTAKE_REVIEW = {
 # 장애보고서 (장애보고서.hwp) 양식에서 추출한 구조.
 # 작업 관리의 다른 문서와 동일하게 동적 폼 템플릿으로 저장하므로
 # 하위 메뉴에서 바로 작성·Import·상세·수정할 수 있다.
-INCIDENT_TEMPLATE_VERSION = "2026-10-01-hwp"
+INCIDENT_TEMPLATE_VERSION = "2026-10-01-hwp-v2"
 _INCIDENT_INFO = {
     "title": "장애 정보",
     "fields": [
         {"label": "구분",             "type": "select",   "required": True,  "options": ["서비스", "DB", "네트워크", "서버"]},
         {"label": "제목",             "type": "text",     "required": True,  "placeholder": "장애 제목을 입력하세요"},
         {"label": "처리결과",         "type": "select",   "required": True,  "options": ["규명해결", "미규명해결", "미해결"]},
-        {"label": "장애등급",         "type": "text",     "required": False},
-        {"label": "조치예정시간",     "type": "text",     "required": False},
+        {"label": "장애등급 (조치예정시간)", "type": "text", "required": False},
         {"label": "발생일시",         "type": "datetime", "required": True},
         {"label": "발견일시",         "type": "datetime", "required": False},
         {"label": "발견자",           "type": "text",     "required": False},
@@ -712,6 +711,13 @@ async def migrate_incident_entries(template_id) -> None:
             ):
                 if old_label in info and not str(info.get(new_label) or "").strip():
                     info[new_label] = info[old_label]
+                    changed = True
+            combined_label = "장애등급 (조치예정시간)"
+            if not str(info.get(combined_label) or "").strip():
+                grade = str(info.get("장애등급") or "").strip()
+                planned = str(info.get("조치예정시간") or "").strip()
+                if grade or planned:
+                    info[combined_label] = f"{grade} ({planned})" if planned else grade
                     changed = True
         old_followup = data.get("개선사항 및 원인 분석")
         if old_followup is not None and "개선사항" not in data:
