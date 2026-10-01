@@ -5,7 +5,7 @@ from app.services.work_form_import import map_document, EXTRA
 class OriginalFormImportTests(unittest.TestCase):
     def test_fields_images_order_and_unmatched_content(self):
         sections = [
-            {'title': '기본 정보', 'fields': [{'label': '작업명', 'type': 'text'}, {'label': '구분', 'type': 'select'}]},
+            {'title': '기본 정보', 'fields': [{'label': '작업명', 'type': 'text'}, {'label': '구분', 'type': 'select', 'options': ['서버', '개발']}]},
             {'title': '개발 내용', 'multiple': True, 'fields': [{'label': '제목', 'type': 'text'}, {'label': '세부 작업 내용', 'type': 'textarea'}]},
         ]
         markdown = '# 작업계획서\n\n## 작업 개요\n\n### 작 업 명\n\n점검\n\n### 구분\n\n□ 서버 ■ 개발\n\n## 개발 내용\n\n### 1번째 항목\n\n| 제목 |\n| --- |\n| 개선 |\n\n#### 세부 작업 내용\n\n작업 전\n\n![사진](/api/uploads/a.png)\n\n| 테스트 | 결과 |\n| --- | --- |\n| 점검 | 정상 |\n\n작업 후\n\n## 별도 참고\n\n누락하면 안 되는 내용'
@@ -30,7 +30,7 @@ class OriginalFormImportTests(unittest.TestCase):
         self.assertEqual([r['IP'] for r in data['작업 대상']], ['첫번째', '두번째'])
         self.assertIn('보존', data[EXTRA][0]['내용'])
 
-    def test_unmapped_locations_are_listed_before_preserved_content(self):
+    def test_unmapped_locations_are_reported_and_original_content_is_preserved(self):
         sections = [{'title': '작업 대상', 'multiple': True, 'fields': [{'label': 'IP', 'type': 'text'}]}]
         markdown = '''## 작업 대상
 
@@ -39,12 +39,11 @@ class OriginalFormImportTests(unittest.TestCase):
 | 10.0.0.1 | web01 |'''
         data, warnings = map_document(markdown, sections)
         content = data[EXTRA][0]['내용']
-        self.assertIn('## 매핑 확인', content)
-        self.assertIn('| 작업 대상 | HOSTNAME |', content)
-        self.assertIn('| 작업 대상 | HOSTNAME | web01 |', content)
-        self.assertIn('표의 열 제목에 대응하는 템플릿 필드를 찾지 못함', content)
         self.assertIn('## 원본 내용', content)
-        self.assertIn('매핑 실패 위치 1건', warnings[0])
+        self.assertIn('### 작업 대상 / HOSTNAME', content)
+        self.assertIn('web01', content)
+        self.assertEqual(warnings[1]['field'], 'HOSTNAME')
+        self.assertEqual(warnings[1]['source_preview'], 'web01')
 
     def test_legacy_review_and_test_titles_map_to_current_sections(self):
         sections = [
@@ -272,4 +271,69 @@ class OriginalFormImportTests(unittest.TestCase):
         data, warnings = map_document(markdown, sections)
         self.assertEqual(data['테스트 결과'][0]['테스트 케이스 ID'], 'TC-02')
         self.assertEqual(data['테스트 결과'][0]['결과 시간'], '18:05')
+        self.assertFalse(warnings)
+
+
+class IncidentReportImportTests(unittest.TestCase):
+    def test_hwp_blocks_keep_cause_solution_line_breaks_and_timeline_images(self):
+        sections = [
+            {
+                'title': '장애 정보',
+                'fields': [
+                    {'label': '원인', 'type': 'textarea'},
+                    {'label': '해결방안', 'type': 'textarea'},
+                ],
+            },
+            {
+                'title': '발생 경과 및 조치사항', 'multiple': True,
+                'fields': [
+                    {'label': '시간대', 'type': 'text'},
+                    {'label': '상세내역', 'type': 'textarea'},
+                ],
+            },
+        ]
+        markdown = '''### 8번째 항목
+
+| 1번째 내용 |
+| --- |
+| 원인 |
+
+#### 2번째 내용
+
+1.DB 서버 디스크 용량 초과
+
+2.SSH 접속 무응답
+
+### 9번째 항목
+
+| 1번째 내용 | 2번째 내용 |
+| --- | --- |
+| 해결방안 | 1. 서버 재기동<br><br>2. 디스크 확장 |
+
+### 10번째 항목
+
+| 1번째 내용 |
+| --- |
+| 조치 |
+
+#### 2번째 내용
+
+| 시간대 | 상세내역 |
+| --- | --- |
+| 08:46 | 접속 불가 확인<br>![사진](/api/uploads/work_documents/images/sample.png) |
+| 09:26 | 서비스 정상화 |'''
+
+        data, warnings = map_document(markdown, sections)
+
+        info = data['장애 정보']
+        self.assertIn('1.DB 서버 디스크 용량 초과\n\n2.SSH 접속 무응답', info['원인'])
+        self.assertIn('1. 서버 재기동\n\n2. 디스크 확장', info['해결방안'])
+        self.assertEqual(info['원인__format'], 'markdown')
+        self.assertEqual(info['해결방안__format'], 'markdown')
+        timeline = data['발생 경과 및 조치사항']
+        self.assertEqual([row['시간대'] for row in timeline], ['08:46', '09:26'])
+        self.assertIn('![사진](', timeline[0]['상세내역'])
+        self.assertIn('/api/uploads/work_documents/images/sample.png', timeline[0]['상세내역'])
+        self.assertEqual(timeline[1]['상세내역'], '서비스 정상화')
+        self.assertNotIn(EXTRA, data)
         self.assertFalse(warnings)
