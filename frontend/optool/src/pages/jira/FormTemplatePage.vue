@@ -4,7 +4,7 @@
       active-color="primary" indicator-color="primary" class="job-category-tabs q-mb-md"
       @update:model-value="selectJobTab">
       <q-tab name="all" label="전체" />
-      <q-tab v-for="item in jobTemplates" :key="item.id" :name="item.id" :label="item.title" />
+      <q-tab v-for="item in jobTemplates" :key="item.id" :name="templateRouteKey(item)" :label="item.title" />
     </q-tabs>
     <q-inner-loading :showing="loading" />
 
@@ -502,14 +502,20 @@ const isJobPage = computed(() => route.path.startsWith('/job/'))
 const canLinkWorkDocument = computed(() => isJobPage.value && template.value?.menu?.toLowerCase() === 'job'
   && !!(auth.me?.isAdmin || auth.me?.permissions?.includes('job')))
 const isAllJobs = computed(() => isJobPage.value && !route.params['id'])
-const activeJobTab = computed(() => isAllJobs.value ? 'all'
-  : jobTemplates.value.find((item) => item.id === route.params['id'] || item.jiraIssueKey === route.params['id'])?.id ?? '')
+function templateRouteKey(item: FormTemplate): string {
+  return item.jiraIssueKey || item.id
+}
+
+const activeJobTab = computed(() => {
+  if (isAllJobs.value) return 'all'
+  const item = jobTemplates.value.find((candidate) => templateRouteKey(candidate) === route.params['id'])
+  return item ? templateRouteKey(item) : ''
+})
 
 function selectJobTab(value: string | number) {
   const destination = value === 'all' ? '/job/forms' : `/job/forms/${value}`
   if (route.path !== destination) void router.push(destination)
 }
-
 function entryTemplate(row: FormEntry): FormTemplate | null {
   return jobTemplates.value.find((item) => item.id === row.templateId)
     ?? (template.value?.id === row.templateId ? template.value : null)
