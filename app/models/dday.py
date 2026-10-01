@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DDayCreate(BaseModel):
@@ -6,6 +6,7 @@ class DDayCreate(BaseModel):
     date: str  # YYYY-MM-DD
     color: str = "blue"
     note: str | None = None
+    visible_user_ids: list[str] = Field(default_factory=list)
 
 
 class DDayPatch(BaseModel):
@@ -13,6 +14,7 @@ class DDayPatch(BaseModel):
     date: str | None = None
     color: str | None = None
     note: str | None = None
+    visible_user_ids: list[str] | None = None
 
 
 class DDayOut(BaseModel):
@@ -21,4 +23,5 @@ class DDayOut(BaseModel):
     date: str
     color: str
     note: str | None = None
+    visible_user_ids: list[str] = Field(default_factory=list)
     created_at: str | None = None
