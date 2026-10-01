@@ -7,6 +7,7 @@ on:
       - main
     paths-ignore:
       - app/data/eos_map_snapshot.json
+      - frontend/optool/src/data/vmware_lifecycle_snapshot.json
   schedule:
     - cron: "17 18 * * *"
   workflow_dispatch:
@@ -43,19 +44,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Check lifecycle mapping
+        run: python -m unittest discover -s tests -p test_vmware_snapshot.py
+
       - name: Refresh snapshot
-        run: python app/scripts/update_eos_snapshot.py
+        run: python app/scripts/update_eos_snapshot.py --frontend-output frontend/optool/src/data/vmware_lifecycle_snapshot.json
 
       - name: Commit changed snapshot
         shell: bash
         run: |
-          if git diff --quiet -- app/data/eos_map_snapshot.json; then
+          if git diff --quiet -- app/data/eos_map_snapshot.json frontend/optool/src/data/vmware_lifecycle_snapshot.json; then
             echo "EoS snapshot is already up to date."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/data/eos_map_snapshot.json
+          git add app/data/eos_map_snapshot.json frontend/optool/src/data/vmware_lifecycle_snapshot.json
           git commit -m "chore: update EoS snapshot"
           git push origin "HEAD:${TARGET_BRANCH}"

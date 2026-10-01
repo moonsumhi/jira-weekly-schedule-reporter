@@ -18,6 +18,11 @@ from pathlib import Path
 from typing import Any
 from urllib.request import Request, urlopen
 
+# 직접 실행과 모듈 실행에서 동일한 순수 매핑 함수를 사용한다.
+if __package__ in {None, ''}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from app.lifecycle_mapping import update_vmware_dates
+
 logger = logging.getLogger("update_eos_snapshot")
 
 PRODUCT_DISPLAY = {
@@ -88,7 +93,7 @@ def read_existing(path: Path) -> dict[str, str]:
         return {}
 
 
-def build_snapshot(path: Path) -> tuple[int, int]:
+def build_snapshot(path: Path, frontend_output: Path | None = None) -> tuple[int, int]:
     slugs = [*PRODUCT_DISPLAY, WINDOWS_SLUG]
     fetched: dict[str, list[dict[str, Any]]] = {}
     failures: list[str] = []
@@ -109,6 +114,7 @@ def build_snapshot(path: Path) -> tuple[int, int]:
     result = dict(existing)
     for slug, display in PRODUCT_DISPLAY.items():
         for entry in fetched.get(slug, []):
+            update_vmware_dates(result, display, entry)
             cycle = str(entry.get("cycle", ""))
             eol = parse_eol(entry.get("eol"))
             if cycle and eol:
@@ -141,6 +147,14 @@ def build_snapshot(path: Path) -> tuple[int, int]:
                 aliases[f"Windows Server|{normalized}"] = value
     result.update(aliases)
 
+    if frontend_output is not None:
+        vmware = {key: value for key, value in sorted(result.items())
+                  if key.startswith(("ESXi|", "vCenter|"))}
+        frontend_output.parent.mkdir(parents=True, exist_ok=True)
+        frontend_tmp = frontend_output.with_suffix(".json.tmp")
+        frontend_tmp.write_text(json.dumps(vmware, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        frontend_tmp.replace(frontend_output)
+
     if result == existing:
         logger.info("EoS 데이터 변경 없음: 기존 snapshot을 유지합니다.")
         return len(result), len(fetched)
@@ -163,10 +177,14 @@ def main() -> int:
     default_output = Path(__file__).resolve().parents[1] / "data" / "eos_map_snapshot.json"
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=default_output)
+    parser.add_argument("--frontend-output", type=Path,
+                        help="VMware 프런트엔드 오프라인 맵도 함께 생성")
     args = parser.parse_args()
+    if args.frontend_output is None and args.output == default_output:
+        args.frontend_output = Path(__file__).resolve().parents[2] / "frontend/optool/src/data/vmware_lifecycle_snapshot.json"
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     try:
-        item_count, success_count = build_snapshot(args.output)
+        item_count, success_count = build_snapshot(args.output, args.frontend_output)
     except Exception as exc:
         logger.error("EoS snapshot 갱신 실패: %s", exc)
         return 1

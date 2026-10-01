@@ -187,7 +187,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'SN',            label: 'SN',                                                              sample: '' },
     { key: '서버명',        label: '서버명 / 자산명',                                                 sample: 'VM호스트' },
     { key: '설명',          label: '설명',                                                            sample: '' },
-    { key: '운영체제',      label: '운영체제 / 버전',                                                 sample: 'ESXi 8.0' },
+    { key: '운영체제',      label: '운영체제 (ESXi / vCenter)',                                       sample: 'ESXi' },
     { key: 'version',       label: 'Version',                                                         sample: '8.0' },
     { key: '제조사',        label: '제조사',                                                          sample: '' },
     { key: '용도',          label: '용도(상세)',                                                      sample: '' },
