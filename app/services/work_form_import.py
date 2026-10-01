@@ -62,6 +62,10 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
         """
         info = next(section for section in sections if norm(section.get('title')) == '장애정보')
         timeline = next(section for section in sections if norm(section.get('title')) == '발생경과및조치사항')
+        followup = next(
+            (section for section in sections if norm(section.get('title')) == '개선사항'),
+            None,
+        )
         field_targets = {
             norm(field.get('label')): (section, field)
             for section in sections
@@ -153,8 +157,63 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             if field.get('type') in {'textarea', 'markdown'}:
                 target[f'{label}__format'] = 'markdown'
 
+        composite_incident_labels = {
+            '장애등급조치예정시간': ('장애등급', '조치예정시간'),
+        }
+
+        # HWP can place a rich-text field's following content in a separate
+        # block. In the current 장애보고서, 개선사항 is followed by prose and
+        # then a table, rather than keeping the table inside the value cell.
+        # Remember those nodes so they can be merged back into the field.
+        top_nodes = list(root)
+        structured_followup_blocks: list[list] = []
+        structured_followup_table_ids: set[int] = set()
+
+        def is_item_heading(node) -> bool:
+            return (
+                node.tag == 'h3'
+                and re.fullmatch(r'\d+번째항목', norm(''.join(node.itertext()))) is not None
+            )
+
+        for node_index, node in enumerate(top_nodes):
+            if not is_item_heading(node):
+                continue
+            end = next(
+                (candidate for candidate in range(node_index + 1, len(top_nodes))
+                 if is_item_heading(top_nodes[candidate])),
+                len(top_nodes),
+            )
+            block = top_nodes[node_index + 1:end]
+            has_followup_label = any(
+                item.tag == 'table'
+                and any(
+                    norm(cell) == '개선사항'
+                    for row in table_rows(item)
+                    for cell in row
+                )
+                for item in block
+            )
+            if not has_followup_label:
+                continue
+            detail_index = next(
+                (index for index, item in enumerate(block)
+                 if item.tag == 'h4' and norm(''.join(item.itertext())) == '2번째내용'),
+                None,
+            )
+            content_nodes = block[detail_index + 1:] if detail_index is not None else block[1:]
+            if content_nodes:
+                structured_followup_blocks.append(content_nodes)
+                structured_followup_table_ids.update(
+                    id(item) for item in content_nodes if item.tag == 'table'
+                )
+
         pending_select: tuple[dict[str, object], dict[str, object]] | None = None
         for table in root.xpath('.//table'):
+            # Nested tables are consumed with their owning outer cell below.
+            # Processing them again as top-level tables would incorrectly put
+            # a valid 개선사항 table into 가져온 추가 내용.
+            if table.xpath('ancestor::table') or id(table) in structured_followup_table_ids:
+                continue
             rows = table_rows(table)
             if not rows:
                 continue
@@ -215,12 +274,78 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                 continue
 
             unmatched_rows: list[list[str]] = []
-            for row in rows:
+            source_rows = table.xpath('./tr | ./thead/tr | ./tbody/tr | ./tfoot/tr')
+            for row_index, row in enumerate(rows):
                 # 변환기가 붙인 메타 헤더(1번째 내용 등)는 건너뛴다.
                 if is_metadata_row(row):
                     continue
                 matched = False
+                source_cells = (
+                    source_rows[row_index].xpath('./th | ./td')
+                    if row_index < len(source_rows) else []
+                )
                 for index, raw_label in enumerate(row):
+                    # Prefer an exact template label before legacy composite
+                    # handling.  Incident reports use one source column titled
+                    # ``장애등급 (조치예정시간)``; resolving the old child labels
+                    # first would incorrectly mark this valid column as extra.
+                    exact_target_info = field_targets.get(norm(raw_label))
+                    if exact_target_info is not None:
+                        matched = True
+                        target_section, field = exact_target_info
+                        target = values[target_section['title']]
+                        if isinstance(target, dict):
+                            value = row[index + 1] if index + 1 < len(row) else ''
+                            value_cell = source_cells[index + 1] if index + 1 < len(source_cells) else None
+                            if (
+                                value_cell is not None
+                                and value_cell.xpath('.//table')
+                                and field.get('type') in {'textarea', 'markdown'}
+                            ):
+                                value = nodes_markdown([value_cell])
+                            store_field(target, field, value)
+                            if field.get('type') == 'select' and not value.strip():
+                                pending_select = (target, field)
+                        continue
+
+                    # Some HWP exports split the visually merged header into
+                    # two label/value pairs (``장애등급`` and
+                    # ``조치예정시간``).  The incident template intentionally
+                    # exposes one editable field, so fold both values into it
+                    # instead of sending the whole row to extra content.
+                    combined_target_info = field_targets.get(norm('장애등급 (조치예정시간)'))
+                    child_label = norm(raw_label)
+                    if combined_target_info is not None and child_label in {
+                        norm('장애등급'),
+                        norm('조치예정시간'),
+                    }:
+                        matched = True
+                        target_section, field = combined_target_info
+                        target = values[target_section['title']]
+                        if isinstance(target, dict):
+                            value = row[index + 1] if index + 1 < len(row) else ''
+                            value = convert_value(field, value)
+                            label = str(field.get('label') or '')
+                            current = str(target.get(label) or '').strip()
+                            if child_label == norm('조치예정시간') and current and value:
+                                target[label] = f'{current} ({value})'
+                            elif value or not current:
+                                target[label] = value
+                        continue
+
+                    composite_labels = composite_incident_labels.get(norm(raw_label))
+                    if composite_labels:
+                        value = row[index + 1] if index + 1 < len(row) else ''
+                        for composite_label in composite_labels:
+                            target_info = field_targets.get(norm(composite_label))
+                            if target_info is None:
+                                continue
+                            target_section, field = target_info
+                            target = values[target_section['title']]
+                            if isinstance(target, dict):
+                                store_field(target, field, value)
+                                matched = True
+                        continue
                     target_info = field_targets.get(norm(raw_label))
                     if target_info is None:
                         continue
@@ -230,6 +355,15 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                     if not isinstance(target, dict):
                         continue
                     value = row[index + 1] if index + 1 < len(row) else ''
+                    value_cell = source_cells[index + 1] if index + 1 < len(source_cells) else None
+                    if (
+                        value_cell is not None
+                        and value_cell.xpath('.//table')
+                        and field.get('type') in {'textarea', 'markdown'}
+                    ):
+                        # Preserve nested tables, images, and line breaks in
+                        # rich-text fields such as 개선사항.
+                        value = nodes_markdown([value_cell])
                     # 구분/처리결과 옆의 선택지 표는 실제 선택값이 아니다.
                     store_field(target, field, value)
                     if field.get('type') == 'select' and not value.strip():
@@ -295,6 +429,15 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
 
         if structured_timeline_rows:
             timeline_rows = structured_timeline_rows
+
+        if structured_followup_blocks:
+            followup_value = '\n\n'.join(
+                nodes_markdown(nodes) for nodes in structured_followup_blocks
+            ).strip()
+            if followup_value:
+                if followup is not None:
+                    values[followup['title']]['개선사항'] = followup_value
+                    values[followup['title']]['개선사항__format'] = 'markdown'
 
         if not timeline_rows:
             timeline_rows = [{field.get('label', ''): '' for field in timeline.get('fields', [])}]
