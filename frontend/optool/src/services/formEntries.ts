@@ -32,6 +32,32 @@ export type ImportResult = {
   originalFile?: OriginalFile | null
 }
 
+export type FormEntryRevisionSummary = {
+  version: number
+  action: 'CREATE' | 'UPDATE'
+  changedAt?: string | null
+  changedBy?: string | null
+  changedSections: string[]
+  hasDiff: boolean
+}
+
+export type FormEntryRevisionChange = {
+  path: string
+  before: unknown
+  after: unknown
+  beforePresent: boolean
+  afterPresent: boolean
+}
+
+export type FormEntryRevisionDetail = {
+  version: number
+  changedAt?: string | null
+  changedBy?: string | null
+  changedSections: string[]
+  changes: FormEntryRevisionChange[]
+  changesTruncated: boolean
+}
+
 export type FormEntry = {
   id: string
   templateId: string
@@ -44,6 +70,7 @@ export type FormEntry = {
   createdBy?: string | null
   updatedAt?: string | null
   updatedBy?: string | null
+  revisionHistory?: FormEntryRevisionSummary[]
 }
 
 export type WorkDocumentAsset = AssetLink
@@ -73,6 +100,11 @@ export const formEntryService = {
 
   async get(id: string): Promise<FormEntry> {
     const { data } = await api.get<FormEntry>(`/form-entries/${id}`)
+    return data
+  },
+
+  async getRevision(id: string, version: number): Promise<FormEntryRevisionDetail> {
+    const { data } = await api.get<FormEntryRevisionDetail>(`/form-entries/${id}/history/${version}`)
     return data
   },
 

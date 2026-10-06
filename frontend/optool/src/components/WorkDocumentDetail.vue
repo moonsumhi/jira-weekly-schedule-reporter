@@ -28,7 +28,37 @@
             <q-icon name="description" size="22px" />
             <div class="sidebar-meta-title">문서 정보</div>
             <dl><dt>작성자</dt><dd>{{ entry.createdBy || '—' }}</dd><dt>작성일</dt><dd>{{ formatDate(entry.createdAt) }}</dd>
+              <dt>최종 수정자</dt><dd>{{ entry.updatedBy || entry.createdBy || '미등록' }}</dd>
               <dt>최종 수정</dt><dd>{{ formatDate(entry.updatedAt) }}</dd><dt>버전</dt><dd>v{{ entry.version }}</dd></dl>
+            <q-expansion-item
+              v-if="entry.revisionHistory?.length"
+              class="revision-history"
+              dense
+              expand-separator
+              icon="history"
+              label="수정 이력"
+              :caption="`${entry.revisionHistory.length}건`"
+            >
+              <q-list dense>
+                <q-item
+                  v-for="revision in [...entry.revisionHistory].reverse()"
+                  :key="`${revision.version}-${revision.action}`"
+                  :clickable="revision.action === 'UPDATE'"
+                  :disable="revision.action !== 'UPDATE'"
+                  @click="openRevision(revision)"
+                >
+                  <q-item-section>
+                    <q-item-label>{{ revision.action === 'CREATE' ? '문서 작성' : '문서 수정' }} · v{{ revision.version }}</q-item-label>
+                    <q-item-label caption>{{ revision.changedBy || '수정자 미등록' }} · {{ formatDate(revision.changedAt) }}</q-item-label>
+                    <q-item-label v-if="revision.changedSections.length" caption lines="2">{{ revision.changedSections.join(', ') }}</q-item-label>
+                    <q-item-label v-if="revision.action === 'UPDATE' && !revision.hasDiff" caption>비교 자료 없음 · 이전 수정 이력</q-item-label>
+                  </q-item-section>
+                  <q-item-section v-if="revision.action === 'UPDATE'" side>
+                    <q-icon :name="revision.hasDiff ? 'compare_arrows' : 'info_outline'" :color="revision.hasDiff ? 'primary' : 'grey-6'" />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-expansion-item>
           </div>
         </aside>
 
@@ -183,6 +213,77 @@
         <q-card class="document-preview"><q-btn flat round icon="close" class="preview-close" aria-label="이미지 닫기" v-close-popup />
           <img :src="previewSource" alt="문서 이미지 확대" /></q-card>
       </q-dialog>
+
+      <q-dialog v-model="revisionDialog">
+        <q-card class="revision-dialog">
+          <q-card-section class="row items-start no-wrap">
+            <div class="col">
+              <div class="text-h6">문서 수정 비교 · v{{ revisionDetail?.version ?? selectedRevision?.version }}</div>
+              <div v-if="revisionDetail" class="text-caption text-grey-7">
+                {{ revisionDetail.changedBy || '수정자 미등록' }} · {{ formatDate(revisionDetail.changedAt) }}
+                <span v-if="revisionDetail.changedSections.length"> · {{ revisionDetail.changedSections.join(', ') }}</span>
+              </div>
+            </div>
+            <q-btn flat round dense icon="close" aria-label="비교 창 닫기" v-close-popup />
+          </q-card-section>
+          <q-separator />
+          <q-card-section v-if="revisionLoading" class="revision-loading">
+            <q-spinner size="28px" color="primary" /> 비교 내용을 불러오고 있습니다.
+          </q-card-section>
+          <q-card-section v-else-if="revisionError" class="revision-error">
+            <q-icon name="info_outline" /> {{ revisionError }}
+          </q-card-section>
+          <q-card-section v-else-if="revisionDetail" class="revision-dialog-body">
+            <q-banner v-if="revisionDetail.changesTruncated" dense class="bg-amber-1 text-brown-9 q-mb-md">
+              변경 내용이 커서 일부 값은 미리보기로 표시됩니다.
+            </q-banner>
+            <div v-if="revisionDisplayChanges.length" class="revision-diff-scroll">
+              <table class="revision-diff-table">
+                <thead><tr><th>수정 위치</th><th>수정 전</th><th>수정 후</th></tr></thead>
+                <tbody>
+                  <template v-for="group in revisionDisplayChanges" :key="group.key">
+                    <tr v-if="group.occurrences > 1" class="revision-duplicate-row">
+                      <td colspan="3">같은 변경 내용이 {{ group.occurrences }}건 있어 한 번만 표시합니다.</td>
+                    </tr>
+                    <tr>
+                    <td class="revision-location-cell">
+                      <div v-for="path in group.paths" :key="path">{{ revisionPathLabel(path) }}</div>
+                    </td>
+                    <td class="revision-side-cell">
+                      <img v-if="revisionImage(group.change.before, group.change.beforePresent)" :src="revisionImage(group.change.before, group.change.beforePresent) || ''" alt="수정 전 이미지" />
+                      <div v-else-if="!group.change.beforePresent" class="revision-no-content">내용 없음</div>
+                      <WorkResultContent
+                        v-else-if="revisionIsMarkdown(group.change)"
+                        :content="revisionComparisonText(group.change.before, true)"
+                        :revision-before="revisionComparisonText(group.change.before, group.change.beforePresent)"
+                        :revision-after="revisionComparisonText(group.change.after, group.change.afterPresent)"
+                        revision-side="before"
+                        revision-only-changes
+                      />
+                      <pre v-else><template v-for="(segment, segmentIndex) in revisionTextDiff(revisionComparisonText(group.change.before, group.change.beforePresent), revisionComparisonText(group.change.after, group.change.afterPresent))" :key="segmentIndex"><span v-if="segment.kind === 'removed'" class="revision-removed">−{{ segment.text }}</span></template></pre>
+                    </td>
+                    <td class="revision-side-cell">
+                      <img v-if="revisionImage(group.change.after, group.change.afterPresent)" :src="revisionImage(group.change.after, group.change.afterPresent) || ''" alt="수정 후 이미지" />
+                      <div v-else-if="!group.change.afterPresent" class="revision-no-content">내용 없음</div>
+                      <WorkResultContent
+                        v-else-if="revisionIsMarkdown(group.change)"
+                        :content="revisionComparisonText(group.change.after, true)"
+                        :revision-before="revisionComparisonText(group.change.before, group.change.beforePresent)"
+                        :revision-after="revisionComparisonText(group.change.after, group.change.afterPresent)"
+                        revision-side="after"
+                        revision-only-changes
+                      />
+                      <pre v-else><template v-for="(segment, segmentIndex) in revisionTextDiff(revisionComparisonText(group.change.before, group.change.beforePresent), revisionComparisonText(group.change.after, group.change.afterPresent))" :key="segmentIndex"><span v-if="segment.kind === 'added'" class="revision-added">+{{ segment.text }}</span></template></pre>
+                    </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="revision-empty">이번 저장에서 문서 내용 변경은 없습니다.</div>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
     </q-card>
   </q-dialog>
 </template>
@@ -190,7 +291,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import type { FormEntry, WorkDocumentAsset } from 'src/services/formEntries'
+import { formEntryService, type FormEntry, type FormEntryRevisionDetail, type FormEntryRevisionSummary, type WorkDocumentAsset } from 'src/services/formEntries'
 import WorkDocumentAssets from './WorkDocumentAssets.vue'
 import type { FormField, FormSection } from 'src/services/formTemplates'
 import { comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
@@ -201,6 +302,7 @@ import { useAuthStore } from 'stores/auth'
 import InspectionLinks from './inspection/InspectionLinks.vue'
 import WorkDocumentInspectionOptions from './inspection/WorkDocumentInspectionOptions.vue'
 import type { WorkDocumentInspection } from 'src/services/workDocumentInspection'
+import { getErrorMessage } from 'src/utils/http/error'
 
 type EditableData = Record<string, Record<string, unknown> | Record<string, unknown>[]>
 type ImportWarning = { summary?: boolean; section?: string; field?: string; row?: number | null; message: string; sourcePreview?: string }
@@ -215,6 +317,165 @@ const editableAssets = ref<WorkDocumentAsset[]>([])
 const editorUploading = ref(false)
 const editSnapshot = ref('')
 const $q = useQuasar()
+const revisionDialog = ref(false)
+const revisionLoading = ref(false)
+const revisionError = ref('')
+const selectedRevision = ref<FormEntryRevisionSummary | null>(null)
+const revisionDetail = ref<FormEntryRevisionDetail | null>(null)
+const revisionDisplayChanges = computed(() => {
+  const changes = revisionDetail.value?.changes ?? []
+  const isDocumentBodySnapshot = (path: string) => path
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/[.\s]/g, '')
+    .startsWith('\uBB38\uC11C\uBCF8\uBB38')
+  const compactText = (value: unknown, present: boolean) => revisionComparisonText(value, present)
+    .normalize('NFKC')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[^0-9a-z\uAC00-\uD7A3]/gi, '')
+    .toLowerCase()
+  const bodyChanges = changes.filter(change => isDocumentBodySnapshot(change.path))
+  const fieldChanges = changes.filter(change => !isDocumentBodySnapshot(change.path))
+  const mirroredBodyPaths = new Set(bodyChanges.filter(bodyChange => {
+    const bodyBefore = compactText(bodyChange.before, bodyChange.beforePresent)
+    const bodyAfter = compactText(bodyChange.after, bodyChange.afterPresent)
+    return fieldChanges.some(fieldChange => {
+      const fieldBefore = compactText(fieldChange.before, fieldChange.beforePresent)
+      const fieldAfter = compactText(fieldChange.after, fieldChange.afterPresent)
+      return fieldBefore.length >= 4 && fieldAfter.length >= 4
+        && bodyBefore.includes(fieldBefore)
+        && bodyAfter.includes(fieldAfter)
+    })
+  }).map(change => change.path))
+  const grouped = new Map<string, {
+    key: string
+    change: FormEntryRevisionDetail['changes'][number]
+    paths: string[]
+    occurrences: number
+  }>()
+  for (const change of changes) {
+    if (isDocumentBodySnapshot(change.path) && mirroredBodyPaths.has(change.path)) continue
+    const before = revisionComparisonText(change.before, change.beforePresent)
+    const after = revisionComparisonText(change.after, change.afterPresent)
+    const visibleDiff = revisionTextDiff(before, after)
+      .filter((segment) => segment.kind !== 'same')
+      .map((segment) => ({
+        kind: segment.kind,
+        text: segment.text.replace(/\s+/g, ' ').trim(),
+      }))
+      .filter((segment) => segment.text.length > 0)
+    const key = visibleDiff.length
+      ? JSON.stringify(visibleDiff)
+      : JSON.stringify(['no-visible-text-change', change.path])
+    const existing = grouped.get(key)
+    if (existing) {
+      existing.occurrences += 1
+      if (!existing.paths.includes(change.path)) existing.paths.push(change.path)
+    } else {
+      grouped.set(key, { key, change, paths: [change.path], occurrences: 1 })
+    }
+  }
+  return [...grouped.values()]
+})
+async function openRevision(revision: FormEntryRevisionSummary) {
+  if (revision.action !== 'UPDATE' || !props.entry) return
+  selectedRevision.value = revision
+  revisionDetail.value = null
+  revisionError.value = ''
+  revisionDialog.value = true
+  revisionLoading.value = true
+  try {
+    revisionDetail.value = await formEntryService.getRevision(props.entry.id, revision.version)
+  } catch (error: unknown) {
+    revisionError.value = getErrorMessage(error, '비교 이력을 불러오지 못했습니다.')
+  } finally {
+    revisionLoading.value = false
+  }
+}
+function revisionValue(value: unknown, present: boolean): string {
+  if (!present) return '값 없음'
+  if (value == null || value === '') return '빈 값'
+  if (typeof value === 'string') return value
+  try { return JSON.stringify(value, null, 2) ?? '값을 표시할 수 없습니다.' } catch { return '값을 표시할 수 없습니다.' }
+}
+function revisionComparisonText(value: unknown, present: boolean): string {
+  if (!present || value == null) return ''
+  return typeof value === 'string' ? value : revisionValue(value, true)
+}
+function revisionPathLabel(path: string): string {
+  const labels: string[] = []
+  const rowIndexes: number[] = []
+  for (const match of path.matchAll(/([^.[\]]+)|\[(\d+)\]/g)) {
+    if (match[1]) labels.push(match[1].trim())
+    else if (match[2]) rowIndexes.push(Number(match[2]))
+  }
+  const label = labels.join(' › ')
+  const rows = rowIndexes.map(index => (index + 1) + '행').join(', ')
+  return label + (rows ? ' (' + rows + ')' : '') || path
+}
+function revisionIsMarkdown(change: FormEntryRevisionDetail['changes'][number]): boolean {
+  return (change.beforePresent && isMarkdownValue(change.before)) || (change.afterPresent && isMarkdownValue(change.after))
+}
+type RevisionTextSegment = { kind: 'same' | 'added' | 'removed'; text: string }
+function revisionTextDiff(beforeText: string, afterText: string): RevisionTextSegment[] {
+  const before = Array.from(beforeText)
+  const after = Array.from(afterText)
+  const rowSize = after.length + 1
+  const cellCount = (before.length + 1) * rowSize
+  if (cellCount > 500_000) {
+    let prefixLength = 0
+    while (prefixLength < before.length && prefixLength < after.length && before[prefixLength] === after[prefixLength]) prefixLength += 1
+    let suffixLength = 0
+    while (suffixLength < before.length - prefixLength && suffixLength < after.length - prefixLength && before[before.length - suffixLength - 1] === after[after.length - suffixLength - 1]) suffixLength += 1
+    const fallback: RevisionTextSegment[] = [
+      { kind: 'same', text: before.slice(0, prefixLength).join('') },
+      { kind: 'removed', text: before.slice(prefixLength, before.length - suffixLength).join('') },
+      { kind: 'added', text: after.slice(prefixLength, after.length - suffixLength).join('') },
+      { kind: 'same', text: suffixLength ? before.slice(before.length - suffixLength).join('') : '' },
+    ]
+    return fallback.filter(segment => segment.text.length > 0)
+  }
+
+  const matrix = new Uint32Array(cellCount)
+  const matrixValue = (row: number, column: number) => matrix[row * rowSize + column] ?? 0
+  for (let beforeIndex = before.length - 1; beforeIndex >= 0; beforeIndex -= 1) {
+    for (let afterIndex = after.length - 1; afterIndex >= 0; afterIndex -= 1) {
+      const cell = beforeIndex * rowSize + afterIndex
+      matrix[cell] = before[beforeIndex] === after[afterIndex]
+        ? matrixValue(beforeIndex + 1, afterIndex + 1) + 1
+        : Math.max(matrixValue(beforeIndex + 1, afterIndex), matrixValue(beforeIndex, afterIndex + 1))
+    }
+  }
+
+  const segments: RevisionTextSegment[] = []
+  const append = (kind: RevisionTextSegment['kind'], character: string) => {
+    const last = segments[segments.length - 1]
+    if (last?.kind === kind) last.text += character
+    else segments.push({ kind, text: character })
+  }
+  let beforeIndex = 0
+  let afterIndex = 0
+  while (beforeIndex < before.length || afterIndex < after.length) {
+    const beforeCharacter = before[beforeIndex]
+    const afterCharacter = after[afterIndex]
+    if (beforeIndex < before.length && afterIndex < after.length && beforeCharacter === afterCharacter) {
+      append('same', beforeCharacter!)
+      beforeIndex += 1
+      afterIndex += 1
+    } else if (afterIndex < after.length && (beforeIndex === before.length || matrixValue(beforeIndex, afterIndex + 1) >= matrixValue(beforeIndex + 1, afterIndex))) {
+      append('added', afterCharacter!)
+      afterIndex += 1
+    } else {
+      append('removed', beforeCharacter!)
+      beforeIndex += 1
+    }
+  }
+  return segments
+}
+function revisionImage(value: unknown, present: boolean): string | null {
+  if (!present || typeof value !== 'string') return null
+  return /^(data:image\/|\/api\/uploads\/form_entries\/|https?:\/\/[^\s]+\.(?:png|jpe?g|gif|webp|bmp)(?:\?[^\s]*)?$)/i.test(value) ? value : null
+}
 function cloneEntryData(): EditableData { return JSON.parse(JSON.stringify(props.entry?.data ?? {})) as EditableData }
 function cloneEntryAssets() { return (props.entry?.linkedAssets ?? []).map(asset => ({ ...asset })) }
 function snapshot(value: EditableData): string { return JSON.stringify({ data: value, assets: editableAssets.value.map(a => a.id) }) }
@@ -471,6 +732,28 @@ watch(() => [props.modelValue, props.entry?.id, props.loading], async () => {
 <style scoped>
 .document-save-warning { display: flex; gap: 8px; padding: 12px; margin-bottom: 16px; border-radius: 8px; background: #fff4de; color: #775521; font-size: 13px; line-height: 1.7; }
 .document-save-warning .q-icon { flex-shrink: 0; margin-top: 2px; }
+.revision-history { margin-top: 20px; border-top: 1px solid var(--line); }
+.revision-history :deep(.q-item) { min-height: 48px; padding: 6px 0; }
+.revision-history :deep(.q-expansion-item__container > .q-item) { padding: 8px 0; }
+.revision-dialog { display: flex; flex-direction: column; width: min(1200px, 94vw); max-width: 94vw; max-height: 90vh; }
+.revision-dialog-body { min-height: 0; overflow: auto; }
+.revision-loading, .revision-error, .revision-empty { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 140px; color: var(--muted); text-align: center; }
+.revision-added { padding: 1px 3px; border-radius: 3px; background: #cffafe; color: #0e7490; font-weight: 700; }
+.revision-removed { padding: 1px 3px; border-radius: 3px; background: #ffedd5; color: #c2410c; font-weight: 700; }
+.revision-diff-scroll { max-width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.revision-diff-table { width: 100%; min-width: 760px; table-layout: fixed; border-collapse: collapse; }
+.revision-diff-table th { padding: 10px 12px; background: #f8fafc; font-weight: 700; text-align: center; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.revision-diff-table th:first-child, .revision-diff-table td:first-child { width: 22%; }
+.revision-diff-table th:nth-child(2), .revision-diff-table td:nth-child(2), .revision-diff-table th:nth-child(3), .revision-diff-table td:nth-child(3) { width: 39%; }
+.revision-diff-table td { padding: 12px; vertical-align: top; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: left; }
+.revision-duplicate-row td { padding: 6px 12px; background: #fefce8; color: #854d0e; font-size: 12px; text-align: left; }
+.revision-location-cell { overflow-wrap: anywhere; color: var(--muted); font-size: 13px; }
+.revision-location-cell > div + div { margin-top: 6px; }
+.revision-side-cell { overflow-wrap: anywhere; }
+.revision-no-content { color: var(--muted); font-style: italic; }
+.revision-diff-table pre { max-height: 360px; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.6; }
+.revision-diff-table img { display: block; max-width: 100%; max-height: 360px; object-fit: contain; }
+.revision-diff-table .work-result-content { max-width: 100%; overflow-wrap: anywhere; }
 .document-inspection-link { display: flex; justify-content: flex-end; margin: 0 0 12px; }
 .imported-extra-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
 .imported-extra-panel { min-width: 0; padding: 18px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }

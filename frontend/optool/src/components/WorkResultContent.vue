@@ -1,5 +1,5 @@
 <template>
-  <div class="work-result-content" @click="openImage" @keydown.enter="openImage" @keydown.space="openImage" v-html="rendered" />
+  <div ref="contentRoot" :class="['work-result-content', { 'revision-only-content': revisionOnlyChanges }]" @click="openImage" @keydown.enter="openImage" @keydown.space="openImage" v-html="rendered" />
   <q-dialog v-model="previewOpen" @hide="previewSource = ''">
     <q-card class="image-preview-card">
       <q-bar><span>이미지 크게 보기</span><q-space /><q-btn flat round dense icon="close" aria-label="이미지 닫기" v-close-popup /></q-bar>
@@ -8,9 +8,18 @@
   </q-dialog>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { marked, Renderer } from 'marked'
-const props = defineProps<{ content: string; sectionTitles?: string[] }>()
+import { diffTextCharacters } from 'src/utils/textDiff'
+const props = defineProps<{
+  content: string
+  sectionTitles?: string[]
+  revisionBefore?: string
+  revisionAfter?: string
+  revisionSide?: 'before' | 'after'
+  revisionOnlyChanges?: boolean
+}>()
+const contentRoot = ref<HTMLElement | null>(null)
 const previewOpen = ref(false)
 const previewSource = ref('')
 const previewAlt = ref('')
@@ -319,18 +328,149 @@ renderer.html = (html) => {
 }
 renderer.link = (href, _title, text) => href && safeUrl(href, false) ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${text}</a>` : text
 renderer.image = (href, _title, text) => href && safeUrl(href, true) ? `<img src="${escapeHtml(href)}" alt="${escapeHtml(text)}" loading="lazy" role="button" tabindex="0" aria-label="${escapeHtml(text || '문서 이미지')} 크게 보기" title="클릭하여 크게 보기">` : escapeHtml(text)
-const rendered = computed(() => {
-  const rawTables = protectRawTableHtml(props.content ?? '')
+function renderMarkdown(content: string): string {
+  const rawTables = protectRawTableHtml(content)
   const prepared = protectNestedMarkdownTables(rawTables.source)
   let html = marked(prepared.source, { renderer, breaks: true })
   for (const replacement of [...rawTables.replacements, ...prepared.replacements]) {
     html = html.split(replacement.token).join(replacement.html)
   }
   return html
-})
+}
+const rendered = computed(() => renderMarkdown(props.content ?? ''))
+function readableRevisionText(root: HTMLElement): string {
+  function read(node: Node): string {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? ''
+    if (!(node instanceof HTMLElement)) return Array.from(node.childNodes, read).join('')
+    if (node.tagName === 'IMG') return `[이미지${node.getAttribute('alt') ? `: ${node.getAttribute('alt')}` : ''}]`
+    if (node.tagName === 'BR') return '\n'
+    const content = Array.from(node.childNodes, read).join('')
+    if (node.tagName === 'TH' || node.tagName === 'TD') return `${content.trim()} | `
+    if (node.tagName === 'TR') return `${content.trimEnd()}\n`
+    if (/^(P|LI|H[1-6])$/.test(node.tagName)) return `${content}\n`
+    return content
+  }
+  return read(root).replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+function markRevisionDifferences() {
+  const root = contentRoot.value
+  if (!root || !props.revisionSide || props.revisionBefore === undefined || props.revisionAfter === undefined) return
+
+  const beforeRoot = document.createElement('div')
+  beforeRoot.innerHTML = renderMarkdown(props.revisionBefore)
+  const afterRoot = document.createElement('div')
+  afterRoot.innerHTML = renderMarkdown(props.revisionAfter)
+
+  if (props.revisionOnlyChanges) {
+    const beforeText = readableRevisionText(beforeRoot)
+    const afterText = readableRevisionText(afterRoot)
+    const targetKind = props.revisionSide === 'before' ? 'removed' : 'added'
+    const seenSegments = new Set<string>()
+    const changedSegments = diffTextCharacters(beforeText, afterText)
+      .filter(segment => segment.kind === targetKind)
+      .filter(segment => {
+        const normalized = segment.text.replace(/\s+/g, ' ').trim()
+        if (!normalized || seenSegments.has(normalized)) return false
+        seenSegments.add(normalized)
+        return true
+      })
+      .map(segment => segment.text)
+    const beforeImages = Array.from(beforeRoot.querySelectorAll('img'), image => image.currentSrc || image.src)
+    const afterImages = Array.from(afterRoot.querySelectorAll('img'), image => image.currentSrc || image.src)
+    const otherImages = new Set(props.revisionSide === 'before' ? afterImages : beforeImages)
+    const changedImages = (props.revisionSide === 'before' ? beforeImages : afterImages).filter(source => !otherImages.has(source))
+    const fragment = document.createDocumentFragment()
+    changedSegments.forEach((segment, index) => {
+      if (index) fragment.append(document.createTextNode('\n'))
+      const mark = document.createElement('span')
+      mark.className = `revision-mark revision-mark--${targetKind}`
+      mark.textContent = `${targetKind === 'removed' ? '−' : '+'}${segment}`
+      fragment.append(mark)
+    })
+    for (const source of changedImages) {
+      if (fragment.childNodes.length) fragment.append(document.createElement('br'))
+      const mark = document.createElement('span')
+      mark.className = `revision-mark revision-mark--${targetKind}`
+      mark.textContent = targetKind === 'removed' ? '−' : '+'
+      fragment.append(mark)
+      const image = document.createElement('img')
+      image.src = source
+      image.alt = targetKind === 'removed' ? '삭제된 이미지' : '추가된 이미지'
+      image.loading = 'lazy'
+      image.tabIndex = 0
+      image.setAttribute('role', 'button')
+      fragment.append(image)
+    }
+    root.replaceChildren(fragment)
+    return
+  }
+
+  const beforeText = beforeRoot.textContent ?? ''
+  const afterText = afterRoot.textContent ?? ''
+  const currentText = props.revisionSide === 'before' ? beforeText : afterText
+  if ((root.textContent ?? '') !== currentText) return
+
+  const ranges: Array<{ start: number; end: number; kind: 'added' | 'removed' }> = []
+  let beforeOffset = 0
+  let afterOffset = 0
+  for (const segment of diffTextCharacters(beforeText, afterText)) {
+    if (segment.kind === 'same') {
+      beforeOffset += segment.text.length
+      afterOffset += segment.text.length
+    } else if (segment.kind === 'removed') {
+      if (props.revisionSide === 'before') ranges.push({ start: beforeOffset, end: beforeOffset + segment.text.length, kind: 'removed' })
+      beforeOffset += segment.text.length
+    } else {
+      if (props.revisionSide === 'after') ranges.push({ start: afterOffset, end: afterOffset + segment.text.length, kind: 'added' })
+      afterOffset += segment.text.length
+    }
+  }
+  if (!ranges.length) return
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  const textNodes: Array<{ node: Text; start: number; end: number }> = []
+  let offset = 0
+  let currentNode = walker.nextNode()
+  while (currentNode) {
+    const node = currentNode as Text
+    const end = offset + node.data.length
+    if (node.data.length) textNodes.push({ node, start: offset, end })
+    offset = end
+    currentNode = walker.nextNode()
+  }
+
+  for (const item of textNodes) {
+    const overlaps = ranges.filter(range => range.start < item.end && range.end > item.start)
+    if (!overlaps.length) continue
+    overlaps.sort((left, right) => left.start - right.start || (left.kind === right.kind ? 0 : left.kind === 'removed' ? -1 : 1))
+    const fragment = document.createDocumentFragment()
+    let localOffset = 0
+    for (const range of overlaps) {
+      const start = Math.max(range.start, item.start) - item.start
+      const end = Math.min(range.end, item.end) - item.start
+      if (start > localOffset) fragment.append(document.createTextNode(item.node.data.slice(localOffset, start)))
+      const mark = document.createElement('span')
+      mark.className = `revision-mark revision-mark--${range.kind}`
+      const prefix = range.kind === 'removed' ? '−' : '+'
+      mark.textContent = `${prefix}${item.node.data.slice(start, end)}`
+      fragment.append(mark)
+      if (end > start) localOffset = end
+    }
+    if (localOffset < item.node.data.length) fragment.append(document.createTextNode(item.node.data.slice(localOffset)))
+    item.node.replaceWith(fragment)
+  }
+}
+watch(
+  [rendered, () => props.revisionBefore, () => props.revisionAfter, () => props.revisionSide, () => props.revisionOnlyChanges],
+  () => { void nextTick(markRevisionDifferences) },
+  { immediate: true },
+)
 </script>
 <style scoped>
 .work-result-content { overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; min-width: 0; max-width: 100%; }
+.work-result-content.revision-only-content { white-space: pre-wrap; }
+.work-result-content :deep(.revision-mark--removed) { border-radius: 3px; background: #ffedd5; color: #c2410c; font-weight: 700; }
+.work-result-content :deep(.revision-mark--added) { border-radius: 3px; background: #cffafe; color: #0e7490; font-weight: 700; }
 .work-result-content :deep(img) { display: block; max-width: 100%; height: auto; margin: 12px 0; border-radius: 6px; cursor: zoom-in; }
 .work-result-content :deep(img:focus-visible) { outline: 2px solid var(--q-primary); outline-offset: 4px; }
 .image-preview-card { width: 94vw; max-width: 94vw; max-height: 94vh; }

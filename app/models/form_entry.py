@@ -47,6 +47,32 @@ class FormEntryPatch(WorkAssetSelection):
     original_file: FormOriginalFile | None = None
 
 
+class FormEntryRevisionOut(BaseModel):
+    version: int
+    action: Literal['CREATE', 'UPDATE']
+    changed_at: str | None = None
+    changed_by: str | None = None
+    changed_sections: list[str] = Field(default_factory=list)
+    has_diff: bool = False
+
+
+class FormEntryFieldChangeOut(BaseModel):
+    path: str
+    before: Any = None
+    after: Any = None
+    before_present: bool = True
+    after_present: bool = True
+
+
+class FormEntryRevisionDetailOut(BaseModel):
+    version: int
+    changed_at: str | None = None
+    changed_by: str | None = None
+    changed_sections: list[str] = Field(default_factory=list)
+    changes: list[FormEntryFieldChangeOut] = Field(default_factory=list)
+    changes_truncated: bool = False
+
+
 class FormEntryOut(BaseModel):
     id: str
     template_id: str
@@ -59,3 +85,4 @@ class FormEntryOut(BaseModel):
     created_by: str | None = None
     updated_at: str | None = None
     updated_by: str | None = None
+    revision_history: list[FormEntryRevisionOut] = Field(default_factory=list)

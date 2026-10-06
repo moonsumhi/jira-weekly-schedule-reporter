@@ -62,6 +62,7 @@ class MongoClientManager:
     JOB_RESULTS_HISTORY = "job_results_history"
     FORM_TEMPLATES = "form_templates"
     FORM_ENTRIES = "form_entries"
+    FORM_ENTRY_REVISIONS = "form_entry_revisions"
     RECURRING_ISSUE_TEMPLATES = "recurring_issue_templates"
     MENUS = "menus"
     BOARDS = "boards"
@@ -215,6 +216,10 @@ class MongoClientManager:
     @classmethod
     def get_form_entries_collection(cls):
         return cls.get_db()[cls.FORM_ENTRIES]
+
+    @classmethod
+    def get_form_entry_revisions_collection(cls):
+        return cls.get_db()[cls.FORM_ENTRY_REVISIONS]
 
     @classmethod
     def get_menus_collection(cls):
