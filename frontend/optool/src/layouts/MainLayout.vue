@@ -67,6 +67,7 @@
                 v-if="menu.slug === 'job'"
                 :title="menu.title"
                 :icon="menu.icon"
+                :color="menu.color ?? '#000000'"
                 :children="jobMenuItems"
               />
 
@@ -75,6 +76,7 @@
                 v-else-if="menu.slug === 'admin'"
                 :title="menu.title"
                 :icon="menu.icon"
+                :color="menu.color ?? '#000000'"
                 :badge="pendingCount"
                 :children="menuChildren(menu, '/admin/approvals')"
               />
@@ -84,6 +86,7 @@
                 v-else-if="menu.link"
                 :title="menu.title"
                 :icon="menu.icon"
+                :color="menu.color ?? '#000000'"
                 :link="menu.link"
               />
 
@@ -92,6 +95,7 @@
                 v-else-if="menu.submenus?.length"
                 :title="menu.title"
                 :icon="menu.icon"
+                :color="menu.color ?? '#000000'"
                 :children="menuChildren(menu)"
               />
 
@@ -100,6 +104,7 @@
                 v-else
                 :title="menu.title"
                 :icon="menu.icon"
+                :color="menu.color ?? '#000000'"
                 :children="boardChildrenOf(menu.id)"
               />
             </template>
@@ -370,6 +375,7 @@ function menuChildren(menu: MenuOut, badgeLink?: string): EssentialLinkProps[] {
       title: s.title,
       icon: menu.subIcons?.[s.link] ?? s.icon,
       link: s.link,
+      color: menu.subColors?.[s.link] ?? menu.color ?? '#000000',
       badge: badgeLink === s.link ? pendingCount.value : 0,
     }))
   return applySubOrder(items, menu)
@@ -384,7 +390,15 @@ function boardChildrenOf(menuId: string) {
       .filter((b) => orderMap.has(b.link ?? `/board/${b.id}`))
       .sort((a, b) => (orderMap.get(a.link ?? `/board/${a.id}`) ?? Infinity) - (orderMap.get(b.link ?? `/board/${b.id}`) ?? Infinity))
   }
-  return boards.map((b) => ({ title: b.title, icon: b.icon ?? 'fa-solid fa-clipboard-list', link: b.link ?? `/board/${b.id}` }))
+  return boards.map((b) => {
+    const link = b.link ?? `/board/${b.id}`
+    return {
+      title: b.title,
+      icon: b.icon ?? 'fa-solid fa-clipboard-list',
+      link,
+      color: menu?.subColors?.[link] ?? menu?.color ?? '#000000',
+    }
+  })
 }
 
 const jobMenuItems = computed<EssentialLinkProps[]>(() => {
@@ -394,6 +408,7 @@ const jobMenuItems = computed<EssentialLinkProps[]>(() => {
     .map((item) => ({
       ...item,
       icon: menu?.subIcons?.[item.link] ?? item.icon,
+      color: menu?.subColors?.[item.link] ?? menu?.color ?? '#000000',
     }))
   if (menu?.subOrder && menu.subOrder.length > 0) {
     const orderMap = new Map(menu.subOrder.map((link, i) => [link, i]))

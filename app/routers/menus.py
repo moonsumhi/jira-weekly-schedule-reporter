@@ -19,6 +19,7 @@ def _to_out(doc: dict) -> MenuOut:
         id=str(doc["_id"]),
         title=doc.get("title", ""),
         icon=doc.get("icon", "fa-solid fa-folder"),
+        color=doc.get("color"),
         sort_order=doc.get("sort_order"),
         is_visible=bool(doc.get("is_visible", True)),
         is_external_visible=bool(doc.get("is_external_visible", False)),
@@ -26,6 +27,7 @@ def _to_out(doc: dict) -> MenuOut:
         is_system=bool(doc.get("is_system", False)),
         slug=doc.get("slug"),
         sub_icons=doc.get("sub_icons"),
+        sub_colors=doc.get("sub_colors"),
         sub_order=doc.get("sub_order"),
         link=doc.get("link"),
         submenus=submenus,
@@ -48,6 +50,7 @@ async def create_menu(payload: MenuCreate, _=Depends(require_admin)):
     doc = {
         "title": payload.title,
         "icon": payload.icon,
+        "color": payload.color,
         "sort_order": payload.sort_order,
         "is_visible": payload.is_visible,
         "link": payload.link,
@@ -62,7 +65,9 @@ async def create_menu(payload: MenuCreate, _=Depends(require_admin)):
 async def patch_menu(menu_id: str, payload: MenuPatch, _=Depends(require_admin)):
     col = MongoClientManager.get_menus_collection()
     _oid = parse_oid(menu_id, "잘못된 메뉴 ID입니다.")
-    update = {k: v for k, v in payload.model_dump(exclude_none=True).items()}
+    update = payload.model_dump(exclude_none=True)
+    if "color" in payload.model_fields_set:
+        update["color"] = payload.color
     if not update:
         raise HTTPException(status_code=400, detail="수정할 필드가 없습니다.")
 
