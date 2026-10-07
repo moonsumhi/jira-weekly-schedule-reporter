@@ -7,6 +7,7 @@ class DDayCreate(BaseModel):
     color: str = "blue"
     note: str | None = None
     visible_user_ids: list[str] = Field(default_factory=list)
+    visible_teams: list[str] = Field(default_factory=list)
 
 
 class DDayPatch(BaseModel):
@@ -15,6 +16,7 @@ class DDayPatch(BaseModel):
     color: str | None = None
     note: str | None = None
     visible_user_ids: list[str] | None = None
+    visible_teams: list[str] | None = None
 
 
 class DDayOut(BaseModel):
@@ -24,4 +26,5 @@ class DDayOut(BaseModel):
     color: str
     note: str | None = None
     visible_user_ids: list[str] = Field(default_factory=list)
+    visible_teams: list[str] = Field(default_factory=list)
     created_at: str | None = None

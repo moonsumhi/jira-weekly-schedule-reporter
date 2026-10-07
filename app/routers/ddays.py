@@ -14,6 +14,41 @@ from app.utils.mongo import fmt_dt, oid as parse_oid
 router = APIRouter()
 
 
+def _audience_filter(current_user: UserPublic) -> dict:
+    if current_user.is_admin:
+        return {}
+
+    unrestricted_audience = {
+        "$and": [
+            {"$or": [
+                {"visible_user_ids": {"$exists": False}},
+                {"visible_user_ids": None},
+                {"visible_user_ids": []},
+            ]},
+            {"$or": [
+                {"visible_teams": {"$exists": False}},
+                {"visible_teams": None},
+                {"visible_teams": []},
+            ]},
+        ]
+    }
+    audience_filters = [
+        {"visible_user_ids": current_user.id},
+        unrestricted_audience,
+        {"created_by": current_user.id},
+    ]
+    if current_user.team:
+        audience_filters.append({"visible_teams": current_user.team})
+    return {"$or": audience_filters}
+
+
+def _scoped_query(base_query: dict, current_user: UserPublic) -> dict:
+    audience = _audience_filter(current_user)
+    if not audience:
+        return base_query
+    return {"$and": [base_query, audience]}
+
+
 def _to_out(doc: dict) -> DDayOut:
     return DDayOut(
         id=str(doc["_id"]),
@@ -22,6 +57,7 @@ def _to_out(doc: dict) -> DDayOut:
         color=doc.get("color", "blue"),
         note=doc.get("note"),
         visible_user_ids=[str(user_id) for user_id in (doc.get("visible_user_ids") or [])],
+        visible_teams=[str(team) for team in (doc.get("visible_teams") or [])],
         created_at=fmt_dt(doc.get("created_at")),
     )
 
@@ -29,14 +65,7 @@ def _to_out(doc: dict) -> DDayOut:
 @router.get("", response_model=list[DDayOut])
 async def list_ddays(current_user: UserPublic = Depends(get_current_user)):
     col = MongoClientManager.get_ddays_collection()
-    query = {} if current_user.is_admin else {
-        "$or": [
-            {"visible_user_ids": {"$exists": False}},
-            {"visible_user_ids": None},
-            {"visible_user_ids": []},
-            {"visible_user_ids": current_user.id},
-        ]
-    }
+    query = _scoped_query({}, current_user)
     docs = [doc async for doc in col.find(query)]
     docs.sort(key=lambda d: d.get("date", ""))
     return [_to_out(doc) for doc in docs]
@@ -51,6 +80,7 @@ async def create_dday(payload: DDayCreate, _=Depends(require_admin)):
         "color": payload.color,
         "note": payload.note,
         "visible_user_ids": payload.visible_user_ids,
+        "visible_teams": payload.visible_teams,
         "created_at": datetime.now(timezone.utc),
     }
     result = await col.insert_one(doc)

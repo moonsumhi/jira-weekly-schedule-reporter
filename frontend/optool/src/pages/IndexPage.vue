@@ -321,12 +321,21 @@
             emit-value map-options
           />
           <q-select
+            v-model="ddayForm.visibleTeams"
+            outlined dense multiple use-chips clearable
+            label="표시할 팀"
+            :options="ddayTeamOptions"
+            emit-value map-options
+            :loading="ddayUsersLoading"
+          />
+          <q-select
             v-model="ddayForm.visibleUserIds"
             outlined dense multiple use-chips clearable
             label="표시할 사람"
+            class="dday-visible-people-select"
             :options="ddayUserOptions"
             emit-value map-options
-            hint="선택하지 않으면 모든 사용자에게 표시됩니다."
+            :hint="'※팀과 사람을 모두 비우면 전체 공개되며,\n선택한 팀원과 사람에게 표시됩니다.'"
             :loading="ddayUsersLoading"
           />
           <q-input v-model="ddayForm.note" outlined dense label="메모" type="textarea" rows="2" />
@@ -521,6 +530,7 @@ function openInspectionEdit() {
     color: 'teal',
     note: existing?.note ?? '',
     visibleUserIds: existing?.visibleUserIds ?? [],
+    visibleTeams: existing?.visibleTeams ?? [],
   }
   void loadDDayUsers()
   ddayDialog.value = true
@@ -539,7 +549,15 @@ const ddayDialog = ref(false)
 const ddaySaving = ref(false)
 const ddayUsersLoading = ref(false)
 const ddayUsers = ref<{ id: string; fullName?: string | null; email: string; team?: string | null; isBlocked?: boolean }[]>([])
-const ddayForm = ref({ id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] as string[] })
+const ddayForm = ref({ id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] as string[], visibleTeams: [] as string[] })
+const ddayTeamOptions = computed(() =>
+  [...new Set(ddayUsers.value
+    .filter((user) => !user.isBlocked)
+    .map((user) => user.team?.trim())
+    .filter((team): team is string => Boolean(team)))]
+    .sort((left, right) => left.localeCompare(right, 'ko'))
+    .map((team) => ({ value: team, label: team }))
+)
 const ddayUserOptions = computed(() =>
   ddayUsers.value
     .filter((user) => !user.isBlocked)
@@ -612,7 +630,7 @@ async function loadDDays() {
 }
 
 function openDDayCreate() {
-  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] }
+  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [], visibleTeams: [] }
   void loadDDayUsers()
   ddayDialog.value = true
 }
@@ -625,6 +643,7 @@ function openDDayEdit(d: DDay) {
     color: d.color,
     note: d.note ?? '',
     visibleUserIds: d.visibleUserIds ?? [],
+    visibleTeams: d.visibleTeams ?? [],
   }
   void loadDDayUsers()
   ddayDialog.value = true
@@ -656,6 +675,7 @@ async function saveDDay() {
       color: ddayForm.value.color,
       note: ddayForm.value.note || null,
       visible_user_ids: ddayForm.value.visibleUserIds,
+      visible_teams: ddayForm.value.visibleTeams,
     }
     if (ddayForm.value.id) {
       await patchDDay(ddayForm.value.id, payload)
@@ -1008,6 +1028,14 @@ onMounted(() => {
 .dday-note {
   font-size: 11px;
   margin-top: 2px;
+}
+
+.dday-visible-people-select {
+  margin-bottom: 16px;
+}
+
+.dday-visible-people-select :deep(.q-field__messages) {
+  white-space: pre-line;
 }
 
 .dday-info {
