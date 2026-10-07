@@ -18,6 +18,7 @@
           <q-icon name="event" size="18px" color="red-7" />
           <span class="card-title">D-Day</span>
           <q-space />
+          <q-btn flat dense no-caps icon="history" label="이력" size="sm" color="grey-7" to="/dday/history" />
           <q-btn v-if="auth.me?.isAdmin" flat dense round icon="add" size="sm" color="grey-7" @click="openDDayCreate" />
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
             <q-tooltip>카드 크기 조절</q-tooltip>

@@ -75,6 +75,20 @@ async def list_ddays(current_user: UserPublic = Depends(get_current_user)):
     return [_to_out(doc) for doc in docs]
 
 
+@router.get("/history", response_model=list[DDayOut])
+async def list_dday_history(current_user: UserPublic = Depends(get_current_user)):
+    col = MongoClientManager.get_ddays_collection()
+    completed_filter = {
+        "$or": [
+            {"completed": True},
+            {"completed_at": {"$exists": True, "$ne": None}},
+        ]
+    }
+    query = _scoped_query(completed_filter, current_user)
+    docs = [doc async for doc in col.find(query).sort("completed_at", -1)]
+    return [_to_out(doc) for doc in docs]
+
+
 @router.post("", response_model=DDayOut, status_code=201)
 async def create_dday(
     payload: DDayCreate,

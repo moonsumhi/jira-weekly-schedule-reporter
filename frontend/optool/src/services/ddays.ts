@@ -37,6 +37,11 @@ export async function fetchDDays(): Promise<DDay[]> {
   return data
 }
 
+export async function fetchDDayHistory(): Promise<DDay[]> {
+  const { data } = await api.get<DDay[]>('/ddays/history')
+  return data
+}
+
 export async function createDDay(payload: DDayCreate): Promise<DDay> {
   const { data } = await api.post<DDay>('/ddays', payload)
   return data
