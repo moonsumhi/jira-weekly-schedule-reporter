@@ -83,10 +83,12 @@
             :rows="filteredRows"
             :columns="columns"
             row-key="id"
+            :row-class="trashView ? '' : 'work-document-row-clickable'"
             :loading="tableLoading"
             :pagination="{ rowsPerPage: 10 }"
             flat
             bordered
+            @row-click="onDocumentRowClick"
           >
             <template #header-cell-select="props">
               <q-th :props="props" class="text-center">
@@ -115,7 +117,10 @@
 
             <template #body-cell-preview="props">
               <q-td :props="props">
-                <span class="text-grey-7 text-caption ellipsis" style="max-width: 300px; display: block;">
+                <button v-if="!trashView" class="document-row-title" type="button" @click.stop="void openDetail(props.row)">
+                  {{ entryPreview(props.row) }}
+                </button>
+                <span v-else class="text-grey-7 text-caption ellipsis" style="max-width: 300px; display: block;">
                   {{ entryPreview(props.row) }}
                 </span>
               </q-td>
@@ -133,14 +138,6 @@
                       :loading="actingId === props.row.id" @click="confirmRestore(props.row)" />
                     <q-btn dense color="negative" icon="delete_forever" label="영구삭제"
                       :loading="actingId === props.row.id" @click="confirmPurge(props.row)" />
-                  </template>
-                  <template v-else>
-                    <q-btn dense outline icon="visibility" label="상세" @click="void openDetail(props.row)" />
-                    <q-btn
-                      dense color="negative" icon="delete" label="삭제"
-                      :loading="actingId === props.row.id"
-                      @click="confirmDelete(props.row)"
-                    />
                   </template>
                 </div>
               </q-td>
@@ -427,6 +424,7 @@
       :result-inspection-links="canLinkWorkDocument && isWorkResultTemplate(template)"
       @update:model-value="onDetailDialogUpdate"
       @save="saveDetailForm"
+      @delete="confirmDelete"
       @export="exportDetailMarkdown"
       @export-file="exportDetailFile"
       @download-original="downloadOriginalFile"
@@ -841,8 +839,12 @@ const columns = computed(() => [
     align: 'left' as const,
     sortable: true,
   },
-  { name: 'actions', label: '', field: 'id', align: 'right' as const },
+  ...(trashView.value ? [{ name: 'actions', label: '', field: 'id', align: 'right' as const }] : []),
 ])
+
+function onDocumentRowClick(_event: Event, row: FormEntry): void {
+  if (!trashView.value) void openDetail(row)
+}
 
 function getWorkDate(row: FormEntry): string {
   const incident = entryTemplate(row)?.title === '장애보고서'
@@ -1416,6 +1418,7 @@ function confirmDelete(row: FormEntry) {
     formEntryService.remove(row.id)
       .then(() => {
         rows.value = rows.value.map((r) => (r.id === row.id ? { ...r, isDeleted: true } : r))
+        if (detailRow.value?.id === row.id) onDetailDialogUpdate(false)
         $q.notify({ type: 'positive', message: '삭제됐습니다.' })
       })
       .catch(() => {
@@ -1658,6 +1661,12 @@ watch(() => route.query.entryId, () => { if (!loading.value) void openLinkedEntr
 :global(body.body--dark) .edit-field-label { color: #94a3b8; }
 @media (max-width: 600px) { .edit-fields { grid-template-columns: 1fr; }.edit-row-card { padding: 18px; } }
 .job-category-tabs { border-bottom: 1px solid #e0e0e0; }
+.document-row-title { max-width: 100%; padding: 0; border: 0; background: transparent; color: #000; font: inherit; text-align: left; cursor: pointer; }
+:global(body.body--dark) .document-row-title { color: #fff; }
+.document-row-title:hover { text-decoration: underline; }
+.document-row-title:focus-visible { outline: 2px solid var(--q-primary); outline-offset: 2px; }
+:deep(.work-document-row-clickable) { cursor: pointer; }
+:deep(.work-document-row-clickable:hover > td) { background: rgba(25, 118, 210, 0.045); }
 .image-drop-zone {
   min-height: 80px;
   width: 100%;

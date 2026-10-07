@@ -10,9 +10,45 @@
         <q-btn flat round dense icon="close" aria-label="상세 닫기" :disable="saving || editorUploading" @click="close" />
       </header>
 
+      <q-tabs v-if="entry && !editing && !creating" v-model="activeTab" dense no-caps align="left"
+        class="document-tabs" active-color="primary" indicator-color="primary" @update:model-value="onTabChange">
+        <q-tab name="document" label="문서 내용" />
+        <q-tab name="history" label="이력 관리" />
+      </q-tabs>
+
       <div v-if="loading" class="document-loading"><q-spinner size="36px" color="primary" /><span>문서를 불러오고 있습니다</span></div>
       <div v-else-if="error" class="document-loading" role="alert">
         <span>{{ error }}</span><q-btn outline color="primary" label="다시 불러오기" @click="emit('retry')" />
+      </div>
+      <div v-else-if="entry && activeTab === 'history' && !editing" class="document-history">
+        <div class="document-history-content">
+          <div class="document-history-heading">
+            <div><h2>이력 관리</h2><p>{{ documentTitle }} · 수정과 내보내기 기록을 최신순으로 표시합니다.</p></div>
+            <q-btn flat round dense icon="refresh" aria-label="이력 새로고침" :loading="exportHistoryLoading" @click="loadExportHistory" />
+          </div>
+          <div v-if="exportHistoryLoading && !exportHistory.length" class="revision-loading"><q-spinner color="primary" size="28px" /> 이력을 불러오는 중입니다.</div>
+          <div v-else-if="exportHistoryError" class="revision-error" role="alert">
+            {{ exportHistoryError }} <q-btn flat dense label="다시 불러오기" @click="loadExportHistory" />
+          </div>
+          <q-timeline v-else-if="combinedHistory.length" color="blue-grey-4">
+            <q-timeline-entry v-for="item in combinedHistory" :key="item.key"
+              :title="item.kind === 'revision' ? (item.revision.action === 'CREATE' ? '문서 작성' : '문서 수정') : '문서 내보내기'"
+              :subtitle="formatDate(item.changedAt)" :icon="item.kind === 'revision' ? 'edit_note' : 'download'">
+              <template v-if="item.kind === 'revision'">
+                <div>{{ item.revision.changedBy || '수정자 미등록' }} · v{{ item.revision.version }}</div>
+                <div v-if="item.revision.changedSections.length" class="document-history-detail">수정한 부분: {{ item.revision.changedSections.join(', ') }}</div>
+                <q-btn v-if="item.revision.action === 'UPDATE' && item.revision.hasDiff" flat dense no-caps color="primary"
+                  icon="compare_arrows" label="수정 전후 비교" class="q-mt-xs" @click="openRevision(item.revision)" />
+                <div v-else-if="item.revision.action === 'UPDATE'" class="document-history-detail">이전 이력으로 비교 자료가 없습니다.</div>
+              </template>
+              <template v-else>
+                <div>{{ item.exported.exportedBy || '수행자 미등록' }} · {{ exportFormatLabels[item.exported.format] }}</div>
+                <div class="document-history-detail">사유: {{ item.exported.reason }}</div>
+              </template>
+            </q-timeline-entry>
+          </q-timeline>
+          <div v-else class="revision-empty">기록된 이력이 없습니다.</div>
+        </div>
       </div>
       <div v-else-if="entry" :class="['document-layout', { 'is-editing': editing }]">
         <aside class="document-sidebar">
@@ -30,35 +66,6 @@
             <dl><dt>작성자</dt><dd>{{ entry.createdBy || '—' }}</dd><dt>작성일</dt><dd>{{ formatDate(entry.createdAt) }}</dd>
               <dt>최종 수정자</dt><dd>{{ entry.updatedBy || entry.createdBy || '미등록' }}</dd>
               <dt>최종 수정</dt><dd>{{ formatDate(entry.updatedAt) }}</dd><dt>버전</dt><dd>v{{ entry.version }}</dd></dl>
-            <q-expansion-item
-              v-if="entry.revisionHistory?.length"
-              class="revision-history"
-              dense
-              expand-separator
-              icon="history"
-              label="수정 이력"
-              :caption="`${entry.revisionHistory.length}건`"
-            >
-              <q-list dense>
-                <q-item
-                  v-for="revision in [...entry.revisionHistory].reverse()"
-                  :key="`${revision.version}-${revision.action}`"
-                  :clickable="revision.action === 'UPDATE'"
-                  :disable="revision.action !== 'UPDATE'"
-                  @click="openRevision(revision)"
-                >
-                  <q-item-section>
-                    <q-item-label>{{ revision.action === 'CREATE' ? '문서 작성' : '문서 수정' }} · v{{ revision.version }}</q-item-label>
-                    <q-item-label caption>{{ revision.changedBy || '수정자 미등록' }} · {{ formatDate(revision.changedAt) }}</q-item-label>
-                    <q-item-label v-if="revision.changedSections.length" caption lines="2">{{ revision.changedSections.join(', ') }}</q-item-label>
-                    <q-item-label v-if="revision.action === 'UPDATE' && !revision.hasDiff" caption>비교 자료 없음 · 이전 수정 이력</q-item-label>
-                  </q-item-section>
-                  <q-item-section v-if="revision.action === 'UPDATE'" side>
-                    <q-icon :name="revision.hasDiff ? 'compare_arrows' : 'info_outline'" :color="revision.hasDiff ? 'primary' : 'grey-6'" />
-                  </q-item-section>
-                </q-item>
-              </q-list>
-            </q-expansion-item>
           </div>
         </aside>
 
@@ -196,7 +203,8 @@
       <footer class="document-footer">
         <span class="footer-note"><q-icon name="description" />{{ title }}</span><q-space />
         <q-btn v-if="editing && importWarnings?.length" flat no-caps icon="error_outline" color="negative" label="에러 메시지" @click="emit('show-import-warnings')" />
-        <q-btn flat no-caps :label="editing ? (creating ? '작성 취소' : '수정 취소') : '닫기'" :disable="saving || editorUploading" @click="editing ? cancelEdit() : close()" />
+        <q-btn v-if="!editing && !creating && entry && !entry.isDeleted" flat no-caps icon="delete_outline" color="negative" label="삭제" :disable="saving || exporting" @click="requestDelete" />
+        <q-btn v-if="editing" flat no-caps :label="creating ? '작성 취소' : '수정 취소'" :disable="saving || editorUploading" @click="cancelEdit" />
         <q-btn v-if="editing" color="primary" no-caps icon="save" label="저장" :disable="editorUploading" :loading="saving" @click="requestSave" />
         <q-btn v-else-if="!creating" outline no-caps icon="edit_note" label="수정" :disable="loading || !entry || entry.isDeleted" @click="startEdit" />
         <q-btn-dropdown v-if="!editing" outline no-caps icon="download" label="내보내기" :loading="exporting" :disable="loading || !entry || exporting">
@@ -207,14 +215,6 @@
             <q-item clickable v-close-popup @click="requestExport('docx')"><q-item-section>Word (.docx)</q-item-section></q-item>
           </q-list>
         </q-btn-dropdown>
-        <q-btn
-          v-if="!editing && !creating && entry"
-          outline no-caps icon="history" label="내보내기 이력"
-          :loading="exportHistoryLoading"
-          @click="openExportHistory"
-        >
-          <q-tooltip>내보내기 이력</q-tooltip>
-        </q-btn>
       </footer>
 
       <q-dialog :model-value="!!previewSource" @update:model-value="previewSource = ''">
@@ -249,43 +249,6 @@
             <q-btn flat label="취소" v-close-popup />
             <q-btn color="primary" icon="download" label="내보내기" :disable="!exportReason.trim()" @click="confirmExport" />
           </q-card-actions>
-        </q-card>
-      </q-dialog>
-
-      <q-dialog v-model="exportHistoryDialog">
-        <q-card class="export-history-dialog">
-          <q-card-section class="row items-center no-wrap">
-            <div class="col">
-              <div class="text-h6">내보내기 이력</div>
-              <div class="text-caption text-grey-7">{{ documentTitle }}</div>
-            </div>
-            <q-btn flat round dense icon="close" aria-label="닫기" v-close-popup />
-          </q-card-section>
-          <q-separator />
-          <q-card-section v-if="exportHistoryLoading" class="revision-loading">
-            <q-spinner size="28px" color="primary" /> 이력을 불러오는 중입니다.
-          </q-card-section>
-          <q-card-section v-else-if="exportHistoryError" class="revision-error" role="alert">
-            <q-icon name="info_outline" /> {{ exportHistoryError }}
-          </q-card-section>
-          <q-card-section v-else-if="!exportHistory.length" class="revision-empty">
-            내보내기 이력이 없습니다.
-          </q-card-section>
-          <div v-else class="export-history-table-wrap">
-            <q-markup-table flat bordered dense separator="cell">
-              <thead>
-                <tr><th>내보낸 시각</th><th>형식</th><th>사유</th><th>수행자</th></tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in exportHistory" :key="item.id">
-                  <td class="text-no-wrap">{{ formatDate(item.exportedAt) }}</td>
-                  <td class="text-no-wrap">{{ exportFormatLabels[item.format] }}</td>
-                  <td class="export-history-reason">{{ item.reason }}</td>
-                  <td class="text-no-wrap">{{ item.exportedBy || '미등록' }}</td>
-                </tr>
-              </tbody>
-            </q-markup-table>
-          </div>
         </q-card>
       </q-dialog>
 
@@ -385,6 +348,7 @@ const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEn
 const auth = useAuthStore()
 const canViewInspection = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('server_check'))
 const view = ref<'markdown'>('markdown')
+const activeTab = ref<'document' | 'history'>('document')
 const editing = ref(false)
 const inspection = ref<WorkDocumentInspection | null>(null)
 const editableData = ref<EditableData>({})
@@ -569,6 +533,7 @@ const hasImportedExtraContent = computed(() => {
   })
 })
 function startEdit() {
+  activeTab.value = 'document'
   inspection.value = null
   editorUploading.value = false
   editableData.value = cloneEntryData()
@@ -715,17 +680,28 @@ function tableFields(section: FormSection): FormField[] {
   ordered.splice(hostnameIndex >= 0 ? hostnameIndex + 1 : ordered.length, 0, note)
   return ordered
 }
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; save: [value: EditableData, assetIds?: string[], inspection?: WorkDocumentInspection | null]; export: [reason: string]; 'export-file': [format: 'hwp' | 'docx', reason: string]; 'download-original': [reason: string]; 'show-import-warnings': []; retry: [] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; save: [value: EditableData, assetIds?: string[], inspection?: WorkDocumentInspection | null]; export: [reason: string]; 'export-file': [format: 'hwp' | 'docx', reason: string]; 'download-original': [reason: string]; 'show-import-warnings': []; delete: [entry: FormEntry]; retry: [] }>()
 const scrollArea = ref<HTMLElement | null>(null)
 const activeSection = ref(0)
 const previewSource = ref('')
 const exportReasonDialog = ref(false)
 const exportReason = ref('')
 const exportTarget = ref<FormEntryExportFormat | null>(null)
-const exportHistoryDialog = ref(false)
 const exportHistoryLoading = ref(false)
 const exportHistoryError = ref('')
 const exportHistory = ref<FormEntryExportHistory[]>([])
+type DocumentHistoryItem =
+  | { kind: 'revision'; key: string; changedAt: string | null | undefined; revision: FormEntryRevisionSummary }
+  | { kind: 'export'; key: string; changedAt: string | null | undefined; exported: FormEntryExportHistory }
+const combinedHistory = computed<DocumentHistoryItem[]>(() => [
+  ...(props.entry?.revisionHistory ?? []).map((revision): DocumentHistoryItem => ({
+    kind: 'revision', key: `revision-${revision.version}-${revision.action}`, changedAt: revision.changedAt, revision,
+  })),
+  ...exportHistory.value.map((exported): DocumentHistoryItem => ({
+    kind: 'export', key: `export-${exported.id}`, changedAt: exported.exportedAt, exported,
+  })),
+].sort((a, b) => (Date.parse(b.changedAt ?? '') || 0) - (Date.parse(a.changedAt ?? '') || 0)))
+let historyRequest = 0
 const exportFormatLabels: Record<FormEntryExportFormat, string> = {
   hwp: 'HWP',
   docx: 'Word (.docx)',
@@ -747,19 +723,34 @@ function confirmExport() {
   else if (format === 'original') emit('download-original', reason)
   else emit('export-file', format, reason)
 }
-async function openExportHistory() {
+function onTabChange(tab: string | number) {
+  if (tab === 'history') void loadExportHistory()
+}
+async function loadExportHistory() {
   if (!props.entry || exportHistoryLoading.value) return
-  exportHistoryDialog.value = true
+  const request = ++historyRequest
+  const entryId = props.entry.id
   exportHistoryLoading.value = true
   exportHistoryError.value = ''
   try {
-    exportHistory.value = await formEntryService.getExportHistory(props.entry.id)
+    const items = await formEntryService.getExportHistory(entryId)
+    if (request === historyRequest) exportHistory.value = items
   } catch (error: unknown) {
-    exportHistoryError.value = getErrorMessage(error, '내보내기 이력을 불러오지 못했습니다.')
+    if (request === historyRequest) exportHistoryError.value = getErrorMessage(error, '내보내기 이력을 불러오지 못했습니다.')
   } finally {
-    exportHistoryLoading.value = false
+    if (request === historyRequest) exportHistoryLoading.value = false
   }
 }
+watch(() => [props.modelValue, props.entry?.id], () => {
+  ++historyRequest
+  activeTab.value = 'document'
+  exportHistory.value = []
+  exportHistoryError.value = ''
+  exportHistoryLoading.value = false
+})
+watch(() => props.exporting, (exporting, wasExporting) => {
+  if (wasExporting && !exporting && activeTab.value === 'history') void loadExportHistory()
+})
 type DocumentRow = Record<string, unknown>
 function asRecord(value: unknown): DocumentRow { return value && typeof value === 'object' && !Array.isArray(value) ? value as DocumentRow : {} }
 function sectionRecord(section: FormSection): DocumentRow { return asRecord(props.entry?.data[section.title]) }
@@ -817,6 +808,7 @@ function formatDate(value?: string | null) {
 }
 function closeImmediately() { emit('update:modelValue', false) }
 function close() { if (!props.saving) confirmDiscard(closeImmediately) }
+function requestDelete() { if (props.entry && !props.entry.isDeleted) emit('delete', props.entry) }
 function handleDialogUpdate(open: boolean) {
   if (open) emit('update:modelValue', true)
   else close()
@@ -848,9 +840,15 @@ watch(() => [props.modelValue, props.entry?.id, props.loading], async () => {
 <style scoped>
 .document-save-warning { display: flex; gap: 8px; padding: 12px; margin-bottom: 16px; border-radius: 8px; background: #fff4de; color: #775521; font-size: 13px; line-height: 1.7; }
 .document-save-warning .q-icon { flex-shrink: 0; margin-top: 2px; }
-.revision-history { margin-top: 20px; border-top: 1px solid var(--line); }
-.revision-history :deep(.q-item) { min-height: 48px; padding: 6px 0; }
-.revision-history :deep(.q-expansion-item__container > .q-item) { padding: 8px 0; }
+.document-tabs { flex-shrink: 0; padding: 0 24px; background: #fff; border-bottom: 1px solid var(--line); }
+.document-history { flex: 1; min-height: 0; overflow-y: auto; padding: 32px 24px; }
+.document-history-content { max-width: 900px; min-height: 100%; margin: 0 auto; padding: 32px 40px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+.document-history-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.document-history-heading h2 { margin: 0 0 6px; font-size: 22px; line-height: 1.3; }
+.document-history-heading p { margin: 0; color: var(--muted); font-size: 13px; }
+.document-history-detail { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); }
+:global(body.body--dark) .document-tabs, :global(body.body--dark) .document-history-content { background: #182334; }
+@media (max-width: 600px) { .document-tabs { padding: 0 12px; }.document-history { padding: 12px; }.document-history-content { padding: 20px; } }
 .revision-dialog { display: flex; flex-direction: column; width: min(1200px, 94vw); max-width: 94vw; max-height: 90vh; }
 .revision-dialog-body { min-height: 0; overflow: auto; }
 .revision-loading, .revision-error, .revision-empty { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 140px; color: var(--muted); text-align: center; }
@@ -877,6 +875,4 @@ watch(() => [props.modelValue, props.entry?.id, props.loading], async () => {
 .imported-extra-panel:last-child h3 { border-bottom-color: var(--q-primary); color: var(--q-primary); }
 .imported-extra-panel :deep(.work-result-content) { font-size: 13px; }
 .export-history-dialog { width: min(1000px, 94vw); max-width: 94vw; max-height: 90vh; overflow: hidden; }
-.export-history-table-wrap { max-height: 65vh; overflow: auto; }
-.export-history-reason { min-width: 260px; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
 </style>
