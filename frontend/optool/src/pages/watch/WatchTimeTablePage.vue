@@ -293,9 +293,12 @@ const dialogTitle = computed(() => {
 
 function openCreate(start: Date, end?: Date) {
   const dateStr = DateTime.fromJSDate(start, { zone: 'Asia/Seoul' }).toISODate() ?? ''
-  // FullCalendar의 select end는 마지막으로 선택된 슬롯의 종료 시각이라 그대로 날짜만 뽑으면 됨
-  // (slotMaxTime이 13:00으로 제한돼 있어 자정으로 넘어가는 배타적 종료 이슈가 없음)
-  const toDateStr = end ? (DateTime.fromJSDate(end, { zone: 'Asia/Seoul' }).toISODate() ?? dateStr) : dateStr
+  // FullCalendar의 선택 종료(end)는 배타적이므로, 끝 시각 바로 전의 날짜를 마지막 선택일로 사용합니다.
+  // 특히 월간 보기에서 3일을 선택하면 end가 4일 00:00이 되어 하루가 더 추가되지 않도록 합니다.
+  const lastSelectedDate = end && end.getTime() > start.getTime()
+    ? new Date(end.getTime() - 1)
+    : start
+  const toDateStr = DateTime.fromJSDate(lastSelectedDate, { zone: 'Asia/Seoul' }).toISODate() ?? dateStr
   dialog.value = {
     open: true,
     mode: 'create',

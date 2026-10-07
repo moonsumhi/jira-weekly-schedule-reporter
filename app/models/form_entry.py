@@ -1,5 +1,5 @@
 from typing import Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from app.models.asset_link import AssetSelection as WorkAssetSelection, LinkedAsset as LinkedWorkAsset
 
 
@@ -26,6 +26,23 @@ class FormDocumentExport(BaseModel):
     format: Literal['hwp', 'docx', 'md-zip']
     markdown_filename: str = Field(default='document.md', max_length=255)
     original_form: ExportOriginalForm | None = None
+    entry_id: str | None = Field(default=None, max_length=64)
+    reason: str | None = Field(default=None, max_length=1000)
+
+
+class FormEntryExportHistoryCreate(BaseModel):
+    format: Literal['hwp', 'docx', 'md-zip', 'original']
+    reason: str = Field(min_length=1, max_length=1000)
+
+
+class FormEntryExportHistoryOut(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    format: Literal['hwp', 'docx', 'md-zip', 'original']
+    reason: str
+    exported_at: str | None = Field(default=None, alias='exportedAt')
+    exported_by: str | None = Field(default=None, alias='exportedBy')
 
 
 class FormOriginalFile(BaseModel):
@@ -47,6 +64,32 @@ class FormEntryPatch(WorkAssetSelection):
     original_file: FormOriginalFile | None = None
 
 
+class FormEntryRevisionOut(BaseModel):
+    version: int
+    action: Literal['CREATE', 'UPDATE']
+    changed_at: str | None = None
+    changed_by: str | None = None
+    changed_sections: list[str] = Field(default_factory=list)
+    has_diff: bool = False
+
+
+class FormEntryFieldChangeOut(BaseModel):
+    path: str
+    before: Any = None
+    after: Any = None
+    before_present: bool = True
+    after_present: bool = True
+
+
+class FormEntryRevisionDetailOut(BaseModel):
+    version: int
+    changed_at: str | None = None
+    changed_by: str | None = None
+    changed_sections: list[str] = Field(default_factory=list)
+    changes: list[FormEntryFieldChangeOut] = Field(default_factory=list)
+    changes_truncated: bool = False
+
+
 class FormEntryOut(BaseModel):
     id: str
     template_id: str
@@ -59,3 +102,4 @@ class FormEntryOut(BaseModel):
     created_by: str | None = None
     updated_at: str | None = None
     updated_by: str | None = None
+    revision_history: list[FormEntryRevisionOut] = Field(default_factory=list)

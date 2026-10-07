@@ -4,6 +4,7 @@ import asyncio
 import base64
 import glob as glob_module
 import io
+import json
 import logging
 import os
 import re
@@ -25,19 +26,27 @@ ORIGINAL_FILE_UPLOAD_DIR = "/app/uploads/form_entries/originals"
 _DATA_URL_RE = re.compile(r"^data:image/(?P<ext>[a-zA-Z0-9.+-]+);base64,(?P<b64>.+)$", re.DOTALL)
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, Query, UploadFile, status
 from fastapi.responses import Response
 from app.services.work_documents import DocumentImportError, import_document, markdown_from_data, save_markdown_snapshot, export_hwpx, export_hwp, export_docx, export_markdown_zip
 from app.services import work_document_assets
 
 from app.db.mongo import MongoClientManager
-from app.models.form_entry import FormEntryCreate, FormEntryOut, FormEntryPatch, FormDocumentExport, FormOriginalFile
+from app.models.form_entry import (
+    FormEntryCreate, FormEntryOut, FormEntryPatch, FormDocumentExport, FormOriginalFile,
+    FormEntryRevisionDetailOut, FormEntryExportHistoryCreate, FormEntryExportHistoryOut,
+)
 from app.models.user import UserPublic
 from app.models.asset_link import AssetCategory
 from app.routers.auth import get_current_user
+from app.routers.admin import require_admin
 from app.utils.mongo import fmt_dt, oid as parse_oid
 
 router = APIRouter()
+_MISSING = object()
+_MAX_REVISION_DIFF_BYTES = 1_000_000
+_MAX_REVISION_DIFF_ITEMS = 500
+_MAX_REVISION_VALUE_BYTES = 8_000
 
 
 def _now() -> datetime:
@@ -53,7 +62,110 @@ def _ensure_work_document_import_format(filename: str | None) -> None:
         )
 
 
-def _to_out(doc: dict) -> FormEntryOut:
+def _bounded_revision_value(value: Any) -> tuple[Any, bool]:
+    encoded = json.dumps(value, ensure_ascii=False, default=str)
+    if len(encoded.encode("utf-8")) <= _MAX_REVISION_VALUE_BYTES:
+        return value, False
+    preview = value[:_MAX_REVISION_VALUE_BYTES] if isinstance(value, str) else encoded[:_MAX_REVISION_VALUE_BYTES]
+    return {"preview": f"{preview}…", "truncated": True}, True
+
+
+def _build_revision_changes(before: dict[str, Any], after: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+    changes: list[dict[str, Any]] = []
+    stored_bytes = 0
+    truncated = False
+
+    def add_change(path: str, old_value: Any, new_value: Any) -> None:
+        nonlocal stored_bytes, truncated
+        before_present = old_value is not _MISSING
+        after_present = new_value is not _MISSING
+        old_saved, old_truncated = _bounded_revision_value(old_value) if before_present else (None, False)
+        new_saved, new_truncated = _bounded_revision_value(new_value) if after_present else (None, False)
+        change = {
+            "path": path,
+            "before": old_saved,
+            "after": new_saved,
+            "before_present": before_present,
+            "after_present": after_present,
+        }
+        size = len(json.dumps(change, ensure_ascii=False, default=str).encode("utf-8"))
+        if len(changes) >= _MAX_REVISION_DIFF_ITEMS or stored_bytes + size > _MAX_REVISION_DIFF_BYTES:
+            truncated = True
+            return
+        changes.append(change)
+        stored_bytes += size
+        truncated = truncated or old_truncated or new_truncated
+
+    def walk(old_value: Any, new_value: Any, path: str) -> None:
+        if old_value is not _MISSING and new_value is not _MISSING and old_value == new_value:
+            return
+        if (isinstance(old_value, dict) or old_value is _MISSING) and (isinstance(new_value, dict) or new_value is _MISSING):
+            old_map = old_value if isinstance(old_value, dict) else {}
+            new_map = new_value if isinstance(new_value, dict) else {}
+            keys = sorted(set(old_map) | set(new_map), key=str)
+            if not keys:
+                add_change(path, old_value, new_value)
+                return
+            for key in keys:
+                child = f"{path}.{key}" if path else str(key)
+                walk(old_map.get(key, _MISSING), new_map.get(key, _MISSING), child)
+            return
+        if (isinstance(old_value, list) or old_value is _MISSING) and (isinstance(new_value, list) or new_value is _MISSING):
+            old_items = old_value if isinstance(old_value, list) else []
+            new_items = new_value if isinstance(new_value, list) else []
+            if not old_items and not new_items:
+                add_change(path, old_value, new_value)
+                return
+            for index in range(max(len(old_items), len(new_items))):
+                child = f"{path}[{index}]"
+                old_item = old_items[index] if index < len(old_items) else _MISSING
+                new_item = new_items[index] if index < len(new_items) else _MISSING
+                walk(old_item, new_item, child)
+            return
+        add_change(path, old_value, new_value)
+
+    before_data = before if isinstance(before, dict) else {}
+    after_data = after if isinstance(after, dict) else {}
+    for section in sorted(set(before_data) | set(after_data), key=str):
+        walk(before_data.get(section, _MISSING), after_data.get(section, _MISSING), str(section))
+    return changes, truncated
+
+
+def _entry_history(doc: dict) -> list[dict[str, Any]]:
+    history = doc.get("revision_history")
+    if not isinstance(history, list) or not history:
+        # Older documents predate revision_history. Preserve the creation event
+        # and the latest known edit as a useful baseline for the new timeline.
+        history = [{
+            "version": 1,
+            "action": "CREATE",
+            "changed_at": doc.get("created_at"),
+            "changed_by": doc.get("created_by"),
+            "changed_sections": list((doc.get("data") or {}).keys()),
+            "has_diff": False,
+        }]
+        current_version = int(doc.get("version", 1) or 1)
+        if current_version > 1:
+            history.append({
+                "version": current_version,
+                "action": "UPDATE",
+                "changed_at": doc.get("updated_at"),
+                "changed_by": doc.get("updated_by"),
+                "changed_sections": [],
+                "has_diff": False,
+            })
+    return [item for item in history if isinstance(item, dict)][-100:]
+
+
+def _to_out(doc: dict, include_revision_history: bool = True) -> FormEntryOut:
+    normalized_history = ([{
+        "version": int(item.get("version", 1) or 1),
+        "action": item.get("action", "UPDATE"),
+        "changed_at": fmt_dt(item.get("changed_at")),
+        "changed_by": item.get("changed_by"),
+        "changed_sections": item.get("changed_sections", []),
+        "has_diff": bool(item.get("has_diff", False)),
+    } for item in _entry_history(doc)] if include_revision_history else [])
     return FormEntryOut(
         id=str(doc["_id"]),
         template_id=doc.get("template_id", ""),
@@ -66,7 +178,16 @@ def _to_out(doc: dict) -> FormEntryOut:
         created_by=doc.get("created_by"),
         updated_at=fmt_dt(doc.get("updated_at")),
         updated_by=doc.get("updated_by"),
+        revision_history=normalized_history[-100:],
     )
+
+
+def _resolve_revision_names(doc: dict, name_map: dict[str, str]) -> None:
+    history = doc.get("revision_history")
+    if isinstance(history, list):
+        for item in history:
+            if isinstance(item, dict) and item.get("changed_by"):
+                item["changed_by"] = name_map.get(item["changed_by"], item["changed_by"])
 
 
 def _extract_hwp_images(content: bytes) -> tuple[list[str], dict[str, str]]:
@@ -1466,7 +1587,7 @@ async def list_entries(
         doc["data"] = _strip_images(doc.get("data", {}))
 
     await work_document_assets.hydrate(docs)
-    return [_to_out(doc) for doc in docs]
+    return [_to_out(doc, include_revision_history=False) for doc in docs]
 
 
 @router.post("/import-markdown")
@@ -1524,6 +1645,19 @@ async def import_original_form(file: UploadFile = File(...), template_id: str = 
 
 @router.post('/export-document')
 async def export_document(payload: FormDocumentExport, current_user: UserPublic = Depends(get_current_user)):
+    entry_oid = None
+    if payload.entry_id:
+        if not payload.reason or not payload.reason.strip():
+            raise HTTPException(status_code=422, detail="내보내기 사유를 입력해 주세요.")
+        entry_oid = parse_oid(payload.entry_id, "잘못된 작업 문서 ID입니다.")
+        entry = await MongoClientManager.get_form_entries_collection().find_one(
+            {"_id": entry_oid}, {"_id": 1, "is_deleted": 1}
+        )
+        if not entry or entry.get("is_deleted"):
+            raise HTTPException(status_code=404, detail="작업 문서를 찾을 수 없습니다.")
+    elif payload.reason:
+        raise HTTPException(status_code=422, detail="이력을 남기려면 작업 문서 ID가 필요합니다.")
+
     try:
         if payload.format == 'md-zip':
             content = await asyncio.to_thread(export_markdown_zip, payload.markdown, payload.markdown_filename)
@@ -1536,6 +1670,19 @@ async def export_document(payload: FormDocumentExport, current_user: UserPublic 
     except Exception as exc:
         logger.warning('Document export failed: %s', type(exc).__name__)
         raise HTTPException(status_code=503, detail='문서 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.') from exc
+    if entry_oid is not None:
+        try:
+            await MongoClientManager.get_form_entry_export_history_collection().insert_one({
+                "entry_id": str(entry_oid),
+                "format": payload.format,
+                "reason": payload.reason.strip(),
+                "exported_at": _now(),
+                "exported_by": current_user.email,
+            })
+        except Exception as exc:
+            logger.exception("Work document export history save failed: entry=%s", entry_oid)
+            raise HTTPException(status_code=503, detail="내보내기 이력을 저장하지 못했습니다. 다시 시도해 주세요.") from exc
+
     mime = 'application/zip' if payload.format == 'md-zip' else ('application/x-hwp' if payload.format == 'hwp' else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     extension = 'zip' if payload.format == 'md-zip' else payload.format
     return Response(content, media_type=mime, headers={'Content-Disposition': f'attachment; filename="work-document.{extension}"'})
@@ -1590,8 +1737,105 @@ async def get_entry(
     name_map = await _email_to_name_map()
     doc["created_by"] = name_map.get(doc.get("created_by", ""), doc.get("created_by"))
     doc["updated_by"] = name_map.get(doc.get("updated_by", ""), doc.get("updated_by"))
+    _resolve_revision_names(doc, name_map)
     await work_document_assets.hydrate([doc])
     return _to_out(doc)
+
+
+@router.get("/{entry_id}/history/{version}", response_model=FormEntryRevisionDetailOut)
+async def get_entry_revision(
+    entry_id: str,
+    version: int = Path(..., ge=1),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    entry_oid = parse_oid(entry_id)
+    entry = await MongoClientManager.get_form_entries_collection().find_one({"_id": entry_oid}, {"_id": 1})
+    if not entry:
+        raise HTTPException(status_code=404, detail="작업 문서를 찾을 수 없습니다.")
+    revision = await MongoClientManager.get_form_entry_revisions_collection().find_one(
+        {"entry_id": str(entry_oid), "version": version}
+    )
+    if not revision:
+        raise HTTPException(
+            status_code=404,
+            detail="이 수정 이력은 비교 자료가 저장되기 전에 생성되어 Before/After를 표시할 수 없습니다.",
+        )
+    name_map = await _email_to_name_map()
+    changed_by = revision.get("changed_by")
+    return FormEntryRevisionDetailOut(
+        version=revision["version"],
+        changed_at=fmt_dt(revision.get("changed_at")),
+        changed_by=name_map.get(changed_by, changed_by) if changed_by else None,
+        changed_sections=revision.get("changed_sections", []),
+        changes=revision.get("changes", []),
+        changes_truncated=revision.get("changes_truncated", False),
+    )
+
+
+@router.get("/{entry_id}/export-history", response_model=list[FormEntryExportHistoryOut])
+async def get_entry_export_history(
+    entry_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    entry_oid = parse_oid(entry_id, "잘못된 작업 문서 ID입니다.")
+    entry = await MongoClientManager.get_form_entries_collection().find_one(
+        {"_id": entry_oid}, {"_id": 1}
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="작업 문서를 찾을 수 없습니다.")
+
+    name_map = await _email_to_name_map()
+    history = MongoClientManager.get_form_entry_export_history_collection()
+    records = history.find({"entry_id": str(entry_oid)}).sort("exported_at", -1).limit(500)
+    return [
+        FormEntryExportHistoryOut(
+            id=str(record["_id"]),
+            format=record.get("format", "md-zip"),
+            reason=record.get("reason", ""),
+            exported_at=fmt_dt(record.get("exported_at")),
+            exported_by=name_map.get(record.get("exported_by", ""), record.get("exported_by")),
+        )
+        async for record in records
+    ]
+
+
+@router.post(
+    "/{entry_id}/export-history",
+    response_model=FormEntryExportHistoryOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_entry_export_history(
+    entry_id: str,
+    payload: FormEntryExportHistoryCreate,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    entry_oid = parse_oid(entry_id, "잘못된 작업 문서 ID입니다.")
+    entry = await MongoClientManager.get_form_entries_collection().find_one(
+        {"_id": entry_oid}, {"_id": 1, "is_deleted": 1, "original_file": 1}
+    )
+    if not entry or entry.get("is_deleted"):
+        raise HTTPException(status_code=404, detail="작업 문서를 찾을 수 없습니다.")
+    if payload.format == "original" and not entry.get("original_file"):
+        raise HTTPException(status_code=422, detail="다운로드할 원본 파일이 없습니다.")
+
+    reason = payload.reason.strip()
+    if not reason:
+        raise HTTPException(status_code=422, detail="내보내기 사유를 입력해 주세요.")
+    exported_at = _now()
+    result = await MongoClientManager.get_form_entry_export_history_collection().insert_one({
+        "entry_id": str(entry_oid),
+        "format": payload.format,
+        "reason": reason,
+        "exported_at": exported_at,
+        "exported_by": current_user.email,
+    })
+    return FormEntryExportHistoryOut(
+        id=str(result.inserted_id),
+        format=payload.format,
+        reason=reason,
+        exported_at=fmt_dt(exported_at),
+        exported_by=current_user.full_name or current_user.email,
+    )
 
 
 @router.post("", response_model=FormEntryOut, status_code=status.HTTP_201_CREATED)
@@ -1605,6 +1849,7 @@ async def create_entry(
         work_document_assets.require_job(current_user)
         linked_assets = await work_document_assets.selected_assets(payload.template_id, payload.asset_ids)
     now = _now()
+    actor = current_user.full_name or current_user.email
     doc = {
         "template_id": payload.template_id,
         "asset_ids": payload.asset_ids,
@@ -1614,9 +1859,17 @@ async def create_entry(
         "version": 1,
         "is_deleted": False,
         "created_at": now,
-        "created_by": current_user.full_name or current_user.email,
+        "created_by": actor,
         "updated_at": now,
-        "updated_by": current_user.full_name or current_user.email,
+        "updated_by": actor,
+        "revision_history": [{
+            "version": 1,
+            "action": "CREATE",
+            "changed_at": now,
+            "changed_by": actor,
+            "changed_sections": list(payload.data.keys()),
+            "has_diff": False,
+        }],
     }
     if payload.original_file is not None:
         doc["original_file"] = payload.original_file.model_dump()
@@ -1634,31 +1887,62 @@ async def patch_entry(
     col = MongoClientManager.get_form_entries_collection()
     entry_oid = parse_oid(entry_id, "잘못된 항목 ID입니다.")
 
+    previous = await col.find_one({'_id': entry_oid})
+    if not previous:
+        raise HTTPException(404, '항목을 찾을 수 없습니다.')
+    current_version = int(previous.get('version', 1) or 1)
+    if previous.get('is_deleted') or current_version != payload.version:
+        raise HTTPException(409, '다른 사용자가 먼저 수정하여 버전 충돌이 발생했습니다.')
+
     linked_assets = None
     if 'asset_ids' in payload.model_fields_set:
         work_document_assets.require_job(current_user)
-        previous = await col.find_one({'_id': entry_oid})
-        if not previous:
-            raise HTTPException(404, '항목을 찾을 수 없습니다.')
-        if previous.get('is_deleted') or previous.get('version', 1) != payload.version:
-            raise HTTPException(409, '다른 사용자가 먼저 수정하여 버전 충돌이 발생했습니다.')
         linked_assets = await work_document_assets.selected_assets(previous['template_id'], payload.asset_ids, previous)
 
     now = _now()
+    actor = current_user.full_name or current_user.email
+    persisted_data = _persist_images(payload.data)
+    revision_changes, changes_truncated = _build_revision_changes(previous.get('data', {}), persisted_data)
+    changed_sections = sorted({
+        key for key in set((previous.get('data') or {}).keys()) | set(persisted_data.keys())
+        if (previous.get('data') or {}).get(key) != persisted_data.get(key)
+    })
+    if linked_assets is not None and previous.get('asset_ids', []) != payload.asset_ids:
+        changed_sections.append('연결 자산')
+    if 'original_file' in payload.model_fields_set and previous.get('original_file') != (
+        payload.original_file.model_dump() if payload.original_file else None
+    ):
+        changed_sections.append('원본 파일')
+    next_version = current_version + 1
+    revision_history = _entry_history(previous)
+    revision_history.append({
+        "version": next_version,
+        "action": "UPDATE",
+        "changed_at": now,
+        "changed_by": actor,
+        "changed_sections": changed_sections,
+        "has_diff": False,
+    })
     set_fields: dict[str, Any] = {
-        "data": _persist_images(payload.data),
+        "data": persisted_data,
         **save_markdown_snapshot(payload.data),
         "updated_at": now,
-        "updated_by": current_user.full_name or current_user.email,
+        "updated_by": actor,
+        "version": next_version,
+        "revision_history": revision_history[-100:],
     }
     if "original_file" in payload.model_fields_set:
         set_fields["original_file"] = payload.original_file.model_dump() if payload.original_file else None
     if linked_assets is not None:
         set_fields.update(asset_ids=payload.asset_ids, linked_assets=linked_assets)
+    version_guard = (
+        {"version": previous.get("version")}
+        if "version" in previous
+        else {"version": {"$exists": False}}
+    )
     result = await col.find_one_and_update(
-        {"_id": entry_oid, "version": payload.version, "is_deleted": {"$ne": True}},
-        {"$set": set_fields,
-         "$inc": {"version": 1}},
+        {"_id": entry_oid, **version_guard, "is_deleted": {"$ne": True}},
+        {"$set": set_fields},
         return_document=True,
     )
     if result is None:
@@ -1666,6 +1950,37 @@ async def patch_entry(
         if doc is None:
             raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
         raise HTTPException(status_code=409, detail="다른 사용자가 먼저 수정하여 버전 충돌이 발생했습니다.")
+
+    revision_col = MongoClientManager.get_form_entry_revisions_collection()
+    try:
+        await revision_col.insert_one({
+            "entry_id": str(entry_oid),
+            "version": next_version,
+            "changed_at": now,
+            "changed_by": actor,
+            "changed_sections": changed_sections,
+            "changes": revision_changes,
+            "changes_truncated": changes_truncated,
+        })
+        await col.update_one(
+            {"_id": entry_oid},
+            {"$set": {"revision_history.$[revision].has_diff": True}},
+            array_filters=[{"revision.version": next_version}],
+        )
+        refreshed = await col.find_one({"_id": entry_oid})
+        if refreshed:
+            result = refreshed
+    except Exception:
+        # The document save has already succeeded. Keep that result and log
+        # the failure so an optional diff write never makes a completed save
+        # appear to have failed to the user.
+        logger.exception("작업 문서 수정 비교 이력 저장 실패: entry=%s version=%s", entry_id, next_version)
+
+    try:
+        await revision_col.delete_many({"entry_id": str(entry_oid), "version": {"$lte": next_version - 100}})
+    except Exception:
+        logger.warning("오래된 작업 문서 비교 이력 정리 실패: entry=%s", entry_id, exc_info=True)
+    _resolve_revision_names(result, await _email_to_name_map())
     await work_document_assets.hydrate([result])
     return _to_out(result)
 
@@ -1678,9 +1993,57 @@ async def delete_entry(
     col = MongoClientManager.get_form_entries_collection()
     entry_oid = parse_oid(entry_id, "잘못된 항목 ID입니다.")
 
+    now = _now()
+    actor = current_user.full_name or current_user.email
     result = await col.update_one(
         {"_id": entry_oid, "is_deleted": {"$ne": True}},
-        {"$set": {"is_deleted": True, "updated_at": _now(), "updated_by": current_user.full_name or current_user.email}},
+        {"$set": {
+            "is_deleted": True,
+            "deleted_at": now,
+            "deleted_by": actor,
+            "updated_at": now,
+            "updated_by": actor,
+        }, "$inc": {"version": 1}},
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
+
+@router.post("/{entry_id}/restore", response_model=FormEntryOut)
+async def restore_entry(
+    entry_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """Restore a soft-deleted work document from the trash."""
+    work_document_assets.require_job(current_user)
+    col = MongoClientManager.get_form_entries_collection()
+    entry_oid = parse_oid(entry_id, "Invalid form entry id")
+    now = _now()
+    actor = current_user.full_name or current_user.email
+    result = await col.update_one(
+        {"_id": entry_oid, "is_deleted": True},
+        {
+            "$set": {"is_deleted": False, "updated_at": now, "updated_by": actor},
+            "$unset": {"deleted_at": "", "deleted_by": ""},
+            "$inc": {"version": 1},
+        },
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Deleted form entry was not found")
+    doc = await col.find_one({"_id": entry_oid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Form entry was not found")
+    await work_document_assets.hydrate([doc])
+    return _to_out(doc)
+
+
+@router.delete("/{entry_id}/purge", status_code=status.HTTP_204_NO_CONTENT)
+async def purge_entry(
+    entry_id: str,
+    current_user: UserPublic = Depends(require_admin),
+):
+    """Permanently delete a work document from the trash."""
+    col = MongoClientManager.get_form_entries_collection()
+    entry_oid = parse_oid(entry_id, "Invalid form entry id")
+    result = await col.delete_one({"_id": entry_oid, "is_deleted": True})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Deleted form entry was not found")

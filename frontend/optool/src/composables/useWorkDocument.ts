@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { exportFile, useQuasar } from 'quasar'
 import { api } from 'src/boot/axios'
-import type { FormEntry } from 'src/services/formEntries'
+import { formEntryService, type FormEntry } from 'src/services/formEntries'
 import type { FormTemplate, FormSection } from 'src/services/formTemplates'
 import { downloadAttachment } from 'src/utils/attachment'
 import { formEntryMarkdown, hasOriginalForm, synchronizedDocument } from 'src/utils/formEntryMarkdown'
@@ -129,7 +129,7 @@ export function useWorkDocumentExport(
   }
 
   const exportingDocument = ref(false)
-  async function exportDetailFile(format: 'hwp' | 'docx') {
+  async function exportDetailFile(format: 'hwp' | 'docx', reason: string) {
     if (detailLoading.value || !detailRow.value || !template.value || exportingDocument.value) return
     const title = template.value.title
     const filename = exportDocumentFileName(format)
@@ -144,19 +144,32 @@ export function useWorkDocumentExport(
       const original = originalWorkDocumentSections(template.value, detailRow.value.data)
       const original_form = !hasMarkdownOverride(detailRow.value.data) && hasOriginalForm(original, detailRow.value.data)
         ? { title, sections: original, data: detailRow.value.data } : undefined
-      const { data } = await api.post<Blob>('/form-entries/export-document', { markdown, format, original_form }, { responseType: 'blob', timeout: 120000 })
+      const { data } = await api.post<Blob>('/form-entries/export-document', {
+        markdown,
+        format,
+        original_form,
+        entry_id: detailRow.value.id,
+        reason,
+      }, { responseType: 'blob', timeout: 120000 })
       if (exportFile(filename, data) !== true) throw new Error('download failed')
     } catch {
       $q.notify({ type: 'negative', message: '파일 내보내기에 실패했습니다. 사진이 정상적으로 표시되는지 확인한 뒤 다시 시도해 주세요.' })
     } finally { exportingDocument.value = false }
   }
 
-  async function downloadOriginalFile() {
-    const originalFile = detailRow.value?.originalFile
-    if (!originalFile || exportingDocument.value) return
+  async function downloadOriginalFile(reason: string) {
+    const entry = detailRow.value
+    const originalFile = entry?.originalFile
+    if (!entry || !originalFile || exportingDocument.value) return
+    const entryId = entry.id
     exportingDocument.value = true
     try {
       await downloadAttachment(originalFile.url, originalFile.originalName)
+      try {
+        await formEntryService.createExportHistory(entryId, 'original', reason)
+      } catch {
+        $q.notify({ type: 'warning', message: '원본 파일은 다운로드했지만 내보내기 이력을 저장하지 못했습니다.' })
+      }
     } catch {
       $q.notify({ type: 'negative', message: '원본 파일 다운로드에 실패했습니다.' })
     } finally {
@@ -164,7 +177,7 @@ export function useWorkDocumentExport(
     }
   }
 
-  async function exportDetailMarkdown() {
+  async function exportDetailMarkdown(reason: string) {
     if (detailLoading.value || !detailRow.value || !template.value || exportingDocument.value) return
     const title = template.value.title
     const markdown = formEntryMarkdown(title, sections.value, detailRow.value.data, window.location.origin)
@@ -177,6 +190,8 @@ export function useWorkDocumentExport(
         markdown,
         format: 'md-zip',
         markdown_filename: markdownFilename,
+        entry_id: detailRow.value.id,
+        reason,
       }, { responseType: 'blob', timeout: 120000 })
       result = exportFile(zipFilename, data, 'application/zip') === true
     } catch {

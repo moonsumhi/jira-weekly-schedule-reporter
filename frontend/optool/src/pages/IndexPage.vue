@@ -18,6 +18,7 @@
           <q-icon name="event" size="18px" color="red-7" />
           <span class="card-title">D-Day</span>
           <q-space />
+          <q-btn flat dense no-caps icon="history" label="이력" size="sm" color="grey-7" to="/dday/history" />
           <q-btn v-if="auth.me?.isAdmin" flat dense round icon="add" size="sm" color="grey-7" @click="openDDayCreate" />
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
             <q-tooltip>카드 크기 조절</q-tooltip>
@@ -321,17 +322,32 @@
             emit-value map-options
           />
           <q-select
+            v-model="ddayForm.visibleTeams"
+            outlined dense multiple use-chips clearable
+            label="표시할 팀"
+            :options="ddayTeamOptions"
+            emit-value map-options
+            :loading="ddayUsersLoading"
+          />
+          <q-select
             v-model="ddayForm.visibleUserIds"
             outlined dense multiple use-chips clearable
             label="표시할 사람"
+            class="dday-visible-people-select"
             :options="ddayUserOptions"
             emit-value map-options
-            hint="선택하지 않으면 모든 사용자에게 표시됩니다."
+            :hint="'※팀과 사람을 모두 비우면 전체 공개되며,\n선택한 팀원과 사람에게 표시됩니다.'"
             :loading="ddayUsersLoading"
           />
           <q-input v-model="ddayForm.note" outlined dense label="메모" type="textarea" rows="2" />
         </q-card-section>
         <q-card-actions align="right">
+          <q-btn
+            v-if="canCompleteEditedDDay"
+            flat color="positive" icon="check_circle" label="완료"
+            :loading="ddayCompletingId === ddayForm.id"
+            @click="completeEditedDDay"
+          />
           <q-btn flat label="취소" v-close-popup />
           <q-btn color="primary" label="저장" :loading="ddaySaving" @click="saveDDay" />
         </q-card-actions>
@@ -352,12 +368,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import draggable from 'vuedraggable'
 import { useAuthStore } from 'stores/auth'
 import { api } from 'boot/axios'
-import { fetchDDays, createDDay, patchDDay, deleteDDay, type DDay } from 'src/services/ddays'
+import { fetchDDays, createDDay, patchDDay, deleteDDay, completeDDay as completeDDayRequest, type DDay } from 'src/services/ddays'
 import { STATUS_LABEL, STATUS_COLOR, type Issue } from 'src/services/pm/issue'
 import { listMySRs, SR_STATUS_LABEL, SR_STATUS_COLOR, type SRListItem } from 'src/services/sr'
 import { getPrefs, savePrefs, type ColPreset, type CardSize } from 'src/services/prefs'
@@ -367,6 +383,26 @@ import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
 
 const auth = useAuthStore()
 const $q = useQuasar()
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const todayDayKey = ref(calendarDayKey(new Date()))
+let dayRefreshInterval: number | undefined
+
+function calendarDayKey(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function dateStringDayKey(dateStr: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr.trim())
+  if (!match) return null
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const key = Date.UTC(year, month - 1, day)
+  const parsed = new Date(key)
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() !== month - 1 || parsed.getUTCDate() !== day) return null
+  return key
+}
 
 // ── 당직 일정 ──────────────────────────────────────────────────────────────
 interface WatchItem { id: string; assignee: string; start: string; end: string }
@@ -521,6 +557,7 @@ function openInspectionEdit() {
     color: 'teal',
     note: existing?.note ?? '',
     visibleUserIds: existing?.visibleUserIds ?? [],
+    visibleTeams: existing?.visibleTeams ?? [],
   }
   void loadDDayUsers()
   ddayDialog.value = true
@@ -538,8 +575,17 @@ const ddaysLoading = ref(false)
 const ddayDialog = ref(false)
 const ddaySaving = ref(false)
 const ddayUsersLoading = ref(false)
+const ddayCompletingId = ref<string | null>(null)
 const ddayUsers = ref<{ id: string; fullName?: string | null; email: string; team?: string | null; isBlocked?: boolean }[]>([])
-const ddayForm = ref({ id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] as string[] })
+const ddayForm = ref({ id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] as string[], visibleTeams: [] as string[] })
+const ddayTeamOptions = computed(() =>
+  [...new Set(ddayUsers.value
+    .filter((user) => !user.isBlocked)
+    .map((user) => user.team?.trim())
+    .filter((team): team is string => Boolean(team)))]
+    .sort((left, right) => left.localeCompare(right, 'ko'))
+    .map((team) => ({ value: team, label: team }))
+)
 const ddayUserOptions = computed(() =>
   ddayUsers.value
     .filter((user) => !user.isBlocked)
@@ -562,19 +608,16 @@ const ddayColorOptions = Object.entries(ddayColorMap).map(([value]) => ({
 // dateStr 기준으로 오늘보다 daysAfter일 이상 지났으면 true
 function isDatePast(dateStr: string, daysAfter: number): boolean {
   if (!dateStr) return false
-  const target = new Date(dateStr)
-  target.setHours(0, 0, 0, 0)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const diff = Math.round((today.getTime() - target.getTime()) / 86400000)
-  return diff > daysAfter
+  const targetDay = dateStringDayKey(dateStr)
+  if (targetDay === null) return false
+  return todayDayKey.value > targetDay + daysAfter * DAY_MS
 }
 
-// 서버 점검일 override key가 아닌 것만, 날짜가 지난 D-Day는 목록에서 제외
+// 서버 점검일 override key와 완료된 D-Day만 일반 목록에서 제외한다.
 const visibleDDays = computed(() =>
   ddays.value.filter((d) => {
     if (d.title.startsWith(INSPECTION_KEY_PREFIX)) return false  // 서버 점검일 override는 목록에서 숨김
-    return !isDatePast(d.date, 0)
+    return !d.completed
   })
 )
 
@@ -592,11 +635,9 @@ const issueDDayItems = computed(() =>
 )
 
 function calcDDay(dateStr: string): string {
-  const target = new Date(dateStr)
-  target.setHours(0, 0, 0, 0)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const diff = Math.round((target.getTime() - today.getTime()) / 86400000)
+  const targetDay = dateStringDayKey(dateStr)
+  if (targetDay === null) return ''
+  const diff = Math.trunc((targetDay - todayDayKey.value) / DAY_MS)
   if (diff === 0) return 'D-Day'
   if (diff > 0) return `D-${diff}`
   return `D+${Math.abs(diff)}`
@@ -612,7 +653,7 @@ async function loadDDays() {
 }
 
 function openDDayCreate() {
-  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] }
+  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [], visibleTeams: [] }
   void loadDDayUsers()
   ddayDialog.value = true
 }
@@ -625,6 +666,7 @@ function openDDayEdit(d: DDay) {
     color: d.color,
     note: d.note ?? '',
     visibleUserIds: d.visibleUserIds ?? [],
+    visibleTeams: d.visibleTeams ?? [],
   }
   void loadDDayUsers()
   ddayDialog.value = true
@@ -656,6 +698,7 @@ async function saveDDay() {
       color: ddayForm.value.color,
       note: ddayForm.value.note || null,
       visible_user_ids: ddayForm.value.visibleUserIds,
+      visible_teams: ddayForm.value.visibleTeams,
     }
     if (ddayForm.value.id) {
       await patchDDay(ddayForm.value.id, payload)
@@ -669,6 +712,35 @@ async function saveDDay() {
     $q.notify({ type: 'negative', message: '저장 실패' })
   } finally {
     ddaySaving.value = false
+  }
+}
+
+function isDDayCreator(d: DDay): boolean {
+  return !!auth.me?.id && String(auth.me.id) === d.createdBy
+}
+
+const canCompleteEditedDDay = computed(() => {
+  if (!ddayForm.value.id || ddayForm.value.title.startsWith(INSPECTION_KEY_PREFIX)) return false
+  const dday = ddays.value.find((item) => item.id === ddayForm.value.id)
+  return !!dday && isDDayCreator(dday)
+})
+
+async function completeEditedDDay() {
+  const dday = ddays.value.find((item) => item.id === ddayForm.value.id)
+  if (dday) await completeDDay(dday)
+}
+
+async function completeDDay(d: DDay) {
+  ddayCompletingId.value = d.id
+  try {
+    await completeDDayRequest(d.id)
+    ddays.value = ddays.value.filter((item) => item.id !== d.id)
+    if (ddayForm.value.id === d.id) ddayDialog.value = false
+    $q.notify({ type: 'positive', message: 'D-Day를 완료 처리했습니다.' })
+  } catch {
+    $q.notify({ type: 'negative', message: 'D-Day 완료 처리에 실패했습니다.' })
+  } finally {
+    ddayCompletingId.value = null
   }
 }
 
@@ -849,6 +921,10 @@ function setCardSize(id: string, w: number, h: number) {
 }
 
 onMounted(() => {
+  dayRefreshInterval = window.setInterval(() => {
+    const currentDay = calendarDayKey(new Date())
+    if (currentDay !== todayDayKey.value) todayDayKey.value = currentDay
+  }, 30_000)
   void loadDDays()
   void loadInspectionPending()
   void loadWatch()
@@ -858,6 +934,10 @@ onMounted(() => {
   if (hasPmPerm.value) void loadPmDashboard()
   if (hasSrPerm.value) void loadMySrList()
   void loadCardOrder()
+})
+
+onUnmounted(() => {
+  if (dayRefreshInterval !== undefined) window.clearInterval(dayRefreshInterval)
 })
 </script>
 
@@ -1008,6 +1088,14 @@ onMounted(() => {
 .dday-note {
   font-size: 11px;
   margin-top: 2px;
+}
+
+.dday-visible-people-select {
+  margin-bottom: 16px;
+}
+
+.dday-visible-people-select :deep(.q-field__messages) {
+  white-space: pre-line;
 }
 
 .dday-info {

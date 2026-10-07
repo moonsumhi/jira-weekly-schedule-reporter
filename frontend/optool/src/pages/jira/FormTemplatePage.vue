@@ -16,15 +16,15 @@
       <!-- Header -->
       <div class="row items-center q-gutter-sm q-mb-md">
         <div>
-          <div class="text-h6">{{ isAllJobs ? '전체 작업 관리' : template?.title }}</div>
-          <div class="text-caption text-grey">{{ isAllJobs ? `전체 문서 ${rows.length}건` : template?.jiraIssueKey }}</div>
+          <div class="text-h6">{{ trashView ? '작업 관리 휴지통' : (isAllJobs ? '전체 작업 관리' : template?.title) }}</div>
+          <div class="text-caption text-grey">{{ trashView ? `${isAllJobs ? '전체' : template?.title} · 삭제된 문서 ${deletedCount}건` : (isAllJobs ? `전체 문서 ${rows.length}건` : template?.jiraIssueKey) }}</div>
         </div>
         <q-space />
-        <q-toggle v-model="includeDeleted" label="삭제 포함" dense @update:model-value="load" />
+        <q-btn v-if="trashView" flat dense no-caps icon="arrow_back" label="작업 목록" @click="closeTrash" />
         <q-btn outline icon="refresh" label="새로고침" :loading="tableLoading" @click="load" />
-        <q-btn outline icon="upload_file" label="Import" :loading="importing"
+        <q-btn v-if="!trashView" outline icon="upload_file" label="Import" :loading="importing"
           :disable="isAllJobs && !jobTemplates.length" @click="startDocumentAction('import')" />
-        <q-btn color="primary" icon="add" :label="isAllJobs ? '파일 추가' : `${template?.title} 추가`"
+        <q-btn v-if="!trashView" color="primary" icon="add" :label="isAllJobs ? '파일 추가' : `${template?.title} 추가`"
           :disable="importing || (isAllJobs && !jobTemplates.length)" @click="startDocumentAction('create')" />
       </div>
 
@@ -51,7 +51,31 @@
           <q-input v-model="searchDateTo" type="date" dense outlined clearable label="종료" style="min-width: 160px" />
         </template>
         <q-btn flat icon="close" dense @click="resetSearch" v-if="hasSearch" />
+        <q-space />
+        <q-chip
+          v-if="isJobPage && !trashView && deletedCount"
+          dense clickable icon="delete_outline"
+          color="grey-3" text-color="grey-8"
+          @click="openTrash"
+        >휴지통 {{ deletedCount }}</q-chip>
       </div>
+
+      <q-banner v-if="trashView" rounded class="bg-grey-1 q-mb-md">
+        <template #avatar><q-icon name="delete_outline" color="blue-grey-7" /></template>
+        <div class="text-weight-medium">휴지통 · 삭제된 문서 {{ deletedCount }}건</div>
+        <div class="text-caption text-grey-7">
+          복원하거나 영구 삭제할 수 있습니다. 영구 삭제한 데이터는 복구할 수 없습니다.
+        </div>
+        <template #action>
+          <template v-if="selectedIds.size > 0">
+            <q-btn dense unelevated no-caps color="positive" icon="restore"
+              :label="`복원 (${selectedIds.size})`" :loading="bulkRestoring" @click="confirmBulkRestore" />
+            <q-btn dense unelevated no-caps color="negative" icon="delete_forever" class="q-ml-sm"
+              :label="`영구삭제 (${selectedIds.size})`" :loading="bulkPurging" @click="confirmBulkPurge" />
+          </template>
+          <span v-else class="text-caption text-grey-6">행을 선택하거나 각 행의 복원/영구삭제 버튼을 사용하세요.</span>
+        </template>
+      </q-banner>
 
       <q-card bordered>
         <q-card-section class="q-pa-none">
@@ -64,6 +88,31 @@
             flat
             bordered
           >
+            <template #header-cell-select="props">
+              <q-th :props="props" class="text-center">
+                <q-checkbox
+                  :model-value="bulkSelectState"
+                  dense
+                  color="negative"
+                  @update:model-value="toggleAllDeleted"
+                  @click.stop
+                >
+                  <q-tooltip>현재 목록의 삭제된 문서 전체 선택</q-tooltip>
+                </q-checkbox>
+              </q-th>
+            </template>
+
+            <template #body-cell-select="props">
+              <q-td :props="props" class="text-center">
+                <q-checkbox
+                  :model-value="selectedIds.has(props.row.id)"
+                  dense
+                  color="negative"
+                  @update:model-value="toggleRowSelected(props.row.id)"
+                />
+              </q-td>
+            </template>
+
             <template #body-cell-preview="props">
               <q-td :props="props">
                 <span class="text-grey-7 text-caption ellipsis" style="max-width: 300px; display: block;">
@@ -79,13 +128,20 @@
             <template #body-cell-actions="props">
               <q-td :props="props">
                 <div class="row items-center justify-end q-gutter-xs">
-                  <q-btn dense outline icon="visibility" label="상세" @click="void openDetail(props.row)" />
-                  <q-btn
-                    dense color="negative" icon="delete" label="삭제"
-                    :disable="props.row.isDeleted"
-                    :loading="actingId === props.row.id"
-                    @click="confirmDelete(props.row)"
-                  />
+                  <template v-if="trashView">
+                    <q-btn dense color="positive" icon="restore" label="복원"
+                      :loading="actingId === props.row.id" @click="confirmRestore(props.row)" />
+                    <q-btn dense color="negative" icon="delete_forever" label="영구삭제"
+                      :loading="actingId === props.row.id" @click="confirmPurge(props.row)" />
+                  </template>
+                  <template v-else>
+                    <q-btn dense outline icon="visibility" label="상세" @click="void openDetail(props.row)" />
+                    <q-btn
+                      dense color="negative" icon="delete" label="삭제"
+                      :loading="actingId === props.row.id"
+                      @click="confirmDelete(props.row)"
+                    />
+                  </template>
                 </div>
               </q-td>
             </template>
@@ -433,10 +489,11 @@ const detailSaveWarning = ref('')
 const imageUploads = ref<Record<string, boolean>>({})
 const insertingImages = ref(0)
 const editorBusy = computed(() => saving.value || insertingImages.value > 0 || Object.values(imageUploads.value).some(Boolean))
-const includeDeleted = ref(false)
+const trashView = ref(false)
 
 const template = ref<FormTemplate | null>(null)
 const rows = ref<FormEntry[]>([])
+const deletedCount = computed(() => rows.value.filter((row) => row.isDeleted).length)
 const jobTemplates = ref<FormTemplate[]>([])
 const documentTypeDialog = ref(false)
 const selectedDocumentType = ref<string | null>(null)
@@ -488,8 +545,10 @@ function resetSearch() {
   searchDateTo.value = ''
 }
 
+const visibleRows = computed(() => rows.value.filter((row) => trashView.value ? row.isDeleted : !row.isDeleted))
+
 const filteredRows = computed(() => {
-  return rows.value.filter((row) => {
+  return visibleRows.value.filter((row) => {
     if (searchType.value === 'content' && searchValue.value) {
       if (!JSON.stringify(row.data).toLowerCase().includes(searchValue.value.toLowerCase())) return false
     }
@@ -505,6 +564,37 @@ const filteredRows = computed(() => {
     return true
   })
 })
+
+const selectedIds = ref<Set<string>>(new Set())
+const bulkPurging = ref(false)
+const bulkRestoring = ref(false)
+const selectableDeletedRows = computed(() => filteredRows.value.filter((row) => row.isDeleted))
+const bulkSelectState = computed(() => {
+  const selectableIds = selectableDeletedRows.value.map((row) => row.id)
+  if (selectableIds.length === 0) return false
+  const selectedCount = selectableIds.filter((id) => selectedIds.value.has(id)).length
+  if (selectedCount === 0) return false
+  if (selectedCount === selectableIds.length) return true
+  return null
+})
+
+function toggleRowSelected(id: string) {
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedIds.value = next
+}
+
+function toggleAllDeleted() {
+  const selectableIds = selectableDeletedRows.value.map((row) => row.id)
+  const next = new Set(selectedIds.value)
+  const shouldSelectAll = selectableIds.some((id) => !next.has(id))
+  for (const id of selectableIds) {
+    if (shouldSelectAll) next.add(id)
+    else next.delete(id)
+  }
+  selectedIds.value = next
+}
 
 // import
 const importing = ref(false)
@@ -740,6 +830,7 @@ function originalSections(data: Record<string, unknown>): FormSection[] {
 const sections = computed<FormSection[]>(() => documentMode.value ? documentSections : originalSections(formDialog.value ? formValues.value : detailRow.value?.data ?? {}))
 
 const columns = computed(() => [
+  ...(trashView.value ? [{ name: 'select', label: '', field: (row: FormEntry) => row.id, align: 'center' as const }] : []),
   ...(isAllJobs.value ? [{ name: 'document_type', label: '문서 종류', field: (row: FormEntry) => entryTemplate(row)?.title ?? '—', align: 'left' as const, sortable: true }] : []),
   { name: 'preview', label: '내용 미리보기', field: 'id', align: 'left' as const },
   { name: 'created_by', label: '제출자', field: 'createdBy', align: 'left' as const },
@@ -1336,6 +1427,125 @@ function confirmDelete(row: FormEntry) {
   })
 }
 
+function openTrash() {
+  trashView.value = true
+  selectedIds.value = new Set()
+  resetSearch()
+}
+
+function closeTrash() {
+  trashView.value = false
+  selectedIds.value = new Set()
+  resetSearch()
+}
+
+function confirmRestore(row: FormEntry) {
+  $q.dialog({
+    title: '문서 복원',
+    message: '선택한 작업 문서를 복원하시겠습니까?',
+    cancel: true,
+    persistent: true,
+    ok: { label: '복원', color: 'positive' },
+  }).onOk(() => {
+    actingId.value = row.id
+    formEntryService.restore(row.id)
+      .then((restored) => {
+        const index = rows.value.findIndex((item) => item.id === row.id)
+        if (index >= 0) rows.value.splice(index, 1, restored)
+        $q.notify({ type: 'positive', message: '문서를 복원했습니다.' })
+      })
+      .catch((error: unknown) => {
+        $q.notify({ type: 'negative', message: apiErrorDetail(error) || '복원에 실패했습니다.' })
+      })
+      .finally(() => { actingId.value = null })
+  })
+}
+
+function confirmPurge(row: FormEntry) {
+  $q.dialog({
+    title: '영구 삭제',
+    message: '휴지통에서 이 문서를 영구 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.',
+    cancel: true,
+    persistent: true,
+    ok: { label: '영구 삭제', color: 'negative' },
+  }).onOk(() => {
+    actingId.value = row.id
+    formEntryService.purge(row.id)
+      .then(() => {
+        rows.value = rows.value.filter((item) => item.id !== row.id)
+        $q.notify({ type: 'positive', message: '문서를 영구 삭제했습니다.' })
+      })
+      .catch((error: unknown) => {
+        $q.notify({ type: 'negative', message: apiErrorDetail(error) || '영구 삭제에 실패했습니다.' })
+      })
+      .finally(() => { actingId.value = null })
+  })
+}
+
+function confirmBulkPurge() {
+  const targets = rows.value.filter((row) => selectedIds.value.has(row.id) && row.isDeleted)
+  if (targets.length === 0) return
+  $q.dialog({
+    title: '영구 삭제',
+    message: `선택한 ${targets.length}건을 휴지통에서 영구 삭제하시겠습니까?<br>삭제 후 복구할 수 없습니다.`,
+    html: true,
+    cancel: true,
+    persistent: true,
+    ok: { label: '영구 삭제', color: 'negative' },
+  }).onOk(() => void doBulkPurge(targets))
+}
+
+async function doBulkPurge(targets: FormEntry[]) {
+  bulkPurging.value = true
+  try {
+    const results = await Promise.allSettled(targets.map((row) => formEntryService.purge(row.id)))
+    const succeededIds = new Set(
+      targets.filter((_, index) => results[index]?.status === 'fulfilled').map((row) => row.id),
+    )
+    rows.value = rows.value.filter((row) => !succeededIds.has(row.id))
+    selectedIds.value = new Set([...selectedIds.value].filter((id) => !succeededIds.has(id)))
+    const failedCount = targets.length - succeededIds.size
+    $q.notify({
+      type: failedCount ? 'warning' : 'positive',
+      message: `${succeededIds.size}건 영구 삭제됨${failedCount ? `, ${failedCount}건 실패` : ''}`,
+    })
+  } finally {
+    bulkPurging.value = false
+  }
+}
+
+function confirmBulkRestore() {
+  const targets = rows.value.filter((row) => selectedIds.value.has(row.id) && row.isDeleted)
+  if (targets.length === 0) return
+  $q.dialog({
+    title: '복원',
+    message: `선택한 ${targets.length}건을 복원하시겠습니까?`,
+    cancel: true,
+    persistent: true,
+    ok: { label: '복원', color: 'positive', unelevated: true },
+  }).onOk(() => void doBulkRestore(targets))
+}
+
+async function doBulkRestore(targets: FormEntry[]) {
+  bulkRestoring.value = true
+  try {
+    const results = await Promise.allSettled(targets.map((row) => formEntryService.restore(row.id)))
+    const restoredById = new Map<string, FormEntry>()
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') restoredById.set(targets[index]!.id, result.value)
+    })
+    rows.value = rows.value.map((row) => restoredById.get(row.id) ?? row)
+    selectedIds.value = new Set([...selectedIds.value].filter((id) => !restoredById.has(id)))
+    const failedCount = targets.length - restoredById.size
+    $q.notify({
+      type: failedCount ? 'warning' : 'positive',
+      message: `${restoredById.size}건 복원됨${failedCount ? `, ${failedCount}건 실패` : ''}`,
+    })
+  } finally {
+    bulkRestoring.value = false
+  }
+}
+
 async function load() {
   await loadPage()
 }
@@ -1358,13 +1568,13 @@ async function loadPage() {
     }
     jobTemplates.value = templates.sort((a, b) => rank(a) - rank(b))
     if (allJobs) {
-      const entries = await Promise.all(templates.map((item) => formEntryService.list(item.id, includeDeleted.value)))
+      const entries = await Promise.all(templates.map((item) => formEntryService.list(item.id, jobPage)))
       if (request !== pageRequest) return
       template.value = null
       rows.value = entries.flat().sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
     } else if (id) {
       const tmpl = templates.find((item) => item.id === id || item.jiraIssueKey === id) ?? await formTemplateService.get(id)
-      const entries = await formEntryService.list(tmpl.id, includeDeleted.value)
+      const entries = await formEntryService.list(tmpl.id, jobPage)
       if (request !== pageRequest) return
       template.value = tmpl
       rows.value = entries
@@ -1399,6 +1609,7 @@ watch(() => route.path, () => {
   documentTypeDialog.value = false
   detailDialog.value = false
   formDialog.value = false
+  selectedIds.value = new Set()
   resetSearch()
   void loadPage()
 })

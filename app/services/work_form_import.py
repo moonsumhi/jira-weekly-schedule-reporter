@@ -299,7 +299,6 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                             value_cell = source_cells[index + 1] if index + 1 < len(source_cells) else None
                             if (
                                 value_cell is not None
-                                and value_cell.xpath('.//table')
                                 and field.get('type') in {'textarea', 'markdown'}
                             ):
                                 value = nodes_markdown([value_cell])
@@ -358,7 +357,6 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                     value_cell = source_cells[index + 1] if index + 1 < len(source_cells) else None
                     if (
                         value_cell is not None
-                        and value_cell.xpath('.//table')
                         and field.get('type') in {'textarea', 'markdown'}
                     ):
                         # Preserve nested tables, images, and line breaks in
@@ -393,6 +391,87 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                 len(top_nodes),
             )
             block = top_nodes[index + 1:end]
+            detail_index = next(
+                (
+                    item_index for item_index, item in enumerate(block)
+                    if item.tag == 'h4' and norm(''.join(item.itertext())) == '2번째내용'
+                ),
+                None,
+            )
+            if detail_index is not None:
+                detail_nodes = block[detail_index + 1:]
+                detail_value = nodes_markdown(detail_nodes)
+                if detail_value:
+                    for item in block[:detail_index]:
+                        if item.tag != 'table':
+                            continue
+                        labels = [
+                            cell
+                            for row in table_rows(item)
+                            for cell in row
+                        ]
+                        target_info = next(
+                            (
+                                field_targets.get(norm(label))
+                                for label in labels
+                                if field_targets.get(norm(label)) is not None
+                                and (followup is None or field_targets.get(norm(label))[0] is not followup)
+                                and field_targets.get(norm(label))[1].get('type') in {'textarea', 'markdown'}
+                            ),
+                            None,
+                        )
+                        if target_info is None:
+                            continue
+                        target_section, field = target_info
+                        target = values[target_section['title']]
+                        if isinstance(target, dict):
+                            store_field(target, field, detail_value)
+                        break
+
+            direct_timeline_table = next(
+                (
+                    item for item in block
+                    if item.tag == 'table'
+                    and {
+                        norm(header)
+                        for header in (table_rows(item)[0] if table_rows(item) else [])
+                    } >= {'시간대', '상세내역'}
+                ),
+                None,
+            )
+            if direct_timeline_table is not None:
+                rows = table_rows(direct_timeline_table)
+                source_rows = direct_timeline_table.xpath('./tr | ./thead/tr | ./tbody/tr | ./tfoot/tr')
+                time_column = next(
+                    (column for column, header in enumerate(rows[0]) if norm(header) == '시간대'),
+                    None,
+                )
+                detail_column = next(
+                    (column for column, header in enumerate(rows[0]) if norm(header) == '상세내역'),
+                    None,
+                )
+                time_field = timeline_fields.get('시간대')
+                detail_field = timeline_fields.get('상세내역')
+                if time_column is not None and detail_column is not None:
+                    for row_index, row in enumerate(rows[1:], start=1):
+                        if not any(str(value).strip() for value in row):
+                            continue
+                        record = {field.get('label', ''): '' for field in timeline.get('fields', [])}
+                        if time_field and time_column < len(row):
+                            store_field(record, time_field, row[time_column])
+                        if detail_field and detail_column < len(row):
+                            detail_value = row[detail_column]
+                            value_cells = (
+                                source_rows[row_index].xpath('./th | ./td')
+                                if row_index < len(source_rows) else []
+                            )
+                            detail_cell = value_cells[detail_column] if detail_column < len(value_cells) else None
+                            if detail_cell is not None:
+                                detail_value = nodes_markdown([detail_cell])
+                            store_field(record, detail_field, detail_value)
+                        structured_timeline_rows.append(record)
+                continue
+
             detail_index = next(
                 (i for i, item in enumerate(block)
                  if item.tag == 'h4' and norm(''.join(item.itertext())) == '상세내역'),

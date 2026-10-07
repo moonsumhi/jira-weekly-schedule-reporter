@@ -7,7 +7,11 @@ export interface DDay {
   color: string
   note?: string | null
   visibleUserIds?: string[]
+  visibleTeams?: string[]
   createdAt?: string | null
+  createdBy?: string | null
+  completed?: boolean
+  completedAt?: string | null
 }
 
 export interface DDayCreate {
@@ -16,6 +20,7 @@ export interface DDayCreate {
   color?: string
   note?: string | null
   visible_user_ids?: string[]
+  visible_teams?: string[]
 }
 
 export interface DDayPatch {
@@ -24,10 +29,16 @@ export interface DDayPatch {
   color?: string
   note?: string | null
   visible_user_ids?: string[]
+  visible_teams?: string[]
 }
 
 export async function fetchDDays(): Promise<DDay[]> {
   const { data } = await api.get<DDay[]>('/ddays')
+  return data
+}
+
+export async function fetchDDayHistory(): Promise<DDay[]> {
+  const { data } = await api.get<DDay[]>('/ddays/history')
   return data
 }
 
@@ -38,6 +49,11 @@ export async function createDDay(payload: DDayCreate): Promise<DDay> {
 
 export async function patchDDay(id: string, payload: DDayPatch): Promise<DDay> {
   const { data } = await api.patch<DDay>(`/ddays/${id}`, payload)
+  return data
+}
+
+export async function completeDDay(id: string): Promise<DDay> {
+  const { data } = await api.post<DDay>('/ddays/' + id + '/complete')
   return data
 }
 

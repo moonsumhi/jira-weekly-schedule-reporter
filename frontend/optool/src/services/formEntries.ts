@@ -32,6 +32,42 @@ export type ImportResult = {
   originalFile?: OriginalFile | null
 }
 
+export type FormEntryRevisionSummary = {
+  version: number
+  action: 'CREATE' | 'UPDATE'
+  changedAt?: string | null
+  changedBy?: string | null
+  changedSections: string[]
+  hasDiff: boolean
+}
+
+export type FormEntryRevisionChange = {
+  path: string
+  before: unknown
+  after: unknown
+  beforePresent: boolean
+  afterPresent: boolean
+}
+
+export type FormEntryRevisionDetail = {
+  version: number
+  changedAt?: string | null
+  changedBy?: string | null
+  changedSections: string[]
+  changes: FormEntryRevisionChange[]
+  changesTruncated: boolean
+}
+
+export type FormEntryExportFormat = 'hwp' | 'docx' | 'md-zip' | 'original'
+
+export type FormEntryExportHistory = {
+  id: string
+  format: FormEntryExportFormat
+  reason: string
+  exportedAt?: string | null
+  exportedBy?: string | null
+}
+
 export type FormEntry = {
   id: string
   templateId: string
@@ -44,6 +80,7 @@ export type FormEntry = {
   createdBy?: string | null
   updatedAt?: string | null
   updatedBy?: string | null
+  revisionHistory?: FormEntryRevisionSummary[]
 }
 
 export type WorkDocumentAsset = AssetLink
@@ -76,6 +113,21 @@ export const formEntryService = {
     return data
   },
 
+  async getRevision(id: string, version: number): Promise<FormEntryRevisionDetail> {
+    const { data } = await api.get<FormEntryRevisionDetail>(`/form-entries/${id}/history/${version}`)
+    return data
+  },
+
+  async getExportHistory(id: string): Promise<FormEntryExportHistory[]> {
+    const { data } = await api.get<FormEntryExportHistory[]>(`/form-entries/${id}/export-history`)
+    return data
+  },
+
+  async createExportHistory(id: string, format: FormEntryExportFormat, reason: string): Promise<FormEntryExportHistory> {
+    const { data } = await api.post<FormEntryExportHistory>(`/form-entries/${id}/export-history`, { format, reason })
+    return data
+  },
+
   async create(templateId: string, entryData: EntryData, originalFile?: OriginalFile | null, assetIds?: string[]): Promise<FormEntry> {
     const { data } = await api.post<FormEntry>('/form-entries', {
       template_id: templateId,
@@ -104,6 +156,15 @@ export const formEntryService = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`/form-entries/${id}`)
+  },
+
+  async restore(id: string): Promise<FormEntry> {
+    const { data } = await api.post<FormEntry>(`/form-entries/${id}/restore`)
+    return data
+  },
+
+  async purge(id: string): Promise<void> {
+    await api.delete(`/form-entries/${id}/purge`)
   },
 
   async importFromFile(templateId: string, file: File): Promise<ImportResult> {

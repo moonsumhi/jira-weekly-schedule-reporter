@@ -68,6 +68,9 @@ async def create_indexes() -> None:
     await form_entries_col.create_index("template_id")
     await form_entries_col.create_index("created_at")
     await form_entries_col.create_index([("asset_ids", 1), ("created_at", -1)])
+    await MongoClientManager.get_form_entry_revisions_collection().create_index(
+        [("entry_id", 1), ("version", 1)], unique=True
+    )
 
     asset_notes = MongoClientManager.get_asset_notes_collection()
     await asset_notes.create_index([('asset_id', 1), ('created_at', -1), ('_id', -1)])

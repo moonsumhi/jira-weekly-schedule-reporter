@@ -3,14 +3,13 @@
   <q-expansion-item
     v-if="children && children.length"
     class="sidebar-expansion-item"
-    :icon="icon"
     expand-separator
   >
     <template #header>
       <q-item-section avatar>
-        <q-icon :name="icon" />
+        <q-icon :name="icon" :style="menuIconColorStyle" />
       </q-item-section>
-      <q-item-section>{{ title }}</q-item-section>
+      <q-item-section :style="menuColorStyle">{{ title }}</q-item-section>
       <q-item-section side v-if="badge && badge > 0">
         <q-badge color="negative" :label="badge" rounded />
       </q-item-section>
@@ -35,10 +34,10 @@
     :class="{ 'child-item': isChild }"
   >
     <q-item-section avatar>
-      <q-icon :name="icon || 'fiber_manual_record'" :size="icon ? 'sm' : 'xs'" />
+      <q-icon :name="icon || 'fiber_manual_record'" :size="icon ? 'sm' : 'xs'" :style="menuIconColorStyle" />
     </q-item-section>
 
-    <q-item-section>
+    <q-item-section :style="menuColorStyle">
       <span class="sidebar-link-title">{{ title }}</span>
       <span v-if="caption" class="sidebar-link-caption">{{ caption }}</span>
     </q-item-section>
@@ -58,6 +57,8 @@ export interface EssentialLinkProps {
   caption?: string;
   link?: string;
   icon?: string;
+  color?: string | null;
+  iconColor?: string | null;
   children?: EssentialLinkProps[];
   isChild?: boolean;
   badge?: number;
@@ -67,6 +68,8 @@ const props = withDefaults(defineProps<EssentialLinkProps>(), {
   caption: '',
   link: '#',
   icon: '',
+  color: null,
+  iconColor: null,
   children: () => [],
   isChild: false,
   badge: 0,
@@ -76,6 +79,16 @@ defineEmits(['select'])
 
 const route = useRoute()
 const router = useRouter()
+const menuColorStyle = computed(() =>
+  ({ color: props.color && /^#[0-9a-fA-F]{6}$/.test(props.color) ? props.color : '#000000' }),
+)
+const menuIconColorStyle = computed(() => ({
+  color: props.iconColor && /^#[0-9a-fA-F]{6}$/.test(props.iconColor)
+    ? props.iconColor
+    : props.color && /^#[0-9a-fA-F]{6}$/.test(props.color)
+      ? props.color
+      : '#000000',
+}))
 
 const isActive = computed(() => {
   if (!props.link || props.link === '#') return false
