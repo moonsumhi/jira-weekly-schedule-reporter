@@ -28,3 +28,6 @@ class DDayOut(BaseModel):
     visible_user_ids: list[str] = Field(default_factory=list)
     visible_teams: list[str] = Field(default_factory=list)
     created_at: str | None = None
+    created_by: str | None = None
+    completed: bool = False
+    completed_at: str | None = None

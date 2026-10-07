@@ -9,6 +9,9 @@ export interface DDay {
   visibleUserIds?: string[]
   visibleTeams?: string[]
   createdAt?: string | null
+  createdBy?: string | null
+  completed?: boolean
+  completedAt?: string | null
 }
 
 export interface DDayCreate {
@@ -41,6 +44,11 @@ export async function createDDay(payload: DDayCreate): Promise<DDay> {
 
 export async function patchDDay(id: string, payload: DDayPatch): Promise<DDay> {
   const { data } = await api.patch<DDay>(`/ddays/${id}`, payload)
+  return data
+}
+
+export async function completeDDay(id: string): Promise<DDay> {
+  const { data } = await api.post<DDay>('/ddays/' + id + '/complete')
   return data
 }
 
