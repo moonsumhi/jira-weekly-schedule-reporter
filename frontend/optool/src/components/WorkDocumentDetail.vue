@@ -201,17 +201,92 @@
         <q-btn v-else-if="!creating" outline no-caps icon="edit_note" label="수정" :disable="loading || !entry || entry.isDeleted" @click="startEdit" />
         <q-btn-dropdown v-if="!editing" outline no-caps icon="download" label="내보내기" :loading="exporting" :disable="loading || !entry || exporting">
           <q-list>
-            <q-item clickable v-close-popup @click="emit('export')"><q-item-section>Markdown + 이미지 (.zip)</q-item-section></q-item>
-            <q-item clickable v-close-popup :disable="!entry?.originalFile" @click="emit('download-original')"><q-item-section>{{ originalDownloadLabel }}</q-item-section></q-item>
-            <q-item clickable v-close-popup @click="emit('export-file', 'hwp')"><q-item-section>HWP 내보내기</q-item-section></q-item>
-            <q-item clickable v-close-popup @click="emit('export-file', 'docx')"><q-item-section>Word (.docx)</q-item-section></q-item>
+            <q-item clickable v-close-popup @click="requestExport('md-zip')"><q-item-section>Markdown + 이미지 (.zip)</q-item-section></q-item>
+            <q-item clickable v-close-popup :disable="!entry?.originalFile" @click="requestExport('original')"><q-item-section>{{ originalDownloadLabel }}</q-item-section></q-item>
+            <q-item clickable v-close-popup @click="requestExport('hwp')"><q-item-section>HWP 내보내기</q-item-section></q-item>
+            <q-item clickable v-close-popup @click="requestExport('docx')"><q-item-section>Word (.docx)</q-item-section></q-item>
           </q-list>
         </q-btn-dropdown>
+        <q-btn
+          v-if="!editing && !creating && entry"
+          outline no-caps icon="history" label="내보내기 이력"
+          :loading="exportHistoryLoading"
+          @click="openExportHistory"
+        >
+          <q-tooltip>내보내기 이력</q-tooltip>
+        </q-btn>
       </footer>
 
       <q-dialog :model-value="!!previewSource" @update:model-value="previewSource = ''">
         <q-card class="document-preview"><q-btn flat round icon="close" class="preview-close" aria-label="이미지 닫기" v-close-popup />
           <img :src="previewSource" alt="문서 이미지 확대" /></q-card>
+      </q-dialog>
+
+      <q-dialog v-model="exportReasonDialog">
+        <q-card class="export-history-dialog">
+          <q-card-section class="row items-center no-wrap">
+            <div class="col">
+              <div class="text-h6">내보내기 사유</div>
+              <div class="text-caption text-grey-7">{{ exportFormatLabels[exportTarget || 'md-zip'] }} 파일을 내보내는 사유를 입력해 주세요.</div>
+            </div>
+            <q-btn flat round dense icon="close" aria-label="닫기" v-close-popup />
+          </q-card-section>
+          <q-separator />
+          <q-card-section>
+            <q-input
+              v-model="exportReason"
+              outlined
+              autofocus
+              type="textarea"
+              autogrow
+              maxlength="1000"
+              counter
+              label="내보내기 사유"
+              placeholder="예: 운영 변경 작업 검토 및 공유"
+            />
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="취소" v-close-popup />
+            <q-btn color="primary" icon="download" label="내보내기" :disable="!exportReason.trim()" @click="confirmExport" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+
+      <q-dialog v-model="exportHistoryDialog">
+        <q-card class="export-history-dialog">
+          <q-card-section class="row items-center no-wrap">
+            <div class="col">
+              <div class="text-h6">내보내기 이력</div>
+              <div class="text-caption text-grey-7">{{ documentTitle }}</div>
+            </div>
+            <q-btn flat round dense icon="close" aria-label="닫기" v-close-popup />
+          </q-card-section>
+          <q-separator />
+          <q-card-section v-if="exportHistoryLoading" class="revision-loading">
+            <q-spinner size="28px" color="primary" /> 이력을 불러오는 중입니다.
+          </q-card-section>
+          <q-card-section v-else-if="exportHistoryError" class="revision-error" role="alert">
+            <q-icon name="info_outline" /> {{ exportHistoryError }}
+          </q-card-section>
+          <q-card-section v-else-if="!exportHistory.length" class="revision-empty">
+            내보내기 이력이 없습니다.
+          </q-card-section>
+          <div v-else class="export-history-table-wrap">
+            <q-markup-table flat bordered dense separator="cell">
+              <thead>
+                <tr><th>내보낸 시각</th><th>형식</th><th>사유</th><th>수행자</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in exportHistory" :key="item.id">
+                  <td class="text-no-wrap">{{ formatDate(item.exportedAt) }}</td>
+                  <td class="text-no-wrap">{{ exportFormatLabels[item.format] }}</td>
+                  <td class="export-history-reason">{{ item.reason }}</td>
+                  <td class="text-no-wrap">{{ item.exportedBy || '미등록' }}</td>
+                </tr>
+              </tbody>
+            </q-markup-table>
+          </div>
+        </q-card>
       </q-dialog>
 
       <q-dialog v-model="revisionDialog">
@@ -291,7 +366,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { formEntryService, type FormEntry, type FormEntryRevisionDetail, type FormEntryRevisionSummary, type WorkDocumentAsset } from 'src/services/formEntries'
+import { formEntryService, type FormEntry, type FormEntryExportFormat, type FormEntryExportHistory, type FormEntryRevisionDetail, type FormEntryRevisionSummary, type WorkDocumentAsset } from 'src/services/formEntries'
 import WorkDocumentAssets from './WorkDocumentAssets.vue'
 import type { FormField, FormSection } from 'src/services/formTemplates'
 import { comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
@@ -640,10 +715,51 @@ function tableFields(section: FormSection): FormField[] {
   ordered.splice(hostnameIndex >= 0 ? hostnameIndex + 1 : ordered.length, 0, note)
   return ordered
 }
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; save: [value: EditableData, assetIds?: string[], inspection?: WorkDocumentInspection | null]; export: []; 'export-file': [format: 'hwp' | 'docx']; 'download-original': []; 'show-import-warnings': []; retry: [] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: boolean]; save: [value: EditableData, assetIds?: string[], inspection?: WorkDocumentInspection | null]; export: [reason: string]; 'export-file': [format: 'hwp' | 'docx', reason: string]; 'download-original': [reason: string]; 'show-import-warnings': []; retry: [] }>()
 const scrollArea = ref<HTMLElement | null>(null)
 const activeSection = ref(0)
 const previewSource = ref('')
+const exportReasonDialog = ref(false)
+const exportReason = ref('')
+const exportTarget = ref<FormEntryExportFormat | null>(null)
+const exportHistoryDialog = ref(false)
+const exportHistoryLoading = ref(false)
+const exportHistoryError = ref('')
+const exportHistory = ref<FormEntryExportHistory[]>([])
+const exportFormatLabels: Record<FormEntryExportFormat, string> = {
+  hwp: 'HWP',
+  docx: 'Word (.docx)',
+  'md-zip': 'Markdown + 이미지 (.zip)',
+  original: '원본 파일',
+}
+function requestExport(format: FormEntryExportFormat) {
+  if (!props.entry || props.exporting) return
+  exportTarget.value = format
+  exportReason.value = ''
+  exportReasonDialog.value = true
+}
+function confirmExport() {
+  const reason = exportReason.value.trim()
+  const format = exportTarget.value
+  if (!reason || !format) return
+  exportReasonDialog.value = false
+  if (format === 'md-zip') emit('export', reason)
+  else if (format === 'original') emit('download-original', reason)
+  else emit('export-file', format, reason)
+}
+async function openExportHistory() {
+  if (!props.entry || exportHistoryLoading.value) return
+  exportHistoryDialog.value = true
+  exportHistoryLoading.value = true
+  exportHistoryError.value = ''
+  try {
+    exportHistory.value = await formEntryService.getExportHistory(props.entry.id)
+  } catch (error: unknown) {
+    exportHistoryError.value = getErrorMessage(error, '내보내기 이력을 불러오지 못했습니다.')
+  } finally {
+    exportHistoryLoading.value = false
+  }
+}
 type DocumentRow = Record<string, unknown>
 function asRecord(value: unknown): DocumentRow { return value && typeof value === 'object' && !Array.isArray(value) ? value as DocumentRow : {} }
 function sectionRecord(section: FormSection): DocumentRow { return asRecord(props.entry?.data[section.title]) }
@@ -760,4 +876,7 @@ watch(() => [props.modelValue, props.entry?.id, props.loading], async () => {
 .imported-extra-panel h3 { margin: 0 0 14px; padding-bottom: 10px; border-bottom: 2px solid #94a3b8; font-size: 16px; font-weight: 700; text-align: center; }
 .imported-extra-panel:last-child h3 { border-bottom-color: var(--q-primary); color: var(--q-primary); }
 .imported-extra-panel :deep(.work-result-content) { font-size: 13px; }
+.export-history-dialog { width: min(1000px, 94vw); max-width: 94vw; max-height: 90vh; overflow: hidden; }
+.export-history-table-wrap { max-height: 65vh; overflow: auto; }
+.export-history-reason { min-width: 260px; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
 </style>

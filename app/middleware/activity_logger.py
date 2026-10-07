@@ -209,7 +209,10 @@ class ActivityLoggerMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path.rstrip("/") or "/"
         category = _business_category(path)
-        mutation = category and request.method in {"POST", "PUT", "PATCH", "DELETE"}
+        work_document_export = path == "/form-entries/export-document" or bool(
+            re.fullmatch(r"/form-entries/[a-fA-F0-9]{24}/export-history", path)
+        )
+        mutation = category and request.method in {"POST", "PUT", "PATCH", "DELETE"} and not work_document_export
 
         # Read JSON before the downstream handler and replay the same bytes so
         # FastAPI can parse the request normally. Multipart uploads are left

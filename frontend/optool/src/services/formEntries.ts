@@ -58,6 +58,16 @@ export type FormEntryRevisionDetail = {
   changesTruncated: boolean
 }
 
+export type FormEntryExportFormat = 'hwp' | 'docx' | 'md-zip' | 'original'
+
+export type FormEntryExportHistory = {
+  id: string
+  format: FormEntryExportFormat
+  reason: string
+  exportedAt?: string | null
+  exportedBy?: string | null
+}
+
 export type FormEntry = {
   id: string
   templateId: string
@@ -105,6 +115,16 @@ export const formEntryService = {
 
   async getRevision(id: string, version: number): Promise<FormEntryRevisionDetail> {
     const { data } = await api.get<FormEntryRevisionDetail>(`/form-entries/${id}/history/${version}`)
+    return data
+  },
+
+  async getExportHistory(id: string): Promise<FormEntryExportHistory[]> {
+    const { data } = await api.get<FormEntryExportHistory[]>(`/form-entries/${id}/export-history`)
+    return data
+  },
+
+  async createExportHistory(id: string, format: FormEntryExportFormat, reason: string): Promise<FormEntryExportHistory> {
+    const { data } = await api.post<FormEntryExportHistory>(`/form-entries/${id}/export-history`, { format, reason })
     return data
   },
 

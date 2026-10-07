@@ -34,7 +34,7 @@ from app.services import work_document_assets
 from app.db.mongo import MongoClientManager
 from app.models.form_entry import (
     FormEntryCreate, FormEntryOut, FormEntryPatch, FormDocumentExport, FormOriginalFile,
-    FormEntryRevisionDetailOut,
+    FormEntryRevisionDetailOut, FormEntryExportHistoryCreate, FormEntryExportHistoryOut,
 )
 from app.models.user import UserPublic
 from app.models.asset_link import AssetCategory
@@ -1645,6 +1645,19 @@ async def import_original_form(file: UploadFile = File(...), template_id: str = 
 
 @router.post('/export-document')
 async def export_document(payload: FormDocumentExport, current_user: UserPublic = Depends(get_current_user)):
+    entry_oid = None
+    if payload.entry_id:
+        if not payload.reason or not payload.reason.strip():
+            raise HTTPException(status_code=422, detail="내보내기 사유를 입력해 주세요.")
+        entry_oid = parse_oid(payload.entry_id, "잘못된 작업 문서 ID입니다.")
+        entry = await MongoClientManager.get_form_entries_collection().find_one(
+            {"_id": entry_oid}, {"_id": 1, "is_deleted": 1}
+        )
+        if not entry or entry.get("is_deleted"):
+            raise HTTPException(status_code=404, detail="작업 문서를 찾을 수 없습니다.")
+    elif payload.reason:
+        raise HTTPException(status_code=422, detail="이력을 남기려면 작업 문서 ID가 필요합니다.")
+
     try:
         if payload.format == 'md-zip':
             content = await asyncio.to_thread(export_markdown_zip, payload.markdown, payload.markdown_filename)
@@ -1657,6 +1670,19 @@ async def export_document(payload: FormDocumentExport, current_user: UserPublic 
     except Exception as exc:
         logger.warning('Document export failed: %s', type(exc).__name__)
         raise HTTPException(status_code=503, detail='문서 변환에 실패했습니다. 잠시 후 다시 시도해 주세요.') from exc
+    if entry_oid is not None:
+        try:
+            await MongoClientManager.get_form_entry_export_history_collection().insert_one({
+                "entry_id": str(entry_oid),
+                "format": payload.format,
+                "reason": payload.reason.strip(),
+                "exported_at": _now(),
+                "exported_by": current_user.email,
+            })
+        except Exception as exc:
+            logger.exception("Work document export history save failed: entry=%s", entry_oid)
+            raise HTTPException(status_code=503, detail="내보내기 이력을 저장하지 못했습니다. 다시 시도해 주세요.") from exc
+
     mime = 'application/zip' if payload.format == 'md-zip' else ('application/x-hwp' if payload.format == 'hwp' else 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     extension = 'zip' if payload.format == 'md-zip' else payload.format
     return Response(content, media_type=mime, headers={'Content-Disposition': f'attachment; filename="work-document.{extension}"'})
@@ -1743,6 +1769,72 @@ async def get_entry_revision(
         changed_sections=revision.get("changed_sections", []),
         changes=revision.get("changes", []),
         changes_truncated=revision.get("changes_truncated", False),
+    )
+
+
+@router.get("/{entry_id}/export-history", response_model=list[FormEntryExportHistoryOut])
+async def get_entry_export_history(
+    entry_id: str,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    entry_oid = parse_oid(entry_id, "잘못된 작업 문서 ID입니다.")
+    entry = await MongoClientManager.get_form_entries_collection().find_one(
+        {"_id": entry_oid}, {"_id": 1}
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="작업 문서를 찾을 수 없습니다.")
+
+    name_map = await _email_to_name_map()
+    history = MongoClientManager.get_form_entry_export_history_collection()
+    records = history.find({"entry_id": str(entry_oid)}).sort("exported_at", -1).limit(500)
+    return [
+        FormEntryExportHistoryOut(
+            id=str(record["_id"]),
+            format=record.get("format", "md-zip"),
+            reason=record.get("reason", ""),
+            exported_at=fmt_dt(record.get("exported_at")),
+            exported_by=name_map.get(record.get("exported_by", ""), record.get("exported_by")),
+        )
+        async for record in records
+    ]
+
+
+@router.post(
+    "/{entry_id}/export-history",
+    response_model=FormEntryExportHistoryOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_entry_export_history(
+    entry_id: str,
+    payload: FormEntryExportHistoryCreate,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    entry_oid = parse_oid(entry_id, "잘못된 작업 문서 ID입니다.")
+    entry = await MongoClientManager.get_form_entries_collection().find_one(
+        {"_id": entry_oid}, {"_id": 1, "is_deleted": 1, "original_file": 1}
+    )
+    if not entry or entry.get("is_deleted"):
+        raise HTTPException(status_code=404, detail="작업 문서를 찾을 수 없습니다.")
+    if payload.format == "original" and not entry.get("original_file"):
+        raise HTTPException(status_code=422, detail="다운로드할 원본 파일이 없습니다.")
+
+    reason = payload.reason.strip()
+    if not reason:
+        raise HTTPException(status_code=422, detail="내보내기 사유를 입력해 주세요.")
+    exported_at = _now()
+    result = await MongoClientManager.get_form_entry_export_history_collection().insert_one({
+        "entry_id": str(entry_oid),
+        "format": payload.format,
+        "reason": reason,
+        "exported_at": exported_at,
+        "exported_by": current_user.email,
+    })
+    return FormEntryExportHistoryOut(
+        id=str(result.inserted_id),
+        format=payload.format,
+        reason=reason,
+        exported_at=fmt_dt(exported_at),
+        exported_by=current_user.full_name or current_user.email,
     )
 
 
