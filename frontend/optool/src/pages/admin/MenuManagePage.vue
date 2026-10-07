@@ -26,7 +26,7 @@
                 <q-icon name="drag_indicator" class="drag-handle cursor-grab" color="grey-5" size="sm" />
               </q-item-section>
               <q-item-section avatar style="min-width:36px">
-                <q-icon :name="menu.icon" :style="menuColorStyle(menu.color)" />
+                <q-icon :name="menu.icon" :style="menuColorStyle(menu.iconColor ?? menu.color)" />
               </q-item-section>
               <q-item-section>
                 <q-item-label :style="menuColorStyle(menu.color)">{{ menu.title }}</q-item-label>
@@ -69,7 +69,7 @@
                         <q-icon name="drag_indicator" class="sys-drag-handle cursor-grab" color="grey-4" size="xs" />
                       </q-item-section>
                       <q-item-section avatar style="min-width:28px">
-                        <q-icon :name="menu.subIcons?.[sys.link] ?? sys.icon" size="xs" :style="menuColorStyle(childMenuColor(menu, sys.link))" />
+                        <q-icon :name="menu.subIcons?.[sys.link] ?? sys.icon" size="xs" :style="menuColorStyle(childMenuIconColor(menu, sys.link))" />
                       </q-item-section>
                       <q-item-section>
                         <q-item-label :style="menuColorStyle(childMenuColor(menu, sys.link))">{{ sys.title }}</q-item-label>
@@ -101,7 +101,7 @@
                         <q-icon name="drag_indicator" class="sub-drag-handle cursor-grab" color="grey-4" size="xs" />
                       </q-item-section>
                       <q-item-section avatar style="min-width:28px">
-                        <q-icon :name="sub.icon ?? 'fa-solid fa-clipboard-list'" size="xs" :style="menuColorStyle(childMenuColor(menu, boardSubLink(sub)))" />
+                        <q-icon :name="sub.icon ?? 'fa-solid fa-clipboard-list'" size="xs" :style="menuColorStyle(childMenuIconColor(menu, boardSubLink(sub)))" />
                       </q-item-section>
                       <q-item-section>
                         <q-item-label :style="menuColorStyle(childMenuColor(menu, boardSubLink(sub)))">{{ sub.title }}</q-item-label>
@@ -219,6 +219,19 @@
             </label>
             <q-btn flat dense label="기본값" @click="menuForm.color = '#000000'" />
           </div>
+          <div class="row items-center q-gutter-sm">
+            <label class="row items-center q-gutter-sm cursor-pointer">
+              <span class="text-caption">아이콘 색상</span>
+              <input
+                type="color"
+                :value="menuForm.iconColor"
+                aria-label="메뉴 아이콘 색상 선택"
+                @input="onMenuIconColorInput"
+              />
+              <span class="text-caption">{{ menuForm.iconColor }}</span>
+            </label>
+            <q-btn flat dense label="기본값 (검정)" @click="menuForm.iconColor = '#000000'" />
+          </div>
           <q-toggle v-if="!editMenuTarget?.isSystem" v-model="menuForm.is_visible" label="사이드바에 표시" />
           <q-input v-model="menuForm.link" label="링크 (직접 이동할 URL, 비우면 하위 메뉴 방식)" outlined dense clearable />
         </q-card-section>
@@ -248,6 +261,16 @@
               </label>
             </div>
             <q-btn flat dense label="기본값 (검정)" @click="setSysSubDefaultColor" />
+            <q-separator />
+            <q-toggle v-model="sysSubInheritIconColor" label="상위 메뉴 아이콘 색상 따라가기" />
+            <div v-if="!sysSubInheritIconColor" class="row items-center q-gutter-sm">
+              <label class="row items-center q-gutter-sm cursor-pointer">
+                <span class="text-caption">하위 메뉴 아이콘 색상</span>
+                <input type="color" :value="sysSubIconColor" aria-label="하위 메뉴 아이콘 색상 선택" @input="onSysSubIconColorInput" />
+                <span class="text-caption">{{ sysSubIconColor }}</span>
+              </label>
+            </div>
+            <q-btn flat dense label="아이콘 기본값 (검정)" @click="setSysSubDefaultIconColor" />
           </div>
         </q-card-section>
         <q-card-actions align="right">
@@ -308,6 +331,17 @@
             </div>
             <q-btn flat dense label="기본값 (검정)" class="q-mt-xs" @click="setSubDefaultColor" />
           </div>
+          <div class="board-dialog__field">
+            <q-toggle v-model="subForm.inheritIconColor" label="상위 메뉴 아이콘 색상 따라가기" />
+            <div v-if="!subForm.inheritIconColor" class="row items-center q-gutter-sm q-mt-sm">
+              <label class="row items-center q-gutter-sm cursor-pointer">
+                <span class="board-dialog__label">하위 메뉴 아이콘 색상</span>
+                <input type="color" :value="subForm.iconColor" aria-label="하위 메뉴 아이콘 색상 선택" @input="onSubIconColorInput" />
+                <span class="text-caption">{{ subForm.iconColor }}</span>
+              </label>
+            </div>
+            <q-btn flat dense label="아이콘 기본값 (검정)" class="q-mt-xs" @click="setSubDefaultIconColor" />
+          </div>
         </q-card-section>
 
         <q-separator />
@@ -353,7 +387,7 @@ const expandedId = ref<string | null>(null)
 // 메뉴 다이얼로그
 const menuDialog = ref(false)
 const editMenuTarget = ref<MenuOut | null>(null)
-const menuForm = ref({ title: '', icon: 'fa-solid fa-folder', color: '#000000', is_visible: true, link: '' })
+const menuForm = ref({ title: '', icon: 'fa-solid fa-folder', color: '#000000', iconColor: '#000000', is_visible: true, link: '' })
 
 function menuColorStyle(color: string | null | undefined) {
   return { color: color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#000000' }
@@ -368,12 +402,25 @@ function childMenuColor(menu: MenuOut, link: string) {
       : '#000000'
 }
 
+function childMenuIconColor(menu: MenuOut, link: string) {
+  const iconColor = menu.subIconColors?.[link]
+  return iconColor && /^#[0-9a-fA-F]{6}$/.test(iconColor)
+    ? iconColor
+    : menu.iconColor && /^#[0-9a-fA-F]{6}$/.test(menu.iconColor)
+      ? menu.iconColor
+      : childMenuColor(menu, link)
+}
+
 function boardSubLink(sub: BoardOut) {
   return sub.link ?? `/board/${sub.id}`
 }
 
 function onMenuColorInput(event: Event) {
   menuForm.value.color = (event.target as HTMLInputElement).value
+}
+
+function onMenuIconColorInput(event: Event) {
+  menuForm.value.iconColor = (event.target as HTMLInputElement).value
 }
 
 // 시스템 하위메뉴 아이콘 편집
@@ -383,6 +430,8 @@ const sysIconMenu = ref<MenuOut | null>(null)
 const sysIconValue = ref('')
 const sysSubInheritColor = ref(true)
 const sysSubColor = ref('#000000')
+const sysSubInheritIconColor = ref(true)
+const sysSubIconColor = ref('#000000')
 
 function openSysIconEdit(menu: MenuOut, sys: { title: string; link: string; icon: string }) {
   sysIconMenu.value = menu
@@ -390,6 +439,8 @@ function openSysIconEdit(menu: MenuOut, sys: { title: string; link: string; icon
   sysIconValue.value = menu.subIcons?.[sys.link] ?? sys.icon
   sysSubInheritColor.value = !menu.subColors?.[sys.link]
   sysSubColor.value = childMenuColor(menu, sys.link)
+  sysSubInheritIconColor.value = !menu.subIconColors?.[sys.link]
+  sysSubIconColor.value = childMenuIconColor(menu, sys.link)
   sysIconDialog.value = true
 }
 
@@ -402,15 +453,31 @@ function setSysSubDefaultColor() {
   sysSubColor.value = '#000000'
 }
 
+function onSysSubIconColorInput(event: Event) {
+  sysSubIconColor.value = (event.target as HTMLInputElement).value
+}
+
+function setSysSubDefaultIconColor() {
+  sysSubInheritIconColor.value = false
+  sysSubIconColor.value = '#000000'
+}
+
 async function submitSysIcon() {
   if (!sysIconMenu.value || !sysIconTarget.value) return
   saving.value = true
   try {
     const updated = { ...(sysIconMenu.value.subIcons ?? {}), [sysIconTarget.value.link]: sysIconValue.value }
     const updatedColors = { ...(sysIconMenu.value.subColors ?? {}) }
+    const updatedIconColors = { ...(sysIconMenu.value.subIconColors ?? {}) }
     if (sysSubInheritColor.value) delete updatedColors[sysIconTarget.value.link]
     else updatedColors[sysIconTarget.value.link] = sysSubColor.value || '#000000'
-    await menuService.patch(sysIconMenu.value.id, { sub_icons: updated, sub_colors: updatedColors })
+    if (sysSubInheritIconColor.value) delete updatedIconColors[sysIconTarget.value.link]
+    else updatedIconColors[sysIconTarget.value.link] = sysSubIconColor.value || '#000000'
+    await menuService.patch(sysIconMenu.value.id, {
+      sub_icons: updated,
+      sub_colors: updatedColors,
+      sub_icon_colors: updatedIconColors,
+    })
     sysIconDialog.value = false
     await load()
   } catch {
@@ -439,7 +506,7 @@ function systemSubsOf(menu: MenuOut): { title: string; icon: string; link: strin
 const subDialog = ref(false)
 const editSubTarget = ref<BoardOut | null>(null)
 const subMenuTarget = ref<MenuOut | null>(null)
-const subForm = ref({ title: '', icon: 'fa-solid fa-clipboard-list', inheritColor: true, color: '#000000' })
+const subForm = ref({ title: '', icon: 'fa-solid fa-clipboard-list', inheritColor: true, color: '#000000', inheritIconColor: true, iconColor: '#000000' })
 const subTitleInputRef = ref<QInput | null>(null)
 
 function onSubColorInput(event: Event) {
@@ -449,6 +516,15 @@ function onSubColorInput(event: Event) {
 function setSubDefaultColor() {
   subForm.value.inheritColor = false
   subForm.value.color = '#000000'
+}
+
+function onSubIconColorInput(event: Event) {
+  subForm.value.iconColor = (event.target as HTMLInputElement).value
+}
+
+function setSubDefaultIconColor() {
+  subForm.value.inheritIconColor = false
+  subForm.value.iconColor = '#000000'
 }
 
 // autofocus 대신 다이얼로그 진입 트랜지션이 끝난 뒤 한 번만 포커스한다
@@ -649,6 +725,7 @@ function openEditMenu(menu: MenuOut) {
     title: menu.title,
     icon: menu.icon,
     color: menu.color ?? '#000000',
+    iconColor: menu.iconColor ?? menu.color ?? '#000000',
     is_visible: menu.isVisible,
     link: menu.link ?? '',
   }
@@ -663,6 +740,7 @@ async function submitMenu() {
       title: menuForm.value.title,
       icon: menuForm.value.icon,
       color: menuForm.value.color || '#000000',
+      icon_color: menuForm.value.iconColor || '#000000',
       is_visible: menuForm.value.is_visible,
       link: menuForm.value.link || null,
     }
@@ -712,7 +790,7 @@ function confirmDeleteMenu(menu: MenuOut) {
 function openCreateSub(menu: MenuOut) {
   subMenuTarget.value = menu
   editSubTarget.value = null
-  subForm.value = { title: '', icon: 'fa-solid fa-clipboard-list', inheritColor: true, color: '#000000' }
+  subForm.value = { title: '', icon: 'fa-solid fa-clipboard-list', inheritColor: true, color: '#000000', inheritIconColor: true, iconColor: '#000000' }
   subDialog.value = true
 }
 
@@ -721,11 +799,14 @@ function openEditSub(sub: BoardOut) {
   const menu = menus.value.find((item) => item.id === sub.menuId) ?? null
   subMenuTarget.value = menu
   const subColor = menu?.subColors?.[boardSubLink(sub)]
+  const subIconColor = menu?.subIconColors?.[boardSubLink(sub)]
   subForm.value = {
     title: sub.title,
     icon: sub.icon ?? 'fa-solid fa-clipboard-list',
     inheritColor: !subColor,
     color: menu ? childMenuColor(menu, boardSubLink(sub)) : '#000000',
+    inheritIconColor: !subIconColor,
+    iconColor: menu ? childMenuIconColor(menu, boardSubLink(sub)) : '#000000',
   }
   subDialog.value = true
 }
@@ -748,9 +829,12 @@ async function submitSub() {
     if (savedSub && subMenuTarget.value) {
       const key = boardSubLink(savedSub)
       const colors = { ...(subMenuTarget.value.subColors ?? {}) }
+      const iconColors = { ...(subMenuTarget.value.subIconColors ?? {}) }
       if (subForm.value.inheritColor) delete colors[key]
       else colors[key] = subForm.value.color || '#000000'
-      await menuService.patch(subMenuTarget.value.id, { sub_colors: colors })
+      if (subForm.value.inheritIconColor) delete iconColors[key]
+      else iconColors[key] = subForm.value.iconColor || '#000000'
+      await menuService.patch(subMenuTarget.value.id, { sub_colors: colors, sub_icon_colors: iconColors })
     }
     subDialog.value = false
     await load()

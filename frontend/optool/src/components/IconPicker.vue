@@ -16,7 +16,7 @@
 
     <!-- 아이콘 피커 다이얼로그 -->
     <q-dialog v-model="open">
-      <q-card style="min-width: 520px; max-width: 600px">
+      <q-card style="width: 760px; max-width: calc(100vw - 32px)">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">아이콘 선택</div>
           <q-space />
@@ -66,13 +66,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 
 defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ (e: 'update:modelValue', val: string): void }>()
 
 const open = ref(false)
 const search = ref('')
+
+function closeOnEscape(event: KeyboardEvent) {
+  if (!open.value || event.key !== 'Escape') return
+  event.preventDefault()
+  event.stopPropagation()
+  event.stopImmediatePropagation()
+  open.value = false
+}
+
+watch(open, (isOpen) => {
+  if (isOpen) document.addEventListener('keydown', closeOnEscape, true)
+  else document.removeEventListener('keydown', closeOnEscape, true)
+})
+
+onBeforeUnmount(() => document.removeEventListener('keydown', closeOnEscape, true))
 
 const icons = [
   // 폴더/파일
@@ -177,12 +192,144 @@ const icons = [
   { cls: 'fa-solid fa-triangle-exclamation', label: '경고' },
   { cls: 'fa-solid fa-circle-check', label: '완료' },
   { cls: 'fa-solid fa-circle-xmark', label: '취소' },
+  // 문서/자료
+  { cls: 'fa-solid fa-folder-plus', label: '폴더 추가' },
+  { cls: 'fa-solid fa-folder-minus', label: '폴더 제거' },
+  { cls: 'fa-solid fa-folder-tree', label: '폴더 구조' },
+  { cls: 'fa-solid fa-folder-closed', label: '닫힌 폴더' },
+  { cls: 'fa-solid fa-file-circle-check', label: '확인된 파일' },
+  { cls: 'fa-solid fa-file-circle-plus', label: '새 파일' },
+  { cls: 'fa-solid fa-file-pdf', label: 'PDF 문서' },
+  { cls: 'fa-solid fa-file-word', label: 'Word 문서' },
+  { cls: 'fa-solid fa-file-excel', label: 'Excel 문서' },
+  { cls: 'fa-solid fa-file-powerpoint', label: 'PowerPoint 문서' },
+  { cls: 'fa-solid fa-file-image', label: '이미지 파일' },
+  { cls: 'fa-solid fa-file-code', label: '코드 파일' },
+  { cls: 'fa-solid fa-file-zipper', label: '압축 파일' },
+  { cls: 'fa-solid fa-file-arrow-down', label: '파일 다운로드' },
+  { cls: 'fa-solid fa-book', label: '책' },
+  { cls: 'fa-solid fa-book-open', label: '열린 책' },
+  { cls: 'fa-solid fa-book-bookmark', label: '자료 북마크' },
+  // 업무/프로젝트
+  { cls: 'fa-solid fa-clipboard-check', label: '작업 확인' },
+  { cls: 'fa-solid fa-clipboard-question', label: '확인 요청' },
+  { cls: 'fa-solid fa-clipboard-user', label: '담당 작업' },
+  { cls: 'fa-solid fa-square-check', label: '체크 항목' },
+  { cls: 'fa-solid fa-list-ol', label: '번호 목록' },
+  { cls: 'fa-solid fa-list-ul', label: '글머리 목록' },
+  { cls: 'fa-solid fa-diagram-project', label: '프로젝트 흐름' },
+  { cls: 'fa-solid fa-arrow-rotate-right', label: '다시 실행' },
+  { cls: 'fa-solid fa-arrows-rotate', label: '동기화' },
+  { cls: 'fa-solid fa-calendar-plus', label: '일정 추가' },
+  { cls: 'fa-solid fa-calendar-minus', label: '일정 제거' },
+  { cls: 'fa-solid fa-calendar-day', label: '일별 일정' },
+  { cls: 'fa-solid fa-calendar-week', label: '주간 일정' },
+  { cls: 'fa-solid fa-calendar-xmark', label: '취소된 일정' },
+  { cls: 'fa-solid fa-stopwatch', label: '스톱워치' },
+  { cls: 'fa-solid fa-hourglass-half', label: '진행 시간' },
+  // 사람/조직
+  { cls: 'fa-solid fa-user-plus', label: '사용자 추가' },
+  { cls: 'fa-solid fa-user-minus', label: '사용자 제거' },
+  { cls: 'fa-solid fa-user-check', label: '사용자 확인' },
+  { cls: 'fa-solid fa-user-shield', label: '보안 담당자' },
+  { cls: 'fa-solid fa-user-clock', label: '근무자' },
+  { cls: 'fa-solid fa-users-gear', label: '팀 설정' },
+  { cls: 'fa-solid fa-people-group', label: '조직' },
+  { cls: 'fa-solid fa-address-card', label: '연락처 카드' },
+  { cls: 'fa-solid fa-building', label: '회사' },
+  { cls: 'fa-solid fa-building-columns', label: '기관' },
+  { cls: 'fa-solid fa-graduation-cap', label: '교육' },
+  // 인프라/운영
+  { cls: 'fa-solid fa-cloud', label: '클라우드' },
+  { cls: 'fa-solid fa-cloud-arrow-up', label: '클라우드 업로드' },
+  { cls: 'fa-solid fa-cloud-arrow-down', label: '클라우드 다운로드' },
+  { cls: 'fa-solid fa-cloud-bolt', label: '클라우드 서비스' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-cube|0 0 64 64', label: '3D 등각 큐브' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-cubes|0 0 64 64', label: '3D 큐브 묶음' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-package|0 0 64 64', label: '3D 패키지' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-server|0 0 64 64', label: '3D 서버' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-database|0 0 64 64', label: '3D 데이터베이스' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-network|0 0 64 64', label: '3D 네트워크' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-building|0 0 64 64', label: '3D 건물' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-monitor|0 0 64 64', label: '3D 모니터' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-laptop|0 0 64 64', label: '3D 노트북' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-folder|0 0 64 64', label: '3D 폴더' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-document|0 0 64 64', label: '3D 문서' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-shield|0 0 64 64', label: '3D 보안 방패' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-lock|0 0 64 64', label: '3D 자물쇠' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-calendar|0 0 64 64', label: '3D 달력' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-home|0 0 64 64', label: '3D 홈' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-cloud|0 0 64 64', label: '3D 클라우드' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-mail|0 0 64 64', label: '3D 메일' },
+  { cls: 'svguse:/icons/menu-3d.svg#iso-warning|0 0 64 64', label: '3D 경고' },
+  { cls: 'fa-solid fa-cube', label: '구성 요소' },
+  { cls: 'fa-solid fa-cubes', label: '구성 요소 모음' },
+  { cls: 'fa-solid fa-cubes-stacked', label: '겹친 큐브 아이콘' },
+  { cls: 'fa-solid fa-shapes', label: '도형 모음' },
+  { cls: 'fa-solid fa-dice-d6', label: '다면체 주사위 아이콘' },
+  { cls: 'fa-solid fa-dice-d20', label: '다면체 주사위' },
+  { cls: 'fa-solid fa-draw-polygon', label: '다각형 도구' },
+  { cls: 'fa-solid fa-vector-square', label: '벡터 도형' },
+  { cls: 'fa-solid fa-ethernet', label: '유선 네트워크' },
+  { cls: 'fa-solid fa-tower-broadcast', label: '방송/신호' },
+  { cls: 'fa-solid fa-wifi', label: '무선 네트워크' },
+  { cls: 'fa-solid fa-power-off', label: '서비스 전원' },
+  { cls: 'fa-solid fa-plug', label: '연결' },
+  { cls: 'fa-solid fa-code-branch', label: '브랜치' },
+  { cls: 'fa-solid fa-boxes-packing', label: '패키지' },
+  { cls: 'fa-solid fa-gauge-high', label: '상태 계기판' },
+  { cls: 'fa-solid fa-signal', label: '신호 상태' },
+  { cls: 'fa-solid fa-bolt', label: '긴급 작업' },
+  { cls: 'fa-solid fa-fire', label: '장애/긴급' },
+  // 분석/지원
+  { cls: 'fa-solid fa-chart-simple', label: '간단 차트' },
+  { cls: 'fa-solid fa-chart-column', label: '세로 막대 차트' },
+  { cls: 'fa-solid fa-chart-gantt', label: '간트 차트' },
+  { cls: 'fa-solid fa-arrow-trend-up', label: '상승 추세' },
+  { cls: 'fa-solid fa-arrow-trend-down', label: '하락 추세' },
+  { cls: 'fa-solid fa-filter', label: '필터' },
+  { cls: 'fa-solid fa-sliders', label: '조건 설정' },
+  { cls: 'fa-solid fa-magnifying-glass-plus', label: '확대 검색' },
+  { cls: 'fa-solid fa-magnifying-glass-minus', label: '상세 검색' },
+  { cls: 'fa-solid fa-ranking-star', label: '순위' },
+  { cls: 'fa-solid fa-headset', label: '고객 지원' },
+  { cls: 'fa-solid fa-phone', label: '전화' },
+  { cls: 'fa-solid fa-phone-volume', label: '통화 지원' },
+  { cls: 'fa-solid fa-ticket', label: '요청 티켓' },
+  { cls: 'fa-solid fa-life-ring', label: '도움말' },
+  { cls: 'fa-solid fa-lightbulb', label: '아이디어' },
+  { cls: 'fa-solid fa-thumbs-up', label: '긍정' },
+  { cls: 'fa-solid fa-thumbs-down', label: '부정' },
+  { cls: 'fa-solid fa-eye', label: '보기' },
+  { cls: 'fa-solid fa-eye-slash', label: '숨기기' },
+  { cls: 'fa-solid fa-paperclip', label: '첨부 파일' },
+  { cls: 'fa-solid fa-share-nodes', label: '공유' },
+  { cls: 'fa-solid fa-arrow-up-right-from-square', label: '새 창에서 열기' },
+  { cls: 'fa-solid fa-map-location-dot', label: '위치 정보' },
+  { cls: 'fa-solid fa-location-crosshairs', label: '대상 위치' },
+  { cls: 'fa-solid fa-route', label: '경로' },
+  { cls: 'fa-solid fa-compass', label: '안내' },
+  { cls: 'fa-solid fa-circle-exclamation', label: '주의 필요' },
+  { cls: 'fa-solid fa-circle-question', label: '질문' },
+  { cls: 'fa-solid fa-circle-pause', label: '일시 중지' },
+  { cls: 'fa-solid fa-circle-play', label: '시작' },
+  { cls: 'fa-solid fa-circle-stop', label: '중지' },
+  { cls: 'fa-solid fa-ban', label: '차단' },
+  { cls: 'fa-solid fa-shield-heart', label: '보호' },
+  { cls: 'fa-solid fa-bug-slash', label: '오류 해결' },
+  { cls: 'fa-solid fa-rocket', label: '배포' },
+  { cls: 'fa-solid fa-trophy', label: '성과' },
+  { cls: 'fa-solid fa-award', label: '우수 사례' },
+  { cls: 'fa-solid fa-coins', label: '비용' },
+  { cls: 'fa-solid fa-receipt', label: '정산 내역' },
+  { cls: 'fa-solid fa-calculator', label: '계산' },
+  { cls: 'fa-solid fa-scale-balanced', label: '정책/기준' },
 ]
 
 const filteredIcons = computed(() => {
   if (!search.value) return icons
   const q = search.value.toLowerCase()
-  return icons.filter((i) => i.label.includes(q) || i.cls.includes(q))
+  return icons.filter((i) => i.label.toLowerCase().includes(q) || i.cls.includes(q))
 })
 
 function select(cls: string) {

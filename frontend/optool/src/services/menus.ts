@@ -13,6 +13,7 @@ export interface MenuOut {
   title: string
   icon: string
   color: string | null
+  iconColor?: string | null
   sortOrder: number | null
   isVisible: boolean
   isExternalVisible: boolean
@@ -21,6 +22,7 @@ export interface MenuOut {
   slug: string | null
   subIcons?: Record<string, string> | null
   subColors?: Record<string, string> | null
+  subIconColors?: Record<string, string> | null
   subOrder?: string[] | null
   link?: string | null
   submenus?: SubMenuItem[]
@@ -31,6 +33,7 @@ export interface MenuCreate {
   title: string
   icon?: string
   color?: string | null
+  icon_color?: string | null
   sort_order?: number | null
   is_visible?: boolean
   link?: string | null
@@ -40,12 +43,14 @@ export interface MenuPatch {
   title?: string
   icon?: string
   color?: string | null
+  icon_color?: string | null
   sort_order?: number | null
   is_visible?: boolean
   is_external_visible?: boolean
   is_internal_visible?: boolean
   sub_icons?: Record<string, string> | null
   sub_colors?: Record<string, string> | null
+  sub_icon_colors?: Record<string, string> | null
   sub_order?: string[] | null
   link?: string | null
 }

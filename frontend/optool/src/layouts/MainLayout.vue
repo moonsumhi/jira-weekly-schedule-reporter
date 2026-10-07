@@ -68,6 +68,7 @@
                 :title="menu.title"
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
+                :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
                 :children="jobMenuItems"
               />
 
@@ -77,6 +78,7 @@
                 :title="menu.title"
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
+                :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
                 :badge="pendingCount"
                 :children="menuChildren(menu, '/admin/approvals')"
               />
@@ -87,6 +89,7 @@
                 :title="menu.title"
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
+                :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
                 :link="menu.link"
               />
 
@@ -96,6 +99,7 @@
                 :title="menu.title"
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
+                :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
                 :children="menuChildren(menu)"
               />
 
@@ -105,6 +109,7 @@
                 :title="menu.title"
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
+                :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
                 :children="boardChildrenOf(menu.id)"
               />
             </template>
@@ -376,6 +381,7 @@ function menuChildren(menu: MenuOut, badgeLink?: string): EssentialLinkProps[] {
       icon: menu.subIcons?.[s.link] ?? s.icon,
       link: s.link,
       color: menu.subColors?.[s.link] ?? menu.color ?? '#000000',
+      iconColor: menu.subIconColors?.[s.link] ?? menu.iconColor ?? menu.subColors?.[s.link] ?? menu.color ?? '#000000',
       badge: badgeLink === s.link ? pendingCount.value : 0,
     }))
   return applySubOrder(items, menu)
@@ -397,6 +403,7 @@ function boardChildrenOf(menuId: string) {
       icon: b.icon ?? 'fa-solid fa-clipboard-list',
       link,
       color: menu?.subColors?.[link] ?? menu?.color ?? '#000000',
+      iconColor: menu?.subIconColors?.[link] ?? menu?.iconColor ?? menu?.subColors?.[link] ?? menu?.color ?? '#000000',
     }
   })
 }
@@ -409,6 +416,7 @@ const jobMenuItems = computed<EssentialLinkProps[]>(() => {
       ...item,
       icon: menu?.subIcons?.[item.link] ?? item.icon,
       color: menu?.subColors?.[item.link] ?? menu?.color ?? '#000000',
+      iconColor: menu?.subIconColors?.[item.link] ?? menu?.iconColor ?? menu?.subColors?.[item.link] ?? menu?.color ?? '#000000',
     }))
   if (menu?.subOrder && menu.subOrder.length > 0) {
     const orderMap = new Map(menu.subOrder.map((link, i) => [link, i]))
