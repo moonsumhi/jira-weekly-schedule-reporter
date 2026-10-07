@@ -766,7 +766,7 @@ function askAction(t: InspectionTask, action: 'rollover' | 'exclude') {
       color: action === 'rollover' ? 'primary' : 'negative',
     },
     cancel: { label: '취소', flat: true },
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk((reason: string) => {
     void performAction(t, action, reason);
   });

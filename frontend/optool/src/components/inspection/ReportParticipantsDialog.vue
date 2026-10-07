@@ -1,7 +1,6 @@
 <template>
   <q-dialog
-    :model-value="modelValue"
-    persistent
+    :model-value="modelValue" no-backdrop-dismiss no-route-dismiss
     :maximized="$q.screen.lt.sm"
     @update:model-value="close"
   >

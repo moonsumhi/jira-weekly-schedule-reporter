@@ -43,7 +43,7 @@
     </div>
 
     <!-- 조직 생성 다이얼로그 -->
-    <q-dialog v-model="createDialog.open" persistent>
+    <q-dialog v-model="createDialog.open" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 400px">
         <q-card-section>
           <div class="text-h6">새 조직 만들기</div>
@@ -156,7 +156,7 @@ function confirmDelete(org: Organization) {
     title: '조직 삭제',
     message: `"${org.name}" 조직을 삭제하시겠습니까? 조직 멤버 정보도 함께 삭제됩니다.`,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { color: 'negative', label: '삭제' },
   }).onOk(() => {
     void (async () => {

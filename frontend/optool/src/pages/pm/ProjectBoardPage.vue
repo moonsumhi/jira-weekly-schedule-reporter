@@ -407,7 +407,7 @@ function onDragChange(
     html: true,
     ok: { label: '변경', color: 'primary', unelevated: true },
     cancel: { label: '취소', flat: true },
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     updateIssue(projectId, issue.id, { status: targetStatus })
       .then(() => loadBoard())

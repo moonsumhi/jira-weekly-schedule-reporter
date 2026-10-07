@@ -204,7 +204,7 @@
     </q-drawer>
 
     <!-- 링크 추가/수정 다이얼로그 -->
-    <q-dialog v-model="linkDialog" persistent>
+    <q-dialog v-model="linkDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 360px">
         <q-card-section>
           <div class="text-h6">{{ linkForm.id ? '링크 수정' : '링크 추가' }}</div>
@@ -241,7 +241,7 @@
     </q-dialog>
 
     <!-- 링크 엑셀 일괄 등록 다이얼로그 -->
-    <q-dialog v-model="bulkImportDialog" persistent>
+    <q-dialog v-model="bulkImportDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 440px; max-width: 560px">
         <q-card-section>
           <div class="text-h6">링크 일괄 등록 (엑셀)</div>
@@ -628,7 +628,7 @@ function confirmDeleteLink(link: Link) {
     title: '링크 삭제',
     message: `"${link.title}"을(를) 삭제하시겠습니까?`,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void (async () => {
       try {

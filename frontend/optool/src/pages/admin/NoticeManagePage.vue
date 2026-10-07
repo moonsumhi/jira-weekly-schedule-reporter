@@ -30,7 +30,7 @@
     </q-table>
 
     <!-- 등록 / 수정 다이얼로그 -->
-    <q-dialog v-model="dialog" persistent @show="onDialogShow">
+    <q-dialog v-model="dialog" no-backdrop-dismiss no-route-dismiss @show="onDialogShow">
       <q-card style="min-width: 560px; max-width: 90vw">
         <q-card-section class="text-h6">{{ editTarget ? '공지사항 수정' : '공지 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">

@@ -359,7 +359,7 @@
     </template>
 
     <!-- ── 라벨 다이얼로그 ── -->
-    <q-dialog v-model="labelDialog.open" persistent @show="onLabelDialogShow">
+    <q-dialog v-model="labelDialog.open" no-backdrop-dismiss no-route-dismiss @show="onLabelDialogShow">
       <q-card style="min-width: 380px">
         <q-card-section class="q-pb-sm">
           <div class="text-h6">{{ labelDialog.id ? '라벨 수정' : '새 라벨 만들기' }}</div>
@@ -401,7 +401,7 @@
     </q-dialog>
 
     <!-- ── 멤버 추가 다이얼로그 ── -->
-    <q-dialog v-model="inviteDialog.open" persistent>
+    <q-dialog v-model="inviteDialog.open" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 440px">
         <q-card-section class="q-pb-sm">
           <div class="text-h6">멤버 추가</div>
@@ -656,7 +656,7 @@ function confirmDeleteLabel(label: Label) {
   Dialog.create({
     title: '라벨 삭제',
     message: `"${label.name}" 라벨을 삭제하시겠습니까?`,
-    cancel: true, persistent: true,
+    cancel: true, noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void (async () => {
       try {
@@ -674,7 +674,7 @@ function confirmDelete() {
   Dialog.create({
     title: '프로젝트 삭제',
     message: `"${project.value?.name}" 프로젝트를 삭제하시겠습니까? 모든 이슈와 스프린트가 영구 삭제됩니다.`,
-    cancel: true, persistent: true,
+    cancel: true, noBackdropDismiss: true, noRouteDismiss: true,
     ok: { color: 'negative', label: '삭제' },
   }).onOk(() => {
     void (async () => {
@@ -731,7 +731,7 @@ function confirmRemove(member: ProjectMember) {
   Dialog.create({
     title: '멤버 제거',
     message: `${member.userName || member.userEmail}을(를) 프로젝트에서 제거하시겠습니까?`,
-    cancel: true, persistent: true,
+    cancel: true, noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void (async () => {
       try {

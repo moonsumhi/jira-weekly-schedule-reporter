@@ -307,7 +307,10 @@
     </draggable>
 
     <!-- D-Day 추가/수정 다이얼로그 -->
-    <q-dialog v-model="ddayDialog" persistent>
+    <q-dialog
+      v-model="ddayDialog"
+      :persistent="ddaySaving || (ddayForm.id !== '' && ddayCompletingId === ddayForm.id)"
+    >
       <q-card style="min-width: 340px">
         <q-card-section>
           <div class="text-h6">{{ ddayForm.id ? 'D-Day 수정' : 'D-Day 추가' }}</div>
@@ -749,7 +752,7 @@ function confirmDeleteDDay(d: DDay) {
     title: 'D-Day 삭제',
     message: `"${d.title}"을(를) 삭제하시겠습니까?`,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void (async () => {
       try {

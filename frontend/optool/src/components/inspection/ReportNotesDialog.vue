@@ -1,5 +1,5 @@
 <template>
-  <q-dialog :model-value="modelValue" persistent @update:model-value="close">
+  <q-dialog :model-value="modelValue" no-backdrop-dismiss no-route-dismiss @update:model-value="close">
     <q-card class="report-notes-dialog">
       <q-card-section class="row items-center no-wrap">
         <h2 class="col">{{ noteLabel }} {{ note ? '수정' : '추가' }}</h2>

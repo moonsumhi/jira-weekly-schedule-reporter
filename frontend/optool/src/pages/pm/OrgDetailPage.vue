@@ -102,7 +102,7 @@
     </template>
 
     <!-- 멤버 추가 다이얼로그 -->
-    <q-dialog v-model="addMemberDialog.open" persistent>
+    <q-dialog v-model="addMemberDialog.open" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 400px">
         <q-card-section><div class="text-h6">멤버 추가</div></q-card-section>
         <q-separator />
@@ -148,7 +148,7 @@
     </q-dialog>
 
     <!-- 조직 이름 수정 다이얼로그 -->
-    <q-dialog v-model="editDialog.open" persistent @show="onEditDialogShow">
+    <q-dialog v-model="editDialog.open" no-backdrop-dismiss no-route-dismiss @show="onEditDialogShow">
       <q-card style="min-width: 360px">
         <q-card-section>
           <div class="text-h6">조직 이름 수정</div>
@@ -170,7 +170,7 @@
     </q-dialog>
 
     <!-- 새 프로젝트 생성 다이얼로그 -->
-    <q-dialog v-model="createDialog.open" persistent @show="onCreateDialogShow">
+    <q-dialog v-model="createDialog.open" no-backdrop-dismiss no-route-dismiss @show="onCreateDialogShow">
       <q-card style="min-width: 420px">
         <q-card-section>
           <div class="text-h6">새 프로젝트</div>
@@ -376,7 +376,7 @@ function confirmRemove(m: OrgMember) {
     title: '멤버 제거',
     message: `${m.userName || m.userEmail}을(를) 조직에서 제거하시겠습니까?`,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void (async () => {
       try {

@@ -93,7 +93,7 @@
     </div>
 
     <!-- 생성 / 수정 다이얼로그 -->
-    <q-dialog v-model="dialog.open" persistent>
+    <q-dialog v-model="dialog.open" no-backdrop-dismiss no-route-dismiss>
       <q-card style="width:min(480px, 92vw);">
         <q-card-section>
           <div class="text-h6">

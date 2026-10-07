@@ -2,7 +2,8 @@
   <q-dialog
     :model-value="modelValue"
     :maximized="$q.screen.lt.sm"
-    persistent
+    no-backdrop-dismiss
+    no-route-dismiss
     @update:model-value="emit('update:modelValue', $event)"
   >
     <q-card class="inspection-dialog">

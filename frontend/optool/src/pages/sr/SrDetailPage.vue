@@ -1176,7 +1176,7 @@
     </q-dialog>
 
     <!-- 검토 -->
-    <q-dialog v-model="reviewDialog" persistent>
+    <q-dialog v-model="reviewDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card class="dialog-card" style="min-width:520px">
         <div class="dialog-header dialog-header--teal">
           <div class="dialog-header__title">SR 검토</div>
@@ -1450,7 +1450,7 @@ function removeComment(commentId: string) {
     title: '댓글 삭제',
     message: '이 댓글을 삭제하시겠습니까?',
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { color: 'negative', label: '삭제' },
   }).onOk(() => {
     void (async () => {

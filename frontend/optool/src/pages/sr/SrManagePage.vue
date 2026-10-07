@@ -314,7 +314,7 @@
     </q-card>
 
     <!-- ── 상태 변경 사유 다이얼로그 ────────────────────────────────── -->
-    <q-dialog v-model="statusDialog.open" persistent @show="onStatusDialogShow">
+    <q-dialog v-model="statusDialog.open" no-backdrop-dismiss no-route-dismiss @show="onStatusDialogShow">
       <q-card style="min-width:400px">
         <q-card-section class="q-pb-sm">
           <div class="text-h6">{{ statusDialog.title }}</div>

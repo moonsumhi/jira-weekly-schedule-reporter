@@ -198,7 +198,7 @@
     </q-dialog>
 
     <!-- 비밀번호 변경 Dialog -->
-    <q-dialog v-model="pwDialog" persistent>
+    <q-dialog v-model="pwDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card style="width: 360px; max-width: 95vw">
         <q-card-section>
           <div class="text-h6">비밀번호 변경</div>
@@ -360,7 +360,7 @@ function confirmDelete(user: User) {
     html: true,
     cancel: '취소',
     ok: { label: '삭제', color: 'negative' },
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => { void doDelete(user) })
 }
 

@@ -140,7 +140,7 @@
     </div>
 
     <!-- 프로젝트 생성 다이얼로그 -->
-    <q-dialog v-model="dialog.open" persistent>
+    <q-dialog v-model="dialog.open" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 400px">
         <q-card-section>
           <div class="text-h6">새 프로젝트</div>
@@ -244,7 +244,7 @@ function confirmClearFavorites() {
     title: '즐겨찾기 전체 해제',
     message: `즐겨찾기한 프로젝트 ${favoriteProjects.value.length}개를 모두 해제하시겠습니까?`,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { color: 'negative', label: '전체 해제' },
   }).onOk(() => { void clearAllFavorites() })
 }

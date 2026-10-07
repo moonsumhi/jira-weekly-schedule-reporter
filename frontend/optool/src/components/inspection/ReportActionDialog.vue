@@ -1,5 +1,5 @@
 <template>
-  <q-dialog :model-value="modelValue" persistent @update:model-value="close">
+  <q-dialog :model-value="modelValue" no-backdrop-dismiss no-route-dismiss @update:model-value="close">
     <q-card class="report-action-dialog">
       <q-card-section class="dialog-heading">
         <div>

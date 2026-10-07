@@ -192,7 +192,7 @@
     </div>
 
     <!-- 메뉴 다이얼로그 -->
-    <q-dialog v-model="menuDialog" persistent>
+    <q-dialog v-model="menuDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 380px">
         <q-card-section class="text-h6">메뉴 설정</q-card-section>
         <q-card-section class="q-gutter-sm">
@@ -243,7 +243,7 @@
     </q-dialog>
 
     <!-- 시스템 하위메뉴 아이콘 편집 다이얼로그 -->
-    <q-dialog v-model="sysIconDialog" persistent>
+    <q-dialog v-model="sysIconDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 360px">
         <q-card-section class="text-h6">아이콘 수정 — {{ sysIconTarget?.title }}</q-card-section>
         <q-card-section>
@@ -281,7 +281,7 @@
     </q-dialog>
 
     <!-- 하위 메뉴 다이얼로그 -->
-    <q-dialog v-model="subDialog" persistent @show="onSubDialogShow">
+    <q-dialog v-model="subDialog" no-backdrop-dismiss no-route-dismiss @show="onSubDialogShow">
       <q-card class="board-dialog">
         <q-card-section class="row items-start no-wrap q-pb-md">
           <q-avatar color="blue-1" text-color="primary" size="42px" class="q-mr-md">

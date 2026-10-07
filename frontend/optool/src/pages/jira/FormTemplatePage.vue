@@ -1412,7 +1412,7 @@ function confirmDelete(row: FormEntry) {
     title: '삭제 확인',
     message: '이 항목을 삭제하시겠습니까?',
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     actingId.value = row.id
     formEntryService.remove(row.id)
@@ -1447,7 +1447,7 @@ function confirmRestore(row: FormEntry) {
     title: '문서 복원',
     message: '선택한 작업 문서를 복원하시겠습니까?',
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { label: '복원', color: 'positive' },
   }).onOk(() => {
     actingId.value = row.id
@@ -1469,7 +1469,7 @@ function confirmPurge(row: FormEntry) {
     title: '영구 삭제',
     message: '휴지통에서 이 문서를 영구 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.',
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { label: '영구 삭제', color: 'negative' },
   }).onOk(() => {
     actingId.value = row.id
@@ -1493,7 +1493,7 @@ function confirmBulkPurge() {
     message: `선택한 ${targets.length}건을 휴지통에서 영구 삭제하시겠습니까?<br>삭제 후 복구할 수 없습니다.`,
     html: true,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { label: '영구 삭제', color: 'negative' },
   }).onOk(() => void doBulkPurge(targets))
 }
@@ -1524,7 +1524,7 @@ function confirmBulkRestore() {
     title: '복원',
     message: `선택한 ${targets.length}건을 복원하시겠습니까?`,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { label: '복원', color: 'positive', unelevated: true },
   }).onOk(() => void doBulkRestore(targets))
 }

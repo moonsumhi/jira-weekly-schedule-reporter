@@ -554,7 +554,7 @@ function confirmDelete(row: RecurringIssueTemplate) {
     title: '삭제 확인',
     message: `"${row.name}" 반복 업무를 삭제할까요? (이미 생성된 이슈는 그대로 유지됩니다)`,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void doDelete(row.id)
   })

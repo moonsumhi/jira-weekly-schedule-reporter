@@ -95,7 +95,7 @@
     </div>
 
     <!-- 카테고리 등록/수정 다이얼로그 -->
-    <q-dialog v-model="categoryDialog" persistent>
+    <q-dialog v-model="categoryDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 420px; max-width: 90vw">
         <q-card-section class="text-h6">{{ categoryEditTarget ? '카테고리 수정' : '카테고리 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">
@@ -114,7 +114,7 @@
     </q-dialog>
 
     <!-- 항목 등록/수정 다이얼로그 -->
-    <q-dialog v-model="itemDialog" persistent @show="onItemDialogShow">
+    <q-dialog v-model="itemDialog" no-backdrop-dismiss no-route-dismiss @show="onItemDialogShow">
       <q-card style="min-width: 420px; max-width: 90vw">
         <q-card-section class="text-h6">{{ itemEditTarget ? '항목 수정' : '항목 등록' }}</q-card-section>
         <q-card-section class="q-gutter-md">

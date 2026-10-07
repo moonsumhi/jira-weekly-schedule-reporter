@@ -294,7 +294,7 @@
       :issue="selectedIssue"
       :project-id="selectedIssue.projectId"
     />
-    <q-dialog v-model="editOpen" persistent
+    <q-dialog v-model="editOpen" no-backdrop-dismiss no-route-dismiss
       ><q-card class="report-edit-dialog"
         ><q-card-section class="dialog-heading"
           ><div>
@@ -387,7 +387,7 @@
             :loading="editBusy"
             @click="saveEdit" /></q-card-actions></q-card
     ></q-dialog>
-    <q-dialog v-model="finalizeOpen" persistent
+    <q-dialog v-model="finalizeOpen" no-backdrop-dismiss no-route-dismiss
       ><q-card class="report-finalize-dialog"
         ><q-card-section class="dialog-heading"
           ><div>
@@ -700,7 +700,7 @@ function deleteNote(note: ReportNote) {
     message: `이 항목을 삭제할까요? ${note.content.slice(0, 120)}${note.content.length > 120 ? '…' : ''}`,
     cancel: { label: '취소', flat: true },
     ok: { label: '삭제', color: 'negative' },
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void removeNote(original, note);
   });

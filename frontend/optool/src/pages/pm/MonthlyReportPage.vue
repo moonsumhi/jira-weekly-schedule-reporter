@@ -73,7 +73,7 @@
     </q-card>
 
     <!-- 생성 다이얼로그 -->
-    <q-dialog v-model="createDialog.open" persistent>
+    <q-dialog v-model="createDialog.open" no-backdrop-dismiss no-route-dismiss>
       <q-card style="width:480px; max-width:96vw">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">월간 보고 생성</div>
@@ -109,7 +109,7 @@
     </q-dialog>
 
     <!-- 수정 다이얼로그 -->
-    <q-dialog v-model="editDialog.open" persistent>
+    <q-dialog v-model="editDialog.open" no-backdrop-dismiss no-route-dismiss>
       <q-card style="width:480px; max-width:96vw">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">보고서 수정</div>
@@ -484,7 +484,7 @@ function openDetail(r: MonthlyReport) {
 function confirmDelete(r: MonthlyReport) {
   Dialog.create({
     title: '삭제 확인', message: `"${r.title}"을(를) 삭제하시겠습니까?`,
-    cancel: true, persistent: true,
+    cancel: true, noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void (async () => {
       try {

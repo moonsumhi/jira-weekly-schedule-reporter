@@ -43,7 +43,7 @@
     </div>
 
     <!-- 생성/수정 다이얼로그 -->
-    <q-dialog v-model="dialog.open" persistent>
+    <q-dialog v-model="dialog.open" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 380px">
         <q-card-section>
           <div class="text-h6">{{ dialog.isEdit ? '스프린트 수정' : '스프린트 생성' }}</div>
@@ -184,7 +184,7 @@ function confirmDelete(sprint: Sprint) {
   Dialog.create({
     title: '스프린트 삭제',
     message: `"${sprint.name}"을 삭제하시겠습니까? 소속 이슈는 백로그로 이동됩니다.`,
-    cancel: true, persistent: true,
+    cancel: true, noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void (async () => {
       try {

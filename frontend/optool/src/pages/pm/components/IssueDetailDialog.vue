@@ -1166,7 +1166,7 @@ function removeComment(commentId: string) {
     title: '댓글 삭제',
     message: '이 댓글을 삭제하시겠습니까?',
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { color: 'negative', label: '삭제' },
   }).onOk(() => {
     void (async () => {
@@ -1186,7 +1186,7 @@ function confirmDelete() {
   Dialog.create({
     title: '이슈 삭제',
     message: `"${localIssue.value.title}"을 삭제하시겠습니까?`,
-    cancel: true, persistent: true,
+    cancel: true, noBackdropDismiss: true, noRouteDismiss: true,
   }).onOk(() => {
     void (async () => {
       try {

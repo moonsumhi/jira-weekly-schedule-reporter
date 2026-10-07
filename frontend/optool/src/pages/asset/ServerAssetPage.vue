@@ -2238,7 +2238,7 @@
     </q-drawer>
 
     <!-- 삭제 확인 다이얼로그 -->
-    <q-dialog v-model="deleteDialog" persistent>
+    <q-dialog v-model="deleteDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 400px;">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6 text-negative">삭제 확인</div>
@@ -2353,7 +2353,7 @@
     </q-dialog>
 
     <!-- Import 비밀번호 다이얼로그 -->
-    <q-dialog v-model="importPasswordDialog" persistent>
+    <q-dialog v-model="importPasswordDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width:320px">
         <q-card-section>
           <div class="text-h6">파일 비밀번호 입력</div>
@@ -2384,7 +2384,7 @@
     </q-dialog>
 
     <!-- Import 결과 다이얼로그 (실패 / 건너뜀) -->
-    <q-dialog v-model="importFailDialog" persistent>
+    <q-dialog v-model="importFailDialog" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: min(900px, 92vw); max-height: 80vh; display: flex; flex-direction: column;">
         <q-card-section class="row items-center q-pb-sm" style="flex-shrink:0">
           <q-icon name="assignment_late" color="warning" size="sm" class="q-mr-sm" />
@@ -4058,7 +4058,7 @@ function confirmPurge(row: ServerAsset) {
     message: `"${row.name}" 자산을 완전히 삭제하시겠습니까?<br>이 작업은 되돌릴 수 없습니다.`,
     html: true,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { label: '삭제', color: 'negative' },
   }).onOk(() => {
     $q.dialog({
@@ -4066,7 +4066,7 @@ function confirmPurge(row: ServerAsset) {
       message: `"${row.name}" 자산을 정말로 영구 삭제하시겠습니까?<br>복구할 수 없습니다.`,
       html: true,
       cancel: true,
-      persistent: true,
+      noBackdropDismiss: true, noRouteDismiss: true,
       ok: { label: '영구 삭제', color: 'negative' },
     }).onOk(() => void doPurge(row))
   })
@@ -4119,7 +4119,7 @@ function confirmBulkPurge() {
     message: `선택한 ${targets.length}건을 완전히 삭제하시겠습니까?<br>이 작업은 되돌릴 수 없습니다.`,
     html: true,
     cancel: true,
-    persistent: true,
+    noBackdropDismiss: true, noRouteDismiss: true,
     ok: { label: '삭제', color: 'negative' },
   }).onOk(() => {
     $q.dialog({
@@ -4127,7 +4127,7 @@ function confirmBulkPurge() {
       message: `선택한 ${targets.length}건을 정말로 영구 삭제하시겠습니까?<br>복구할 수 없습니다.`,
       html: true,
       cancel: true,
-      persistent: true,
+      noBackdropDismiss: true, noRouteDismiss: true,
       ok: { label: '영구 삭제', color: 'negative' },
     }).onOk(() => void doBulkPurge(targets))
   })
