@@ -10,6 +10,29 @@ from app.models.form_entry import FormDocumentExport
 
 
 class OriginalFormExportTests(unittest.TestCase):
+    def test_test_case_tables_keep_id_but_omit_display_row_number(self):
+        form = {
+            'title': '작업계획서',
+            'sections': [
+                {'title': '테스트 계획', 'multiple': True, 'fields': [
+                    {'label': label, 'type': 'text'}
+                    for label in ['테스트케이스 ID', '설명', '전제 조건', '테스트 데이터', '예상 결과']
+                ]},
+                {'title': '작업 대상', 'multiple': True, 'fields': [
+                    {'label': '작업 대상', 'type': 'text'},
+                ]},
+            ],
+            'data': {
+                '테스트 계획': [{'테스트케이스 ID': 'TC-01', '설명': '로그인', '예상 결과': '성공'}],
+                '작업 대상': [{'작업 대상': '서버'}],
+            },
+        }
+        markup = original_form_markup(form)
+        self.assertIn('data-column-widths="14,22,18,18,28"', markup)
+        self.assertIn('<tr data-role="column-header"><th>테스트케이스 ID</th>', markup)
+        self.assertIn('<tr><td>TC-01</td><td>로그인</td>', markup)
+        self.assertIn('<tr data-role="column-header"><th>No.</th><th>작업 대상</th>', markup)
+
     def test_section_heading_and_basic_fields_follow_report_layout(self):
         form = {'title': '작업계획서', 'sections': [{
             'title': '기본 정보', 'multiple': False, 'fields': [

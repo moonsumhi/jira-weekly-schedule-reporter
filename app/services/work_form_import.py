@@ -871,7 +871,9 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
             # the normalized key here as well, otherwise 담당자 blocks fall
             # through to 가져온 추가 내용 even when the review section exists.
             candidates = [s for s in sections if norm(s['title']) == norm(key)]
-        if not candidates:
+        # Common columns such as "비고" cannot identify a section. Limit the
+        # header-based fallback to the ambiguous legacy "담당자" heading.
+        if not candidates and source_key == '담당자':
             # 운영계에서 섹션 제목은 ``담당자``로 유지하면서 실제 저장
             # 템플릿은 ``작업자 정보`` 또는 ``검토/서명``으로 바뀐 경우가
             # 있다. 표 헤더와 대상 필드의 겹치는 정도로 가장 알맞은

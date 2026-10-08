@@ -3,6 +3,25 @@ from app.services.work_form_import import map_document, EXTRA
 
 
 class OriginalFormImportTests(unittest.TestCase):
+    def test_plan_test_case_id_maps_from_operational_section(self):
+        sections = [{
+            'title': '테스트 케이스', 'multiple': True,
+            'fields': [
+                {'label': '테스트케이스 ID', 'type': 'text'},
+                {'label': '설명', 'type': 'text'},
+                {'label': '예상 결과', 'type': 'textarea'},
+            ],
+        }]
+        markdown = '''## 테스트 계획
+
+| 테스트케이스 ID | 설명 | 예상 결과 |
+| --- | --- | --- |
+| TC-01 | 웹 로그인 | 로그인 성공 |'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['테스트 케이스'][0]['테스트케이스 ID'], 'TC-01')
+        self.assertEqual(data['테스트 케이스'][0]['예상 결과'], '로그인 성공')
+        self.assertFalse(warnings)
+
     def test_fields_images_order_and_unmatched_content(self):
         sections = [
             {'title': '기본 정보', 'fields': [{'label': '작업명', 'type': 'text'}, {'label': '구분', 'type': 'select', 'options': ['서버', '개발']}]},
@@ -44,6 +63,38 @@ class OriginalFormImportTests(unittest.TestCase):
         self.assertIn('web01', content)
         self.assertEqual(warnings[1]['field'], 'HOSTNAME')
         self.assertEqual(warnings[1]['source_preview'], 'web01')
+
+    def test_test_plan_extra_column_does_not_fill_another_sections_note(self):
+        sections = [
+            {'title': '작업 대상', 'multiple': True, 'fields': [{'label': '비고', 'type': 'text'}]},
+            {'title': '테스트 케이스', 'multiple': True, 'fields': [{'label': '설명', 'type': 'text'}]},
+        ]
+        markdown = '''## 테스트 계획
+
+| 설명 | 비고 |
+| --- | --- |
+| 로그인 | 테스트 계획의 메모 |'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['테스트 케이스'][0]['설명'], '로그인')
+        self.assertEqual(data['작업 대상'], [])
+        self.assertIn('테스트 계획의 메모', data[EXTRA][0]['내용'])
+        self.assertEqual(warnings[1]['field'], '비고')
+
+    def test_unknown_section_is_not_guessed_from_shared_column(self):
+        sections = [
+            {'title': '작업 대상', 'multiple': True, 'fields': [{'label': '비고', 'type': 'text'}]},
+            {'title': '테스트 케이스', 'multiple': True, 'fields': [{'label': '설명', 'type': 'text'}]},
+        ]
+        markdown = '''## 테스트 계획 상세
+
+| 비고 |
+| --- |
+| 연결되지 않은 메모 |'''
+        data, warnings = map_document(markdown, sections)
+        self.assertEqual(data['작업 대상'], [])
+        self.assertEqual(data['테스트 케이스'], [])
+        self.assertIn('연결되지 않은 메모', data[EXTRA][0]['내용'])
+        self.assertEqual(warnings[1]['section'], '테스트 계획 상세')
 
     def test_legacy_review_and_test_titles_map_to_current_sections(self):
         sections = [

@@ -210,11 +210,16 @@ export function formEntryMarkdown(
         lines.splice(lines.length - 2, 2)
         continue
       }
-      const headers = ['No.', ...visibleFields.map((field) => escapeText(field.label).replace(/\n/g, ' '))]
+      const sectionKey = section.title.replace(/\s/g, '')
+      const showRowNumber = sectionKey !== '테스트계획' && !sectionKey.startsWith('테스트케이스')
+      const headers = [
+        ...(showRowNumber ? ['No.'] : []),
+        ...visibleFields.map((field) => escapeText(field.label).replace(/\n/g, ' ')),
+      ]
       lines.push(`| ${headers.join(' | ')} |`, `| ${headers.map(() => '---').join(' | ')} |`)
       rows.forEach((row, index) => {
         const values = visibleFields.map((field) => tableCellValue(cellValue(record(row), field)))
-        lines.push(`| ${[String(index + 1), ...values].join(' | ')} |`)
+        lines.push(`| ${[...(showRowNumber ? [String(index + 1)] : []), ...values].join(' | ')} |`)
       })
       lines.push('')
       if (['작업자정보', '작업자'].includes(section.title.replace(/\s/g, '')) && movedExtraBlocks.length) {

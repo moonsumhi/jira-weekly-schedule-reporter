@@ -227,6 +227,7 @@ _PLAN_TEST_CASES = {
     "title": "테스트 케이스",
     "multiple": True,
     "fields": [
+        {"label": "테스트케이스 ID", "type": "text", "required": False},
         {"label": "설명",       "type": "text",     "required": False},
         {"label": "전제 조건",  "type": "text",     "required": False},
         {"label": "테스트 데이터","type": "text",     "required": False},
@@ -848,6 +849,31 @@ async def migrate_job_test_case_sections() -> None:
             logger.info("작업 결과서 테스트 케이스 데이터 이관: %s", entry["_id"])
 
 
+async def migrate_plan_test_case_id_field() -> None:
+    """Add the operational test-case ID to existing work-plan templates.
+
+    Keep each template ID, its other fields, and all saved entry data intact.
+    Repeated startups leave templates that already have the field untouched.
+    """
+    templates = MongoClientManager.get_form_templates_collection()
+    plan_keys = ("JOB-PLAN-SERVICE", "JOB-PLAN-NONSERVICE")
+    async for template in templates.find({"jira_issue_key": {"$in": plan_keys}, "is_deleted": {"$ne": True}}):
+        for index, section in enumerate(template.get("sections") or []):
+            if not isinstance(section, dict) or _job_section_key(section.get("title")) not in {"테스트케이스", "테스트계획"}:
+                continue
+            fields = section.get("fields") or []
+            if any(_job_section_key(field.get("label")) == "테스트케이스id" for field in fields if isinstance(field, dict)):
+                continue
+            await templates.update_one(
+                {"_id": template["_id"]},
+                {"$set": {f"sections.{index}.fields": [
+                    {"label": "테스트케이스 ID", "type": "text", "required": False},
+                    *fields,
+                ]}},
+            )
+            logger.info("작업계획서 테스트케이스 ID 필드 추가: %s", template["_id"])
+
+
 async def migrate_result_completion_field() -> None:
     """작업결과서의 추가 정보에 완료 여부 선택 필드를 보장한다.
 
@@ -1348,6 +1374,7 @@ async def run_startup() -> None:
     await migrate_env_submenu()
     await seed_job_form_templates()
     await migrate_job_test_case_sections()
+    await migrate_plan_test_case_id_field()
     await migrate_result_completion_field()
     await migrate_result_work_period_fields()
     await migrate_remove_development_image_field()

@@ -17,11 +17,11 @@
     <div v-else :class="['inline-table-scroll', { 'incident-table-scroll': section.multiple && isIncidentTimeline(section) }]">
       <table v-if="section.multiple">
         <thead>
-          <tr><th class="number-cell">No.</th><th v-for="field in visibleFields(section)" :key="field.label">{{ field.label }}</th><th class="action-cell" /></tr>
+          <tr><th v-if="!isTestCaseSection(section)" class="number-cell">No.</th><th v-for="field in visibleFields(section)" :key="field.label">{{ field.label }}</th><th class="action-cell" /></tr>
         </thead>
         <tbody>
           <tr v-for="(row, rowIndex) in rows(section)" :key="rowIndex">
-            <td class="number-cell">{{ rowIndex + 1 }}</td>
+            <td v-if="!isTestCaseSection(section)" class="number-cell">{{ rowIndex + 1 }}</td>
             <td v-for="field in visibleFields(section)" :key="field.label"
               :class="{ 'editor-cell': row[`${field.label}__format`] === 'markdown' }"
               tabindex="0" @paste="pasteCellImage(section, rowIndex, field, $event)">
@@ -50,7 +50,7 @@
             </td>
             <td class="action-cell"><q-btn flat round dense icon="delete_outline" color="grey-7" :aria-label="`${rowIndex + 1}행 삭제`" @click="removeRow(section, rowIndex)" /></td>
           </tr>
-          <tr v-if="!rows(section).length"><td :colspan="visibleFields(section).length + 2" class="empty-cell">등록된 항목이 없습니다.</td></tr>
+          <tr v-if="!rows(section).length"><td :colspan="visibleFields(section).length + (isTestCaseSection(section) ? 1 : 2)" class="empty-cell">등록된 항목이 없습니다.</td></tr>
         </tbody>
       </table>
 
@@ -204,6 +204,10 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 function normalized(value: string) { return value.replace(/\s/g, '') }
+function isTestCaseSection(section: FormSection): boolean {
+  const title = normalized(section.title)
+  return title === '테스트계획' || title.startsWith('테스트케이스')
+}
 function isIncidentTimeline(section: FormSection): boolean {
   return normalized(section.title) === '\uBC1C\uC0DD\uACBD\uACFC\uBC0F\uC870\uCE58\uC0AC\uD56D'
 }

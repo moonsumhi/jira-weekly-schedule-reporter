@@ -317,6 +317,14 @@ renderer.table = (header, body) => {
     /설명/.test(normalizedHeaderText) && /테스트데이터/.test(normalizedHeaderText) && /예상결과/.test(normalizedHeaderText)
       ? 'work-table-scroll--test-case'
       : '',
+    /테스트케이스ID/.test(normalizedHeaderText) && /설명/.test(normalizedHeaderText)
+      && /테스트데이터/.test(normalizedHeaderText) && /예상결과/.test(normalizedHeaderText)
+      ? 'work-table-scroll--test-case-with-id'
+      : '',
+    !/^(?:No\.|번호)/i.test(normalizedHeaderText) && /설명/.test(normalizedHeaderText)
+      && /테스트데이터/.test(normalizedHeaderText) && /예상결과/.test(normalizedHeaderText)
+      ? 'work-table-scroll--test-case-no-number'
+      : '',
   ].filter(Boolean)
   const tableClass = tableClasses.length ? ` ${tableClasses.join(' ')}` : ''
   return `<div class="work-table-scroll${tableClass}" tabindex="0" role="region" aria-label="문서 표, 가로 스크롤 가능"><table><thead>${header}</thead><tbody>${renderNestedTables(body)}</tbody></table></div>`
@@ -504,12 +512,27 @@ watch(
 .work-result-content :deep(.work-table-scroll--precheck th:nth-child(2)), .work-result-content :deep(.work-table-scroll--precheck td:nth-child(2)) { width: 47%; }
 .work-result-content :deep(.work-table-scroll--precheck th:nth-child(3)), .work-result-content :deep(.work-table-scroll--precheck td:nth-child(3)) { width: 41%; }
 .work-result-content :deep(.work-table-scroll--precheck th:nth-child(4)), .work-result-content :deep(.work-table-scroll--precheck td:nth-child(4)) { width: 6%; }
-.work-result-content :deep(.work-table-scroll--test-case table) { table-layout: fixed; }
-.work-result-content :deep(.work-table-scroll--test-case th:first-child), .work-result-content :deep(.work-table-scroll--test-case td:first-child) { width: 6%; }
-.work-result-content :deep(.work-table-scroll--test-case th:nth-child(2)), .work-result-content :deep(.work-table-scroll--test-case td:nth-child(2)) { width: 24%; }
-.work-result-content :deep(.work-table-scroll--test-case th:nth-child(3)), .work-result-content :deep(.work-table-scroll--test-case td:nth-child(3)) { width: 18%; }
-.work-result-content :deep(.work-table-scroll--test-case th:nth-child(4)), .work-result-content :deep(.work-table-scroll--test-case td:nth-child(4)) { width: 24%; }
-.work-result-content :deep(.work-table-scroll--test-case th:nth-child(5)), .work-result-content :deep(.work-table-scroll--test-case td:nth-child(5)) { width: 28%; }
+.work-result-content :deep(.work-table-scroll--test-case > table) { table-layout: fixed; }
+.work-result-content :deep(.work-table-scroll--test-case > table > :is(thead, tbody) > tr > :nth-child(1)) { width: 6%; }
+.work-result-content :deep(.work-table-scroll--test-case > table > :is(thead, tbody) > tr > :nth-child(2)) { width: 24%; }
+.work-result-content :deep(.work-table-scroll--test-case > table > :is(thead, tbody) > tr > :nth-child(3)) { width: 18%; }
+.work-result-content :deep(.work-table-scroll--test-case > table > :is(thead, tbody) > tr > :nth-child(4)) { width: 24%; }
+.work-result-content :deep(.work-table-scroll--test-case > table > :is(thead, tbody) > tr > :nth-child(5)) { width: 28%; }
+.work-result-content :deep(.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(1)) { width: 6%; }
+.work-result-content :deep(.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(2)) { width: 12%; }
+.work-result-content :deep(.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(3)) { width: 20%; }
+.work-result-content :deep(.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(4)) { width: 18%; }
+.work-result-content :deep(.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(5)) { width: 16%; }
+.work-result-content :deep(.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(6)) { width: 28%; }
+.work-result-content :deep(.work-table-scroll--test-case-no-number > table > :is(thead, tbody) > tr > :nth-child(1)) { width: 25%; }
+.work-result-content :deep(.work-table-scroll--test-case-no-number > table > :is(thead, tbody) > tr > :nth-child(2)) { width: 20%; }
+.work-result-content :deep(.work-table-scroll--test-case-no-number > table > :is(thead, tbody) > tr > :nth-child(3)) { width: 25%; }
+.work-result-content :deep(.work-table-scroll--test-case-no-number > table > :is(thead, tbody) > tr > :nth-child(4)) { width: 30%; }
+.work-result-content :deep(.work-table-scroll--test-case-no-number.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(1)) { width: 14%; }
+.work-result-content :deep(.work-table-scroll--test-case-no-number.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(2)) { width: 22%; }
+.work-result-content :deep(.work-table-scroll--test-case-no-number.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(3)) { width: 18%; }
+.work-result-content :deep(.work-table-scroll--test-case-no-number.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(4)) { width: 18%; }
+.work-result-content :deep(.work-table-scroll--test-case-no-number.work-table-scroll--test-case-with-id > table > :is(thead, tbody) > tr > :nth-child(5)) { width: 28%; }
 .work-result-content :deep(.work-table-scroll--nested table) { width: 100%; max-width: 100%; min-width: 0; table-layout: fixed; }
 .work-result-content :deep(td), .work-result-content :deep(th) { min-width: 0; border: 1px solid #cbd5e1; padding: 12px 16px; vertical-align: top; white-space: normal; word-break: normal; overflow-wrap: anywhere; }
 .work-result-content :deep(.work-table-scroll--nested td), .work-result-content :deep(.work-table-scroll--nested th) { width: auto; max-width: 100%; overflow: hidden; }

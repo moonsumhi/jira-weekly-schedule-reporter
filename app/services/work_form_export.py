@@ -44,6 +44,13 @@ def original_form_markup(form: dict) -> str:
                 return [16, 30, 22, 32]
             return [18, 32, 18, 32] if columns == 4 else [22, 78]
         title = section.get('title', '').replace(' ', '')
+        if title == '테스트계획' or title.startswith('테스트케이스'):
+            labels = {field['label'].replace(' ', '') for field in visible}
+            if '예상결과' in labels and '테스트케이스ID' in labels and columns == 5:
+                return [14, 22, 18, 18, 28]
+            if '예상결과' in labels and columns == 4:
+                return [25, 20, 25, 30]
+            return [100 / columns] * columns
         if title == '발생경과및조치사항':
             # 장애보고서의 경과 표도 작업계획서와 같은 No. 기준 폭을 사용한다.
             if columns == 3:
@@ -196,17 +203,20 @@ def original_form_markup(form: dict) -> str:
 
         if any(item.startswith('<table') for item in output):
             output.append('<p class="section-gap">&#160;</p>')
-        columns = len(visible) + 1 if section.get('multiple') else 4
+        section_key = section.get('title', '').replace(' ', '')
+        show_row_number = section_key != '테스트계획' and not section_key.startswith('테스트케이스')
+        columns = len(visible) + (1 if show_row_number else 0) if section.get('multiple') else 4
         widths = table_widths(section, visible, columns)
         output.append(f'<table{attrs(columns, widths)}>')
         output.append(f'<tr><th colspan="{columns}" data-role="section-heading">'
                       f'{escape(display_section_title(section))}' + '</th></tr>')
         if section.get('multiple'):
-            output.append('<tr data-role="column-header"><th>No.</th>'
+            output.append('<tr data-role="column-header">'
+                          + ('<th>No.</th>' if show_row_number else '')
                           + ''.join(f"<th>{escape(field['label'])}</th>" for field in visible)
                           + '</tr>')
             for index, row in enumerate(rows):
-                output.append(f'<tr><td>{index + 1}</td>'
+                output.append('<tr>' + (f'<td>{index + 1}</td>' if show_row_number else '')
                               + ''.join('<td>' + cell(row, field) + '</td>' for field in visible)
                               + '</tr>')
         else:
