@@ -110,7 +110,7 @@
               {{ p.name }}
               <span v-if="isAll" class="rk-dev-side">{{ p.mountSide === 'FRONT' ? '전' : '후' }}</span>
             </div>
-            <div class="rk-dev-sub">{{ p.assetCode || '—' }} · {{ p.assetCategory }} · U{{ p.startU }}<template v-if="p.heightU > 1">~U{{ p.endU }}</template></div>
+            <div class="rk-dev-sub">{{ p.ip || 'IP 없음' }} · {{ p.assetCategory }} · U{{ p.startU }}<template v-if="p.heightU > 1">~U{{ p.endU }}</template></div>
           </div>
           <q-icon name="drag_indicator" size="16px" class="rk-dev-grip" />
         </div>
