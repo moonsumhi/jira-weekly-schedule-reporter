@@ -18,8 +18,7 @@
           <q-icon name="event" size="18px" color="red-7" />
           <span class="card-title">D-Day</span>
           <q-space />
-          <q-btn flat dense no-caps icon="history" label="이력" size="sm" color="grey-7" to="/dday/history" />
-          <q-btn v-if="auth.me?.isAdmin" flat dense round icon="add" size="sm" color="grey-7" @click="openDDayCreate" />
+          <q-btn flat dense round icon="add" size="sm" color="grey-7" @click="openDDayCreate" />
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn">
             <q-tooltip>카드 크기 조절</q-tooltip>
             <q-menu anchor="bottom right" self="top right">
@@ -82,7 +81,7 @@
                 <div class="dday-date text-grey-6">{{ d.date }}</div>
                 <div v-if="d.note" class="dday-note text-grey-5">{{ d.note }}</div>
               </div>
-              <div v-if="auth.me?.isAdmin" class="dday-actions">
+              <div v-if="auth.me?.isAdmin || isDDayCreator(d)" class="dday-actions">
                 <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openDDayEdit(d)" />
                 <q-btn flat dense round icon="delete" size="xs" color="negative" @click="confirmDeleteDDay(d)" />
               </div>
@@ -324,7 +323,9 @@
             :options="ddayColorOptions"
             emit-value map-options
           />
+          <q-checkbox v-if="auth.me?.isAdmin" v-model="ddayForm.visibleToAll" label="전체 표시" />
           <q-select
+            v-if="!ddayForm.visibleToAll"
             v-model="ddayForm.visibleTeams"
             outlined dense multiple use-chips clearable
             label="표시할 팀"
@@ -333,13 +334,14 @@
             :loading="ddayUsersLoading"
           />
           <q-select
+            v-if="!ddayForm.visibleToAll"
             v-model="ddayForm.visibleUserIds"
             outlined dense multiple use-chips clearable
             label="표시할 사람"
             class="dday-visible-people-select"
             :options="ddayUserOptions"
             emit-value map-options
-            :hint="'※팀과 사람을 모두 비우면 전체 공개되며,\n선택한 팀원과 사람에게 표시됩니다.'"
+            :hint="'※팀과 사람을 모두 비우면 나에게만 표시됩니다.\n선택한 팀원과 사람에게 표시됩니다.'"
             :loading="ddayUsersLoading"
           />
           <q-input v-model="ddayForm.note" outlined dense label="메모" type="textarea" rows="2" />
@@ -376,7 +378,7 @@ import { useQuasar } from 'quasar'
 import draggable from 'vuedraggable'
 import { useAuthStore } from 'stores/auth'
 import { api } from 'boot/axios'
-import { fetchDDays, createDDay, patchDDay, deleteDDay, completeDDay as completeDDayRequest, type DDay } from 'src/services/ddays'
+import { fetchDDays, fetchDDayAudience, createDDay, patchDDay, deleteDDay, completeDDay as completeDDayRequest, type DDay, type DDayAudienceUser } from 'src/services/ddays'
 import { STATUS_LABEL, STATUS_COLOR, type Issue } from 'src/services/pm/issue'
 import { listMySRs, SR_STATUS_LABEL, SR_STATUS_COLOR, type SRListItem } from 'src/services/sr'
 import { getPrefs, savePrefs, type ColPreset, type CardSize } from 'src/services/prefs'
@@ -561,6 +563,7 @@ function openInspectionEdit() {
     note: existing?.note ?? '',
     visibleUserIds: existing?.visibleUserIds ?? [],
     visibleTeams: existing?.visibleTeams ?? [],
+    visibleToAll: existing?.visibleToAll ?? true,
   }
   void loadDDayUsers()
   ddayDialog.value = true
@@ -579,19 +582,18 @@ const ddayDialog = ref(false)
 const ddaySaving = ref(false)
 const ddayUsersLoading = ref(false)
 const ddayCompletingId = ref<string | null>(null)
-const ddayUsers = ref<{ id: string; fullName?: string | null; email: string; team?: string | null; isBlocked?: boolean }[]>([])
-const ddayForm = ref({ id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] as string[], visibleTeams: [] as string[] })
+const ddayUsers = ref<DDayAudienceUser[]>([])
+const ddayForm = ref({ id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [] as string[], visibleTeams: [] as string[], visibleToAll: false })
 const ddayTeamOptions = computed(() =>
   [...new Set(ddayUsers.value
-    .filter((user) => !user.isBlocked)
     .map((user) => user.team?.trim())
-    .filter((team): team is string => Boolean(team)))]
+    .filter((team): team is string => Boolean(team) && (auth.me?.isAdmin || team === auth.me?.team?.trim())))]
     .sort((left, right) => left.localeCompare(right, 'ko'))
     .map((team) => ({ value: team, label: team }))
 )
 const ddayUserOptions = computed(() =>
   ddayUsers.value
-    .filter((user) => !user.isBlocked)
+    .filter((user) => auth.me?.isAdmin || (auth.me?.team && user.team?.trim() === auth.me.team.trim()) || String(user.id) === String(auth.me?.id))
     .map((user) => ({
       value: user.id,
       label: `${user.fullName || user.email}${user.team ? ` (${user.team})` : ''}`,
@@ -656,7 +658,7 @@ async function loadDDays() {
 }
 
 function openDDayCreate() {
-  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [], visibleTeams: [] }
+  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [], visibleTeams: [], visibleToAll: false }
   void loadDDayUsers()
   ddayDialog.value = true
 }
@@ -670,22 +672,34 @@ function openDDayEdit(d: DDay) {
     note: d.note ?? '',
     visibleUserIds: d.visibleUserIds ?? [],
     visibleTeams: d.visibleTeams ?? [],
+    visibleToAll: d.visibleToAll ?? false,
   }
   void loadDDayUsers()
   ddayDialog.value = true
 }
 
 async function loadDDayUsers() {
-  if (ddayUsers.value.length > 0) return
+  if (ddayUsers.value.length > 0) {
+    restrictDDayAudience()
+    return
+  }
   ddayUsersLoading.value = true
   try {
-    const response = await api.get<{ id: string; fullName?: string | null; email: string; team?: string | null; isBlocked?: boolean }[]>('/admin/users')
-    ddayUsers.value = response.data
+    ddayUsers.value = await fetchDDayAudience()
+    restrictDDayAudience()
   } catch {
     $q.notify({ type: 'negative', message: '사용자 목록을 불러오지 못했습니다.' })
   } finally {
     ddayUsersLoading.value = false
   }
+}
+
+function restrictDDayAudience() {
+  if (auth.me?.isAdmin) return
+  const allowedTeams = new Set(ddayTeamOptions.value.map((option) => option.value))
+  const allowedUsers = new Set(ddayUserOptions.value.map((option) => option.value))
+  ddayForm.value.visibleTeams = ddayForm.value.visibleTeams.filter((team) => allowedTeams.has(team))
+  ddayForm.value.visibleUserIds = ddayForm.value.visibleUserIds.filter((id) => allowedUsers.has(id))
 }
 
 async function saveDDay() {
@@ -702,6 +716,7 @@ async function saveDDay() {
       note: ddayForm.value.note || null,
       visible_user_ids: ddayForm.value.visibleUserIds,
       visible_teams: ddayForm.value.visibleTeams,
+      visible_to_all: auth.me?.isAdmin === true && ddayForm.value.visibleToAll,
     }
     if (ddayForm.value.id) {
       await patchDDay(ddayForm.value.id, payload)

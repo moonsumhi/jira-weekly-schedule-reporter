@@ -18,12 +18,6 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true }
       },
       {
-        path: 'dday/history',
-        name: 'dday-history',
-        component: () => import('pages/dday/DDayHistoryPage.vue'),
-        meta: { requiresAuth: true }
-      },
-      {
         path: 'watch',
         meta: { requiresAuth: true },
         children: [

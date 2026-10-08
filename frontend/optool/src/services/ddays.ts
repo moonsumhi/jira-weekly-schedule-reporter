@@ -8,6 +8,7 @@ export interface DDay {
   note?: string | null
   visibleUserIds?: string[]
   visibleTeams?: string[]
+  visibleToAll?: boolean
   createdAt?: string | null
   createdBy?: string | null
   completed?: boolean
@@ -21,6 +22,7 @@ export interface DDayCreate {
   note?: string | null
   visible_user_ids?: string[]
   visible_teams?: string[]
+  visible_to_all?: boolean
 }
 
 export interface DDayPatch {
@@ -30,6 +32,14 @@ export interface DDayPatch {
   note?: string | null
   visible_user_ids?: string[]
   visible_teams?: string[]
+  visible_to_all?: boolean
+}
+
+export interface DDayAudienceUser {
+  id: string
+  email: string
+  fullName?: string | null
+  team?: string | null
 }
 
 export async function fetchDDays(): Promise<DDay[]> {
@@ -37,8 +47,8 @@ export async function fetchDDays(): Promise<DDay[]> {
   return data
 }
 
-export async function fetchDDayHistory(): Promise<DDay[]> {
-  const { data } = await api.get<DDay[]>('/ddays/history')
+export async function fetchDDayAudience(): Promise<DDayAudienceUser[]> {
+  const { data } = await api.get<DDayAudienceUser[]>('/ddays/audience')
   return data
 }
 
