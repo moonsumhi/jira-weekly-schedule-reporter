@@ -40,7 +40,7 @@
                 <q-item v-bind="scope.itemProps">
                   <q-item-section>
                     <q-item-label>{{ scope.opt.name }}</q-item-label>
-                    <q-item-label caption>{{ scope.opt.assetCategory }} · {{ scope.opt.assetCode || scope.opt.ip || '-' }}</q-item-label>
+                    <q-item-label caption>{{ scope.opt.assetCategory }} · {{ scope.opt.ip || 'IP 없음' }}</q-item-label>
                   </q-item-section>
                 </q-item>
               </template>

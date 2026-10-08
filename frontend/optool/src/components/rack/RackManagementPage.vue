@@ -34,7 +34,7 @@
                 <q-item-section>
                   <q-item-label>{{ r.name }} <span class="text-caption text-grey">· {{ r.assetCategory }}</span></q-item-label>
                   <q-item-label caption>
-                    {{ r.assetCode || '-' }} · {{ r.ip || 'IP 없음' }}
+                    {{ r.ip || 'IP 없음' }}
                     <template v-if="r.placement">· {{ r.placement.rackName }} / U{{ r.placement.startU }}~U{{ r.placement.endU }}</template>
                     <template v-else>· <span class="text-orange">미배치</span></template>
                   </q-item-label>
@@ -141,7 +141,7 @@
             </div>
             <q-separator />
             <div class="rk-kv">
-              <div class="rk-kv-row"><span>자산번호</span><b>{{ selectedAsset.assetCode || '—' }}</b></div>
+              <div class="rk-kv-row"><span>자산번호</span><b>{{ selectedAsset.assetNo || '—' }}</b></div>
               <div class="rk-kv-row"><span>IP</span><b>{{ selectedAsset.ip || '—' }}</b></div>
               <div class="rk-kv-row"><span>랙 위치</span><b>{{ layout?.rack.name }} / U{{ selectedAsset.startU }}~U{{ selectedAsset.endU }}</b></div>
               <div class="rk-kv-row"><span>크기 / 면</span><b>{{ selectedAsset.heightU }}U · {{ mountLabel(selectedAsset.mountSide) }}</b></div>
@@ -165,9 +165,6 @@
             <div v-if="rackEditing" class="rk-edit-form">
               <label class="rk-edit-label">랙 이름 <em>*</em></label>
               <q-input v-model="rackEditForm.name" dense outlined autofocus hide-bottom-space />
-
-              <label class="rk-edit-label">랙 코드</label>
-              <q-input v-model="rackEditForm.assetId" dense outlined hide-bottom-space />
 
               <label class="rk-edit-label">서버실(위치)</label>
               <div class="rk-edit-control">
@@ -199,7 +196,6 @@
               <q-input v-model.number="rackEditForm.maxPowerW" type="number" min="0" dense outlined hide-bottom-space />
             </div>
             <div v-else class="rk-kv">
-              <div class="rk-kv-row"><span>랙 코드</span><b>{{ layout.rack.assetCode || '—' }}</b></div>
               <div class="rk-kv-row"><span>사용</span><b>{{ layout.rack.usedU }}/{{ layout.rack.totalU }}U ({{ layout.rack.usageRate }}%)</b></div>
               <div class="rk-kv-row"><span>최대 연속 빈</span><b>{{ layout.rack.maxContiguousFreeU }}U</b></div>
               <div class="rk-kv-row"><span>최대 허용 하중</span><b>{{ layout.rack.maxLoadKg != null ? layout.rack.maxLoadKg + ' kg' : '—' }}</b></div>
@@ -248,7 +244,7 @@
                 </q-item-section>
                 <q-item-section>
                   <q-item-label class="ellipsis">{{ a.name }}</q-item-label>
-                  <q-item-label caption>{{ a.assetCategory }} · {{ a.assetCode || a.ip || '—' }}</q-item-label>
+                  <q-item-label caption>{{ a.assetCategory }} · {{ a.ip || 'IP 없음' }}</q-item-label>
                 </q-item-section>
                 <q-item-section side><q-icon name="add_location_alt" size="18px" color="blue-grey-4" /></q-item-section>
               </q-item>
@@ -308,7 +304,6 @@
           <div class="rk-info-grid">
             <template v-if="assetInfo">
               <div class="rk-info-row"><span>자산번호</span><b>{{ assetInfo.assetNo || '—' }}</b></div>
-              <div class="rk-info-row"><span>Asset ID</span><b>{{ assetInfo.assetId || '—' }}</b></div>
               <div class="rk-info-row"><span>IP</span><b>{{ assetInfo.ip || '—' }}</b></div>
               <div v-for="e in assetInfoEntries" :key="e.label" class="rk-info-row"><span>{{ e.label }}</span><b>{{ e.value }}</b></div>
             </template>
@@ -329,9 +324,6 @@
           <div class="row q-col-gutter-sm">
             <div class="col-12">
               <q-input v-model="rackForm.name" label="랙 이름 *" outlined dense autofocus />
-            </div>
-            <div class="col-6">
-              <q-input v-model="rackForm.assetId" label="랙 코드 (선택)" outlined dense />
             </div>
             <div class="col-6">
               <q-select
@@ -523,12 +515,12 @@ function statusColor(s?: string | null): string { return s === '폐기' ? 'negat
 function mountLabel(s: MountSide): string { return s === 'FRONT' ? '전면' : '후면' }
 
 const FIELD_LABELS: Record<string, string> = {
-  rack_no: 'RackNo.', rack_unit_no: 'Rack Unit No.', asset_id: 'Asset ID',
+  rack_no: 'RackNo.', rack_unit_no: 'Rack Unit No.',
 }
 const assetInfoEntries = computed(() => {
   const f = assetInfo.value?.fields ?? {}
   return Object.entries(f)
-    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .filter(([k, v]) => !['asset_id', 'assetId', '__asset_id__'].includes(k) && v !== null && v !== undefined && v !== '')
     .map(([k, v]) => ({
       label: FIELD_LABELS[k] ?? k,
       value: Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v),
