@@ -202,6 +202,7 @@ export type IssueFilter = {
   type?: IssueType
   search?: string
   parent_issue_id?: string
+  epic_id?: string
 }
 
 export async function getLinkedIssue(issueId: string): Promise<Issue> {

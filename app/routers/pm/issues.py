@@ -46,6 +46,7 @@ async def list_issues(
     type: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     parent_issue_id: Optional[str] = Query(None),
+    epic_id: Optional[str] = Query(None),
     current_user: UserPublic = Depends(get_current_user),
 ):
     await require_pm_member(current_user, project_id)
@@ -67,6 +68,8 @@ async def list_issues(
         query["title"] = {"$regex": search, "$options": "i"}
     if parent_issue_id:
         query["parent_issue_id"] = ObjectId(parent_issue_id)
+    if epic_id:
+        query["epic_id"] = ObjectId(epic_id)
 
     docs = await col.find(query).sort([("status", 1), ("order", 1)]).to_list(None)
     await attach_linked_sr_info(docs)

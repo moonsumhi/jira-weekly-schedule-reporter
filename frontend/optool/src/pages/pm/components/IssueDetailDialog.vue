@@ -35,6 +35,13 @@
           <q-tab-panels v-model="tab" animated>
             <!-- ── 상세 탭 ── -->
             <q-tab-panel name="detail" class="q-pa-none">
+              <q-btn
+                v-if="parentIssueId"
+                flat dense no-caps icon="account_tree" color="primary" class="q-mb-sm"
+                :label="parentIssueLabel"
+                :loading="parentLoading"
+                @click="openParentIssue"
+              />
               <!-- 제목 -->
               <q-input
                 v-model="editTitle"
@@ -108,6 +115,16 @@
               </div>
 
               <!-- ── 하위 작업 (EPIC·SUB_TASK 제외) ── -->
+              <template v-if="localIssue?.type === 'EPIC'">
+                <q-separator class="q-mb-md" />
+                <div class="text-subtitle2 q-mb-sm">하위 작업 {{ epicTasks.length ? `(${epicTasks.length})` : '' }}</div>
+                <div v-if="epicTasks.length === 0" class="text-grey-6 text-caption q-mb-md">하위 작업이 없습니다.</div>
+                <div v-for="task in epicTasks" :key="task.id" class="row items-center q-px-sm q-py-xs sub-task-row cursor-pointer" @click="drillDown(task)">
+                  <q-icon :name="TYPE_ICON[task.type]" color="primary" class="q-mr-sm" />
+                  <span class="text-body2">{{ displayProjectKey }}-{{ task.number }} {{ task.title }}</span>
+                </div>
+              </template>
+
               <template v-if="localIssue && localIssue.type !== 'EPIC' && localIssue.type !== 'SUB_TASK'">
                 <q-separator class="q-mb-md" />
                 <div class="text-subtitle2 q-mb-sm">하위 작업 {{ subIssues.length ? `(${subIssues.length})` : '' }}</div>
@@ -564,7 +581,7 @@ const CommentAttachments = defineComponent({
 })
 import { Notify, Dialog } from 'quasar'
 import {
-  updateIssue, deleteIssue, listIssues, createIssue,
+  updateIssue, deleteIssue, listIssues, createIssue, getIssue,
   listComments, createComment, deleteComment, toggleCommentReaction,
   uploadAttachment,
   getIssueHistory, listLabels,
@@ -757,12 +774,28 @@ const pendingTaskType = ref(false)
 
 // 하위 작업
 const subIssues = ref<Issue[]>([])
+const epicTasks = ref<Issue[]>([])
 const addingSubTask = ref(false)
 const newSubTaskTitle = ref('')
+const parentLoading = ref(false)
 const subTaskLoading = ref(false)
 
 // 드릴다운 네비게이션 스택
 const issueStack = ref<Issue[]>([])
+const parentIssueId = computed(() => {
+  const issue = localIssue.value
+  if (issue?.type === 'SUB_TASK') return issue.parentIssueId
+  if (issue?.type === 'TASK') return issue.epicId
+  return null
+})
+const parentIssueLabel = computed(() => {
+  const issue = localIssue.value
+  if (!issue) return ''
+  if (issue.type === 'SUB_TASK') {
+    return `상위 작업: ${issue.parentIssueTitle || `${displayProjectKey.value}-${issue.parentIssueNumber ?? ''}`}`
+  }
+  return `상위 Epic: ${issue.epicTitle || `${displayProjectKey.value}-${issue.epicNumber ?? ''}`}`
+})
 
 const FIELD_LABEL: Record<string, string> = {
   title: '제목',
@@ -855,7 +888,8 @@ async function loadIssueContent(issue: Issue) {
   addingSubTask.value = false
   replyingTo.value = null
 
-  const [cmtsR, histR, subsR, spR, lblsR, memsR, epsR] = await Promise.allSettled([
+  epicTasks.value = []
+  const [cmtsR, histR, subsR, spR, lblsR, memsR, epsR, epicTasksR] = await Promise.allSettled([
     listComments(props.projectId, issue.id),
     getIssueHistory(props.projectId, issue.id),
     listIssues(props.projectId, { parent_issue_id: issue.id, type: 'SUB_TASK' }),
@@ -863,6 +897,7 @@ async function loadIssueContent(issue: Issue) {
     listLabels(props.projectId),
     listProjectMembers(props.projectId),
     listIssues(props.projectId, { type: 'EPIC' }),
+    issue.type === 'EPIC' ? listIssues(props.projectId, { epic_id: issue.id, type: 'TASK' }) : Promise.resolve([]),
   ])
   if (cmtsR.status === 'fulfilled') comments.value = cmtsR.value
   if (histR.status === 'fulfilled') history.value = histR.value
@@ -881,6 +916,7 @@ async function loadIssueContent(issue: Issue) {
   if (lblsR.status === 'fulfilled') labelsData.value = lblsR.value
   if (memsR.status === 'fulfilled') members.value = memsR.value
   if (epsR.status === 'fulfilled') epics.value = epsR.value
+  if (epicTasksR.status === 'fulfilled') epicTasks.value = epicTasksR.value
 }
 
 function drillDown(sub: Issue) {
@@ -888,6 +924,28 @@ function drillDown(sub: Issue) {
   issueStack.value.push({ ...localIssue.value })
   tab.value = 'detail'
   void loadIssueContent(sub)
+}
+
+async function openParentIssue() {
+  const child = localIssue.value
+  const targetId = parentIssueId.value
+  if (!child || !targetId || parentLoading.value) return
+  if (issueStack.value[issueStack.value.length - 1]?.id === targetId) {
+    goBack()
+    return
+  }
+  parentLoading.value = true
+  try {
+    const parent = await getIssue(props.projectId, targetId)
+    if (localIssue.value?.id !== child.id) return
+    issueStack.value.push({ ...child })
+    tab.value = 'detail'
+    await loadIssueContent(parent)
+  } catch (error) {
+    Notify.create({ type: 'negative', message: getErrorMessage(error, '상위 작업을 불러오지 못했습니다.') })
+  } finally {
+    parentLoading.value = false
+  }
 }
 
 function goBack() {
