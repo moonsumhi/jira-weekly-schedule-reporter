@@ -138,19 +138,18 @@
                   <template #item="{ element: sub }">
                     <div class="row items-center q-px-sm q-py-xs sub-task-row no-wrap">
                       <q-icon name="drag_indicator" class="drag-handle text-grey-4 q-mr-xs" size="16px" style="cursor:grab" />
-                      <q-checkbox
-                        :model-value="(sub as Issue).status === 'DONE'"
-                        dense
+                      <q-badge
+                        :color="STATUS_COLOR[(sub as Issue).status]"
+                        :label="STATUS_LABEL[(sub as Issue).status]"
                         class="q-mr-xs"
-                        @update:model-value="toggleSubTaskDone(sub as Issue)"
                       />
                       <span
                         class="text-body2 col ellipsis cursor-pointer"
                         :class="{ 'text-strike text-grey-5': (sub as Issue).status === 'DONE' }"
                         @click="drillDown(sub as Issue)"
                       >{{ (sub as Issue).title }}</span>
-                      <span v-if="(sub as Issue).startDate" class="text-caption text-grey-5 q-ml-sm" style="white-space:nowrap">
-                        {{ (sub as Issue).startDate!.slice(0, 10) }}
+                      <span class="text-caption text-grey-6 q-ml-sm" style="white-space:nowrap">
+                        {{ (sub as Issue).startDate?.slice(0, 10) || '-' }} ~ {{ (sub as Issue).dueDate?.slice(0, 10) || '-' }}
                       </span>
                       <q-avatar
                         v-if="(sub as Issue).assigneeName"
@@ -585,7 +584,7 @@ import {
   listComments, createComment, deleteComment, toggleCommentReaction,
   uploadAttachment,
   getIssueHistory, listLabels,
-  ISSUE_STATUSES, STATUS_LABEL,
+  ISSUE_STATUSES, STATUS_LABEL, STATUS_COLOR,
   TYPE_ICON,
   type Issue, type IssueStatus, type IssueType, type IssuePriority,
   type IssueComment, type IssueHistory, type Label, type Attachment,
@@ -960,17 +959,6 @@ function onSubTaskDragEnd() {
   subIssues.value.forEach((sub, idx) => {
     void updateIssue(props.projectId, sub.id, { order: idx })
   })
-}
-
-async function toggleSubTaskDone(sub: Issue) {
-  const newStatus = sub.status === 'DONE' ? 'TODO' : 'DONE'
-  try {
-    const updated = await updateIssue(props.projectId, sub.id, { status: newStatus })
-    const idx = subIssues.value.findIndex(s => s.id === sub.id)
-    if (idx !== -1) subIssues.value[idx] = updated
-  } catch (e) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, '상태 변경 실패') })
-  }
 }
 
 async function submitSubTask() {
