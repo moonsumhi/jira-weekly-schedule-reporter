@@ -94,12 +94,13 @@ import { DateTime } from 'luxon'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import type { CalendarOptions, EventInput, EventSourceFuncArg } from '@fullcalendar/core'
+import type { CalendarOptions, EventContentArg, EventInput, EventSourceFuncArg } from '@fullcalendar/core'
 import type FullCalendarComponent from '@fullcalendar/vue3'
 
 import IssueDetailDialog from './components/IssueDetailDialog.vue'
 import {
   getWorkStatus,
+  TYPE_ICON,
   type Issue,
 } from 'src/services/pm/issue'
 import { getErrorMessage } from 'src/utils/http/error'
@@ -130,6 +131,13 @@ function getAssigneeColor(assigneeId: string | null): string {
   return colorMap.get(assigneeId)!
 }
 
+function lightenSubTaskColor(color: string): string {
+  return `#${[1, 3, 5].map((offset) => {
+    const channel = Number.parseInt(color.slice(offset, offset + 2), 16)
+    return Math.round(channel + (255 - channel) * 0.18).toString(16).padStart(2, '0')
+  }).join('')}`
+}
+
 // ── 상태 ─────────────────────────────────────────────────────────────
 const calendarRef = ref<InstanceType<typeof FullCalendarComponent> | null>(null)
 const allIssues   = ref<Issue[]>([])
@@ -138,11 +146,15 @@ const selectedIds = ref(new Set<string>())
 const detailOpen  = ref(false)
 const detailIssue = ref<Issue | null>(null)
 
+function isWorkStatusIssue(issue: Issue): boolean {
+  return issue.type === 'TASK' || issue.type === 'SUB_TASK'
+}
+
 // ── 담당자 목록 (이슈 로드 후 자동 추출) ──────────────────────────────
 const allAssignees = computed(() => {
   const map = new Map<string, string>()
   for (const i of allIssues.value) {
-    if (i.assigneeId && i.assigneeName) map.set(i.assigneeId, i.assigneeName)
+    if (isWorkStatusIssue(i) && i.assigneeId && i.assigneeName) map.set(i.assigneeId, i.assigneeName)
   }
   return [...map.entries()].map(([id, name]) => ({ id, name }))
 })
@@ -166,6 +178,25 @@ function calendarIssueTitle(issue: Issue): string {
   return issue.title
 }
 
+const ISSUE_TYPE_LABEL: Partial<Record<Issue['type'], string>> = { TASK: 'Task', SUB_TASK: 'Sub-task' }
+
+function calendarEventContent(arg: EventContentArg): { domNodes: Node[] } {
+  const issue = (arg.event.extendedProps as { issue?: Issue }).issue
+  if (!issue) return { domNodes: [document.createTextNode(arg.event.title)] }
+
+  const content = document.createElement('span')
+  content.className = 'work-status-event-content'
+  const icon = document.createElement('i')
+  icon.className = TYPE_ICON[issue.type]
+  icon.setAttribute('role', 'img')
+  icon.setAttribute('aria-label', ISSUE_TYPE_LABEL[issue.type] ?? issue.type)
+  const title = document.createElement('span')
+  title.className = 'work-status-event-title'
+  title.textContent = arg.event.title
+  content.append(icon, title)
+  return { domNodes: [content] }
+}
+
 // ── 필터된 이벤트 ─────────────────────────────────────────────────────
 const filteredEvents = computed<EventInput[]>(() => {
   const base = selectedIds.value.size === 0
@@ -173,9 +204,10 @@ const filteredEvents = computed<EventInput[]>(() => {
     : allIssues.value.filter(i => i.assigneeId !== null && selectedIds.value.has(i.assigneeId))
 
   return base
-    .filter(i => (i.type === 'TASK' || i.type === 'SUB_TASK') && (i.dueDate ?? i.startDate))
+    .filter(i => isWorkStatusIssue(i) && (i.dueDate ?? i.startDate))
     .map(i => {
       const color = getAssigneeColor(i.assigneeId)
+      const eventColor = i.type === 'SUB_TASK' ? lightenSubTaskColor(color) : color
       const start = (i.startDate ?? i.dueDate)!.slice(0, 10)
       const rawEnd = i.dueDate ? i.dueDate.slice(0, 10) : null
       const end = rawEnd
@@ -187,8 +219,8 @@ const filteredEvents = computed<EventInput[]>(() => {
         start,
         ...(end && end !== start ? { end } : {}),
         allDay: true,
-        backgroundColor: color,
-        borderColor: color,
+        backgroundColor: eventColor,
+        borderColor: eventColor,
         extendedProps: { issue: i },
       }
     })
@@ -220,6 +252,10 @@ const calendarOptions = ref<CalendarOptions>({
   height: 'auto',
   dayMaxEvents: true,
   eventDisplay: 'block',
+  eventContent: calendarEventContent,
+  eventDidMount: (arg) => {
+    arg.el.title = arg.event.title
+  },
 
   events: (
     fetchInfo: EventSourceFuncArg,
@@ -274,3 +310,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => resizeObserver?.disconnect())
 </script>
+
+<style scoped>
+:deep(.work-status-event-content) { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; }
+:deep(.work-status-event-content i) { flex: none; width: 14px; font-size: 11px; text-align: center; }
+:deep(.work-status-event-title) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
