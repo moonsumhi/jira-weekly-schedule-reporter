@@ -123,9 +123,11 @@
             <q-td>
               <span class="text-primary text-weight-medium">{{ row.srNo }}</span>
             </q-td>
-            <q-td>
-              <div class="row items-center q-gutter-xs no-wrap">
-                <span>{{ formatTitle(row) }}</span>
+            <q-td class="sr-title-cell">
+              <div class="row items-center no-wrap sr-title-content">
+                <span class="sr-title-text">{{ formatTitle(row) }}
+                  <q-tooltip>{{ formatTitle(row) }}</q-tooltip>
+                </span>
                 <span v-if="row.commentCount > 0" class="text-primary text-weight-medium" style="font-size:0.85rem">
                   ({{ row.commentCount }})
                 </span>
@@ -969,6 +971,22 @@ watch(srProjectDialog, (open) => { if (open) void loadProjects() })
 
 :deep(.q-table thead th) {
   font-size: 13px;
+}
+
+.sr-title-cell {
+  width: 320px;
+  max-width: 320px;
+}
+.sr-title-content {
+  max-width: 100%;
+  gap: 4px;
+}
+.sr-title-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .editable-cell {
