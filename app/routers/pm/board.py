@@ -9,7 +9,7 @@ from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.pm.issue import IssueOut, ISSUE_STATUS_ORDER
 from app.routers.auth import get_current_user
-from app.services.pm.issue_service import enrich_issue
+from app.services.pm.issue_service import assignee_display_name, enrich_issue
 
 router = APIRouter()
 
@@ -43,10 +43,10 @@ async def get_board(
 
         # 담당자 이름 batch 조회
         assignee_ids = list({d["assignee_id"] for d in sub_docs if d.get("assignee_id")})
-        user_map: Dict[str, str] = {}
+        user_map: Dict[str, dict] = {}
         if assignee_ids:
             async for u in users_col.find({"_id": {"$in": assignee_ids}}, {"full_name": 1, "email": 1}):
-                user_map[str(u["_id"])] = u.get("full_name") or u.get("email", "")
+                user_map[str(u["_id"])] = u
 
         for d in sub_docs:
             parent_id = str(d["parent_issue_id"])
@@ -56,7 +56,7 @@ async def get_board(
                 "title": d["title"],
                 "status": d["status"],
                 "priority": d["priority"],
-                "assignee_name": user_map.get(str(d["assignee_id"])) if d.get("assignee_id") else None,
+                "assignee_name": assignee_display_name(d, user_map.get(str(d.get("assignee_id")))),
             })
 
     for issue in enriched:

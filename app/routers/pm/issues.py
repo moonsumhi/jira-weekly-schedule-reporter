@@ -17,7 +17,7 @@ from app.models.pm.issue import (
 )
 from app.routers.auth import get_current_user
 from app.services.pm.permission import get_issue_or_404, require_pm_member
-from app.services.pm.issue_service import attach_linked_sr_info, next_issue_number, record_history, enrich_issue
+from app.services.pm.issue_service import assignee_display_name, attach_linked_sr_info, next_issue_number, record_history, enrich_issue
 from app.services.notification_service import create_notification
 from app.services.mention_service import resolve_mentions, notify_mentions
 from app.models.mention import MentionedUser
@@ -244,7 +244,7 @@ async def patch_issue(
             return _TYPE_KO.get(str(val), str(val))
         if field == "assignee_id":
             u = await users_col.find_one({"_id": val if isinstance(val, ObjectId) else ObjectId(str(val))}, {"full_name": 1, "email": 1})
-            return (u.get("full_name") or u.get("email", str(val))) if u else str(val)
+            return assignee_display_name(old if str(val) == str(old.get("assignee_id")) else new_doc, u)
         if field == "sprint_id":
             s = await sprints_col.find_one({"_id": val if isinstance(val, ObjectId) else ObjectId(str(val))}, {"name": 1})
             return s.get("name", str(val)) if s else str(val)
@@ -632,7 +632,7 @@ async def get_issue_history(
             id=str(d["_id"]),
             issue_id=str(d["issue_id"]),
             user_id=str(d["user_id"]),
-            user_name=user.get("full_name") or user.get("email", "") if user else "",
+            user_name=(user.get("full_name") or user.get("email", "")) if user else d.get("user_name", ""),
             field=d["field"],
             old_value=d.get("old_value"),
             new_value=d.get("new_value"),

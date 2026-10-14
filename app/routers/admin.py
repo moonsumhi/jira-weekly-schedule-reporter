@@ -263,7 +263,7 @@ async def unblock_user(user_id: str, admin: UserPublic = Depends(require_admin))
 async def delete_user(user_id: str, admin: UserPublic = Depends(require_admin)):
     """회원 삭제 (퇴사 등). 사용자 계정과 PM 조직·프로젝트 멤버십을 제거한다.
 
-    SR·이슈 등 과거 기록은 이름 스냅샷(requester_name/assignee_name)으로 남으므로 보존된다.
+    담당 SR·이슈에는 삭제된 회원의 이름을 남기고 변경 이력을 기록한다.
     """
     users = MongoClientManager.get_users_collection()
     _id = parse_oid(user_id, "잘못된 사용자 ID입니다.")
@@ -274,6 +274,39 @@ async def delete_user(user_id: str, admin: UserPublic = Depends(require_admin)):
         raise HTTPException(status_code=400, detail="본인 계정은 삭제할 수 없습니다.")
     if bool(doc.get("is_admin", False)):
         raise HTTPException(status_code=400, detail="관리자 계정은 삭제할 수 없습니다.")
+
+    from app.services.pm.issue_service import record_history
+    from app.services.sr.sr_service import record_sr_history
+
+    deleted_name = doc.get("full_name") or doc["email"]
+    actor_name = admin.full_name or admin.email
+    issues = MongoClientManager.get_pm_issues_collection()
+    async for issue in issues.find({"assignee_id": _id}, {"_id": 1}):
+        old_name = deleted_name
+        result = await issues.update_one(
+            {"_id": issue["_id"], "assignee_id": _id},
+            {"$set": {"assignee_name_snapshot": old_name}},
+        )
+        if result.matched_count:
+            await record_history(issue["_id"], parse_oid(admin.id), "assignee_id",
+                                 old_name, f"{old_name} (삭제된 회원)")
+
+    srs = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    async for sr in srs.find({"assignee_id": _id}, {"_id": 1, "assignee_name": 1}):
+        old_name = sr.get("assignee_name") or deleted_name
+        archived_name = f"{old_name} (삭제된 회원)"
+        result = await srs.update_one(
+            {"_id": sr["_id"], "assignee_id": _id},
+            {"$set": {"assignee_name": archived_name}},
+        )
+        if result.matched_count:
+            await record_sr_history(str(sr["_id"]), "ASSIGNEE_CHANGE",
+                                    old_name, archived_name, actor_name)
+
+    await MongoClientManager.get_pm_issue_history_collection().update_many(
+        {"user_id": _id, "user_name": {"$exists": False}},
+        {"$set": {"user_name": deleted_name}},
+    )
 
     # PM 조직·프로젝트 멤버십 정리
     await MongoClientManager.get_pm_org_members_collection().delete_many({"user_id": _id})

@@ -247,7 +247,7 @@
                   <div class="row justify-end q-mt-sm q-gutter-xs">
                     <q-btn flat dense size="sm" label="취소" v-close-popup />
                     <q-btn unelevated dense size="sm" color="primary" label="저장"
-                      v-close-popup :disable="!assigneeInput"
+                      v-close-popup :disable="!assigneeInput || !pmUsers.some(user => user.id === assigneeInput)"
                       @click="saveAssignee(row)" />
                   </div>
                 </q-card>
@@ -495,6 +495,7 @@ const currentSrDefault = computed(() => {
 const changingStatusId  = ref<string | null>(null)
 const bulkChanging      = ref(false)
 const filteredPmUsers   = ref<PmUser[]>([])
+const archivedAssignee  = ref<PmUser | null>(null)
 const filteredRequesterUsers = ref<PmUser[]>([])
 const dateInput         = ref('')
 const assigneeInput     = ref<string | null>(null)
@@ -754,17 +755,21 @@ async function savePlannedDueDate(row: SRListItem) {
 
 function openAssigneePopup(row: SRListItem) {
   assigneeInput.value   = row.assigneeId ?? null
-  filteredPmUsers.value = pmUsers.value
+  archivedAssignee.value = row.assigneeId && !pmUsers.value.some(user => user.id === row.assigneeId)
+    ? { id: row.assigneeId, name: row.assigneeName || '삭제된 회원', email: '' }
+    : null
+  filteredPmUsers.value = archivedAssignee.value ? [archivedAssignee.value, ...pmUsers.value] : pmUsers.value
 }
 
 function filterUsers(val: string, update: (fn: () => void) => void) {
   update(() => {
     const q = val.toLowerCase()
+    const options = archivedAssignee.value ? [archivedAssignee.value, ...pmUsers.value] : pmUsers.value
     filteredPmUsers.value = q
-      ? pmUsers.value.filter(u =>
+      ? options.filter(u =>
           (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q),
         )
-      : pmUsers.value
+      : options
   })
 }
 

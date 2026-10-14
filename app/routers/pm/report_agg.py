@@ -7,6 +7,7 @@ from typing import Optional
 from bson import ObjectId
 
 from app.db.mongo import MongoClientManager
+from app.services.pm.issue_service import assignee_display_name
 from app.models.pm.reports import (
     PersonBreakdown, ProjectBreakdown, ReportStats, WorkItem,
 )
@@ -124,7 +125,7 @@ async def aggregate_period(
             project_name=proj["name"],
             org_name=org["name"] if org else None,
             assignee_id=str(doc["assignee_id"]) if doc.get("assignee_id") else None,
-            assignee_name=(user.get("full_name") or user.get("email")) if user else None,
+            assignee_name=assignee_display_name(doc, user),
             status=status,
             priority=doc.get("priority", "MEDIUM"),
             epic_title=epic["title"] if epic else None,
