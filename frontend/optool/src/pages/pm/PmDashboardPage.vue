@@ -79,12 +79,12 @@
               <div
                 v-else
                 class="issue-table-row row items-center q-px-md q-py-sm cursor-pointer"
-                :class="`hierarchy-level-${row.level}`"
+                :class="[`hierarchy-level-${row.level}`, { 'subtask-row': row.issue.type === 'SUB_TASK' }]"
                 @click="openDetail(row.issue)"
               >
               <div class="ic-icon">
                 <q-icon v-if="row.level > 0" name="subdirectory_arrow_right" color="grey-5" size="16px" />
-                <q-icon v-else :name="TYPE_ICON[row.issue.type]" :color="TYPE_COLOR[row.issue.type]" size="xs" />
+                <q-icon :name="TYPE_ICON[row.issue.type]" :color="TYPE_COLOR[row.issue.type]" size="xs" />
               </div>
               <div class="ic-key">
                 <span class="text-caption text-primary text-weight-medium">
@@ -517,7 +517,8 @@ onMounted(load)
 }
 
 /* 고정폭 컬럼 */
-.ic-icon     { width: 28px;  flex-shrink: 0; }
+.ic-icon     { width: 52px;  flex-shrink: 0; display: flex; align-items: center; gap: 2px; }
+.subtask-row .ic-icon { width: 57px; }
 .ic-key      { width: 96px;  flex-shrink: 0; padding-right: 8px; }
 .ic-title    { flex: 1;      min-width: 0;   padding-right: 12px; }
 .ic-priority { width: 72px;  flex-shrink: 0; }
