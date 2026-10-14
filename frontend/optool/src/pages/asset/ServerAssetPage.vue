@@ -2187,7 +2187,10 @@
               v-for="h in detailHistory" :key="h.id"
               :title="h.action" :subtitle="fmtHistoryDate(h.changedAt)"
             >
-              <div v-if="h.diff && h.diff.length" class="text-caption">
+              <div v-if="h.action === 'CREATE'" class="text-caption">
+                생성자: {{ h.changedBy || detailTarget.createdBy || '확인 불가' }}
+              </div>
+              <div v-else-if="h.diff && h.diff.length" class="text-caption">
                 <div v-for="(d, i) in h.diff" :key="i">{{ d.path }}: {{ displayValue(d.before) }} → {{ displayValue(d.after) }}</div>
               </div>
             </q-timeline-entry>
