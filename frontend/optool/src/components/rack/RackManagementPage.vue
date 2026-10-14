@@ -18,7 +18,7 @@
           <template #append>
             <q-icon v-if="searchQ" name="close" class="cursor-pointer" @click="clearSearch" />
           </template>
-          <q-menu v-model="searchMenu" fit no-focus no-parent-event anchor="bottom left" self="top left" max-height="360px">
+          <q-menu v-model="searchMenu" fit no-focus no-refocus no-parent-event anchor="bottom left" self="top left" max-height="360px">
             <q-list style="min-width: 340px">
               <q-item
                 v-for="r in searchResults"
@@ -230,28 +230,32 @@
             <q-btn flat dense size="sm" round icon="close" @click="pendingAsset = null" />
           </div>
           <q-scroll-area style="height: 240px">
-            <q-list dense>
-              <q-item
-                v-for="a in unplaced"
-                :key="`${a.assetCategory}-${a.assetId}`"
-                clickable
-                :active="pendingAsset?.assetId === a.assetId"
-                active-class="rk-pending-active"
-                @click="selectPending(a)"
-              >
-                <q-item-section avatar>
-                  <span class="rk-unplaced-dot" :style="{ background: catColor(a.assetCategory) }" />
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label class="ellipsis">{{ a.name }}</q-item-label>
-                  <q-item-label caption>{{ a.assetCategory }} · {{ a.ip || 'IP 없음' }}</q-item-label>
-                </q-item-section>
-                <q-item-section side><q-icon name="add_location_alt" size="18px" color="blue-grey-4" /></q-item-section>
-              </q-item>
-              <div v-if="!unplaced.length" class="rk-empty rk-empty--sm">
-                <q-icon name="check_circle" size="24px" color="green-3" /><div>모든 자산이 배치되었습니다.</div>
-              </div>
-            </q-list>
+            <div ref="unplacedList">
+              <q-list dense>
+                <q-item
+                  v-for="a in unplaced"
+                  :key="`${a.assetCategory}-${a.assetId}`"
+                  clickable
+                  :data-unplaced-id="a.assetId"
+                  :data-unplaced-category="a.assetCategory"
+                  :active="pendingAsset?.assetId === a.assetId && pendingAsset?.assetCategory === a.assetCategory"
+                  active-class="rk-pending-active"
+                  @click="selectPending(a)"
+                >
+                  <q-item-section avatar>
+                    <span class="rk-unplaced-dot" :style="{ background: catColor(a.assetCategory) }" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="ellipsis">{{ a.name }}</q-item-label>
+                    <q-item-label caption>{{ a.assetCategory }} · {{ a.ip || 'IP 없음' }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side><q-icon name="add_location_alt" size="18px" color="blue-grey-4" /></q-item-section>
+                </q-item>
+                <div v-if="!unplaced.length" class="rk-empty rk-empty--sm">
+                  <q-icon name="check_circle" size="24px" color="green-3" /><div>모든 자산이 배치되었습니다.</div>
+                </div>
+              </q-list>
+            </div>
           </q-scroll-area>
         </q-card>
       </div>
@@ -421,7 +425,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'stores/auth'
@@ -461,6 +465,7 @@ const searchResults = ref<AssetSearchResult[]>([])
 const searchMenu = ref(false)
 
 const unplaced = ref<UnplacedAsset[]>([])
+const unplacedList = ref<HTMLElement | null>(null)
 const pendingAsset = ref<UnplacedAsset | null>(null)
 
 const dialogOpen = ref(false)
@@ -667,7 +672,30 @@ function clearSearch() {
 }
 
 async function goToResult(r: AssetSearchResult) {
-  if (!r.placement) { $q.notify({ type: 'info', message: '미배치 자산입니다.' }); return }
+  searchMenu.value = false
+  if (!r.placement) {
+    try {
+      await loadUnplaced()
+      const found = unplaced.value.find((a) => a.assetId === r.assetId && a.assetCategory === r.assetCategory)
+      if (!found) {
+        $q.notify({ type: 'info', message: '현재 배치 가능한 미배치 자산 목록에 없습니다. 배치 상태를 다시 확인하세요.' })
+        return
+      }
+      cancelRackEdit()
+      selectedAsset.value = null
+      highlightAssetId.value = null
+      selectPending(found)
+      await nextTick()
+      const item = Array.from(unplacedList.value?.querySelectorAll<HTMLElement>('[data-unplaced-id]') ?? [])
+        .find((element) => element.dataset.unplacedId === found.assetId && element.dataset.unplacedCategory === found.assetCategory)
+      item?.focus({ preventScroll: true })
+      item?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+    } catch (e) {
+      $q.notify({ type: 'negative', message: apiErr(e, '미배치 자산 목록을 불러오지 못했습니다.') })
+    }
+    return
+  }
+  pendingAsset.value = null
   await selectRack(r.placement.rackId)
   highlightAssetId.value = r.assetId
   const found = layout.value?.placements.find((p) => p.assetId === r.assetId)
