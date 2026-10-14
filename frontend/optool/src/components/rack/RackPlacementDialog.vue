@@ -167,7 +167,7 @@ watch(
       : null
     assetOptions.value = []
     allUnplaced.value = []
-    // 배치 모드에서 자산을 직접 골라야 하면 미배치 목록(서버·네트워크·정보보호시스템)을 로드
+    // 배치 모드에서 자산을 직접 골라야 하면 서버에서 배치 가능한 미배치 자산 목록을 로드
     if (props.mode === 'place' && !props.presetAsset) {
       searching.value = true
       listUnplacedAssets()

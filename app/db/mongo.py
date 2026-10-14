@@ -41,15 +41,15 @@ class MongoClientManager:
     }
 
     # 카테고리별 랙 배치 성격. placement_mode:
-    #   RACK_U   — 물리적으로 랙 U를 직접 점유(서버·네트워크·정보보호시스템)
+    #   RACK_U   — 물리적으로 랙 U를 직접 점유(서버·네트워크·정보보호시스템·VMware)
     #   ROOM     — 서버실 단위 배치(랙 자신)
-    #   VIA_HOST — 논리 자산이라 호스트 물리서버 위치를 따름(DBMS·VMware)
+    #   VIA_HOST — 논리 자산이라 호스트 물리서버 위치를 따름(DBMS)
     ASSET_CATEGORY_CONFIG: dict = {
         "서버":         {"placement_mode": "RACK_U",   "default_u_height": 2},
         "네트워크":     {"placement_mode": "RACK_U",   "default_u_height": 1},
         "정보보호시스템": {"placement_mode": "RACK_U",   "default_u_height": 1},
         "DBMS":        {"placement_mode": "VIA_HOST"},
-        "VMware":      {"placement_mode": "VIA_HOST"},
+        "VMware":      {"placement_mode": "RACK_U",   "default_u_height": 2},
         "랙":          {"placement_mode": "ROOM"},
     }
     PILOT_POLL_STATE = "pilot_poll_state"

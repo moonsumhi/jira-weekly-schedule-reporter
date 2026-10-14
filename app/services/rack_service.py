@@ -200,7 +200,11 @@ async def search_assets(q: str) -> List[dict]:
 
 # ── 미배치 자산 ──────────────────────────────────────────────────────────────
 
-_PLACEABLE_CATEGORIES = ["서버", "네트워크", "정보보호시스템"]
+# 실제 배치 API와 동일한 설정을 사용해 목록과 배치 허용 여부가 어긋나지 않도록 한다.
+_PLACEABLE_CATEGORIES = [
+    category for category, config in MongoClientManager.ASSET_CATEGORY_CONFIG.items()
+    if config.get("placement_mode") == "RACK_U"
+]
 
 
 async def list_unplaced_assets(category: Optional[str] = None) -> List[dict]:
