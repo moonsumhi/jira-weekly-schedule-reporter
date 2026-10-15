@@ -6,4 +6,5 @@ WORKDIR /app
 COPY frontend/optool/ .
 
 RUN npm install -g @quasar/cli
-RUN npm install --legacy-peer-deps
+RUN ESBUILD_BINARY_PATH="/app/node_modules/@esbuild/linux-$(node -p 'process.arch')/bin/esbuild" \
+    npm install --legacy-peer-deps

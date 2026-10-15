@@ -181,6 +181,27 @@ async def register(issue, month, assets, common, user, work_plans=None):
     await mutate(str(issue['_id']), str(issue['project_id']), change)
 
 
+async def register_recurring(issue):
+    """생성 당시 포함 설정을 보존하며 재시도해도 기존 점검 상태를 변경하지 않는다."""
+    if not issue.get('include_in_inspection'):
+        return
+    month = issue['occurrence_date'][:7]
+    snapshot = await issue_snapshot(issue)
+
+    def change(items):
+        if any(o['month'] == month for o in items):
+            return
+        item = {'month': month, 'assets': [], 'common': True, 'state': 'ACTIVE',
+                'issue_snapshot': snapshot, 'reason': '',
+                'created_by': str(issue['reporter_id']) if issue.get('reporter_id') else None,
+                'created_at': datetime.now(timezone.utc), 'history': []}
+        if issue['status'] == 'DONE':
+            item['completed_snapshot'] = snapshot
+        items.append(item)
+
+    await mutate(str(issue['_id']), str(issue['project_id']), change)
+
+
 async def list_tasks(user, month, include_overdue=True, issue_id=None, asset_id=None, all_months=False, work_plan_id=None, work_result_id=None):
     projects = await accessible_projects(user)
     query = project_scope(projects)

@@ -16,6 +16,7 @@ from bson import ObjectId
 from app.db.mongo import MongoClientManager
 from app.services.pm.issue_service import next_issue_number
 from app.utils.time import KST
+from app.services.inspection_service import register_recurring
 
 
 def _col():
@@ -152,13 +153,16 @@ async def _create_issue_from_occurrence(
         "order": float(number),
         # 반복 메타 (중복 방지 + 시리즈 묶음)
         "recurring_template_id": template["_id"],
+        "include_in_inspection": template.get("include_in_inspection", False),
         "occurrence_date": occ["occurrence_date"],
         "round_label": occ["round_label"],
         "created_at": now,
         "updated_at": now,
     }
     res = await _issues_col().insert_one(doc)
-    return await _issues_col().find_one({"_id": res.inserted_id})
+    issue = await _issues_col().find_one({"_id": res.inserted_id})
+    await register_recurring(issue)
+    return issue
 
 
 async def generate_month(
@@ -170,6 +174,7 @@ async def generate_month(
     for occ in compute_occurrences(template, year, month):
         existing = await _existing_issue(template["_id"], occ["occurrence_date"])
         if existing:
+            await register_recurring(existing)
             skipped.append({**_occ_summary(occ), "issue_id": str(existing["_id"]), "already_exists": True})
             continue
         issue = await _create_issue_from_occurrence(template, occ)
@@ -196,7 +201,9 @@ async def generate_due(template: dict, today: datetime) -> List[dict]:
             occ_d = occ["occurrence_dt"].astimezone(KST).date()
             create_from = occ_d - timedelta(days=lead)
             if create_from <= today_d <= occ_d:  # lead 창 안
-                if await _existing_issue(template["_id"], occ["occurrence_date"]):
+                existing = await _existing_issue(template["_id"], occ["occurrence_date"])
+                if existing:
+                    await register_recurring(existing)
                     continue
                 issue = await _create_issue_from_occurrence(template, occ)
                 created.append({**_occ_summary(occ), "issue_id": str(issue["_id"])})
