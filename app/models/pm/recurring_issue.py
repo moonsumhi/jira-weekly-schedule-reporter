@@ -86,6 +86,7 @@ class RecurringIssueTemplateBase(BaseModel):
     rule: RecurrenceRule
     lead_days: int = Field(default=0, ge=0, le=60, description="작업일 며칠 전에 미리 생성(0=당일)")
     auto_enabled: bool = Field(default=True, description="배경 스케줄러 자동 생성 on/off")
+    include_in_inspection: bool = False
     active: bool = True
 
 
@@ -99,6 +100,7 @@ class RecurringIssueTemplatePatch(BaseModel):
     rule: Optional[RecurrenceRule] = None
     lead_days: Optional[int] = Field(default=None, ge=0, le=60)
     auto_enabled: Optional[bool] = None
+    include_in_inspection: Optional[bool] = None
     active: Optional[bool] = None
 
 

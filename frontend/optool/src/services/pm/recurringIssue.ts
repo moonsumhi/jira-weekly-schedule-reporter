@@ -31,6 +31,7 @@ export type RecurringIssueTemplate = {
   blueprint: IssueBlueprint
   rule: RecurrenceRule
   leadDays: number
+  includeInInspection: boolean
   autoEnabled: boolean
   active: boolean
   createdAt?: string
@@ -75,6 +76,7 @@ export type TemplatePayload = {
     time: string
   }
   lead_days: number
+  include_in_inspection: boolean
   auto_enabled: boolean
   active: boolean
 }
