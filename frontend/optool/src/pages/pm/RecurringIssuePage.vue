@@ -60,6 +60,7 @@
             <q-badge :color="props.row.autoEnabled ? 'primary' : 'grey-5'" outline>
               {{ props.row.autoEnabled ? '자동' : '수동만' }}
             </q-badge>
+            <q-badge v-if="props.row.includeInInspection" color="teal" outline class="q-ml-xs">서버 점검 포함</q-badge>
           </q-td>
         </template>
 
@@ -192,6 +193,14 @@
           <!-- 옵션 -->
           <div class="section-label q-mb-sm">옵션</div>
           <div class="column q-gutter-y-md">
+            <div>
+              <q-toggle v-model="form.includeInInspection" color="teal"
+                label="해당 월 서버 점검에 포함" />
+              <div class="text-caption text-grey-6 q-ml-md">
+                이후 생성되는 회차를 회차일이 속한 달의 공통 점검 작업으로 등록합니다.
+                기존 회차의 포함 여부는 서버 점검에서 변경할 수 있습니다.
+              </div>
+            </div>
             <q-toggle v-model="form.autoEnabled" color="primary"
               label="자동 생성 (매일 스케줄러가 도래한 회차를 자동으로 만듭니다)" />
             <q-toggle v-model="form.active" color="positive"
@@ -226,6 +235,9 @@
               outlined dense class="col" @update:model-value="loadPreview" />
           </div>
 
+          <div v-if="genTarget?.includeInInspection" class="text-caption text-teal q-mt-sm">
+            새 회차는 선택한 월의 서버 점검에 공통 작업으로 포함됩니다.
+          </div>
           <!-- 미리보기 -->
           <div class="row items-center q-mt-md q-mb-sm">
             <div class="section-label">회차 미리보기</div>
@@ -389,6 +401,7 @@ type FormState = {
   weekdaysSel: number[]
   time: string
   leadDays: number
+  includeInInspection: boolean
   autoEnabled: boolean
   active: boolean
 }
@@ -408,6 +421,7 @@ const form = ref<FormState>({
   weekdaysSel: [],
   time: '09:00',
   leadDays: 0,
+  includeInInspection: false,
   autoEnabled: true,
   active: true,
 })
@@ -418,7 +432,7 @@ function resetForm() {
     assigneeId: null, description: '', showOnDashboard: false,
     mode: 'day_of_month', daysOfMonth: [],
     weeks: [], weekdaysSel: [], time: '09:00',
-    leadDays: 0, autoEnabled: true, active: true,
+    leadDays: 0, includeInInspection: false, autoEnabled: true, active: true,
   }
 }
 
@@ -466,6 +480,7 @@ async function openEdit(row: RecurringIssueTemplate) {
     weekdaysSel: [...new Set((row.rule.weekdays ?? []).map(w => w.weekday))],
     time: row.rule.time,
     leadDays: row.leadDays,
+    includeInInspection: row.includeInInspection ?? false,
     autoEnabled: row.autoEnabled,
     active: row.active,
   }
@@ -499,6 +514,7 @@ function buildPayload(): TemplatePayload {
       time: form.value.time,
     },
     lead_days: form.value.leadDays || 0,
+    include_in_inspection: form.value.includeInInspection,
     auto_enabled: form.value.autoEnabled,
     active: form.value.active,
   }
@@ -533,6 +549,7 @@ async function save() {
         blueprint: payload.blueprint,
         rule: payload.rule,
         lead_days: payload.lead_days,
+        include_in_inspection: payload.include_in_inspection,
         auto_enabled: payload.auto_enabled,
         active: payload.active,
       })
