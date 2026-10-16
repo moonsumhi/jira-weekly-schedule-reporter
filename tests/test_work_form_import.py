@@ -3,6 +3,111 @@ from app.services.work_form_import import map_document, EXTRA
 
 
 class OriginalFormImportTests(unittest.TestCase):
+    def test_work_target_ip_and_hostname_line_breaks_expand_into_paired_rows(self):
+        sections = [{
+            'title': '작업 대상', 'multiple': True,
+            'fields': [
+                {'label': '작업 대상', 'type': 'text'},
+                {'label': 'IP', 'type': 'text'},
+                {'label': 'HOSTNAME', 'type': 'text'},
+                {'label': '비고', 'type': 'text'},
+            ],
+        }]
+        markdown = '''## 작업 대상
+
+| No. | 작업 대상 | IP | HOSTNAME | 비고 |
+| --- | --- | --- | --- | --- |
+| 1 | 암모니터링 포털 서비스 | 172.20.199.33<br>172.20.199.50 | ncdccrdwwas1<br>ncdccrdwwas2 | |'''
+
+        data, warnings = map_document(markdown, sections)
+
+        self.assertEqual(data['작업 대상'], [
+            {
+                '작업 대상': '암모니터링 포털 서비스',
+                'IP': '172.20.199.33',
+                'HOSTNAME': 'ncdccrdwwas1',
+                '비고': '',
+            },
+            {
+                '작업 대상': '암모니터링 포털 서비스',
+                'IP': '172.20.199.50',
+                'HOSTNAME': 'ncdccrdwwas2',
+                '비고': '',
+            },
+        ])
+        self.assertFalse(warnings)
+
+    def test_work_content_toc_heading_does_not_split_development_details(self):
+        sections = [
+            {
+                'title': '개발 내용', 'multiple': True,
+                'fields': [
+                    {'label': '제목', 'type': 'text'},
+                    {'label': '리스크', 'type': 'text'},
+                    {'label': '세부 작업 내용', 'type': 'textarea'},
+                ],
+            },
+            {
+                'title': '작업 시간표', 'multiple': True,
+                'fields': [
+                    {'label': '작업 시작 시간', 'type': 'text'},
+                    {'label': '작업 종료 시간', 'type': 'text'},
+                ],
+            },
+        ]
+        markdown = '''## 개발 내용
+
+### 1번째 항목
+
+| No. | 제목 | 리스크 |
+| --- | --- | --- |
+| 1 | 접근성 개선 | 중 |
+
+#### 세부 작업 내용
+
+작업 범위: JSP 및 Java 파일 수정
+
+## 작업 내용 목차
+
+| 작업 항목 | 상세 내용 |
+| --- | --- |
+| 키보드 사용 보장 | 탭 이동으로 메뉴 사용 가능 |
+
+상세 조치 내역
+
+![사진](/api/uploads/work_documents/images/example.png)
+
+## 변경 전
+
+![사진](/api/uploads/work_documents/images/before.png)
+
+## 변경 후
+
+![사진](/api/uploads/work_documents/images/after.png)
+
+## 세부 작업 절차
+
+| No. | 작업 시작 시간 | 작업 종료 시간 |
+| --- | --- | --- |
+| 1 | 17:00 | 17:10 |'''
+
+        data, warnings = map_document(markdown, sections)
+
+        row = data['개발 내용'][0]
+        details = row['세부 작업 내용']
+        self.assertIn('작업 범위', details)
+        self.assertIn('작업 내용 목차', details)
+        self.assertIn('키보드 사용 보장', details)
+        self.assertIn('상세 조치 내역', details)
+        self.assertIn('![사진]', details)
+        self.assertIn('변경 전', details)
+        self.assertIn('before.png', details)
+        self.assertIn('변경 후', details)
+        self.assertIn('after.png', details)
+        self.assertEqual(row['세부 작업 내용__format'], 'markdown')
+        self.assertFalse(warnings)
+        self.assertNotIn(EXTRA, data)
+
     def test_plan_test_case_id_maps_from_operational_section(self):
         sections = [{
             'title': '테스트 케이스', 'multiple': True,
@@ -193,6 +298,102 @@ class OriginalFormImportTests(unittest.TestCase):
         self.assertEqual(data['검토/서명'][0]['성함'], '홍길동')
         self.assertNotIn(EXTRA, data)
         self.assertFalse(warnings)
+
+    def test_merged_result_title_and_escaped_test_section_map_separately(self):
+        sections = [
+            {
+                'title': '작업 결과', 'multiple': True,
+                'fields': [
+                    {'label': '작업 전', 'type': 'textarea'},
+                    {'label': '작업 후', 'type': 'textarea'},
+                ],
+            },
+            {
+                'title': '테스트 케이스', 'multiple': True,
+                'fields': [
+                    {'label': '테스트 케이스 ID', 'type': 'text'},
+                    {'label': '결과', 'type': 'select', 'options': ['성공', '실패']},
+                    {'label': '시간', 'type': 'text'},
+                    {'label': '발견된 이슈', 'type': 'text'},
+                    {'label': '담당자', 'type': 'text'},
+                ],
+            },
+        ]
+        markdown = r'''## 작업 결과
+
+<table>
+<tr><td colspan="2"><strong>작업 결과</strong></td></tr>
+<tr><td><strong>작업 전</strong></td><td><strong>작업 후</strong></td></tr>
+<tr><td>적용 전 내용</td><td>적용 후 내용</td></tr>
+</table>
+
+\[테스트 결과\]
+
+| 테스트 케이스 ID | 결과 | 시간 | 발견된 이슈 | 담당자 |
+| --- | --- | --- | --- | --- |
+| 1 | 성공 | 2026-10-07 17:40 | 없음 | 김태현 |
+| 2 | 성공 | 2026-10-07 17:40 | 없음 | 김태현 |'''
+
+        data, warnings = map_document(markdown, sections)
+
+        self.assertEqual(len(data['작업 결과']), 1)
+        self.assertEqual(data['작업 결과'][0]['작업 전'], '적용 전 내용')
+        self.assertEqual(data['작업 결과'][0]['작업 후'], '적용 후 내용')
+        self.assertEqual([row['테스트 케이스 ID'] for row in data['테스트 케이스']], ['1', '2'])
+        self.assertEqual([row['결과'] for row in data['테스트 케이스']], ['성공', '성공'])
+        self.assertNotIn(EXTRA, data)
+        self.assertFalse(warnings)
+
+    def test_adjacent_result_and_test_tables_split_by_header_without_spacing(self):
+        sections = [
+            {
+                'title': '작업 결과', 'multiple': True,
+                'fields': [
+                    {'label': '작업 전', 'type': 'textarea'},
+                    {'label': '작업 후', 'type': 'textarea'},
+                ],
+            },
+            {
+                'title': '테스트 케이스', 'multiple': True,
+                'fields': [
+                    {'label': '테스트 케이스 ID', 'type': 'text'},
+                    {'label': '결과', 'type': 'select', 'options': ['성공', '실패']},
+                    {'label': '시간', 'type': 'text'},
+                    {'label': '발견된 이슈', 'type': 'text'},
+                    {'label': '담당자', 'type': 'text'},
+                ],
+            },
+        ]
+        result_rows = '''<tr><td colspan="2">작업 결과</td></tr>
+<tr><td>작업 전</td><td>작업 후</td></tr>
+<tr><td>변경 전 상태</td><td>변경 후 상태</td></tr>'''
+        test_rows = '''<tr><th>테스트 케이스 ID</th><th>결과</th><th>시간</th><th>발견된 이슈</th><th>담당자</th></tr>
+<tr><td>TC-01</td><td>성공</td><td>10:30</td><td>없음</td><td>김담당</td></tr>'''
+        fixtures = {
+            'same_table': f'''## 작업 결과
+<table>
+{result_rows}
+{test_rows}
+</table>''',
+            'touching_tables': f'''## 작업 결과
+<table>
+{result_rows}
+</table><table>
+{test_rows}
+</table>''',
+        }
+
+        for fixture_name, markdown in fixtures.items():
+            with self.subTest(fixture=fixture_name):
+                data, warnings = map_document(markdown, sections)
+
+                self.assertEqual(data['작업 결과'][0]['작업 전'], '변경 전 상태')
+                self.assertEqual(data['작업 결과'][0]['작업 후'], '변경 후 상태')
+                self.assertEqual(data['테스트 케이스'][0]['테스트 케이스 ID'], 'TC-01')
+                self.assertEqual(data['테스트 케이스'][0]['결과'], '성공')
+                self.assertEqual(data['테스트 케이스'][0]['시간'], '10:30')
+                self.assertNotIn(EXTRA, data)
+                self.assertFalse(warnings)
 
     def test_result_time_and_work_period_map_to_current_result_template_fields(self):
         sections = [
