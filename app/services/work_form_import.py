@@ -2,6 +2,7 @@
 import re
 import unicodedata
 import logging
+from copy import deepcopy
 from lxml import html
 from markdown_it import MarkdownIt
 from app.services.work_documents import html_markdown
@@ -828,14 +829,97 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
     blocks = []
     title, nodes = '', []
     for node in root:
-        if node.tag == 'h2':
+        section_marker = (
+            re.fullmatch(r'\[([^\[\]\n]+)\]', ''.join(node.itertext()).strip())
+            if node.tag == 'p'
+            else None
+        )
+        if node.tag == 'h2' or section_marker:
+            heading_title = ''.join(node.itertext()).strip() if node.tag == 'h2' else ''
+            # HWP content headings inside 개발 내용 are not template sections.
+            # In particular, "변경 전/후" introduce screenshots for the same
+            # detail field and must not be sent to 가져온 추가 내용.
+            if (
+                node.tag == 'h2'
+                and norm(title) == norm('개발 내용')
+                and norm(heading_title) in {'작업내용목차', '변경전', '변경후'}
+            ):
+                nodes.append(node)
+                continue
             if nodes:
                 blocks.append((title, nodes))
-            title, nodes = ''.join(node.itertext()), []
+            title = heading_title if node.tag == 'h2' else section_marker.group(1)
+            nodes = []
         else:
             nodes.append(node)
     if nodes:
         blocks.append((title, nodes))
+
+    def is_test_section(title: str) -> bool:
+        key = norm(title)
+        return key.startswith(('테스트계획', '테스트케이스', '테스트결과'))
+
+    def result_table_rows(table):
+        return [
+            [re.sub(r'\s+', ' ', text_with_checkbox(cell).replace('\xa0', ' ')).strip()
+             for cell in row.xpath('./th | ./td')]
+            for row in table.xpath('./tr | ./thead/tr | ./tbody/tr | ./tfoot/tr')
+            if row.xpath('./th | ./td')
+        ]
+
+    def test_result_header_index(table) -> int | None:
+        """Find a result table by its columns, even when HWP joins tables."""
+        for index, row in enumerate(result_table_rows(table)):
+            headers = {norm(cell) for cell in row if cell.strip()}
+            has_case_id = bool(headers & {'테스트케이스id', '테스트케이스번호', 'testcaseid'})
+            has_result = bool(headers & {
+                '결과', '테스트결과', '실제결과', '결과시간', '테스트결과시간', '시간', '시각',
+            })
+            if has_case_id and has_result:
+                return index
+        return None
+
+    def table_part(table, rows):
+        part = html.Element('table', attrib=dict(table.attrib))
+        for row in rows:
+            part.append(deepcopy(row))
+        return part
+
+    def is_test_result_title_row(row: list[str]) -> bool:
+        labels = {norm(cell) for cell in row if cell.strip()}
+        return bool(labels) and labels <= {'테스트결과', '테스트케이스', '테스트케이스목록'}
+
+    # Some HWP files visually join the next table's header to the previous
+    # table when there is no paragraph gap. Separate it by the distinctive
+    # test-result columns instead of relying on whitespace or a section title.
+    separated_blocks = []
+    for block_title, block_nodes in blocks:
+        current_title, current_nodes = block_title, []
+        block_is_test = is_test_section(block_title)
+        for node in block_nodes:
+            if node.tag != 'table':
+                current_nodes.append(node)
+                continue
+            rows = node.xpath('./tr | ./thead/tr | ./tbody/tr | ./tfoot/tr')
+            header_index = test_result_header_index(node)
+            if header_index is None:
+                current_nodes.append(node)
+                continue
+
+            preceding_end = header_index
+            if header_index > 0 and is_test_result_title_row(result_table_rows(node)[header_index - 1]):
+                preceding_end -= 1
+            if preceding_end > 0:
+                current_nodes.append(table_part(node, rows[:preceding_end]))
+            if current_nodes:
+                separated_blocks.append((current_title, current_nodes))
+
+            current_title = block_title if block_is_test else '테스트 결과'
+            current_nodes = [table_part(node, rows[header_index:])]
+
+        if current_nodes:
+            separated_blocks.append((current_title, current_nodes))
+    blocks = separated_blocks
 
     for title, nodes in blocks:
         source_key = norm(title)
@@ -1016,16 +1100,38 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                 # 별도 사진 컬럼 없이 편집기에서 함께 수정할 수 있다.
                 is_result_pair_table = (
                     norm(section.get('title')) == norm('작업 결과')
-                    and len(headers) >= 2
+                    and bool(headers)
                     and norm(headers[0]) in {'작업 결과', '작업결과'}
+                    and (
+                        len(headers) >= 2
+                        or (
+                            len(table_rows) > 1
+                            and len(table_rows[1]) >= 2
+                            and norm(cell_text(table_rows[1][0])) == norm('작업 전')
+                            and norm(cell_text(table_rows[1][1])) == norm('작업 후')
+                        )
+                    )
                 )
                 if is_result_pair_table:
                     before_parts = []
                     after_parts = []
+                    first_content_row = 1
+                    if (
+                        len(headers) == 1
+                        and len(table_rows) > 1
+                        and len(table_rows[1]) >= 2
+                        and norm(cell_text(table_rows[1][0])) == norm('작업 전')
+                        and norm(cell_text(table_rows[1][1])) == norm('작업 후')
+                    ):
+                        # Some HWP originals use a merged "작업 결과" title
+                        # row, followed by a distinct before/after column row.
+                        # Skip both header rows so their labels are not saved
+                        # as document content.
+                        first_content_row = 2
                     if pending_result_prefix:
                         before_parts.append(pending_result_prefix)
                         pending_result_prefix = ''
-                    for tr in table_rows[1:]:
+                    for tr in table_rows[first_content_row:]:
                         cells = list(tr)
                         if not cells:
                             continue
@@ -1164,6 +1270,36 @@ def map_document(markdown: str, sections: list[dict]) -> tuple[dict, list[str]]:
                             )
                             extras.append((title + ' / ' + headers[i], as_md([cell])))
                     if row:
+                        # Some HWP tables keep multiple work targets in one
+                        # cell and separate the IP/hostname pairs with line
+                        # breaks. Preserve those pairings as distinct rows
+                        # instead of concatenating each cell into one value.
+                        if norm(section.get('title')) == norm('작업 대상'):
+                            ip_index = next(
+                                (i for i, field in enumerate(mapped)
+                                 if field and norm(field.get('label')) == norm('IP')),
+                                None,
+                            )
+                            hostname_index = next(
+                                (i for i, field in enumerate(mapped)
+                                 if field and norm(field.get('label')) == norm('HOSTNAME')),
+                                None,
+                            )
+                            if (
+                                ip_index is not None
+                                and hostname_index is not None
+                                and ip_index < len(tr)
+                                and hostname_index < len(tr)
+                            ):
+                                ip_values = [value.strip() for value in cell_text(tr[ip_index]).splitlines() if value.strip()]
+                                hostname_values = [value.strip() for value in cell_text(tr[hostname_index]).splitlines() if value.strip()]
+                                if len(ip_values) > 1 and len(ip_values) == len(hostname_values):
+                                    for ip_value, hostname_value in zip(ip_values, hostname_values):
+                                        expanded_row = dict(row)
+                                        assign_plain(expanded_row, mapped[ip_index], ip_value)
+                                        assign_plain(expanded_row, mapped[hostname_index], hostname_value)
+                                        parsed.append(expanded_row)
+                                    continue
                         parsed.append(row)
                 if len(parsed) == 1:
                     if set(current) & set(parsed[0]):
