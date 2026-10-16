@@ -196,7 +196,16 @@ export function formEntryMarkdown(
     // Paired photos are rendered inside their corresponding text cell instead
     // of becoming separate Markdown table columns.
     const pairedLabels = new Set(section.fields.map((field) => pairedImageLabel(section, field)).filter((label): label is string => Boolean(label)))
-    const visibleFields = section.fields.filter((field) => !pairedLabels.has(field.label) && !options.excludeField?.(section, field))
+    const sectionKey = section.title.replace(/\s/g, '')
+    const isTestSection = sectionKey === '\uD14C\uC2A4\uD2B8\uACC4\uD68D'
+      || sectionKey.startsWith('\uD14C\uC2A4\uD2B8\uCF00\uC774\uC2A4')
+      || sectionKey.startsWith('\uD14C\uC2A4\uD2B8\uACB0\uACFC')
+    const visibleFields = section.fields.filter((field) => {
+      if (pairedLabels.has(field.label) || options.excludeField?.(section, field)) return false
+      if (!isTestSection) return true
+      const label = field.label.replace(/\s/g, '').toLowerCase()
+      return label !== 'no' && label !== 'no.' && label !== '\uBC88\uD638'
+    })
     const cellValue = (values: Record<string, unknown>, field: FormField): string => {
       const content = markdownFieldValue(values, field, origin)
       const paired = pairedFieldValue(values, section, field, origin)
@@ -211,7 +220,10 @@ export function formEntryMarkdown(
         continue
       }
       const sectionKey = section.title.replace(/\s/g, '')
-      const showRowNumber = sectionKey !== '테스트계획' && !sectionKey.startsWith('테스트케이스')
+      const isTestSection = sectionKey === '테스트계획'
+        || sectionKey.startsWith('테스트케이스')
+        || sectionKey.startsWith('테스트결과')
+      const showRowNumber = !isTestSection
       const headers = [
         ...(showRowNumber ? ['No.'] : []),
         ...visibleFields.map((field) => escapeText(field.label).replace(/\n/g, ' ')),

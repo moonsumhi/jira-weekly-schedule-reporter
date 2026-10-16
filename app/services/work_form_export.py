@@ -44,7 +44,8 @@ def original_form_markup(form: dict) -> str:
                 return [16, 30, 22, 32]
             return [18, 32, 18, 32] if columns == 4 else [22, 78]
         title = section.get('title', '').replace(' ', '')
-        if title == '테스트계획' or title.startswith('테스트케이스'):
+        if (title == '테스트계획' or title.startswith('테스트케이스')
+                or title.startswith('테스트결과')):
             labels = {field['label'].replace(' ', '') for field in visible}
             if '예상결과' in labels and '테스트케이스ID' in labels and columns == 5:
                 return [14, 22, 18, 18, 28]
@@ -185,8 +186,14 @@ def original_form_markup(form: dict) -> str:
             value = data.get(section['title'], [] if section.get('multiple') else {})
         rows = value if isinstance(value, list) else [value]
         rows = [row for row in rows if isinstance(row, dict)]
+        section_key = section.get('title', '').replace(' ', '')
+        is_test_section = (section_key == '테스트계획'
+                           or section_key.startswith('테스트케이스')
+                           or section_key.startswith('테스트결과'))
         paired = {paired_image_label(section, field) for field in fields}
-        visible = [field for field in fields if field['label'] not in paired]
+        visible = [field for field in fields if field['label'] not in paired and not (
+            is_test_section and field['label'].replace(' ', '').lower() in {'no', 'no.', '번호'}
+        )]
         if section['title'] == '작업 대상':
             notes = [field for field in visible if field['label'] == '비고']
             visible = [field for field in visible if field['label'] != '비고']
@@ -203,8 +210,7 @@ def original_form_markup(form: dict) -> str:
 
         if any(item.startswith('<table') for item in output):
             output.append('<p class="section-gap">&#160;</p>')
-        section_key = section.get('title', '').replace(' ', '')
-        show_row_number = section_key != '테스트계획' and not section_key.startswith('테스트케이스')
+        show_row_number = not is_test_section
         columns = len(visible) + (1 if show_row_number else 0) if section.get('multiple') else 4
         widths = table_widths(section, visible, columns)
         output.append(f'<table{attrs(columns, widths)}>')
