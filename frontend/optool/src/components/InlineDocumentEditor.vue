@@ -96,6 +96,7 @@
 <script setup lang="ts">
 import type { FormField, FormSection } from 'src/services/formTemplates'
 import MarkdownEditor from './MarkdownEditor.vue'
+import { hasMeaningfulImportedContent } from 'src/utils/importedExtraContent'
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 type Row = Record<string, unknown>
@@ -279,7 +280,7 @@ function updateImportedExtraPanel(section: FormSection, panel: ImportedExtraPane
   if (!rowsArr.length) rowsArr.push(target)
   const original = panel === 'original' ? value : importedExtraPanels(section).original
   checkpoint()
-  if (!original.trim()) {
+  if (!hasMeaningfulImportedContent(original)) {
     delete model.value[section.title]
     return
   }

@@ -341,6 +341,7 @@ import InspectionLinks from './inspection/InspectionLinks.vue'
 import WorkDocumentInspectionOptions from './inspection/WorkDocumentInspectionOptions.vue'
 import type { WorkDocumentInspection } from 'src/services/workDocumentInspection'
 import { getErrorMessage } from 'src/utils/http/error'
+import { hasMeaningfulImportedContent } from 'src/utils/importedExtraContent'
 
 type EditableData = Record<string, Record<string, unknown> | Record<string, unknown>[]>
 type ImportWarning = { summary?: boolean; section?: string; field?: string; row?: number | null; message: string; sourcePreview?: string }
@@ -519,18 +520,24 @@ function cloneEntryData(): EditableData { return JSON.parse(JSON.stringify(props
 function cloneEntryAssets() { return (props.entry?.linkedAssets ?? []).map(asset => ({ ...asset })) }
 function snapshot(value: EditableData): string { return JSON.stringify({ data: value, assets: editableAssets.value.map(a => a.id) }) }
 const isEditDirty = computed(() => editing.value && (!!inspection.value || snapshot(editableData.value) !== editSnapshot.value))
-const hasImportedExtraContent = computed(() => {
-  if (!editing.value) return false
-  const section = props.sections.find((item) => item.title.replaceAll(' ', '') === '가져온추가내용')
-  if (!section) return false
+function importedExtraSection() {
+  return props.sections.find((section) => section.title.replaceAll(' ', '') === '가져온추가내용')
+}
+function importedExtraEditorText(): string {
+  const section = importedExtraSection()
+  if (!section) return ''
   const stored = editableData.value[section.title]
   const rows = Array.isArray(stored) ? stored : stored ? [stored] : []
-  return rows.some((row) => {
-    if (!row || typeof row !== 'object') return false
-    return Object.entries(row).some(([key, value]) =>
-      !key.endsWith('__format') && typeof value === 'string' && value.trim().length > 0,
-    )
-  })
+  const contentField = section.fields.find((field) => field.label.replaceAll(' ', '') === '내용')?.label
+    ?? section.fields[0]?.label
+  if (!contentField) return ''
+  return rows
+    .map((row) => row && typeof row[contentField] === 'string' ? row[contentField] : '')
+    .join('\n\n')
+}
+const hasImportedExtraContent = computed(() => {
+  if (!editing.value) return false
+  return hasMeaningfulImportedContent(importedExtraEditorText())
 })
 function startEdit() {
   activeTab.value = 'document'
@@ -546,6 +553,8 @@ function requestSave(): void {
     $q.notify({ type: 'warning', message: '가져온 내용 중 양식에 반영되지 않은 항목이 남아 있습니다. 필요한 내용은 해당 항목에 옮겨 작성한 뒤, 남은 미반영 내용만 정리하면 저장할 수 있습니다.', timeout: 10000 })
     return
   }
+  const extraSection = importedExtraSection()
+  if (extraSection) delete editableData.value[extraSection.title]
   emit('save', editableData.value, props.linkAssets ? editableAssets.value.map(asset => asset.id) : undefined, inspection.value)
 }
 function discardEdit() {
