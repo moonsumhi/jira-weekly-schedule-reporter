@@ -33,6 +33,27 @@ class OriginalFormExportTests(unittest.TestCase):
         self.assertIn('<tr><td>TC-01</td><td>로그인</td>', markup)
         self.assertIn('<tr data-role="column-header"><th>No.</th><th>작업 대상</th>', markup)
 
+    def test_work_result_test_results_omit_display_row_number_and_keep_test_case_id(self):
+        form = {
+            'title': '작업결과서',
+            'sections': [{
+                'title': '테스트 결과', 'multiple': True, 'fields': [
+                    {'label': 'No.', 'type': 'text'},
+                    {'label': '테스트 케이스 ID', 'type': 'text'},
+                    {'label': '결과', 'type': 'text'},
+                    {'label': '시간', 'type': 'text'},
+                ],
+            }],
+            'data': {'테스트 결과': [{
+                'No.': '1',
+                '테스트 케이스 ID': 'TC-01', '결과': '성공', '시간': '10:30',
+            }]},
+        }
+        markup = original_form_markup(form)
+        self.assertIn('<tr data-role="column-header"><th>테스트 케이스 ID</th>', markup)
+        self.assertNotIn('<th>No.</th>', markup)
+        self.assertIn('<tr><td>TC-01</td><td>성공</td><td>10:30</td></tr>', markup)
+
     def test_section_heading_and_basic_fields_follow_report_layout(self):
         form = {'title': '작업계획서', 'sections': [{
             'title': '기본 정보', 'multiple': False, 'fields': [

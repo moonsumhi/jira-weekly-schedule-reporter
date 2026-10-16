@@ -207,7 +207,7 @@ function handleKeydown(event: KeyboardEvent) {
 function normalized(value: string) { return value.replace(/\s/g, '') }
 function isTestCaseSection(section: FormSection): boolean {
   const title = normalized(section.title)
-  return title === '테스트계획' || title.startsWith('테스트케이스')
+  return title === '테스트계획' || title.startsWith('테스트케이스') || title.startsWith('테스트결과')
 }
 function isIncidentTimeline(section: FormSection): boolean {
   return normalized(section.title) === '\uBC1C\uC0DD\uACBD\uACFC\uBC0F\uC870\uCE58\uC0AC\uD56D'
@@ -221,7 +221,8 @@ function displaySectionTitle(section: FormSection) {
 }
 function visibleFields(section: FormSection) {
   const hiddenFields = new Set(['개발이미지', '작업전사진', '작업후사진'])
-  return section.fields.filter(field => !hiddenFields.has(normalized(field.label)))
+  return section.fields.filter(field => !hiddenFields.has(normalized(field.label))
+    && !(isTestCaseSection(section) && ['no', 'no.', '\uBC88\uD638'].includes(normalized(field.label).toLowerCase())))
 }
 function canUseRichEditor(field: FormField): boolean {
   return field.type === 'textarea' || field.type === 'markdown' || field.fullWidth === true

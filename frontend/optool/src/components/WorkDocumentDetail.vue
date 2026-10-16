@@ -149,7 +149,7 @@
                 <div v-for="(row, rowIndex) in sectionRows(section)" :key="rowIndex" class="document-step">
                   <div class="step-rail"><span>{{ String(rowIndex + 1).padStart(2, '0') }}</span></div>
                   <div class="step-card"><div class="document-field-groups">
-                    <div v-for="group in workResultFieldGroups(section)" :key="group.label" :class="['document-field-group', { 'comparison-side': group.label, 'whole-document': section.title === '문서 본문' }]">
+                    <div v-for="group in workResultFieldGroups({ ...section, fields: visibleFields(section) })" :key="group.label" :class="['document-field-group', { 'comparison-side': group.label, 'whole-document': section.title === '문서 본문' }]">
                       <div v-if="group.label" class="comparison-heading">{{ group.label }}</div>
                       <template v-if="group.label">
                         <WorkResultContent v-if="comparisonMarkdown(row, group.fields)" :content="comparisonMarkdown(row, group.fields)" />
@@ -177,7 +177,7 @@
               </div>
 
               <div v-else class="document-fields single-fields">
-                <div v-for="field in section.fields" :key="field.label" :class="['document-field', { wide: isWide(field, sectionRecord(section)[field.label]) }]">
+                <div v-for="field in visibleFields(section)" :key="field.label" :class="['document-field', { wide: isWide(field, sectionRecord(section)[field.label]) }]">
                   <div class="field-label">{{ field.label }}</div>
                   <template v-if="field.type === 'image'">
                     <div v-if="images(sectionRecord(section)[field.label]).length" class="document-images">
@@ -664,6 +664,17 @@ function isWorkTable(section: FormSection): boolean {
   const title = section.title.replace(/\s/g, '')
   return isIncidentTimeline(section) || isWorkTarget(section) || (['작업내용', '개발내용', '세부작업내용'].includes(title) && section.fields.length > 1)
 }
+function visibleFields(section: FormSection): FormField[] {
+  const title = section.title.replace(/\s/g, '')
+  const isTestSection = title === '\uD14C\uC2A4\uD2B8\uACC4\uD68D'
+    || title.startsWith('\uD14C\uC2A4\uD2B8\uCF00\uC774\uC2A4')
+    || title.startsWith('\uD14C\uC2A4\uD2B8\uACB0\uACFC')
+  if (!isTestSection) return section.fields
+  return section.fields.filter((field) => {
+    const label = field.label.replace(/\s/g, '').toLowerCase()
+    return label !== 'no' && label !== 'no.' && label !== '\uBC88\uD638'
+  })
+}
 function isIncidentTimeline(section: FormSection): boolean {
   return section.title.replace(/\s/g, '') === '발생경과및조치사항'
 }
@@ -680,7 +691,7 @@ function developmentImages(section: FormSection, field: FormField): FormField[] 
   return field === target ? section.fields.filter(isDevelopmentImage) : []
 }
 function tableFields(section: FormSection): FormField[] {
-  const fields = section.fields.filter(field => !isDevelopmentImage(field))
+  const fields = visibleFields(section).filter(field => !isDevelopmentImage(field))
   if (!isWorkTarget(section)) return fields
   const note = fields.find(field => field.label.trim() === '비고')
   const ordered = fields.filter(field => field.label.trim() !== '비고')
