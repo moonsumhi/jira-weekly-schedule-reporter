@@ -63,6 +63,17 @@ class WorkDocumentTests(unittest.TestCase):
         time_table = '<table><tr><td colspan="2">작업 시간</td><td rowspan="2">내용</td></tr><tr><td>시작</td><td>종료</td></tr><tr><td>17:00</td><td>17:30</td><td>배포</td></tr></table>'
         self.assertIn('| 작업 시간 / 시작 | 작업 시간 / 종료 | 내용 |', documents.html_markdown(time_table, lambda src: src))
 
+    def test_overview_value_matching_column_label_remains_a_value(self):
+        source = ('<p>[작업 개요]</p><table>'
+                  '<tr><td>작업명</td><td>목적</td><td>작업 일시</td><td>2026-10-16</td></tr>'
+                  '<tr><td>목적</td><td>서비스명</td></tr>'
+                  '</table>')
+        markdown = documents.html_markdown(source, lambda src: src)
+        self.assertIn('### 작업명\n\n목적\n\n', markdown)
+        self.assertIn('### 목적\n\n서비스명', markdown)
+        self.assertEqual(markdown.count('### 목적'), 1)
+        self.assertNotIn('### 서비스명', markdown)
+
     def test_hwp_section_example_text_does_not_truncate_repeated_development_rows(self):
         from app.routers.form_entries import _extract_form_data
 

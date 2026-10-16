@@ -253,13 +253,16 @@ def html_markdown(source: str, image_reader) -> str:
                 labels = {'작업명', '작업일시', '서비스명', '회사명/성함/직책', '중요도', '목적', '구분', '서비스영향도'}
                 parts = []
                 for cells in cell_rows:
+                    # The overview is made of label/value cell pairs. A value
+                    # can itself be "목적" or another field name; only the
+                    # label position may start a new field.
                     current, values = None, []
-                    for cell in cells:
-                        if label(cell) in labels:
+                    for index, cell in enumerate(cells):
+                        if index % 2 == 0 and label(cell) in labels:
                             if current is not None:
                                 parts.extend([f'### {current}', (' ' if current == '구분' else '\n\n').join(values)])
                             current, values = ''.join(cell.itertext()).strip(), []
-                        else:
+                        elif current is not None:
                             values.append(walk(cell).strip())
                     if current is not None:
                         parts.extend([f'### {current}', (' ' if current == '구분' else '\n\n').join(values)])
