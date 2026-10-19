@@ -7,6 +7,7 @@ from bson import ObjectId
 from fastapi import HTTPException
 
 from app.db.mongo import MongoClientManager
+from app.models.asset_system_info import SystemInformation
 from app.utils.mongo import to_out
 from app.utils.time import TimeUtil
 
@@ -270,6 +271,11 @@ class AssetsService:
 
         update: Dict[str, Any] = {}
 
+        if "system_info" in patch:
+            if self._category != "서버" or existing.get("fields", {}).get("자산유형", "서버") != "서버":
+                raise ValueError("시스템 정보는 서버 자산에만 입력할 수 있습니다.")
+            update["system_info"] = SystemInformation.model_validate(patch["system_info"] or {}).model_dump(mode="json")
+
         ip = patch.get("ip")
         if ip is not None and ip != existing["ip"]:
             asset_type = existing.get("fields", {}).get("자산유형", "서버")
@@ -337,7 +343,12 @@ class AssetsService:
         mongo_update: Dict[str, Any] = {"$set": update}
         if unset:
             mongo_update["$unset"] = unset
-        await col.update_one({"_id": _id}, mongo_update)
+        match: Dict[str, Any] = {"_id": _id, "is_deleted": {"$ne": True}}
+        if expected_version is not None:
+            match["version"] = existing.get("version", {"$exists": False})
+        saved = await col.update_one(match, mongo_update)
+        if not saved.matched_count:
+            raise ValueError("다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해주세요.")
 
         after = {**existing, **update, "_id": _id}
         for k in unset:

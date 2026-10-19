@@ -1633,7 +1633,7 @@
     </q-dialog>
 
     <!-- Detail view dialog -->
-    <q-drawer v-model="detailDialog" side="right" overlay bordered :width="Math.min(600, $q.screen.width)" class="asset-detail-drawer">
+    <q-drawer :model-value="detailDialog" side="right" overlay bordered :width="Math.min(600, $q.screen.width)" class="asset-detail-drawer" @update:model-value="onDetailVisibility">
       <div v-if="detailTarget" class="column no-wrap" style="height: 100%;">
         <!-- 상단: 호스트명 & IP -->
         <q-card-section class="q-pb-sm row items-center" style="flex-shrink: 0;">
@@ -1660,6 +1660,7 @@
         >
           <q-tab name="basic" label="기본정보" />
           <q-tab name="config" label="구성정보" />
+          <q-tab v-if="canViewSystemInfo" name="system-info" label="시스템 정보" />
           <q-tab name="location" label="위치·연결" />
           <q-tab v-if="inspectionAuth.me?.isAdmin || inspectionAuth.me?.permissions?.includes('asset')" name="work-documents" label="운영 이력" />
           <q-tab name="history" label="변경이력" @click="loadDetailHistory" />
@@ -2177,6 +2178,10 @@
             label="랙 배치도에서 보기" class="q-mt-md" @click="goToRack()" />
         </q-tab-panel>
 
+        <q-tab-panel v-if="canViewSystemInfo" name="system-info" class="q-pa-none">
+          <AssetSystemInfo :key="detailTarget.id" :model-value="detailEditing ? rowEditSystemInfo : detailSystemInfo"
+            :editing="detailEditing" :disabled="rowEditSaving" @update:model-value="value => rowEditSystemInfo = value" />
+        </q-tab-panel>
         <q-tab-panel name="work-documents" class="q-pa-md">
           <AssetWorkDocuments v-if="inspectionAuth.me?.isAdmin || inspectionAuth.me?.permissions?.includes('asset')" :key="detailTarget.id" :asset-id="detailTarget.id" :asset-deleted="!!detailTarget.isDeleted" @navigate="closeDetail" />
         </q-tab-panel>
@@ -2223,11 +2228,11 @@
           </div>
           <div class="row q-gutter-xs" style="flex-shrink:0">
             <template v-if="detailEditing">
-              <q-btn flat label="취소" @click="cancelDetailEdit" />
+              <q-btn flat label="취소" :disable="rowEditSaving" @click="cancelDetailEdit" />
               <q-btn class="create-btn" label="저장" :loading="rowEditSaving" @click="doRowEdit" />
             </template>
             <template v-else>
-              <q-btn flat label="닫기" @click="detailDialog = false" />
+              <q-btn flat label="닫기" @click="closeDetail" />
               <q-btn
                 v-if="!detailTarget?.isDeleted"
                 flat icon="delete" label="삭제" color="negative"
@@ -2703,10 +2708,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
 import AssetWorkDocuments from 'src/components/asset/AssetWorkDocuments.vue'
+import AssetSystemInfo from 'src/components/asset/AssetSystemInfo.vue'
+import { copySystemInformation, systemInformationError, systemInformationPayload } from 'src/types/assetSystemInfo'
 import * as XLSX from 'xlsx'
 import { useQuasar, type QTableProps } from 'quasar'
 import draggable from 'vuedraggable'
@@ -4192,16 +4199,24 @@ async function doBulkRestore(targets: ServerAsset[]) {
 /** Detail view */
 const detailDialog = ref(false)
 const detailTarget = ref<ServerAsset | null>(null)
+const rowEditSystemInfo = ref(copySystemInformation())
+const detailSystemInfo = computed(() => copySystemInformation(detailTarget.value?.systemInfo))
+const canViewSystemInfo = computed(() => !!detailTarget.value
+  && (detailTarget.value.fields?.['자산유형'] || '서버') === '서버'
+  && !!(inspectionAuth.me?.isAdmin || inspectionAuth.me?.permissions?.includes('asset')))
 const detailTab = ref('basic')
 const detailHistory = ref<AssetHistory[]>([])
 const loadingDetailHistory = ref(false)
 const detailEditing = ref(false)
+const systemInfoDirty = computed(() => detailEditing.value && JSON.stringify(rowEditSystemInfo.value) !== JSON.stringify(detailSystemInfo.value))
 const detailLifecycleFields = computed(() => detailEditing.value ? rowEditValues.value : detailTarget.value?.fields)
 
 async function openDetailView(row: ServerAsset) {
+  if (!await allowDetailClose()) return
   detailEditing.value = false
   detailTarget.value = row
-  detailTab.value = 'basic'
+  detailTab.value = canViewSystemInfo.value && route.query.assetId === row.id && route.query.detailTab === 'system-info'
+    ? 'system-info' : 'basic'
   detailHistory.value = []
   detailDialog.value = true
   // 방금 생성한 자산처럼 목록 새로고침(load())을 거치지 않고 바로 상세를 연
@@ -4293,6 +4308,7 @@ const rowEditExtraFields = computed(() => {
 
 function prepareRowEdit(row: ServerAsset) {
   rowEditTarget.value = row
+  rowEditSystemInfo.value = copySystemInformation(row.systemInfo)
   const vals: Record<string, string> = {
     __ip__: row.ip,
     __name__: row.name,
@@ -4340,9 +4356,37 @@ function cancelDetailEdit() {
   detailEditing.value = false
 }
 
-function closeDetail() {
+async function closeDetail() {
+  if (!await allowDetailClose()) return
   detailEditing.value = false
   detailDialog.value = false
+}
+
+async function allowDetailClose() {
+  if (rowEditSaving.value) return false
+  if (!systemInfoDirty.value) return true
+  return new Promise<boolean>(resolve => {
+    $q.dialog({ title: '편집 취소', message: '저장하지 않은 시스템 정보가 있습니다. 편집을 취소할까요?',
+      cancel: { label: '계속 편집', flat: true }, ok: { label: '편집 취소', color: 'primary' }, persistent: true })
+      .onOk(() => resolve(true)).onCancel(() => resolve(false))
+  })
+}
+async function guardSystemInfoNavigation() {
+  if (!await allowDetailClose()) return false
+  detailEditing.value = false
+  return true
+}
+onBeforeRouteLeave(guardSystemInfoNavigation)
+onBeforeRouteUpdate(guardSystemInfoNavigation)
+function protectSystemInfoDraft(event: BeforeUnloadEvent) {
+  if (systemInfoDirty.value) { event.preventDefault(); event.returnValue = '' }
+}
+onMounted(() => window.addEventListener('beforeunload', protectSystemInfoDraft))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', protectSystemInfoDraft))
+
+function onDetailVisibility(visible: boolean) {
+  if (visible) detailDialog.value = true
+  else void closeDetail()
 }
 
 async function refreshRowEditLifecycle() {
@@ -4377,6 +4421,16 @@ watch(
 
 async function doRowEdit() {
   if (!rowEditTarget.value) return
+  if (systemInfoDirty.value) {
+    const error = systemInformationError(rowEditSystemInfo.value)
+    if (error) {
+      detailTab.value = 'system-info'
+      $q.notify({ type: 'negative', message: error })
+      await nextTick()
+      document.querySelector<HTMLInputElement>('.system-info .q-field--error input')?.focus()
+      return
+    }
+  }
   rowEditSaving.value = true
   try {
     // 다른 필드만 편집하더라도 저장 시점의 최신 스냅샷으로 자동 정보를 갱신한다.
@@ -4386,14 +4440,6 @@ async function doRowEdit() {
     const newName = (rowEditValues.value['__name__'] ?? '').trim()
 
     const rowCat = ((row.fields?.['자산유형'] as string) || category.value || '서버')
-    // IP/HostName 변경
-    if (newIp && newIp !== row.ip) {
-      await patchServer(String(row.id), { ip: newIp }, rowCat)
-    }
-    if (newName && newName !== row.name) {
-      await patchServer(String(row.id), { name: newName }, rowCat)
-    }
-
     // 필드 변경
     const newFields: FieldsMap = { ...(row.fields ?? {}) }
     delete newFields['자산번호']  // top-level asset_no 필드로 분리
@@ -4404,10 +4450,13 @@ async function doRowEdit() {
     }
     newFields[TAGS_KEY] = rowEditTags.value.length ? rowEditTags.value : null
     const rowEditAssetNo = (rowEditValues.value['자산번호'] ?? '').trim() || null
-    const updated = await patchServer(String(row.id), { fields: newFields, asset_no: rowEditAssetNo }, rowCat)
-    // ip/name 반영
-    if (newIp) updated.ip = newIp
-    if (newName) updated.name = newName
+    // 기본·구성·시스템 정보를 한 번에 저장해 일부 탭만 저장되는 일을 방지한다.
+    const updated = await patchServer(String(row.id), {
+      fields: newFields, asset_no: rowEditAssetNo,
+      ...(row.version != null ? { version: row.version } : {}),
+      ...(newIp ? { ip: newIp } : {}), ...(newName ? { name: newName } : {}),
+      ...(canViewSystemInfo.value && systemInfoDirty.value ? { system_info: systemInformationPayload(rowEditSystemInfo.value) } : {}),
+    }, rowCat)
 
     rows.value = rows.value.map((r) => (r.id === row.id ? updated : r))
     rowEditTarget.value = updated
@@ -5451,57 +5500,6 @@ tbody .sticky-actions-col {
   letter-spacing: 0.5px;
 }
 
-/* 섹션 타이틀 + 분홍 구분선 */
-.section-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #444;
-  white-space: nowrap;
-}
-.section-divider {
-  border-top: 2px solid #1976d2;
-  margin-bottom: 4px;
-}
-
-/* 폼 필드 (라벨 위, 언더라인 입력) */
-.form-field {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.field-label {
-  font-size: 11px;
-  color: #999;
-  margin-bottom: 4px;
-  min-height: 14px;
-  line-height: 14px;
-}
-.field-input {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
-  min-height: 32px;
-}
-.field-input :deep(.q-field__control) {
-  padding: 0 2px;
-  min-height: 32px;
-}
-.field-input :deep(.q-field__native) {
-  font-size: 14px;
-  color: #333;
-  padding: 2px 0;
-  min-height: 32px;
-}
-.field-disabled {
-  color: #bbb;
-  font-size: 14px;
-  padding: 4px 2px;
-}
-
 /* EoS 배너 */
 .eos-banner--unknown { background: #f5f5f5; color: #616161; }
 .eos-banner {
@@ -5557,16 +5555,7 @@ tbody .sticky-actions-col {
   .asset-detail-ip { flex-wrap: wrap; row-gap: 6px; }
   .asset-detail-ip .top-field-value { min-width: calc(100% - 92px); }
 }
-.detail-value {
-  font-size: 14px;
-  color: #333;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 5px 2px;
-  min-height: 32px;
-  line-height: 21px;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
+
 .asset-detail-drawer .form-field {
   justify-content: flex-end;
 }
@@ -5614,3 +5603,5 @@ tbody .sticky-actions-col {
   cursor: grabbing;
 }
 </style>
+
+<style scoped src="../../css/asset-detail-fields.css"></style>

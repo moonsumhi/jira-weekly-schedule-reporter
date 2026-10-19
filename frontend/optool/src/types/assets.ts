@@ -1,3 +1,5 @@
+import type { SystemInformation } from './assetSystemInfo'
+
 export type FieldPrimitive = string | number | boolean | null
 export type FieldValue = FieldPrimitive | Record<string, unknown> | unknown[]
 export type FieldsMap = Record<string, FieldValue>
@@ -9,6 +11,7 @@ export type ServerAsset = {
   assetId?: string | null
   assetNo?: string | null
   fields: FieldsMap
+  systemInfo?: SystemInformation | null
   createdAt?: string | null
   createdBy?: string | null
   updatedAt?: string | null
