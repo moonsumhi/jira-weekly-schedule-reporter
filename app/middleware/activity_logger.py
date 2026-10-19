@@ -292,6 +292,8 @@ class ActivityLoggerMiddleware(BaseHTTPMiddleware):
             ]
             if mutation:
                 diff.extend(_payload_diff(payload, query_params))
+                # Server-provided identity survives hard deletion and is shown first.
+                diff = getattr(request.state, "audit_diff", []) + diff
             await col.insert_one({
                 "action": action,
                 "category": category or "활동",
