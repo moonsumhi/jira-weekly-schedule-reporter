@@ -158,28 +158,6 @@
             </section>
           </section>
           <section v-show="tab === 'checks'" class="detail-tab-panel" aria-label="점검 항목">
-            <section v-if="hardwareChecks.length" class="detail-section">
-              <div class="detail-section-heading">
-                <h3>하드웨어 육안 점검</h3>
-                <span>{{ hardwareChecks.length }}개 항목</span>
-              </div>
-              <table class="detail-table check-table">
-                <thead>
-                  <tr>
-                    <th scope="col">점검 항목</th>
-                    <th scope="col">결과</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(check, index) in hardwareChecks" :key="index">
-                    <th scope="row">{{ check.item }}</th>
-                    <td>
-                      <span class="check-result" :class="check.tone">{{ check.label }}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </section>
             <section v-if="record.detail.securityChecks?.length" class="detail-section">
               <div class="detail-section-heading">
                 <h3>시스템 보안 점검</h3>
@@ -217,7 +195,7 @@
               <pre class="detail-code">{{ record.detail.allowedIps }}</pre>
             </section>
             <p v-if="!hasChecks" class="detail-empty">
-              등록된 하드웨어·보안·서비스 점검 항목이 없습니다.
+              등록된 보안·서비스 점검 항목이 없습니다.
             </p>
           </section>
           <section v-show="tab === 'actions'" class="detail-tab-panel" aria-label="조치 내역">
@@ -333,25 +311,6 @@ function metricDetail(kind: (typeof metricKinds)[number]) {
 }
 const diskPercent = (text: string) => importedMeasurement({ beforePct: text }).pct;
 const swap = computed(() => importedMeasurement(props.record?.detail.swap));
-const checked = (value: string | boolean) =>
-  !['', '-', 'false', '0', 'no', 'none', 'n/a', 'na', '☐', '□'].includes(
-    String(value || '')
-      .toLowerCase()
-      .trim(),
-  );
-const hardwareChecks = computed(() =>
-  (props.record?.detail.hwChecks || []).map((check) => ({
-    item: check.item,
-    label: checked(check.ng)
-      ? '이상 (NG)'
-      : checked(check.ok)
-        ? '정상 (OK)'
-        : checked(check.na)
-          ? '해당 없음'
-          : '미기록',
-    tone: checked(check.ng) ? 'danger' : checked(check.ok) ? 'normal' : 'missing',
-  })),
-);
 const securityTone = (value: string) =>
   /^(ng|fail|false|불량|비정상|이상)$/i.test(value.trim())
     ? 'danger'
@@ -361,7 +320,6 @@ const securityTone = (value: string) =>
 const hasChecks = computed(
   () =>
     !!(
-      hardwareChecks.value.length ||
       props.record?.detail.securityChecks?.length ||
       props.record?.detail.services?.length ||
       props.record?.detail.allowedIps

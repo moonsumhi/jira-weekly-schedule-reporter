@@ -267,10 +267,6 @@ def no_finding(value):
     return str(value or '').strip().lower() in ('', '-', '없음', '정상', '양호', 'ok', 'n/a', 'na', 'none', '0', '이상없음', '이상 없음', 'false')
 
 
-def checked(value):
-    return str(value or '').strip().lower() not in ('', '-', 'false', '0', 'no', 'none', 'n/a', 'na', '☐', '□')
-
-
 def resource_rows(source):
     if not source:
         return []
@@ -300,9 +296,6 @@ def resource_rows(source):
         for label, m in (('CPU', cpu), ('RAM', ram), ('디스크', disk)):
             if m['value'] is not None and m['value'] >= 80:
                 findings.append({'label': f"{label} {m['value']:g}%", 'level': 'danger' if m['value'] >= 90 else 'warning'})
-        for check in detail.get('hw_checks', []):
-            if checked(check.get('ng')):
-                findings.append({'label': f"H/W · {check.get('item', '')}", 'level': 'danger'})
         for check in detail.get('security_checks', []):
             value = str(check.get('result') or '')
             if any(term in value.lower() for term in ('ng', 'fail', '불량', '오류', '미확인', '취약', '비정상')):

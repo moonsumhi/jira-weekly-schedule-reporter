@@ -120,31 +120,9 @@
       </section>
 
       <div
-        v-if="hardwareChecks.length || server.detail.securityChecks?.length"
+        v-if="server.detail.securityChecks?.length"
         class="sheet-checks"
       >
-        <section v-if="hardwareChecks.length" class="sheet-section">
-          <h4>하드웨어 점검</h4>
-          <table
-            class="sheet-table sheet-check-table"
-            :aria-label="`${server.hostName} 하드웨어 점검`"
-          >
-            <thead>
-              <tr>
-                <th scope="col">항목</th>
-                <th scope="col">결과</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(check, i) in hardwareChecks" :key="i">
-                <th scope="row">{{ check.item }}</th>
-                <td>
-                  <span class="sheet-result" :class="check.tone">{{ check.label }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
         <section v-if="server.detail.securityChecks?.length" class="sheet-section">
           <h4>보안 점검</h4>
           <table class="sheet-table sheet-check-table" :aria-label="`${server.hostName} 보안 점검`">
@@ -257,29 +235,6 @@ const delta = (value: number | null) =>
     : value === 0
       ? '전월과 동일'
       : `전월 대비 ${value > 0 ? '+' : ''}${value}%p`;
-const checked = (value: string | boolean) =>
-  !['', '-', 'false', '0', 'no', 'none', 'n/a', 'na', '☐', '□'].includes(
-    String(value || '')
-      .toLowerCase()
-      .trim(),
-  );
-const hardwareChecks = computed(() =>
-  (props.server.detail.hwChecks || []).map((check) => ({
-    item: check.item,
-    label: checked(check.ng)
-      ? 'NG'
-      : checked(check.ok)
-        ? 'OK'
-        : checked(check.na)
-          ? 'N/A'
-          : '미기록',
-    tone: checked(check.ng)
-      ? 'danger'
-      : checked(check.ok)
-        ? 'positive'
-        : 'muted',
-  })),
-);
 </script>
 
 <style scoped>
