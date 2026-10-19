@@ -16,7 +16,9 @@ export async function listRacks(serverRoom?: string): Promise<RackSummary[]> {
   const res = await api.get<RackSummary[]>(BASE, {
     params: serverRoom ? { server_room: serverRoom } : {},
   })
-  return res.data
+  return [...res.data].sort((a, b) =>
+    a.name.localeCompare(b.name, 'en', { numeric: true, sensitivity: 'base' }),
+  )
 }
 
 export async function getRackLayout(rackId: string): Promise<RackLayout> {
