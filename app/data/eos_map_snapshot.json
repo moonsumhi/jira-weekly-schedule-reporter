@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-30T08:10:49.251858+00:00",
+  "updated_at": "2026-10-19T22:21:21.178573+00:00",
   "source": "endoflife.date + curated fallbacks",
   "successful_products": 14,
   "failed_products": [],
@@ -269,6 +269,7 @@
     "Ubuntu|25.04": "2026-01",
     "Ubuntu|25.10": "2026-07",
     "Ubuntu|26.04": "2031-05",
+    "Ubuntu|26.10": "2027-07",
     "Ubuntu|4.10": "2006-04",
     "Ubuntu|5.04": "2006-10",
     "Ubuntu|5.10": "2007-04",
