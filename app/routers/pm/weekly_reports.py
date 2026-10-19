@@ -25,7 +25,7 @@ STATUS_KO       = {"DRAFT": "초안", "REVIEWING": "검토중", "CONFIRMED": "�
 PRIORITY_KO     = {"LOWEST": "최하", "LOW": "낮음", "MEDIUM": "중간", "HIGH": "높음", "HIGHEST": "최고"}
 STATUS_ISSUE_KO = {
     "BACKLOG": "백로그", "TODO": "할 일",
-    "IN_PROGRESS": "진행 중", "DONE": "완료",
+    "IN_PROGRESS": "진행 중", "IMPLEMENTED": "완료", "DONE": "완료",
 }
 
 
@@ -675,7 +675,7 @@ async def preview_weekly_report(
     lines.append("")
 
     # 1. 금주 완료 업무
-    completed = [i for i in r.all_items if i.status == "DONE"]
+    completed = [i for i in r.all_items if i.status in {"DONE", "IMPLEMENTED"}]
     if completed:
         lines.append("## 1. 금주 완료 업무")
         for item in completed:
@@ -684,7 +684,7 @@ async def preview_weekly_report(
         lines.append("")
 
     # 2. 진행 중 업무
-    in_prog = [i for i in r.all_items if i.status != "DONE"]
+    in_prog = [i for i in r.all_items if i.status not in {"DONE", "IMPLEMENTED"}]
     if in_prog:
         lines.append("## 2. 진행 중 업무")
         for item in in_prog:

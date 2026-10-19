@@ -55,7 +55,7 @@ async def list_issues(
 
     query: dict = {"project_id": ObjectId(project_id)}
     if status:
-        query["status"] = status
+        query["status"] = {"$in": ["DONE", "IMPLEMENTED"]} if status == "DONE" else status
     if assignee_id:
         query["assignee_id"] = ObjectId(assignee_id)
     if priority:

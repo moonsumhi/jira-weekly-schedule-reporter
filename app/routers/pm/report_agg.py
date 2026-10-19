@@ -7,6 +7,7 @@ from typing import Optional
 from bson import ObjectId
 
 from app.db.mongo import MongoClientManager
+from app.models.pm.issue import canonical_issue_status
 from app.services.pm.issue_service import assignee_display_name
 from app.models.pm.reports import (
     PersonBreakdown, ProjectBreakdown, ReportStats, WorkItem,
@@ -109,7 +110,7 @@ async def aggregate_period(
         parent = await get_parent(doc.get("parent_issue_id"))
 
         due_date = doc.get("due_date")
-        status = doc.get("status", "BACKLOG")
+        status = canonical_issue_status(doc.get("status", "BACKLOG"))
         is_delayed = bool(due_date and due_date.replace(tzinfo=timezone.utc) < now and status != "DONE")
 
         return WorkItem(

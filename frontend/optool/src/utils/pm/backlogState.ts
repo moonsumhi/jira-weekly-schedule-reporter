@@ -1,4 +1,4 @@
-import type { Issue, IssuePriority, IssueStatus, IssueType } from '../../services/pm/issue'
+import { canonicalIssueStatus, type Issue, type IssuePriority, type IssueStatus, type IssueType } from '../../services/pm/issue'
 
 export type BacklogFilters = {
   search: string
@@ -10,7 +10,7 @@ export type BacklogFilters = {
   dateTo: string | null
 }
 
-const statuses: IssueStatus[] = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IMPLEMENTED', 'DONE']
+const statuses: IssueStatus[] = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'DONE']
 const priorities: IssuePriority[] = ['LOWEST', 'LOW', 'MEDIUM', 'HIGH', 'HIGHEST']
 const types: IssueType[] = ['EPIC', 'STORY', 'TASK', 'BUG', 'SUB_TASK']
 const dueDayFormatter = new Intl.DateTimeFormat('sv-SE', {
@@ -34,7 +34,8 @@ function enumValue<T extends string>(value: unknown, values: T[]): T | null {
 export function normalizeBacklogFilters(value: unknown): BacklogFilters {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return defaultBacklogFilters()
   const saved = value as Record<string, unknown>
-  const tabs = Array.isArray(saved.statusTabs) ? saved.statusTabs : [saved.status]
+  const tabs = (Array.isArray(saved.statusTabs) ? saved.statusTabs : [saved.status])
+    .map((status: unknown) => status === 'IMPLEMENTED' ? 'DONE' : status === '!IMPLEMENTED' ? '!DONE' : status)
   let dateFrom = calendarDate(saved.dateFrom), dateTo = calendarDate(saved.dateTo)
   if (dateFrom && dateTo && dateFrom > dateTo) dateFrom = dateTo = null
   return {
@@ -90,8 +91,9 @@ export function matchesBacklogIssue(issue: FilterableIssue, filters: BacklogFilt
   if (query && ![issue.title, issue.linkedSrNo, `${issue.projectKey || projectKey}-${issue.number}`]
     .some(value => (value ?? '').toLowerCase().includes(query))) return false
   const included = filters.statusTabs.filter(status => !status.startsWith('!'))
-  if (included.length && !included.includes(issue.status)) return false
-  if (filters.statusTabs.includes(`!${issue.status}`)) return false
+  const status = canonicalIssueStatus(issue.status)
+  if (included.length && !included.includes(status)) return false
+  if (filters.statusTabs.includes(`!${status}`)) return false
   if (filters.priority && issue.priority !== filters.priority) return false
   if (filters.type && issue.type !== filters.type) return false
   if (filters.assigneeId && issue.assigneeId !== filters.assigneeId) return false

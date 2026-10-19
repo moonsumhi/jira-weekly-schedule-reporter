@@ -43,7 +43,7 @@ async def get_work_status(
         "$or": [
             {"updated_at": {"$gte": start_dt, "$lt": end_dt}},
             {
-                "status": {"$ne": "DONE"},
+                "status": {"$nin": ["DONE", "IMPLEMENTED"]},
                 "due_date": {"$gte": start_dt, "$lt": end_dt},
             },
         ],

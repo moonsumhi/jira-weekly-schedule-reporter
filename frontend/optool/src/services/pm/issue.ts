@@ -5,13 +5,18 @@ export type IssueType = 'EPIC' | 'STORY' | 'TASK' | 'BUG' | 'SUB_TASK'
 export type IssueStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IMPLEMENTED' | 'DONE'
 export type IssuePriority = 'LOWEST' | 'LOW' | 'MEDIUM' | 'HIGH' | 'HIGHEST'
 
-export const ISSUE_STATUSES: IssueStatus[] = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IMPLEMENTED', 'DONE']
+// IMPLEMENTED remains in the type only for older API/data snapshots.
+export const ISSUE_STATUSES: IssueStatus[] = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'DONE']
+
+export function canonicalIssueStatus(status: IssueStatus): IssueStatus {
+  return status === 'IMPLEMENTED' ? 'DONE' : status
+}
 
 export const STATUS_LABEL: Record<IssueStatus, string> = {
   BACKLOG: '백로그',
   TODO: '할 일',
   IN_PROGRESS: '진행 중',
-  IMPLEMENTED: '구현완료',
+  IMPLEMENTED: '완료',
   DONE: '완료',
 }
 
@@ -19,7 +24,7 @@ export const STATUS_COLOR: Record<IssueStatus, string> = {
   BACKLOG: 'grey-5',
   TODO: 'blue-4',
   IN_PROGRESS: 'orange-6',
-  IMPLEMENTED: 'teal-6',
+  IMPLEMENTED: 'green-6',
   DONE: 'green-6',
 }
 
