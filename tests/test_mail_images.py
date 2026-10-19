@@ -16,8 +16,8 @@ class MailImageTests(unittest.IsolatedAsyncioTestCase):
                 description = send.call_args.args[2]["description"]
                 self.assertEqual(description, f"작업 설명 / {mail_notify._IMAGE_NOTICE} / 후속 설명")
                 if event == "completed":
-                    self.assertEqual(send.call_args.args[2]["action_label"], "SR 확인 및 최종 완료")
-                    self.assertIn("[최종 확인]", send.call_args.args[2]["action_message"])
+                    self.assertEqual(send.call_args.args[2]["action_label"], "SR 상세 바로가기")
+                    self.assertNotIn("action_message", send.call_args.args[2])
                 self.assertEqual(doc["description"], content)
 
     def test_html_and_embedded_images(self):
