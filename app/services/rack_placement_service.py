@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import HTTPException
-from pymongo import ReturnDocument
+from pymongo import ReturnDocument, UpdateOne
 from pymongo.errors import DuplicateKeyError
 
 from app.db.mongo import MongoClientManager
@@ -186,15 +186,81 @@ async def _validate_target(
 # 실제 위치의 단일 원본은 rack_placements 이며, 기존 서버 폼/컬럼/Export 호환을 위해
 # 배치 변경 시 자산의 rack_no·rack_unit_no 를 파생값으로 동기화한다(읽기전용 취급).
 
-async def _mirror_to_asset(category: str, asset_ref_id: ObjectId, rack: dict, start_u: int, end_u: int) -> None:
-    rack_code = (rack.get("asset_id") or rack.get("name") or "") if rack else ""
+def rack_asset_fields(rack: dict, start_u: int, end_u: int) -> dict:
+    # RackNo. is the display name; asset_id is a separate, possibly older code.
+    rack_name = (rack.get("name") or rack.get("asset_id") or "") if rack else ""
     unit = str(start_u) if start_u == end_u else f"{start_u}-{end_u}"
     # 위치 = 랙의 서버실(server_room). 서버 폼의 '위치'와 동일 개념으로 미러링한다.
     location = (rack.get("fields") or {}).get("server_room", "") if rack else ""
+    return {"rack_no": rack_name, "rack_unit_no": unit, "위치": location}
+
+
+async def _mirror_to_asset(category: str, asset_ref_id: ObjectId, rack: dict, start_u: int, end_u: int) -> None:
     await MongoClientManager.get_asset_collection(category).update_one(
         {"_id": asset_ref_id},
-        {"$set": {"fields.rack_no": rack_code, "fields.rack_unit_no": unit, "fields.위치": location}},
+        {"$set": {f"fields.{key}": value for key, value in rack_asset_fields(rack, start_u, end_u).items()}},
     )
+
+
+async def sync_rack_asset_mirrors(rack_ref_id: ObjectId) -> None:
+    """Refresh current members after rack edits, joining by immutable IDs only."""
+    rack = await _get_rack(rack_ref_id)
+    if not rack:
+        return
+    updates: Dict[str, list] = {}
+    async for placement in _col().find({"rack_ref_id": rack_ref_id, "is_deleted": False}):
+        category = placement["asset_category"]
+        if (MongoClientManager.ASSET_CATEGORY_CONFIG.get(category) or {}).get("placement_mode") != _PLACEABLE_MODE:
+            continue
+        values = rack_asset_fields(rack, placement["start_u"], placement["end_u"])
+        updates.setdefault(category, []).append(UpdateOne(
+            {"_id": placement["asset_ref_id"], "is_deleted": {"$ne": True}},
+            {"$set": {f"fields.{key}": value for key, value in values.items()}},
+        ))
+    for category, operations in updates.items():
+        await MongoClientManager.get_asset_collection(category).bulk_write(operations, ordered=False)
+
+
+async def current_asset_rack_fields(references: list[tuple[str, ObjectId]]) -> dict:
+    """Batch-resolve derived fields for reads and for rejecting stale form mirrors.
+
+    Old cached names are corrected on reads without rewriting historical snapshots.
+    Unmanaged legacy fields are preserved when no placement record exists.
+    """
+    keys = {(category, asset_id) for category, asset_id in references
+            if (MongoClientManager.ASSET_CATEGORY_CONFIG.get(category) or {}).get("placement_mode") == _PLACEABLE_MODE}
+    if not keys:
+        return {}
+    placements = await _col().find({"asset_ref_id": {"$in": list({key[1] for key in keys})}}).to_list(None)
+    placements = [p for p in placements if (p["asset_category"], p["asset_ref_id"]) in keys]
+    rack_ids = list({p["rack_ref_id"] for p in placements if not p.get("is_deleted", False)})
+    racks = {}
+    if rack_ids:
+        async for rack in MongoClientManager.get_asset_collection("랙").find({
+            "_id": {"$in": rack_ids}, "is_deleted": {"$ne": True},
+        }):
+            racks[rack["_id"]] = rack
+    resolved = {}
+    for placement in placements:
+        key = (placement["asset_category"], placement["asset_ref_id"])
+        if placement.get("is_deleted", False):
+            # Unplaced assets may have a manually entered server-room location.
+            resolved[key] = {"rack_no": "", "rack_unit_no": ""}
+        elif rack := racks.get(placement["rack_ref_id"]):
+            resolved[key] = rack_asset_fields(rack, placement["start_u"], placement["end_u"])
+    return resolved
+
+
+async def enrich_asset_rack_fields(assets: list[dict], category: Optional[str] = None) -> None:
+    references = [(category or (a.get("fields") or {}).get("자산유형", "서버"), oid(a["id"]))
+                  for a in assets if not a.get("is_deleted")]
+    resolved = await current_asset_rack_fields(references)
+    for asset in assets:
+        if asset.get("is_deleted"):
+            continue
+        key = (category or (asset.get("fields") or {}).get("자산유형", "서버"), oid(asset["id"]))
+        if key in resolved:
+            asset["fields"] = {**(asset.get("fields") or {}), **resolved[key]}
 
 
 async def _clear_asset_mirror(category: str, asset_ref_id: ObjectId) -> None:
