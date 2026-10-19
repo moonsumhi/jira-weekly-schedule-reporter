@@ -418,7 +418,7 @@
           <div class="column q-gutter-md">
 
             <div>
-              <div class="sidebar-label">상태</div>
+              <div class="sidebar-label">상태<IssueStatusInfo /></div>
               <q-select v-model="localStatus" :options="statusOptions" dense outlined emit-value map-options
                 @update:model-value="patchField('status', $event)" />
             </div>
@@ -601,6 +601,7 @@ import { useAuthStore } from 'src/stores/auth'
 import { downloadAttachment } from 'src/utils/attachment'
 import InspectionLinks from 'src/components/inspection/InspectionLinks.vue'
 import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
+import IssueStatusInfo from './IssueStatusInfo.vue'
 import IssueAssetLinks from './IssueAssetLinks.vue'
 
 const props = defineProps<{

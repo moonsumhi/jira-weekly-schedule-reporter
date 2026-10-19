@@ -72,7 +72,9 @@
               label="상태"
               outlined dense emit-value map-options
               style="flex: 1"
-            />
+            >
+              <template #append><IssueStatusInfo /></template>
+            </q-select>
           </div>
         </div>
 
@@ -347,6 +349,7 @@ import { listProjectMembers, type ProjectMember } from 'src/services/pm/project'
 import { useAuthStore } from 'src/stores/auth'
 import { getErrorMessage } from 'src/utils/http/error'
 import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
+import IssueStatusInfo from './IssueStatusInfo.vue'
 import InspectionMonthPicker from 'src/components/inspection/InspectionMonthPicker.vue'
 import AssetLinks from 'src/components/AssetLinks.vue'
 import type { AssetCategory, AssetLink } from 'src/services/assetLinks'

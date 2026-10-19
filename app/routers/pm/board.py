@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
-from app.models.pm.issue import IssueOut, ISSUE_STATUS_ORDER
+from app.models.pm.issue import IssueOut, ISSUE_STATUS_ORDER, canonical_issue_status
 from app.routers.auth import get_current_user
 from app.services.pm.issue_service import assignee_display_name, enrich_issue
 
@@ -54,7 +54,7 @@ async def get_board(
                 "id": str(d["_id"]),
                 "number": d["number"],
                 "title": d["title"],
-                "status": d["status"],
+                "status": canonical_issue_status(d["status"]),
                 "priority": d["priority"],
                 "assignee_name": assignee_display_name(d, user_map.get(str(d.get("assignee_id")))),
             })

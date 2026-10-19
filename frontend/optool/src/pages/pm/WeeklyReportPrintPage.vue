@@ -554,8 +554,8 @@ const ganttPersons = computed(() => {
       })
       const projects = [...projMap.values()].map(proj => ({
         ...proj,
-        doneCount:  proj.items.filter(i => i.status === 'DONE').length,
-        progCount:  proj.items.filter(i => i.status !== 'DONE').length,
+        doneCount:  proj.items.filter(i => i.status === 'DONE' || i.status === 'IMPLEMENTED').length,
+        progCount:  proj.items.filter(i => i.status !== 'DONE' && i.status !== 'IMPLEMENTED').length,
         delayCount: proj.items.filter(i => i.isDelayed).length,
       }))
 
@@ -581,7 +581,7 @@ function ganttCellClass(item: WorkItem, dayIso: string): string {
   const e = (item.dueDate   ?? item.startDate ?? fallback).slice(0, 10)
   if (dayIso < s || dayIso > e) return ''
   if (item.isDelayed)                                           return 'gc-delay'
-  if (item.status === 'DONE')                                   return 'gc-done'
+  if (item.status === 'DONE' || item.status === 'IMPLEMENTED') return 'gc-done'
   if (item.status === 'IN_PROGRESS') return 'gc-prog'
   return 'gc-todo'
 }
