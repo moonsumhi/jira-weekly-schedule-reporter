@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional, Literal, List
 
 from pydantic import BaseModel, Field
+from app.models.asset_system_info import SystemInformation
 
 # history action
 AssetAction = Literal["CREATE", "UPDATE", "DELETE", "PURGE"]
@@ -31,6 +32,7 @@ class ServerAssetPatch(BaseModel):
     asset_no: Optional[str] = None
     fields: Optional[Dict[str, Any]] = None
     version: Optional[int] = None  # optimistic lock (optional)
+    system_info: Optional[SystemInformation] = None
 
 
 class ServerAssetDelete(BaseModel):
@@ -44,6 +46,7 @@ class ServerAssetOut(BaseModel):
     asset_id: Optional[str] = None
     asset_no: Optional[str] = None
     fields: Dict[str, Any]
+    system_info: Optional[SystemInformation] = None
 
     created_at: Optional[datetime] = None
     created_by: Optional[str] = None
