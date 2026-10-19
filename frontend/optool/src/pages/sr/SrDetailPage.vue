@@ -1288,7 +1288,19 @@
           <div class="field-label">변경할 상태 <span class="required">*</span></div>
           <q-select v-model="statusForm.status" outlined
             :options="availableStatusOptions" emit-value map-options
-            placeholder="상태를 선택하세요" hide-bottom-space class="q-mb-md" />
+            placeholder="상태를 선택하세요" hide-bottom-space class="q-mb-md">
+            <template #option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>{{ scope.opt.label }}</q-item-section>
+                <q-tooltip v-if="scope.opt.value === 'COMPLETED' || scope.opt.value === 'CLOSED'"
+                  anchor="bottom middle" self="top middle">
+                  {{ scope.opt.value === 'COMPLETED'
+                    ? '담당자가 SR 티켓의 요청 사항을 처리한 상태입니다.'
+                    : '요청자가 처리 완료된 내용을 확인하고 완료 처리한 상태입니다.' }}
+                </q-tooltip>
+              </q-item>
+            </template>
+          </q-select>
 
           <template v-if="needsReason">
             <div class="field-label">사유 <span class="required">*</span></div>
