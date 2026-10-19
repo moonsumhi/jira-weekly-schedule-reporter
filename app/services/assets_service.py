@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from app.db.mongo import MongoClientManager
 from app.models.asset_system_info import SystemInformation
+from app.services import rack_placement_service
 from app.utils.mongo import to_out
 from app.utils.time import TimeUtil
 
@@ -96,6 +97,7 @@ async def list_all_assets(*, include_deleted: bool) -> List[Dict[str, Any]]:
     items: List[Dict[str, Any]] = []
     async for doc in db[primary_col_name].aggregate(pipeline):
         items.append(to_out(doc))
+    await rack_placement_service.enrich_asset_rack_fields(items)
     return items
 
 
@@ -120,13 +122,16 @@ class AssetsService:
         items: List[Dict[str, Any]] = []
         async for doc in self._col().find(q).sort("ip", 1):
             items.append(to_out(doc))
+        await rack_placement_service.enrich_asset_rack_fields(items, self._category)
         return items
 
     async def get(self, *, _id: ObjectId) -> Dict[str, Any]:
         doc = await self._col().find_one({"_id": _id})
         if not doc:
             raise KeyError("찾을 수 없습니다.")
-        return to_out(doc)
+        out = to_out(doc)
+        await rack_placement_service.enrich_asset_rack_fields([out], self._category)
+        return out
 
     async def create(
         self,
@@ -207,6 +212,8 @@ class AssetsService:
 
         normalized_fields = dict(fields or {})
         normalized_fields["자산유형"] = self._category
+        derived = await rack_placement_service.current_asset_rack_fields([(self._category, _id)])
+        normalized_fields.update(derived.get((self._category, _id), {}))
         now = TimeUtil.now_utc()
         new_doc = {
             "ip": ip,
@@ -247,6 +254,8 @@ class AssetsService:
             patch={"replace": True},
             history_col=self._hist(),
         )
+        if self._category == "랙":
+            await rack_placement_service.sync_rack_asset_mirrors(_id)
         return after_out
 
     async def patch(
@@ -314,6 +323,8 @@ class AssetsService:
                 raise ValueError("fields는 객체(object) 형식이어야 합니다.")
             normalized_fields = dict(patch["fields"])
             normalized_fields["자산유형"] = self._category
+            derived = await rack_placement_service.current_asset_rack_fields([(self._category, _id)])
+            normalized_fields.update(derived.get((self._category, _id), {}))
             # 랙 전체 U 축소 차단: 현재 배치된 최상단 U 미만으로 줄일 수 없음
             if self._category == "랙":
                 try:
@@ -333,7 +344,9 @@ class AssetsService:
             update["fields"] = normalized_fields
 
         if not update and not unset:
-            return to_out(existing)
+            out = to_out(existing)
+            await rack_placement_service.enrich_asset_rack_fields([out], self._category)
+            return out
 
         now = TimeUtil.now_utc()
         update["updated_at"] = now
@@ -365,6 +378,10 @@ class AssetsService:
             patch={"$set": update},
             history_col=self._hist(),
         )
+        if self._category == "랙":
+            await rack_placement_service.sync_rack_asset_mirrors(_id)
+        elif "fields" not in update:
+            await rack_placement_service.enrich_asset_rack_fields([after_out], self._category)
         return after_out
 
     async def delete(self, *, _id: ObjectId, actor_email: str, reason: Optional[str] = None) -> Dict[str, Any]:
