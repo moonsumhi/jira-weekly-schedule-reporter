@@ -1,6 +1,8 @@
+import { NETWORK_EOS_LIST } from 'src/constants/networkEos'
 import audit from 'src/data/lifecycle_audit.json'
 import { softwareAliases, supportStatus, REVIEW_NOTE, type LifecycleEvidence } from 'src/services/lifecycleAudit'
 import { requiresMinorVersion, resolveDistName } from 'src/services/eosDetection'
+import { normalizeCiscoSoftware } from 'src/services/ciscoLifecycle'
 import { normalizeVmware } from 'src/services/vmwareLifecycle'
 
 // EoL requires an explicit vendor life-end milestone; intermediate support phases are not EoL.
@@ -41,10 +43,15 @@ export function getAutoEol(dist: string, version: string): EolResult | null {
   // VMware는 일반 지원과 계약 조건부 기술 가이드를 별도로 표시한다.
   if (normalizeVmware(dist, version)) return null
 
+  const cisco = normalizeCiscoSoftware(dist, version)
+  if (cisco) ({ dist, version } = cisco)
   dist = resolveDistName(dist)
   const evidence = EOL_EVIDENCE[`${dist}|${version}`]
     ?? EOL_EVIDENCE[softwareAliases[`${dist}|${version}`] ?? '']
   if (!evidence) {
+    const normalized = dist.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^cisco/, '').replace(/^nexus/, '')
+    const hardware = NETWORK_EOS_LIST.find(row => row.aliases.includes(normalized))
+    if (hardware && 'eolNote' in hardware) return { status: 'REVIEW_REQUIRED', date: '', source: hardware.source, note: hardware.eolNote }
     return Object.keys(EOL_EVIDENCE).some(key => key.startsWith(`${dist}|`))
       ? { status: 'REVIEW_REQUIRED', date: '', note: REVIEW_NOTE } : null
   }

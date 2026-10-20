@@ -814,6 +814,7 @@
               <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createEosStatus) }}</span><strong>{{ createEosDateText }}</strong></span>
             </div>
           </template>
+          <CiscoSoftwareLifecycle :fields="createFields" editable @change="(key, value) => createFields[key] = value" />
           <LifecycleEvidence :fields="createFields" />
           <div v-if="isVmware(createFields) ? secondaryLifecycle(createFields).date : createFields[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
                :class="secondaryLifecycle(createFields).bannerClass">
@@ -1424,6 +1425,7 @@
               <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(rowEditValues[EOS_STATUS_KEY]) }}</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
             </div>
           </template>
+          <CiscoSoftwareLifecycle :fields="rowEditValues" editable @change="(key, value) => rowEditValues[key] = value" />
           <LifecycleEvidence :fields="rowEditValues" />
           <div v-if="isVmware(rowEditValues) ? secondaryLifecycle(rowEditValues).date : rowEditValues[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
                :class="secondaryLifecycle(rowEditValues).bannerClass">
@@ -1968,7 +1970,10 @@
             </div>
           </q-card-section>
 
-          <q-card-section class="q-py-sm"><LifecycleEvidence :fields="detailLifecycleFields" /></q-card-section>
+          <q-card-section class="q-py-sm">
+            <CiscoSoftwareLifecycle :fields="detailLifecycleFields" :editable="detailEditing" @change="(key, value) => rowEditValues[key] = value" />
+            <LifecycleEvidence :fields="detailLifecycleFields" />
+          </q-card-section>
 
           <!-- 도입 정보 -->
           <q-card-section class="q-py-sm">
@@ -2717,6 +2722,7 @@
 </template>
 
 <script setup lang="ts">
+import CiscoSoftwareLifecycle from 'src/components/CiscoSoftwareLifecycle.vue'
 import LifecycleEvidence from 'src/components/LifecycleEvidence.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
@@ -3856,7 +3862,7 @@ async function doCreate() {
     const fields: FieldsMap = {}
     for (const [k, v] of Object.entries(createFields.value)) {
       if (k === '자산번호') continue  // top-level asset_no field
-      if ((v ?? '').toString().trim()) fields[k] = parseSmartValue(v)
+      if ((v ?? '').toString().trim()) fields[k] = k.startsWith('Cisco 소프트웨어') ? v : parseSmartValue(v)
     }
     if (createTags.value.length) fields[TAGS_KEY] = createTags.value
     // watch가 아직 실행되지 않았을 경우를 대비해 EoS/EoL 직접 계산.
@@ -4303,11 +4309,15 @@ const rowEditFields = computed(() => {
   for (const k of Object.keys(rowEditTarget.value.fields ?? {})) {
     if (!ordered.has(k) && !excluded.has(k)) result.push({ key: k, label: fieldLabel(k) })
   }
+  for (const key of ['Cisco 소프트웨어', 'Cisco 소프트웨어 버전']) {
+    if (key in rowEditValues.value && !result.some(field => field.key === key)) result.push({ key, label: key })
+  }
   return result
 })
 
 // 편집 다이얼로그 템플릿에서 이미 하드코딩된 필드 키 목록
 const EDIT_DIALOG_COVERED_KEYS = new Set([
+  'Cisco 소프트웨어', 'Cisco 소프트웨어 버전',
   '자산유형', '상태', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
   '운영체제', 'version', '제조사', '수량', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', '폐기일정', '폐기비고',
   '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항',
@@ -4463,7 +4473,7 @@ async function doRowEdit() {
     for (const { key } of rowEditFields.value) {
       if (key === '__ip__' || key === '__name__' || key === '자산번호') continue
       const val = (rowEditValues.value[key] ?? '').toString().trim()
-      newFields[key] = val ? parseSmartValue(val) : null
+      newFields[key] = val ? (key.startsWith('Cisco 소프트웨어') ? val : parseSmartValue(val)) : null
     }
     newFields[TAGS_KEY] = rowEditTags.value.length ? rowEditTags.value : null
     const rowEditAssetNo = (rowEditValues.value['자산번호'] ?? '').trim() || null

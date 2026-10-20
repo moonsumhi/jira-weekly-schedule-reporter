@@ -9602,6 +9602,134 @@
       ],
       "scope": "공식 프로젝트의 해당 버전 커뮤니티 지원; 별도 상용 유지보수 계약 제외",
       "dateKind": "service_end"
+    },
+    "Cisco APIC|4.2": {
+      "date": "2025-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.html",
+      "basis": "Cisco 소프트웨어 릴리스 Last Date of Support",
+      "note": "유효한 계약 기준. 하드웨어 서비스 종료와 독립적으로 판정. 보안 지원 종료는 별도 단계.",
+      "dateKind": "service_end",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2024-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.html"
+        }
+      ]
+    },
+    "Cisco ACI Switch|14.2": {
+      "date": "2025-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.html",
+      "basis": "Cisco 소프트웨어 릴리스 Last Date of Support",
+      "note": "유효한 계약 기준. 하드웨어 서비스 종료와 독립적으로 판정. 보안 지원 종료는 별도 단계.",
+      "dateKind": "service_end",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2024-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.html"
+        }
+      ]
+    },
+    "Cisco APIC|5.2": {
+      "date": "2026-12-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html",
+      "basis": "Cisco 소프트웨어 릴리스 Last Date of Support",
+      "note": "유효한 계약 기준. 하드웨어 서비스 종료와 독립적으로 판정. 보안 지원 종료는 별도 단계.",
+      "dateKind": "service_end",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2025-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html"
+        },
+        {
+          "date": "2024-11-22",
+          "basis": "소프트웨어 일반 유지보수 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html"
+        }
+      ]
+    },
+    "Cisco ACI Switch|15.2": {
+      "date": "2026-12-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html",
+      "basis": "Cisco 소프트웨어 릴리스 Last Date of Support",
+      "note": "유효한 계약 기준. 하드웨어 서비스 종료와 독립적으로 판정. 보안 지원 종료는 별도 단계.",
+      "dateKind": "service_end",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2025-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html"
+        },
+        {
+          "date": "2024-11-22",
+          "basis": "소프트웨어 일반 유지보수 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html"
+        }
+      ]
+    },
+    "Cisco APIC|5.3": {
+      "date": "2026-12-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html",
+      "basis": "Cisco 소프트웨어 릴리스 Last Date of Support",
+      "note": "유효한 계약 기준. 하드웨어 서비스 종료와 독립적으로 판정. 보안 지원 종료는 별도 단계.",
+      "dateKind": "service_end",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2025-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html"
+        },
+        {
+          "date": "2025-04-30",
+          "basis": "소프트웨어 일반 유지보수 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html"
+        }
+      ]
+    },
+    "Cisco ACI Switch|15.3": {
+      "date": "2026-12-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html",
+      "basis": "Cisco 소프트웨어 릴리스 Last Date of Support",
+      "note": "유효한 계약 기준. 하드웨어 서비스 종료와 독립적으로 판정. 보안 지원 종료는 별도 단계.",
+      "dateKind": "service_end",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2025-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html"
+        },
+        {
+          "date": "2025-04-30",
+          "basis": "소프트웨어 일반 유지보수 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html"
+        }
+      ]
     }
   },
   "softwareAliases": {
@@ -13279,6 +13407,134 @@
       ],
       "scope": "공식 프로젝트의 해당 버전 커뮤니티 지원; 별도 상용 유지보수 계약 제외",
       "dateKind": "unconfirmed"
+    },
+    "Cisco APIC|4.2": {
+      "date": "",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.html",
+      "basis": "제품 수명 종료일 별도 확정 없음",
+      "note": "판매·발표·보안 지원 종료를 EoL 날짜로 대체하지 않음.",
+      "dateKind": "unconfirmed",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "life_end_unconfirmed",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2024-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.html"
+        }
+      ]
+    },
+    "Cisco ACI Switch|14.2": {
+      "date": "",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.html",
+      "basis": "제품 수명 종료일 별도 확정 없음",
+      "note": "판매·발표·보안 지원 종료를 EoL 날짜로 대체하지 않음.",
+      "dateKind": "unconfirmed",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "life_end_unconfirmed",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2024-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.html"
+        }
+      ]
+    },
+    "Cisco APIC|5.2": {
+      "date": "",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html",
+      "basis": "제품 수명 종료일 별도 확정 없음",
+      "note": "판매·발표·보안 지원 종료를 EoL 날짜로 대체하지 않음.",
+      "dateKind": "unconfirmed",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "life_end_unconfirmed",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2025-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html"
+        },
+        {
+          "date": "2024-11-22",
+          "basis": "소프트웨어 일반 유지보수 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html"
+        }
+      ]
+    },
+    "Cisco ACI Switch|15.2": {
+      "date": "",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html",
+      "basis": "제품 수명 종료일 별도 확정 없음",
+      "note": "판매·발표·보안 지원 종료를 EoL 날짜로 대체하지 않음.",
+      "dateKind": "unconfirmed",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "life_end_unconfirmed",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2025-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html"
+        },
+        {
+          "date": "2024-11-22",
+          "basis": "소프트웨어 일반 유지보수 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html"
+        }
+      ]
+    },
+    "Cisco APIC|5.3": {
+      "date": "",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html",
+      "basis": "제품 수명 종료일 별도 확정 없음",
+      "note": "판매·발표·보안 지원 종료를 EoL 날짜로 대체하지 않음.",
+      "dateKind": "unconfirmed",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "life_end_unconfirmed",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2025-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html"
+        },
+        {
+          "date": "2025-04-30",
+          "basis": "소프트웨어 일반 유지보수 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html"
+        }
+      ]
+    },
+    "Cisco ACI Switch|15.3": {
+      "date": "",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html",
+      "basis": "제품 수명 종료일 별도 확정 없음",
+      "note": "판매·발표·보안 지원 종료를 EoL 날짜로 대체하지 않음.",
+      "dateKind": "unconfirmed",
+      "scope": "설치 소프트웨어 릴리스 서비스",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "life_end_unconfirmed",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2025-12-31",
+          "basis": "소프트웨어 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html"
+        },
+        {
+          "date": "2025-04-30",
+          "basis": "소프트웨어 일반 유지보수 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html"
+        }
+      ]
     }
   },
   "technicalGuidance": {
@@ -13414,6 +13670,954 @@
       "legacyDates": [
         "2031-12"
       ]
+    },
+    {
+      "pattern": "apicm1",
+      "label": "APIC-M1",
+      "aliases": [
+        "apicm1"
+      ],
+      "date": "2021-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html",
+      "basis": "EOL10761 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2016-10-09",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicl1",
+      "label": "APIC-L1",
+      "aliases": [
+        "apicl1"
+      ],
+      "date": "2021-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html",
+      "basis": "EOL10761 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2016-10-09",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicserverm1",
+      "label": "APIC-SERVER-M1",
+      "aliases": [
+        "apicserverm1"
+      ],
+      "date": "2021-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html",
+      "basis": "EOL10761 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2016-10-09",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicserverl1",
+      "label": "APIC-SERVER-L1",
+      "aliases": [
+        "apicserverl1"
+      ],
+      "date": "2021-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html",
+      "basis": "EOL10761 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2016-10-09",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicclusterm1",
+      "label": "APIC-CLUSTER-M1",
+      "aliases": [
+        "apicclusterm1"
+      ],
+      "date": "2021-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html",
+      "basis": "EOL10761 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2016-10-09",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicclusterl1",
+      "label": "APIC-CLUSTER-L1",
+      "aliases": [
+        "apicclusterl1"
+      ],
+      "date": "2021-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html",
+      "basis": "EOL10761 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2016-10-09",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicm2",
+      "label": "APIC-M2",
+      "aliases": [
+        "apicm2"
+      ],
+      "date": "2024-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html",
+      "basis": "EOL12963 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2019-06-20",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2021-06-19",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2022-06-19",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicl2",
+      "label": "APIC-L2",
+      "aliases": [
+        "apicl2"
+      ],
+      "date": "2024-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html",
+      "basis": "EOL12963 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2019-06-20",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2021-06-19",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2022-06-19",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicserverm2",
+      "label": "APIC-SERVER-M2",
+      "aliases": [
+        "apicserverm2"
+      ],
+      "date": "2024-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html",
+      "basis": "EOL12963 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2019-06-20",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2021-06-19",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2022-06-19",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicserverl2",
+      "label": "APIC-SERVER-L2",
+      "aliases": [
+        "apicserverl2"
+      ],
+      "date": "2024-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html",
+      "basis": "EOL12963 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2019-06-20",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2021-06-19",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2022-06-19",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicclusterm2",
+      "label": "APIC-CLUSTER-M2",
+      "aliases": [
+        "apicclusterm2"
+      ],
+      "date": "2024-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html",
+      "basis": "EOL12963 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2019-06-20",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2021-06-19",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2022-06-19",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicclusterl2",
+      "label": "APIC-CLUSTER-L2",
+      "aliases": [
+        "apicclusterl2"
+      ],
+      "date": "2024-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html",
+      "basis": "EOL12963 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2019-06-20",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2021-06-19",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        },
+        {
+          "date": "2022-06-19",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicm3",
+      "label": "APIC-M3",
+      "aliases": [
+        "apicm3"
+      ],
+      "date": "2028-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html",
+      "basis": "EOL15070 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2023-10-30",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2026-10-29",
+          "basis": "CIMC 유지보수 종료 (APIC 소프트웨어 버전 종료와 별도)",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2028-10-31",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicl3",
+      "label": "APIC-L3",
+      "aliases": [
+        "apicl3"
+      ],
+      "date": "2028-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html",
+      "basis": "EOL15070 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2023-10-30",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2026-10-29",
+          "basis": "CIMC 유지보수 종료 (APIC 소프트웨어 버전 종료와 별도)",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2028-10-31",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicserverm3",
+      "label": "APIC-SERVER-M3",
+      "aliases": [
+        "apicserverm3"
+      ],
+      "date": "2028-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html",
+      "basis": "EOL15070 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2023-10-30",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2026-10-29",
+          "basis": "CIMC 유지보수 종료 (APIC 소프트웨어 버전 종료와 별도)",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2028-10-31",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicserverl3",
+      "label": "APIC-SERVER-L3",
+      "aliases": [
+        "apicserverl3"
+      ],
+      "date": "2028-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html",
+      "basis": "EOL15070 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2023-10-30",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2026-10-29",
+          "basis": "CIMC 유지보수 종료 (APIC 소프트웨어 버전 종료와 별도)",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2028-10-31",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicclusterm3",
+      "label": "APIC-CLUSTER-M3",
+      "aliases": [
+        "apicclusterm3"
+      ],
+      "date": "2028-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html",
+      "basis": "EOL15070 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2023-10-30",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2026-10-29",
+          "basis": "CIMC 유지보수 종료 (APIC 소프트웨어 버전 종료와 별도)",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2028-10-31",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicclusterl3",
+      "label": "APIC-CLUSTER-L3",
+      "aliases": [
+        "apicclusterl3"
+      ],
+      "date": "2028-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html",
+      "basis": "EOL15070 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2023-10-30",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2026-10-29",
+          "basis": "CIMC 유지보수 종료 (APIC 소프트웨어 버전 종료와 별도)",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2028-10-31",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "senodeg2",
+      "label": "SE-NODE-G2",
+      "aliases": [
+        "senodeg2"
+      ],
+      "date": "2028-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html",
+      "basis": "EOL15070 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2023-10-30",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2026-10-29",
+          "basis": "CIMC 유지보수 종료 (APIC 소프트웨어 버전 종료와 별도)",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2028-10-31",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": ""
+    },
+    {
+      "pattern": "secll3",
+      "label": "SE-CL-L3",
+      "aliases": [
+        "secll3"
+      ],
+      "date": "2028-10-31",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html",
+      "basis": "EOL15070 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2023-10-30",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2026-10-29",
+          "basis": "CIMC 유지보수 종료 (APIC 소프트웨어 버전 종료와 별도)",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        },
+        {
+          "date": "2028-10-31",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": ""
+    },
+    {
+      "pattern": "apicm4",
+      "label": "APIC-M4",
+      "aliases": [
+        "apicm4"
+      ],
+      "date": "2031-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html",
+      "basis": "EOL15814 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2026-06-18",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2027-06-18",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2031-06-30",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicl4",
+      "label": "APIC-L4",
+      "aliases": [
+        "apicl4"
+      ],
+      "date": "2031-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html",
+      "basis": "EOL15814 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2026-06-18",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2027-06-18",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2031-06-30",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicserverm4",
+      "label": "APIC-SERVER-M4",
+      "aliases": [
+        "apicserverm4"
+      ],
+      "date": "2031-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html",
+      "basis": "EOL15814 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2026-06-18",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2027-06-18",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2031-06-30",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicserverl4",
+      "label": "APIC-SERVER-L4",
+      "aliases": [
+        "apicserverl4"
+      ],
+      "date": "2031-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html",
+      "basis": "EOL15814 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2026-06-18",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2027-06-18",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2031-06-30",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicclusterm4",
+      "label": "APIC-CLUSTER-M4",
+      "aliases": [
+        "apicclusterm4"
+      ],
+      "date": "2031-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html",
+      "basis": "EOL15814 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2026-06-18",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2027-06-18",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2031-06-30",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "apicclusterl4",
+      "label": "APIC-CLUSTER-L4",
+      "aliases": [
+        "apicclusterl4"
+      ],
+      "date": "2031-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html",
+      "basis": "EOL15814 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2026-06-18",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2027-06-18",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2031-06-30",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": "Cisco APIC"
+    },
+    {
+      "pattern": "ndnodel4",
+      "label": "ND-NODE-L4",
+      "aliases": [
+        "ndnodel4"
+      ],
+      "date": "2031-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html",
+      "basis": "EOL15814 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2026-06-18",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2027-06-18",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2031-06-30",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": ""
+    },
+    {
+      "pattern": "ndclusterl4",
+      "label": "ND-CLUSTER-L4",
+      "aliases": [
+        "ndclusterl4"
+      ],
+      "date": "2031-06-30",
+      "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html",
+      "basis": "EOL15814 표 2의 정확한 PID에 대한 Last Date of Support",
+      "note": "유효한 제조사 계약 기준. 설치 소프트웨어 버전의 서비스 종료는 별도 확인. EoL 발표일을 제품 수명 종료일로 사용하지 않음.",
+      "reviewedAt": "2026-10-21",
+      "reviewState": "verified",
+      "dateKind": "service_end",
+      "scope": "제조사 하드웨어 최종 서비스 종료",
+      "legacyDates": [],
+      "milestones": [
+        {
+          "date": "2026-06-18",
+          "basis": "판매 종료 (End of Sale); 기관 EoS 아님",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2027-06-18",
+          "basis": "하드웨어 공지의 소프트웨어 유지보수 종료; 설치 APIC 릴리스 종료와 별도",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        },
+        {
+          "date": "2031-06-30",
+          "basis": "하드웨어 공지의 보안 지원 종료",
+          "source": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html"
+        }
+      ],
+      "eolDate": "",
+      "eolNote": "단일 제품 수명 종료일은 별도 확정하지 않음; 공식 종료 단계 참고",
+      "softwareProduct": ""
     }
   ],
   "definitions": {

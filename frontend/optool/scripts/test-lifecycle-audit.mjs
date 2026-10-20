@@ -75,3 +75,23 @@ test('all intermediate service milestones stay visible but cannot drive EoS', ()
   assert.ok(getAutoEol('PostgreSQL','15').date)
   assert.equal(getAutoEol('Windows Server','2022').date, '')
 })
+
+test('APIC bundles, servers and software retain independent service dates', () => {
+  for (const [gen, end] of [[1,'2021-10'],[2,'2024-06'],[3,'2028-10'],[4,'2031-06']]) {
+    for (const prefix of ['', 'SERVER-', 'CLUSTER-']) for (const size of ['M','L']) {
+      const pid = `Cisco APIC-${prefix}${size}${gen}`
+      assert.equal(getNetworkEos(pid).date, end)
+      assert.equal(getAutoEos(pid, '').date, end)
+    }
+  }
+  assert.equal(getNetworkEos('APIC-SERVER-M3=').date, '2028-10')
+  assert.equal(getAutoEol('APIC-CLUSTER-M3', '').date, '')
+  assert.equal(getAutoEol('APIC-CLUSTER-M3', '').status, 'REVIEW_REQUIRED')
+  for (const pid of ['APIC-CLUSTER-M30','APIC-M3-EX','APIC-M2-240G','APIC-SERVER-G5']) assert.equal(getNetworkEos(pid).date, '')
+  assert.equal(getAutoEos('APIC','5.2(8g)').date, '2026-12')
+  assert.equal(getAutoEos('Cisco ACI Switch','15.3(2b)').date, '2026-12')
+  assert.equal(getAutoEol('Cisco APIC','5.2(8g)').date, '')
+  for (const version of ['5','5.20','6.0','5.2-invalid']) assert.equal(getAutoEos('Cisco APIC',version).date, '')
+  assert.equal(getNetworkEos('SE-NODE-G2').date, '2028-10')
+  assert.equal(getNetworkEos('ND-NODE-L4').date, '2031-06')
+})

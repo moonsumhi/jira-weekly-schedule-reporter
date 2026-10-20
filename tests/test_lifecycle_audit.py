@@ -2,7 +2,7 @@ import json
 import unittest
 from datetime import date
 from pathlib import Path
-from app.lifecycle_audit import AUDIT, asset_eos, network_entry, reviewed_eos_map, support_status
+from app.lifecycle_audit import AUDIT, asset_eos, asset_eol, network_entry, reviewed_eos_map, support_status
 
 
 class LifecycleAuditTest(unittest.TestCase):
@@ -74,6 +74,24 @@ class LifecycleAuditTest(unittest.TestCase):
                 self.assertEqual(entry['dateKind'], 'life_end')
         self.assertEqual(AUDIT['eol']['Windows Server|2022']['date'], '')
         self.assertTrue(AUDIT['eol']['PostgreSQL|15']['date'])
+
+    def test_apic_exact_pids_and_software_lifecycle_are_independent(self):
+        for gen, end in [(1, '2021-10-31'), (2, '2024-06-30'), (3, '2028-10-31'), (4, '2031-06-30')]:
+            for prefix in ('', 'SERVER-', 'CLUSTER-'):
+                for size in ('M', 'L'):
+                    model = f'Cisco APIC-{prefix}{size}{gen}'
+                    self.assertEqual(network_entry(model)['date'], end)
+                    self.assertEqual(asset_eos({'운영체제': model}, '서버')['eos_date'], end[:7])
+        self.assertEqual(network_entry('APIC-SERVER-M3=')['date'], '2028-10-31')
+        for model in ('APIC-CLUSTER-M30', 'APIC-M3-EX', 'APIC-M2-240G', 'APIC-SERVER-G5'):
+            self.assertIsNone(network_entry(model))
+        self.assertEqual(asset_eos({'운영체제': 'Cisco APIC', 'version': '5.2(8g)'}, '서버')['eos_date'], '2026-12')
+        self.assertEqual(asset_eos({'운영체제': 'Cisco ACI Switch', 'version': '14.2(7f)'}, '서버')['eos_date'], '2025-06')
+        for version in ('5', '5.20', '6.0', '5.2-invalid'):
+            self.assertEqual(asset_eos({'운영체제': 'Cisco APIC', 'version': version}, '서버')['eos_date'], '')
+        self.assertEqual(network_entry('ND-NODE-L4')['date'], '2031-06-30')
+        self.assertEqual(network_entry('SE-NODE-G2')['date'], '2028-10-31')
+        self.assertEqual(asset_eol({'운영체제': 'APIC-CLUSTER-M3'})['eol_date'], '')
 
     def test_legacy_catalog_fully_accounted(self):
         self.assertEqual(len(AUDIT['network']), 62)
