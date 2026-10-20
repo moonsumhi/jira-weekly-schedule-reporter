@@ -57,25 +57,41 @@ docker-compose up
 `app/data/eos_map_snapshot.json`에 포함됩니다. 내부망 Docker 빌드와 실행 과정에서는
 외부 API를 호출하지 않습니다.
 
-GitHub Actions가 `dev` 또는 `main` 브랜치 변경 시와 매일 한 번 자동으로 최신 데이터를
-확인합니다. 실제 데이터가 바뀐 경우에만 해당 브랜치에 snapshot 갱신 커밋을 추가하므로,
-일반적인 반입 과정에서는 별도로 실행할 명령이 없습니다.
+EoS 확정 날짜의 원본은 `app/data/lifecycle_audit.json`입니다. 모델·버전별 제조사
+출처와 지원 기준을 확인한 항목만 사용하며, 미확인 항목은 `근거 확인 필요`로 표시합니다.
+외부 수집값은 이 검증 결과를 덮어쓰지 않습니다. 제조사 공지를 재검토해 날짜를 변경할 때는
+이 파일과 `frontend/optool/src/data/lifecycle_audit.json`을 함께 수정해야 합니다.
+`npm run check:lifecycle`이 두 파일의 일치를 검사합니다.
 
-자동화를 기다리지 않고 즉시 갱신해야 할 때만 외부망에서 아래 명령을 실행하세요.
-
-```bash
-python app/scripts/update_eos_snapshot.py
-```
-
-명령이 성공하면 데이터가 변경된 경우 `app/data/eos_map_snapshot.json`이 교체됩니다.
-이 파일을 포함한 최신 소스 전체를 내부망으로 반입한 뒤 평소와 같이 빌드하면 됩니다.
+이미 저장된 과거 자동 입력값은 아래 명령으로 점검합니다. 기본 동작은 조회만 하며,
+`--apply`를 붙이면 `asset_lifecycle_audit` 컬렉션에 이전 값을 보관한 뒤 교정합니다.
+기존 자동 입력값과 다른 수동 값은 변경하지 않으며, 동시 수정된 자산도 덮어쓰지 않습니다.
 
 ```bash
-docker compose build
-docker compose up -d
+docker compose exec backend python -m app.scripts.audit_asset_eos
+docker compose exec backend python -m app.scripts.audit_asset_eos --apply
 ```
 
-외부 API 조회가 모두 실패하면 기존 스냅샷을 덮어쓰지 않고 오류로 종료합니다.
+GitHub Actions는 `dev`/`main` 변경 시와 매일 03:17 KST에 외부 후보를 수집하여
+`lifecycle-candidates-브랜치명` 아티팩트로 남깁니다. 저장소 쓰기 권한, 자동 커밋 및 푸시를
+제거했습니다. 후보 보고서는 공식 제조사 자료를 대조하기 위한 참고 자료이며 배포 데이터가 아닙니다.
+이 보호는 변경된 워크플로가 해당 원격 브랜치에 반영된 이후 적용됩니다.
+
+```bash
+python app/scripts/update_eos_snapshot.py --candidate-report /tmp/lifecycle-candidates.json
+```
+
+검토한 원본을 수정한 뒤 아래 명령으로 배포 스냅샷을 생성합니다. 외부 후보는 검증 원본의
+날짜나 VMware Technical Guidance를 덮어쓸 수 없습니다.
+
+```bash
+python app/scripts/update_eos_snapshot.py --render-reviewed
+cd frontend/optool
+npm run check:lifecycle
+```
+
+최신 소스를 내부망으로 반입한 뒤 평소와 같이 `docker compose build` 및
+`docker compose up -d`를 실행합니다. 외부 API가 전부 실패하면 갱신 명령은 기존 파일을 유지하고 실패합니다.
 
 ## API 문서
 

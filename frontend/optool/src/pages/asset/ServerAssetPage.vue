@@ -479,6 +479,11 @@
               <!-- EOS date + soon warning -->
               <template v-else-if="colKey(props.col) === EOS_DATE_KEY">
                 <span>{{ getField(props.row, EOS_DATE_KEY) || '확인 불가' }}</span>
+                <q-btn v-if="eosEvidence(props.row.fields)?.source" flat round dense size="sm" icon="info_outline"
+                  :href="eosEvidence(props.row.fields)?.source" target="_blank" rel="noopener noreferrer" aria-label="제조사 EoS 근거 보기">
+                  <q-tooltip>{{ eosEvidence(props.row.fields)?.basis }} · 제조사 근거 보기</q-tooltip>
+                </q-btn>
+                <q-tooltip v-else>{{ eosEvidence(props.row.fields)?.note || '제조사 공지 확인 필요' }}</q-tooltip>
                 <q-icon
                   v-if="isDateSoon(getField(props.row, EOS_DATE_KEY), eosSoonDays)"
                   name="warning"
@@ -2967,6 +2972,7 @@ const EOS_FILTER_OPTIONS: Array<{ label: string; value: EosFilterStatus }> = [
   { label: '지원 기간 중', value: 'ACTIVE' },
   { label: '보안 유지보수 중', value: 'MAINTENANCE' },
   { label: '세부 버전 확인 필요', value: 'VERSION_REQUIRED' },
+  { label: '근거 확인 필요', value: 'REVIEW_REQUIRED' },
   { label: 'EoS 지남', value: 'EOS' },
   { label: '확인 불가', value: 'UNKNOWN' },
 ]
@@ -2980,7 +2986,7 @@ function eosBannerClass(status: unknown): string {
   const normalized = normalizeEosStatus(status)
   if (normalized === 'EOS') return 'eos-banner--eos'
   if (normalized === 'MAINTENANCE') return 'eos-banner--maintenance'
-  if (normalized === 'VERSION_REQUIRED') return 'eos-banner--warning'
+  if (normalized === 'VERSION_REQUIRED' || normalized === 'REVIEW_REQUIRED') return 'eos-banner--warning'
   return 'eos-banner--active'
 }
 
@@ -3593,6 +3599,12 @@ const filteredRows = computed(() => {
 
 // 라이프사이클 맵을 기준으로 화면 표시 값을 on-the-fly로 보완한다 (DB 미수정).
 // 자동 산출 값이므로 기존에 저장된 상태가 있어도 최신 판정으로 덮어쓴다.
+function eosEvidence(fields: Record<string, unknown>) {
+  const product = typeof fields['운영체제'] === 'string' ? fields['운영체제'] : ''
+  const version = typeof fields['version'] === 'string' ? fields['version'] : ''
+  return getAutoEos(product, version) ?? getNetworkEos(product)
+}
+
 function enrichEosEol(row: ServerAsset): void {
   const dist = (row.fields?.['운영체제'] as string) ?? ''
   if (!dist) return
