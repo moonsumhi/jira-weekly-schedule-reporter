@@ -15,11 +15,12 @@ NotificationType = Literal[
     "DUE_DATE_APPROACHING",
     "DUE_DATE_OVERDUE",
     "REQUESTER_CHANGED",
+    "BOARD_UPDATED",
     "NOTICE",
     "SYSTEM",
 ]
 
-TargetType = Literal["SR", "PM_ISSUE", "SYSTEM"]
+TargetType = Literal["SR", "PM_ISSUE", "BOARD", "SYSTEM"]
 
 
 class NotificationOut(BaseModel):

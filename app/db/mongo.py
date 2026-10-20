@@ -69,6 +69,7 @@ class MongoClientManager:
     BOARDS = "boards"
     BOARD_POSTS = "board_posts"
     BOARD_POST_HISTORIES = "board_post_histories"
+    BOARD_POST_COMMENTS = "board_post_comments"
     NOTICES = "notices"
     AUTH_LOGS = "auth_logs"
     ACTIVITY_LOGS = "activity_logs"
@@ -253,6 +254,10 @@ class MongoClientManager:
     @classmethod
     def get_board_post_histories_collection(cls):
         return cls.get_db()[cls.BOARD_POST_HISTORIES]
+
+    @classmethod
+    def get_board_post_comments_collection(cls):
+        return cls.get_db()[cls.BOARD_POST_COMMENTS]
 
     @classmethod
     def get_notices_collection(cls):

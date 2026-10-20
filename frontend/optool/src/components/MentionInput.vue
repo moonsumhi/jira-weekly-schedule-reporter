@@ -163,7 +163,7 @@ function triggerSearch(q: string) {
     await nextTick()
     updateDropdownPosition()
     try {
-      const results = await searchMentionUsers(q, 15, props.projectId)
+      const results = await searchMentionUsers(q, 30, props.projectId)
       if (seq === reqSeq) {
         searchResults.value = results
         activeIdx.value = 0

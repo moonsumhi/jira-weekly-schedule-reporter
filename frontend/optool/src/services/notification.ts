@@ -10,10 +10,11 @@ export type NotificationType =
   | 'DUE_DATE_APPROACHING'
   | 'DUE_DATE_OVERDUE'
   | 'REQUESTER_CHANGED'
+  | 'BOARD_UPDATED'
   | 'NOTICE'
   | 'SYSTEM'
 
-export type TargetType = 'SR' | 'PM_ISSUE' | 'SYSTEM'
+export type TargetType = 'SR' | 'PM_ISSUE' | 'BOARD' | 'SYSTEM'
 
 export type Notification = {
   id: string
@@ -85,6 +86,7 @@ export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
   DUE_DATE_APPROACHING: '마감 임박',
   DUE_DATE_OVERDUE: '마감 초과',
   REQUESTER_CHANGED: '요청자 변경',
+  BOARD_UPDATED: '문서 수정',
   NOTICE: '공지',
   SYSTEM: '시스템',
 }
@@ -99,6 +101,7 @@ export const NOTIFICATION_TYPE_ICON: Record<NotificationType, string> = {
   DUE_DATE_APPROACHING: 'schedule',
   DUE_DATE_OVERDUE: 'warning',
   REQUESTER_CHANGED: 'manage_accounts',
+  BOARD_UPDATED: 'description',
   NOTICE: 'campaign',
   SYSTEM: 'info',
 }
@@ -113,6 +116,7 @@ export const NOTIFICATION_TYPE_COLOR: Record<NotificationType, string> = {
   DUE_DATE_APPROACHING: 'amber',
   DUE_DATE_OVERDUE: 'red',
   REQUESTER_CHANGED: 'indigo',
+  BOARD_UPDATED: 'blue-8',
   NOTICE: 'primary',
   SYSTEM: 'grey',
 }
