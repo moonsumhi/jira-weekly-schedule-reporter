@@ -46,6 +46,7 @@ export const eosStatusOptions = [
   { label: '지원 기간 중', value: 'ACTIVE' },
   { label: '보안 유지보수 중', value: 'MAINTENANCE' },
   { label: '세부 버전 확인 필요', value: 'VERSION_REQUIRED' },
+  { label: '근거 확인 필요', value: 'REVIEW_REQUIRED' },
   { label: 'EoS 지남', value: 'EOS' },
 ] as const
 

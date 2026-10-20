@@ -23,15 +23,6 @@
   "ESXi|8.0": "2027-10",
   "ESXi|8.0|generalSupport": "2027-10-11",
   "ESXi|8.0|technicalGuidance": "2029-10-11",
-  "ESXi|9.0": "2027-09",
-  "ESXi|9.0|generalSupport": "2027-09-17",
-  "ESXi|9.0|technicalGuidance": "2028-09-17",
-  "ESXi|9.1": "2028-08",
-  "ESXi|9.1|generalSupport": "2028-08-12",
-  "ESXi|9.1|technicalGuidance": "2029-08-12",
-  "vCenter|4": "2014-05",
-  "vCenter|4|generalSupport": "2014-05-21",
-  "vCenter|4|technicalGuidance": "2016-05-21",
   "vCenter|5.0": "2016-08",
   "vCenter|5.0|generalSupport": "2016-08-24",
   "vCenter|5.0|technicalGuidance": "2018-08-24",
@@ -55,11 +46,5 @@
   "vCenter|7.0|technicalGuidance": "2027-04-02",
   "vCenter|8.0": "2027-10",
   "vCenter|8.0|generalSupport": "2027-10-11",
-  "vCenter|8.0|technicalGuidance": "2029-10-11",
-  "vCenter|9.0": "2027-09",
-  "vCenter|9.0|generalSupport": "2027-09-17",
-  "vCenter|9.0|technicalGuidance": "2028-09-17",
-  "vCenter|9.1": "2028-08",
-  "vCenter|9.1|generalSupport": "2028-08-12",
-  "vCenter|9.1|technicalGuidance": "2029-08-12"
+  "vCenter|8.0|technicalGuidance": "2029-10-11"
 }

@@ -1,15 +1,17 @@
-import { DBMS_TREE } from 'src/constants/dbmsVersions'
-import eolMapSnapshot from 'src/data/eol_map_snapshot.json'
+import audit from 'src/data/lifecycle_audit.json'
+import { softwareAliases, supportStatus, REVIEW_NOTE, type LifecycleEvidence } from 'src/services/lifecycleAudit'
 import { requiresMinorVersion, resolveDistName } from 'src/services/eosDetection'
 import { normalizeVmware } from 'src/services/vmwareLifecycle'
 
-// 배포판|버전 → EoL 종료 일자 (YYYY-MM) 스냅샷
-// EoL = 무상 보안 패치가 완전히 종료되는 시점 (Standard/Full 지원 기준)
-const EOL_MAP: Record<string, string> = eolMapSnapshot
+// EoL is the recorded vendor standard/Premier support milestone, not a promise of free patches.
+const EOL_EVIDENCE: Record<string, LifecycleEvidence> = audit.eol
 
 export interface EolResult {
   /** 'O' = EoL 도달, 'X' = 미도달, VERSION_REQUIRED = 세부 버전 확인 필요 */
-  status: 'O' | 'X' | 'VERSION_REQUIRED'
+  status: 'O' | 'X' | 'VERSION_REQUIRED' | 'REVIEW_REQUIRED'
+  source?: string
+  basis?: string
+  note?: string
   date: string
 }
 
@@ -18,6 +20,7 @@ export function eolStatusLabel(v: unknown): string {
   if (s === 'O') return 'EoL 지남'
   if (s === 'X') return '지원 기간 중'
   if (s === 'VERSION_REQUIRED') return '세부 버전 확인 필요'
+  if (s === 'REVIEW_REQUIRED') return '근거 확인 필요'
   return '확인 불가'
 }
 
@@ -25,7 +28,7 @@ export function eolStatusColor(v: unknown): string {
   const s = typeof v === 'string' ? v.toUpperCase() : ''
   if (s === 'O') return 'negative'
   if (s === 'X') return 'positive'
-  if (s === 'VERSION_REQUIRED') return 'warning'
+  if (s === 'VERSION_REQUIRED' || s === 'REVIEW_REQUIRED') return 'warning'
   return 'grey'
 }
 
@@ -38,37 +41,15 @@ export function getAutoEol(dist: string, version: string): EolResult | null {
   // VMware는 일반 지원과 계약 조건부 기술 가이드를 별도로 표시한다.
   if (normalizeVmware(dist, version)) return null
 
-  // dist|version 직접 조회
-  let eolDate = EOL_MAP[`${dist}|${version}`]
-
-  // 마이너 버전 포함 시 단계적으로 축약해 재시도
-  // 예: 22.04.3 → 22.04 → 22 / 8.10 → 8
-  if (!eolDate && version?.includes('.')) {
-    const lastDot = version.lastIndexOf('.')
-    const secondMajor = version.slice(0, lastDot)          // 22.04.3 → 22.04
-    eolDate = EOL_MAP[`${dist}|${secondMajor}`]
-    if (!eolDate) {
-      const firstDot = version.indexOf('.')
-      if (firstDot !== lastDot) {                           // 점이 2개 이상인 경우만
-        const major = version.slice(0, firstDot)            // 22.04.3 → 22
-        eolDate = EOL_MAP[`${dist}|${major}`]
-      }
-    }
+  dist = resolveDistName(dist)
+  const evidence = EOL_EVIDENCE[`${dist}|${version}`]
+    ?? EOL_EVIDENCE[softwareAliases[`${dist}|${version}`] ?? '']
+  if (!evidence) {
+    return Object.keys(EOL_EVIDENCE).some(key => key.startsWith(`${dist}|`))
+      ? { status: 'REVIEW_REQUIRED', date: '', note: REVIEW_NOTE } : null
   }
-
-  // Oracle/SAP HANA 패치 버전은 숫자 축약만으로 19c/2.0 같은 시리즈를
-  // 찾을 수 없으므로 DBMS 드롭다운의 소속 시리즈로 재조회한다.
-  if (!eolDate) {
-    const series = Object.entries(DBMS_TREE[dist] ?? {}).find(([, patches]) => patches.includes(version))?.[0]
-    if (series) eolDate = EOL_MAP[`${dist}|${series}`]
-  }
-
-  if (!eolDate) return null
-
-  const today = new Date().toISOString().slice(0, 7)
-  if (eolDate <= today) return { status: 'O', date: eolDate }
-  if (requiresMinorVersion(resolveDistName(dist), version)) {
-    return { status: 'VERSION_REQUIRED', date: eolDate }
-  }
-  return { status: 'X', date: eolDate }
+  const status = supportStatus(evidence.date)
+  const resultStatus = status === 'EOS' ? 'O' : status === 'REVIEW_REQUIRED' ? 'REVIEW_REQUIRED'
+    : requiresMinorVersion(dist, version) ? 'VERSION_REQUIRED' : 'X'
+  return { ...evidence, date: evidence.date.slice(0, 7), status: resultStatus }
 }

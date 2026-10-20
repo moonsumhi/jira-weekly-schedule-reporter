@@ -23,32 +23,18 @@ function readJson(relativePath) {
 
 const { OS_TREE } = loadTypescriptModule('src/constants/osVersions.ts')
 const { DBMS_TREE } = loadTypescriptModule('src/constants/dbmsVersions.ts')
-const eosMap = readJson('../../app/data/eos_map_snapshot.json').data
-const eolMap = readJson('src/data/eol_map_snapshot.json')
+const audit = readJson('../../app/data/lifecycle_audit.json')
+if (JSON.stringify(audit) !== JSON.stringify(readJson('src/data/lifecycle_audit.json'))) throw new Error('Lifecycle audit mirrors differ')
 
-function dbSeries(dist, version) {
-  return Object.entries(DBMS_TREE[dist] ?? {}).find(([, patches]) => patches.includes(version))?.[0]
+function evidenceFor(section, dist, version) {
+  const key = `${dist}|${version}`
+  return audit[section][key] ?? audit[section][audit.softwareAliases[key]]
 }
-
 function hasEos(dist, version) {
-  if (eosMap[`${dist}|${version}`]) return true
-  if (version.includes('.')) {
-    const parent = version.slice(0, version.lastIndexOf('.'))
-    if (eosMap[`${dist}|${parent}`]) return true
-  }
-  return false
+  return Boolean(evidenceFor('software', dist, version))
 }
-
 function hasEol(dist, version) {
-  if (eolMap[`${dist}|${version}`]) return true
-  if (version.includes('.')) {
-    const lastDot = version.lastIndexOf('.')
-    if (eolMap[`${dist}|${version.slice(0, lastDot)}`]) return true
-    const firstDot = version.indexOf('.')
-    if (firstDot !== lastDot && eolMap[`${dist}|${version.slice(0, firstDot)}`]) return true
-  }
-  const series = dbSeries(dist, version)
-  return Boolean(series && eolMap[`${dist}|${series}`])
+  return Boolean(evidenceFor('eol', dist, version))
 }
 
 const combinations = []
@@ -76,4 +62,4 @@ if (missingEos.length || missingEol.length) {
   process.exit(1)
 }
 
-console.log(`EoS/EoL 매핑 검증 완료: 드롭다운 ${combinations.length}개 조합, 누락 0건`)
+console.log(`EoS 처리 범위(근거 확인 필요 포함)/EoL 매핑 검증 완료: 드롭다운 ${combinations.length}개 조합, 누락 0건`)

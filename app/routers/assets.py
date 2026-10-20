@@ -25,6 +25,7 @@ from app.routers.auth import get_current_user
 from app.routers.permissions import require_asset_access
 from app.services.assets_service import AssetsService, list_all_assets
 from app.services.eos_service import EosService
+from app.lifecycle_audit import asset_eos
 from app.utils.mongo import oid
 
 VALID_CATEGORIES = {"서버", "네트워크", "정보보호시스템", "DBMS", "VMware", "랙"}
@@ -62,7 +63,8 @@ async def get_eos_summary(current_user: UserPublic = Depends(get_current_user)):
     soon_list = []
 
     for a in assets:
-        fields = a.get("fields") or {}
+        fields = dict(a.get("fields") or {})
+        fields.update(asset_eos(fields, fields.get("자산유형", "서버")) or {})
         if str(fields.get("상태") or "").strip() == "폐기":
             continue  # 폐기된 자산은 EoS 카운트에서 제외
         status_val = str(fields.get("eos_action_status") or "").strip()

@@ -36,8 +36,8 @@ test('VMware 제품/버전 선택은 API 로드 전후 모두 일반 지원 종�
       for (const [major, minors] of Object.entries(versions)) {
         for (const version of minors) {
           const expected = snapshot[`${dist}|${version}`]
-          assert.ok(expected)
-          assert.equal(getAutoEos(dist, version)?.date, expected)
+          assert.equal(getAutoEos(dist, version)?.date, expected ?? '')
+          if (!expected) assert.equal(getAutoEos(dist, version)?.status, 'REVIEW_REQUIRED')
           assert.equal(getAutoEol(dist, version), null)
           assert.equal(detectOsMajor(dist, version), major)
         }
@@ -61,11 +61,12 @@ test('기존 VMware 제품명과 업데이트 표기를 지원 주기로 인식�
 
 test('버전 누락/미지원 버전은 종료일을 추측하지 않는다', () => {
   for (const version of ['', '99.0', 'unknown', '7garbage']) {
-    assert.equal(getAutoEos('ESXi', version), null)
+    assert.equal(getAutoEos('ESXi', version)?.status, 'REVIEW_REQUIRED')
+    assert.equal(getAutoEos('ESXi', version)?.date, '')
     assert.equal(getAutoEol('ESXi', version), null)
   }
   assert.equal(normalizeVmware('Ubuntu', '22.04'), null)
-  assert.equal(getAutoEol('Ubuntu', '22.04')?.date, '2027-04')
+  assert.equal(getAutoEol('Ubuntu', '22.04')?.date, '2027-05')
 })
 
 test('VMware 메이저 선택은 마이너를 임의로 지정하지 않는다', () => {
@@ -73,7 +74,8 @@ test('VMware 메이저 선택은 마이너를 임의로 지정하지 않는다',
     for (const major of Object.keys(OS_TREE.VMware[dist])) {
       assert.deepEqual(normalizeVmware(dist, major), { dist, version: major })
       assert.equal(detectOsMajor(dist, major), major)
-      assert.equal(getAutoEos(dist, major), null)
+      assert.equal(getAutoEos(dist, major)?.status, 'REVIEW_REQUIRED')
+      assert.equal(getAutoEos(dist, major)?.date, '')
       assert.equal(getAutoEol(dist, major), null)
     }
     assert.equal(detectOsMajor(dist, '6.5'), '6')
@@ -99,5 +101,5 @@ test('프런트엔드 오프라인 맵은 자동 생성된 서버 VMware 맵과 
   const fallback = load('src/data/vmware_lifecycle_snapshot.json')
   const vmware = Object.fromEntries(Object.entries(snapshot).filter(([key]) => /^(ESXi|vCenter)\|/.test(key)))
   assert.deepEqual(fallback, vmware)
-  assert.equal(getVmwareGuidanceDate('ESXi', '9.0'), snapshot['ESXi|9.0|technicalGuidance'])
+  assert.equal(getVmwareGuidanceDate('ESXi', '9.0'), null)
 })

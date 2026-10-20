@@ -15,6 +15,7 @@ RUN rm -rf /app/src
 COPY frontend/optool/ .
 # 빌드 전 드롭다운과 EoS/EoL 스냅샷의 누락 여부를 검증하기 위해 함께 복사한다.
 COPY app/data/eos_map_snapshot.json ./data/eos_map_snapshot.json
+COPY app/data/lifecycle_audit.json ./data/lifecycle_audit.json
 
 # Docker Desktop에서 esbuild 실행 파일 교체 직후 발생하는 ETXTBSY를 피한다.
 # 공식 플랫폼 바이너리를 지정하면 설치 스크립트가 하드링크 교체를 생략한다.
