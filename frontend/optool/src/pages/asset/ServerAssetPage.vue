@@ -274,7 +274,7 @@
               <q-select
                 v-model="advancedFilters.eosStatuses" :options="EOS_FILTER_OPTIONS"
                 :display-value="filterSelectionDisplay(advancedFilters.eosStatuses?.map(eosFilterLabel) ?? [])"
-                label="EoS 여부" outlined dense clearable multiple emit-value map-options bg-color="white"
+                label="EoS(서비스 종료) 여부" outlined dense clearable multiple emit-value map-options bg-color="white"
                 class="advanced-filter-field"
               >
                 <template #prepend><q-icon name="event_busy" size="17px" color="grey-5" /></template>
@@ -481,7 +481,7 @@
                 <span>{{ getField(props.row, EOS_DATE_KEY) || '확인 불가' }}</span>
                 <q-btn v-if="eosEvidence(props.row.fields)?.source" flat round dense size="sm" icon="info_outline"
                   :href="eosEvidence(props.row.fields)?.source" target="_blank" rel="noopener noreferrer" aria-label="제조사 EoS 근거 보기">
-                  <q-tooltip>{{ eosEvidence(props.row.fields)?.basis }} · 제조사 근거 보기</q-tooltip>
+                  <q-tooltip>{{ eosEvidence(props.row.fields)?.note || eosEvidence(props.row.fields)?.basis }}</q-tooltip>
                 </q-btn>
                 <q-tooltip v-else>{{ eosEvidence(props.row.fields)?.note || '제조사 공지 확인 필요' }}</q-tooltip>
                 <q-icon
@@ -717,7 +717,7 @@
             </div>
             <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(createEosStatus)">
-              <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">EoS(서비스 종료) 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createEosStatus) }}</span><strong>{{ createEosDateText }}</strong></span>
             </div>
@@ -736,7 +736,7 @@
             </div>
             <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(createEosStatus)">
-              <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">EoS(서비스 종료) 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
             </div>
@@ -752,7 +752,7 @@
             <!-- 자동 감지된 경우 -->
             <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(createEosStatus)">
-              <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">EoS(서비스 종료) 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
             </div>
@@ -809,11 +809,12 @@
             <!-- EoS 자동 표시 -->
             <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(createEosStatus)">
-              <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ createEosStatusText }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">EoS(서비스 종료) 여부</span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(createEosStatus) }}</span><strong>{{ createEosDateText }}</strong></span>
             </div>
           </template>
+          <LifecycleEvidence :fields="createFields" />
           <div v-if="isVmware(createFields) ? secondaryLifecycle(createFields).date : createFields[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
                :class="secondaryLifecycle(createFields).bannerClass">
             <span class="eos-item"><span class="eos-item-label">{{ secondaryLifecycle(createFields).label }}<LifecycleGuidanceNote v-if="isVmware(createFields)" /></span><strong>{{ secondaryLifecycle(createFields).statusLabel }}</strong></span>
@@ -1334,7 +1335,7 @@
             </div>
             <div v-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(rowEditValues[EOS_STATUS_KEY])">
-              <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">EoS(서비스 종료) 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
             </div>
@@ -1350,7 +1351,7 @@
             <!-- 자동 감지된 경우 -->
             <div v-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(rowEditValues[EOS_STATUS_KEY])">
-              <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">EoS(서비스 종료) 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
             </div>
@@ -1418,11 +1419,12 @@
             <!-- EoS 자동 표시 -->
             <div v-if="rowEditValues[EOS_STATUS_KEY]" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(rowEditValues[EOS_STATUS_KEY])">
-              <span class="eos-item"><span class="eos-item-label">EoS 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
+              <span class="eos-item"><span class="eos-item-label">EoS(서비스 종료) 여부</span><strong>{{ eosStatusLabel(rowEditValues[EOS_STATUS_KEY]) }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">{{ lifecycleDateLabel(rowEditValues[EOS_STATUS_KEY]) }}</span><strong>{{ rowEditValues[EOS_DATE_KEY] || '확인 불가' }}</strong></span>
             </div>
           </template>
+          <LifecycleEvidence :fields="rowEditValues" />
           <div v-if="isVmware(rowEditValues) ? secondaryLifecycle(rowEditValues).date : rowEditValues[EOL_STATUS_KEY]" class="eos-banner q-mt-sm"
                :class="secondaryLifecycle(rowEditValues).bannerClass">
             <span class="eos-item"><span class="eos-item-label">{{ secondaryLifecycle(rowEditValues).label }}<LifecycleGuidanceNote v-if="isVmware(rowEditValues)" /></span><strong>{{ secondaryLifecycle(rowEditValues).statusLabel }}</strong></span>
@@ -1787,7 +1789,7 @@
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
-                  <div class="field-label">EoS 여부</div>
+                  <div class="field-label">EoS(서비스 종료) 여부</div>
                   <div class="detail-value">
                     <q-badge
                       v-if="(detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY])"
@@ -1851,7 +1853,7 @@
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
-                  <div class="field-label">EoS 여부</div>
+                  <div class="field-label">EoS(서비스 종료) 여부</div>
                   <div class="detail-value">
                     <template v-if="(detailEditing ? rowEditValues['운영체제'] : detailTarget.fields?.['운영체제'])">
                       <q-badge :color="(detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) ? eosStatusColor((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) as string) : 'grey'" outline>
@@ -1933,7 +1935,7 @@
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
                 <div class="col-4 form-field">
-                  <div class="field-label">EoS 여부</div>
+                  <div class="field-label">EoS(서비스 종료) 여부</div>
                   <div class="detail-value">
                     <template v-if="(detailEditing ? rowEditValues['운영체제'] : detailTarget.fields?.['운영체제'])">
                       <q-badge :color="(detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) ? eosStatusColor((detailEditing ? rowEditValues[EOS_STATUS_KEY] : detailTarget.fields?.[EOS_STATUS_KEY]) as string) : 'grey'" outline>
@@ -1965,6 +1967,8 @@
               </div>
             </div>
           </q-card-section>
+
+          <q-card-section class="q-py-sm"><LifecycleEvidence :fields="detailLifecycleFields" /></q-card-section>
 
           <!-- 도입 정보 -->
           <q-card-section class="q-py-sm">
@@ -2713,6 +2717,7 @@
 </template>
 
 <script setup lang="ts">
+import LifecycleEvidence from 'src/components/LifecycleEvidence.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
@@ -2902,8 +2907,8 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   '용도': '용도(상세)',
   '소속부서': '소속부서/사업',
   '위치': '위치',
-  [EOS_STATUS_KEY]: 'EoS 여부',
-  [EOS_DATE_KEY]: 'EoS 기간',
+  [EOS_STATUS_KEY]: 'EoS(서비스 종료) 여부',
+  [EOS_DATE_KEY]: 'EoS 서비스 종료일',
   [EOL_STATUS_KEY]: 'EoL 여부',
   [EOL_DATE_KEY]: 'EoL 기간',
   [ISMS_P_KEY]: 'ISMS-P 대상 여부',
@@ -3058,7 +3063,7 @@ const advancedFilterChips = computed(() => {
   if (advancedFilters.eosStatuses?.length) {
     chips.push({
       key: 'eosStatuses',
-      label: 'EoS 여부',
+      label: 'EoS(서비스 종료) 여부',
       value: advancedFilters.eosStatuses.map(eosFilterLabel).join(', '),
     })
   }

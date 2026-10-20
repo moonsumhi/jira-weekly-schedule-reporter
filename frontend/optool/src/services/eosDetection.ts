@@ -95,10 +95,11 @@ export function getAutoEos(dist: string, version: string): { status: EosActionSt
     return known ? { status: 'REVIEW_REQUIRED', date: '', source: '', basis: '', note: REVIEW_NOTE } : null
   }
   const today = new Date().toISOString().slice(0, 10)
-  let status = supportStatus(evidence.date, today)
+  const end = evidence.dateKind === 'service_end' ? evidence.date : ''
+  let status = supportStatus(end, today)
   if (status === 'ACTIVE' && requiresMinorVersion(dist, version)) status = 'VERSION_REQUIRED'
   if (status === 'ACTIVE' && isMaintenancePhase(dist, version, today)) status = 'MAINTENANCE'
-  return { ...evidence, date: evidence.date.slice(0, 7), status }
+  return { ...evidence, date: end.slice(0, 7), status }
 }
 
 // ── 네트워크 장비 EoS 탐지 ────────────────────────────────────────────────────
@@ -114,6 +115,7 @@ export function getNetworkEos(model: string): {
   const normalized = normalizeModel(model).replace(/^cisco/, '').replace(/^nexus/, '')
   const entry = NETWORK_EOS_LIST.find(e => e.aliases.includes(normalized))
   if (!entry) return { status: 'REVIEW_REQUIRED', date: '', matchedLabel: model, source: '', basis: '', note: REVIEW_NOTE }
-  return { status: supportStatus(entry.date), date: entry.date.slice(0, 7), matchedLabel: entry.label,
+  const end = entry.dateKind === 'service_end' ? entry.date : ''
+  return { status: supportStatus(end), date: end.slice(0, 7), matchedLabel: entry.label,
     source: entry.source, basis: entry.basis, note: entry.note }
 }

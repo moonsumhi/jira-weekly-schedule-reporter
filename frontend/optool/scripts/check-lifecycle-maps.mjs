@@ -63,3 +63,9 @@ if (missingEos.length || missingEol.length) {
 }
 
 console.log(`EoS 처리 범위(근거 확인 필요 포함)/EoL 매핑 검증 완료: 드롭다운 ${combinations.length}개 조합, 누락 0건`)
+
+for (const [section, kind] of [['software', 'service_end'], ['eol', 'life_end']]) {
+  for (const [key, entry] of Object.entries(audit[section])) {
+    if (entry.date && entry.dateKind !== kind) throw new Error(`${section} ${key}: 잘못된 종료일 의미`)
+  }
+}

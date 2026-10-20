@@ -1,4 +1,4 @@
-"""End-of-Support 날짜 맵 빌드 및 메모리/파일 캐시 관리."""
+"""End-of-Service 날짜 맵 빌드 및 메모리/파일 캐시 관리."""
 from __future__ import annotations
 
 import asyncio

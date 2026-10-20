@@ -27,7 +27,7 @@ test('exact hardware and independent variants', () => {
   }
 })
 test('unverified versions and editions cannot inherit optimistic dates', () => {
-  assert.equal(getAutoEos('Oracle','19.3').date, '2032-12')
+  assert.equal(getAutoEos('Oracle','19.3').date, '')
   for (const [product, version] of [['Oracle','23c'],['SAP HANA','2.0'],['Windows 11','23H2'],['PostgreSQL','15.999']]) {
     assert.equal(getAutoEos(product, version).status, 'REVIEW_REQUIRED')
     assert.equal(getAutoEos(product, version).date, '')
@@ -40,19 +40,19 @@ test('support remains valid through last day; month precision stays uncertain', 
 })
 test('offline and API results use same reviewed facts', () => {
   const map = reviewedEosMap({'Oracle|19c':'2027-04','SAP HANA|2.0':'2030-12'})
-  assert.equal(map['Oracle|19c'],'2032-12')
+  assert.equal(map['Oracle|19c'],undefined)
   assert.equal(map['SAP HANA|2.0'],undefined)
-  assert.equal(getAutoEos('VMware ESXi', '7.0 U3').date,'2025-10')
+  assert.equal(getAutoEos('VMware ESXi', '7.0 U3').date,'')
   assert.equal(getAutoEos('Rocky Linux','8.10').status,'MAINTENANCE')
 })
 
 const { getAutoEol } = load('src/services/eolData')
-test('standard and extended support dates remain distinct and sourced', () => {
-  assert.equal(getAutoEol('Oracle','19.3').date, '2029-12')
-  assert.equal(getAutoEos('Oracle','19.3').date, '2032-12')
-  assert.equal(getAutoEol('Amazon Linux','2023').date, '2027-06')
+test('intermediate support phases are not service end or life end', () => {
+  assert.equal(getAutoEol('Oracle','19.3').date, '')
+  assert.equal(getAutoEos('Oracle','19.3').date, '')
+  assert.equal(getAutoEol('Amazon Linux','2023').date, '')
   assert.equal(getAutoEos('Amazon Linux','2023').date, '2029-06')
-  assert.equal(getAutoEol('Ubuntu','22.04.3').date, '2027-05')
+  assert.equal(getAutoEol('Ubuntu','22.04.3').date, '')
   assert.equal(getAutoEol('SAP HANA','SPS 08').status, 'REVIEW_REQUIRED')
 })
 
@@ -62,4 +62,16 @@ test('unreviewed guidance cannot overwrite official dates or reappear', () => {
   assert.equal(map['ESXi|9.0|technicalGuidance'], undefined)
   assert.equal(getAutoEos('Windows 11', '23H2 Home/Pro').date, '2025-11')
   assert.equal(getAutoEos('Windows 11', '23H2 Enterprise/Education').date, '2026-11')
+})
+
+test('all intermediate service milestones stay visible but cannot drive EoS', () => {
+  for (const [product, version] of [['Oracle','19c'],['MySQL','8.0'],['RHEL','8'],['Ubuntu','22.04'],['ESXi','7.0'],['SAP HANA','1.0']]) {
+    const result = getAutoEos(product, version)
+    assert.equal(result.date, '')
+    assert.equal(result.status, 'REVIEW_REQUIRED')
+    assert.ok(result.milestone.date)
+    assert.ok(result.note)
+  }
+  assert.ok(getAutoEol('PostgreSQL','15').date)
+  assert.equal(getAutoEol('Windows Server','2022').date, '')
 })

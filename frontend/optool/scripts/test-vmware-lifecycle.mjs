@@ -50,11 +50,11 @@ test('기존 VMware 제품명과 업데이트 표기를 지원 주기로 인식�
   for (const dist of ['ESXi', 'VMware ESXi', 'esxi', 'VMware ESX']) {
     for (const version of ['7.0', '7.0 U3', '7.0 Update 3w', '7.0.3']) {
       assert.deepEqual(normalizeVmware(dist, version), { dist: 'ESXi', version: '7.0' })
-      assert.equal(getAutoEos(dist, version)?.date, '2025-10')
+      assert.equal(getAutoEos(dist, version)?.date, '')
       assert.equal(getAutoEol(dist, version), null)
     }
   }
-  assert.equal(getAutoEos('ESXi 7.0', '')?.date, '2025-10')
+  assert.equal(getAutoEos('ESXi 7.0', '')?.date, '')
   assert.equal(getAutoEol('VMware vCenter Server 7.0', ''), null)
   assert.equal(detectOsMajor('VMware ESXi', '7.0 U3'), '7')
 })
@@ -66,7 +66,7 @@ test('버전 누락/미지원 버전은 종료일을 추측하지 않는다', ()
     assert.equal(getAutoEol('ESXi', version), null)
   }
   assert.equal(normalizeVmware('Ubuntu', '22.04'), null)
-  assert.equal(getAutoEol('Ubuntu', '22.04')?.date, '2027-05')
+  assert.equal(getAutoEol('Ubuntu', '22.04')?.date, '')
 })
 
 test('VMware 메이저 선택은 마이너를 임의로 지정하지 않는다', () => {

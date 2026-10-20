@@ -3,7 +3,7 @@ import { softwareAliases, supportStatus, REVIEW_NOTE, type LifecycleEvidence } f
 import { requiresMinorVersion, resolveDistName } from 'src/services/eosDetection'
 import { normalizeVmware } from 'src/services/vmwareLifecycle'
 
-// EoL is the recorded vendor standard/Premier support milestone, not a promise of free patches.
+// EoL requires an explicit vendor life-end milestone; intermediate support phases are not EoL.
 const EOL_EVIDENCE: Record<string, LifecycleEvidence> = audit.eol
 
 export interface EolResult {
@@ -48,8 +48,9 @@ export function getAutoEol(dist: string, version: string): EolResult | null {
     return Object.keys(EOL_EVIDENCE).some(key => key.startsWith(`${dist}|`))
       ? { status: 'REVIEW_REQUIRED', date: '', note: REVIEW_NOTE } : null
   }
-  const status = supportStatus(evidence.date)
+  const end = evidence.dateKind === 'life_end' ? evidence.date : ''
+  const status = supportStatus(end)
   const resultStatus = status === 'EOS' ? 'O' : status === 'REVIEW_REQUIRED' ? 'REVIEW_REQUIRED'
     : requiresMinorVersion(dist, version) ? 'VERSION_REQUIRED' : 'X'
-  return { ...evidence, date: evidence.date.slice(0, 7), status: resultStatus }
+  return { ...evidence, date: end.slice(0, 7), status: resultStatus }
 }
