@@ -16,9 +16,9 @@ class LifecycleAuditTest(unittest.TestCase):
             self.assertEqual(asset_eos({'운영체제': model, 'eos_date': '2030-12'}, '네트워크')['eos_action_status'], 'REVIEW_REQUIRED')
 
     def test_backend_normalizes_vmware_import_labels(self):
-        self.assertEqual(asset_eos({'운영체제': 'VMware ESXi', 'version': '7.0 U3'}, '서버')['eos_date'], '2025-10')
-        self.assertEqual(asset_eos({'운영체제': 'VMware vCenter Server 8.0', 'version': ''}, '서버')['eos_date'], '2027-10')
-        self.assertEqual(asset_eos({'운영체제': 'RHEL', 'version': '9'}, '서버')['eos_action_status'], 'VERSION_REQUIRED')
+        self.assertEqual(asset_eos({'운영체제': 'VMware ESXi', 'version': '7.0 U3'}, '서버')['eos_date'], '')
+        self.assertEqual(asset_eos({'운영체제': 'VMware vCenter Server 8.0', 'version': ''}, '서버')['eos_date'], '')
+        self.assertEqual(asset_eos({'운영체제': 'RHEL', 'version': '9'}, '서버')['eos_action_status'], 'REVIEW_REQUIRED')
 
     def test_support_boundary(self):
         self.assertEqual(support_status('2029-01-31', date(2029, 1, 31)), 'ACTIVE')
@@ -28,8 +28,8 @@ class LifecycleAuditTest(unittest.TestCase):
 
     def test_feed_cannot_restore_unverified_or_override_review(self):
         result = reviewed_eos_map({'Oracle|19c': '2027-04', 'SAP HANA|2.0': '2030-12', 'Windows 11|Windows 11': '2034-10', 'Unknown|99': '2099-12'})
-        self.assertEqual(result['Oracle|19c'], '2032-12')
-        self.assertEqual(result['Oracle|21c'], '2027-07')
+        self.assertNotIn('Oracle|19c', result)
+        self.assertNotIn('Oracle|21c', result)
         for key in ('SAP HANA|2.0', 'Windows 11|Windows 11', 'Unknown|99'):
             self.assertNotIn(key, result)
 
@@ -56,6 +56,24 @@ class LifecycleAuditTest(unittest.TestCase):
                 self.assertTrue(entry['source'].startswith('https://'))
                 self.assertTrue(entry['basis'])
                 self.assertRegex(entry['date'], r'^\d{4}-\d{2}(-\d{2})?$')
+
+    def test_service_and_life_end_are_explicit_and_stages_preserved(self):
+        for key in ('Oracle|19c', 'MySQL|8.0', 'RHEL|8', 'Ubuntu|22.04', 'ESXi|7.0', 'SAP HANA|1.0'):
+            entry = AUDIT['software'][key]
+            self.assertEqual(entry['date'], '')
+            self.assertTrue(entry['milestone']['date'])
+            self.assertTrue(entry['legacyDates'])
+        result = reviewed_eos_map({})
+        self.assertEqual(result['ESXi|7.0|generalSupport'], '2025-10-02')
+        self.assertNotIn('ESXi|7.0', result)
+        for entry in AUDIT['software'].values():
+            if entry['date']:
+                self.assertEqual(entry['dateKind'], 'service_end')
+        for entry in AUDIT['eol'].values():
+            if entry['date']:
+                self.assertEqual(entry['dateKind'], 'life_end')
+        self.assertEqual(AUDIT['eol']['Windows Server|2022']['date'], '')
+        self.assertTrue(AUDIT['eol']['PostgreSQL|15']['date'])
 
     def test_legacy_catalog_fully_accounted(self):
         self.assertEqual(len(AUDIT['network']), 62)

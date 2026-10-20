@@ -96,3 +96,12 @@ npm run check:lifecycle
 ## API 문서
 
 http://localhost:8000/docs
+
+### 기관의 EoS/EoL 정의 (2026-10-21)
+
+- EoS는 **End of Service**이며, 명시된 제조사/프로젝트가 제공하는 해당 제품·버전의 서비스 종료일입니다. 기관이 체결한 별도 유지보수 계약의 만료일이 아닙니다. 커뮤니티 제품은 공식 프로젝트 지원 범위를 표시합니다.
+- EoL은 제조사가 명시한 제품·버전 수명 종료일만 사용합니다. 발표일, 판매 종료일, 일반 지원 종료일로 추정하지 않습니다.
+- `dateKind=service_end`/`life_end`로 검증된 날짜만 각 판정에 사용합니다. 원래 중간 지원 단계의 날짜·출처는 `milestone`에 보관하며 화면의 지원 근거에서 확인할 수 있습니다.
+- Oracle의 Sustaining Support, VMware 계약별 Technical Guidance, Ubuntu ESM/Legacy, RHEL 연장 서비스처럼 후속 서비스 범위가 불명확하면 서비스 종료일을 단정하지 않습니다. 미확정은 지원 중 또는 무기한 패치 제공을 뜻하지 않습니다.
+- Windows ESU는 일반 기술지원 연장과 다르므로 ESU 날짜로 서비스 종료일을 일괄 연장하지 않습니다.
+- 저장 자산 교정 도구는 EoS/EoL 각각의 과거 자동 입력값(`legacyDates`)을 비교합니다. 수동 날짜는 검토 대상으로 남기며, 변경 전 백업과 동시 수정 검사를 수행합니다. 먼저 dry-run으로 범위를 확인합니다.
