@@ -8,7 +8,10 @@
         참고 지원 단계: {{ item.entry.milestone.basis }} — {{ item.entry.milestone.date }}
         <a v-if="item.entry.milestone.source" :href="item.entry.milestone.source" target="_blank" rel="noopener noreferrer">공식 근거</a>
       </div>
-      <div v-else-if="item.entry.source" class="q-pl-sm">
+      <div v-for="stage in item.entry.milestones ?? []" :key="stage.basis" class="q-pl-sm">
+        {{ stage.basis }}: {{ stage.date }}
+      </div>
+      <div v-if="item.entry.source" class="q-pl-sm">
         {{ item.entry.basis }}
         <a :href="item.entry.source" target="_blank" rel="noopener noreferrer">공식 근거</a>
       </div>
@@ -21,6 +24,7 @@ import { computed } from 'vue'
 import audit from 'src/data/lifecycle_audit.json'
 import { softwareEvidence, softwareAliases, type LifecycleEvidence } from 'src/services/lifecycleAudit'
 import { resolveDistName, getNetworkEos } from 'src/services/eosDetection'
+import { normalizeCiscoSoftware } from 'src/services/ciscoLifecycle'
 import { normalizeVmware } from 'src/services/vmwareLifecycle'
 const props = defineProps<{ fields: Record<string, unknown> | undefined }>()
 const evidence = computed(() => {
@@ -28,7 +32,7 @@ const evidence = computed(() => {
   const rawVersion = props.fields?.['version']
   const product = typeof rawProduct === 'string' ? rawProduct : ''
   const version = typeof rawVersion === 'string' ? rawVersion : typeof rawVersion === 'number' ? String(rawVersion) : ''
-  const vmware = normalizeVmware(product, version)
+  const vmware = normalizeCiscoSoftware(product, version) ?? normalizeVmware(product, version)
   const key = `${vmware?.dist ?? resolveDistName(product)}|${vmware?.version ?? version}`
   const eol = audit.eol as Record<string, LifecycleEvidence>
   const eosEntry = softwareEvidence[key] ?? softwareEvidence[softwareAliases[key] ?? ''] ?? getNetworkEos(product)

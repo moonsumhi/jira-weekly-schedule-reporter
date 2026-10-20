@@ -1,7 +1,7 @@
 import audit from 'src/data/lifecycle_audit.json'
 import type { EosActionStatus } from 'src/types/assets'
 
-export type LifecycleEvidence = { date: string; source: string; basis: string; note: string; dateKind?: string; scope?: string; milestone?: { date: string; basis: string; source: string; note: string } }
+export type LifecycleEvidence = { date: string; source: string; basis: string; note: string; dateKind?: string; scope?: string; milestones?: Array<{date: string; basis: string; source: string}>; milestone?: { date: string; basis: string; source: string; note: string } }
 export const softwareEvidence: Record<string, LifecycleEvidence> = audit.software
 export const softwareAliases: Record<string, string> = audit.softwareAliases
 export const REVIEW_NOTE = '정확한 모델·버전·지원 종류와 제조사 공지를 확인해야 합니다.'

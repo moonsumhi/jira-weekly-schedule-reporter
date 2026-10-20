@@ -105,3 +105,10 @@ http://localhost:8000/docs
 - Oracle의 Sustaining Support, VMware 계약별 Technical Guidance, Ubuntu ESM/Legacy, RHEL 연장 서비스처럼 후속 서비스 범위가 불명확하면 서비스 종료일을 단정하지 않습니다. 미확정은 지원 중 또는 무기한 패치 제공을 뜻하지 않습니다.
 - Windows ESU는 일반 기술지원 연장과 다르므로 ESU 날짜로 서비스 종료일을 일괄 연장하지 않습니다.
 - 저장 자산 교정 도구는 EoS/EoL 각각의 과거 자동 입력값(`legacyDates`)을 비교합니다. 수동 날짜는 검토 대상으로 남기며, 변경 전 백업과 동시 수정 검사를 수행합니다. 먼저 dry-run으로 범위를 확인합니다.
+
+### Cisco APIC / ACI 수명주기
+
+- APIC M1~M4/L1~L4의 본체·SERVER·CLUSTER PID, SE-NODE-G2/SE-CL-L3, ND-NODE-L4/ND-CLUSTER-L4를 개별 PID로 판정합니다. SSD 등 비슷한 모델명에는 날짜를 상속하지 않습니다.
+- 하드웨어 EoS는 공식 공지의 Last Date of Support입니다. 판매·유지보수·보안 지원 종료일은 별도 단계로 보관하며, EoL은 발표일이나 판매 종료일로 대체하지 않습니다.
+- 자산의 `Cisco 소프트웨어`, `Cisco 소프트웨어 버전` 필드로 설치 소프트웨어를 하드웨어와 별도로 관리합니다. APIC 4.2/5.2/5.3, ACI Switch 14.2/15.2/15.3을 지원하며 `5.2(8g)` 등은 해당 릴리스로 판정합니다. 미확인 릴리스에는 다른 버전의 날짜를 적용하지 않습니다.
+- 추가 항목과 공식 출처: `reports/cisco-apic-additions-2026-10-21.csv`.
