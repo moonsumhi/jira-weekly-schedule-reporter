@@ -3,7 +3,7 @@
     <div class="row items-center q-mb-md">
       <q-btn flat dense round icon="arrow_back" class="q-mr-xs" @click="goBack" />
       <div class="col">
-        <div class="text-h6 text-weight-bold">{{ isEdit ? '게시글 수정' : '글쓰기' }}</div>
+        <div class="text-h6 text-weight-bold">{{ isEdit ? '문서 수정' : '새 문서' }}</div>
         <div class="text-caption text-grey-5">{{ boardTitle }}</div>
       </div>
     </div>
@@ -34,7 +34,22 @@
             </div>
           </div>
         </div>
-        <MarkdownEditor v-model="form.content" label="내용" required :rows="20" />
+        <q-select v-model="form.parentId" label="상위 문서" outlined dense clearable
+          :options="parentOptions" emit-value map-options
+          hint="상위 문서를 선택하면 탐색 목록에서 하위 문서로 표시됩니다." />
+        <q-select v-model="form.editorIds" label="함께 수정할 사람" outlined dense multiple use-chips
+          :options="editorOptions" emit-value map-options :disable="!canManageEditors"
+          hint="문서 책임자와 관리자는 항상 수정할 수 있습니다. 지정한 사람도 이 문서를 수정할 수 있습니다." />
+        <q-select v-if="isEdit && authStore.me?.isAdmin" v-model="form.ownerId"
+          label="문서 책임자" outlined dense :options="ownerOptions" emit-value map-options
+          hint="작성자가 퇴사한 경우 새 책임자를 지정할 수 있습니다. 원래 작성자 기록은 유지됩니다." />
+        <MarkdownEditor v-model="form.content" label="내용" required :rows="20" slash-commands mentions
+          @mention-selected="onMentionSelected" />
+        <div v-if="mentionedUsers.length" class="row q-gutter-xs q-mt-xs">
+          <q-chip v-for="user in mentionedUsers" :key="user.userId" dense color="blue-1" text-color="blue-9" icon="alternate_email">
+            {{ user.displayName }}
+          </q-chip>
+        </div>
 
         <div>
           <div class="text-caption text-grey-7 q-mb-xs">첨부파일 <span class="text-grey-5">(선택)</span></div>
@@ -74,10 +89,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { boardService, type PostAttachment, type PostAttachmentInput } from 'src/services/boards'
+import { boardService, type PostAttachment, type PostAttachmentInput, type PostOut } from 'src/services/boards'
 import { envCategoryService } from 'src/services/envCategory'
 import { useAuthStore } from 'stores/auth'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
+import { isAxiosError } from 'axios'
+import { listPmUsers, type PmUser } from 'src/services/pm/users'
+import type { MentionUser } from 'src/services/mention'
 
 const route  = useRoute()
 const router = useRouter()
@@ -89,10 +107,40 @@ const postId    = computed(() => route.params.postId as string | undefined)
 const isEdit    = computed(() => !!postId.value)
 const boardTitle = ref('')
 const saving    = ref(false)
+const loadedVersion = ref<number | null>(null)
+const ownerName = ref('')
+const users = ref<PmUser[]>([])
+const canManageEditors = computed(() => !isEdit.value || authStore.me?.isAdmin || form.value.ownerId === authStore.me?.id)
+const editorOptions = computed(() => users.value.map((user) => ({ label: `${user.name || user.email}${user.team ? ` (${user.team})` : ''}`, value: user.id })))
+const ownerOptions = computed(() => {
+  const options = editorOptions.value
+  if (form.value.ownerId && !options.some((option) => option.value === form.value.ownerId)) {
+    return [{ label: `${ownerName.value} (퇴사/비활성)`, value: form.value.ownerId }, ...options]
+  }
+  return options
+})
 const attachments = ref<PostAttachment[]>([])
+const mentionedUsers = ref<MentionUser[]>([])
 const categoryOptions = ref<{ label: string; value: string }[]>([])
 
-const form = ref({ title: '', part: '', category: '', content: '' })
+const form = ref({ title: '', part: '', category: '', content: '', parentId: null as string | null, editorIds: [] as string[], ownerId: null as string | null })
+const allPosts = ref<PostOut[]>([])
+const parentOptions = computed(() => allPosts.value
+  .filter((post) => post.id !== postId.value && !isDescendant(post.id, postId.value))
+  .map((post) => ({ label: post.title, value: post.id })))
+
+function isDescendant(candidateId: string, ancestorId: string | undefined): boolean {
+  if (!ancestorId) return false
+  const seen = new Set<string>()
+  let current = allPosts.value.find((post) => post.id === candidateId)
+  while (current?.parentId && !seen.has(current.id)) {
+    const parentId = current.parentId
+    if (parentId === ancestorId) return true
+    seen.add(current.id)
+    current = allPosts.value.find((post) => post.id === parentId)
+  }
+  return false
+}
 
 const uploadHeaders = computed(() => {
   const token = authStore.token
@@ -131,10 +179,19 @@ function goBack() {
   void router.push(`/board/${boardId.value}`)
 }
 
+function onMentionSelected(user: MentionUser) {
+  if (!mentionedUsers.value.some(item => item.userId === user.userId)) mentionedUsers.value.push(user)
+}
+
 async function load() {
+  try { users.value = await listPmUsers() } catch { /* 사용자 목록이 없어도 기존 지정 값은 유지 */ }
+  try { allPosts.value = await boardService.listPosts(boardId.value) } catch { /* 상위 문서 목록을 불러오지 못하면 루트에 작성 */ }
+  if (!isEdit.value && typeof route.query.parentId === 'string' && allPosts.value.some((post) => post.id === route.query.parentId)) {
+    form.value.parentId = route.query.parentId
+  }
   try {
     const boards = await boardService.listBoards()
-    boardTitle.value = boards.find(b => b.id === boardId.value)?.title ?? '게시판'
+    boardTitle.value = boards.find(b => b.id === boardId.value)?.title ?? '문서 관리'
   } catch { /* 게시판 제목 조회 실패는 무시 */ }
 
   try {
@@ -145,10 +202,13 @@ async function load() {
   if (isEdit.value) {
     try {
       const post = await boardService.getPost(boardId.value, postId.value as string)
-      form.value = { title: post.title, part: post.part ?? '', category: post.category ?? '', content: post.content }
+      form.value = { title: post.title, part: post.part ?? '', category: post.category ?? '', content: post.content, parentId: post.parentId, editorIds: post.editorIds ?? [], ownerId: post.ownerId }
+      mentionedUsers.value = (post.mentionedUsers ?? []).map(user => ({ ...user, team: null, email: '' }))
       attachments.value = post.attachments ?? []
+      loadedVersion.value = post.version
+      ownerName.value = post.ownerName
     } catch {
-      $q.notify({ type: 'negative', message: '게시글을 불러오는데 실패했습니다.' })
+      $q.notify({ type: 'negative', message: '문서를 불러오는데 실패했습니다.' })
       goBack()
     }
   }
@@ -166,20 +226,30 @@ async function submit() {
       part: form.value.part.trim(),
       category: form.value.category?.trim() ?? '',
       content: form.value.content,
+      parent_id: form.value.parentId,
+      editor_ids: form.value.editorIds,
+      mentioned_user_ids: mentionedUsers.value
+        .filter(user => form.value.content.includes(`@${user.displayName}`))
+        .map(user => user.userId),
       attachments: attachments.value.map((a): PostAttachmentInput => ({
         file_id: a.fileId, original_name: a.originalName, url: a.url, size: a.size, content_type: a.contentType,
       })),
     }
     if (isEdit.value && postId.value) {
-      await boardService.patchPost(boardId.value, postId.value, payload)
-      $q.notify({ type: 'positive', message: '게시글이 수정되었습니다.' })
+      await boardService.patchPost(boardId.value, postId.value, {
+        ...payload,
+        ...(authStore.me?.isAdmin && form.value.ownerId ? { owner_id: form.value.ownerId } : {}),
+        ...(loadedVersion.value === null ? {} : { expected_version: loadedVersion.value }),
+      })
+      $q.notify({ type: 'positive', message: '문서가 수정되었습니다.' })
     } else {
       await boardService.createPost(boardId.value, payload)
-      $q.notify({ type: 'positive', message: '게시글이 등록되었습니다.' })
+      $q.notify({ type: 'positive', message: '문서가 등록되었습니다.' })
     }
     goBack()
-  } catch {
-    $q.notify({ type: 'negative', message: isEdit.value ? '수정에 실패했습니다.' : '등록에 실패했습니다.' })
+  } catch (error) {
+    const conflict = isAxiosError(error) && error.response?.status === 409
+    $q.notify({ type: 'negative', message: conflict ? '다른 사용자가 먼저 수정했습니다. 내용을 보관한 뒤 새로고침해 주세요.' : (isEdit.value ? '수정에 실패했습니다.' : '등록에 실패했습니다.') })
   } finally {
     saving.value = false
   }

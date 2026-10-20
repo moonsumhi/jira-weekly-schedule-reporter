@@ -122,6 +122,10 @@ const routes: RouteRecordRaw[] = [
             component: () => import('pages/board/BoardPostDetailPage.vue')
           },
           {
+            path: ':boardId/post/:postId/history',
+            component: () => import('pages/board/BoardPostHistoryPage.vue')
+          },
+          {
             path: ':boardId/edit/:postId',
             component: () => import('pages/board/BoardPostFormPage.vue')
           }

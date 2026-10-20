@@ -19,7 +19,8 @@ export function readBoardListState(boardId: string, storage: Pick<Storage, 'getI
     if (p && typeof p === 'object') {
       if (Number.isSafeInteger(p.page) && p.page > 0) state.pagination.page = p.page
       if ([15, 30, 50, 100, 0].includes(p.rowsPerPage)) state.pagination.rowsPerPage = p.rowsPerPage
-      if (p.sortBy && ['title', 'part', 'authorName', 'createdAt'].includes(p.sortBy)) state.pagination.sortBy = p.sortBy
+      if (p.sortBy === 'createdAt') state.pagination.sortBy = 'updatedAt'
+      else if (p.sortBy && ['title', 'part', 'authorName', 'updatedAt'].includes(p.sortBy)) state.pagination.sortBy = p.sortBy
       state.pagination.descending = p.descending === true
     }
   } catch { /* Unavailable storage or an old value should not block the board. */ }

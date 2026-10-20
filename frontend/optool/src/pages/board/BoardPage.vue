@@ -2,7 +2,7 @@
   <q-page padding>
     <div class="row items-center q-mb-md q-gutter-sm no-wrap">
       <div class="text-h6" style="flex-shrink: 0;">{{ boardTitle }}</div>
-      <q-btn icon="add" label="글쓰기" color="primary" style="flex-shrink: 0; margin-left: 15px;" @click="openWrite" />
+      <q-btn icon="note_add" label="새 문서" color="primary" style="flex-shrink: 0; margin-left: 15px;" @click="openWrite" />
       <q-space />
       <q-select
         v-model="categoryFilter" dense outlined clearable
@@ -11,7 +11,7 @@
       />
       <q-input
         v-model="filterText" dense outlined clearable
-        placeholder="제목 / 내용 / 작성자 검색"
+        placeholder="문서 제목 / 내용 / 작성자 검색"
         style="flex: 0 1 500px; min-width: 150px"
       >
         <template #prepend><q-icon name="search" /></template>
@@ -30,11 +30,12 @@
       :loading="loading"
       v-model:pagination="pagination"
       :rows-per-page-options="[15, 30, 50, 100, 0]"
-      no-data-label="게시글이 없습니다"
+      no-data-label="문서가 없습니다"
       @row-click="(_, row) => openPost(row)"
     >
       <template #body-cell-title="{ row }">
         <q-td class="cursor-pointer">
+          <q-icon name="description" size="17px" class="q-mr-xs" />
           <span
             v-if="row.category"
             class="text-primary"
@@ -100,10 +101,10 @@ const columns = [
   { name: 'part', label: '업무 파트', field: 'part', align: 'left' as const, sortable: true },
   { name: 'authorName', label: '작성자', field: 'authorName', align: 'left' as const, sortable: true },
   {
-    name: 'createdAt', label: '작성일', field: (row: PostOut) => formatDate(row.createdAt), align: 'center' as const,
+    name: 'updatedAt', label: '최근 수정', field: (row: PostOut) => formatDate(row.updatedAt ?? row.createdAt), align: 'center' as const,
     sortable: true,
     sort: (_a: unknown, _b: unknown, rowA: PostOut, rowB: PostOut) =>
-      new Date(rowA.createdAt ?? 0).getTime() - new Date(rowB.createdAt ?? 0).getTime(),
+      new Date(rowA.updatedAt ?? rowA.createdAt ?? 0).getTime() - new Date(rowB.updatedAt ?? rowB.createdAt ?? 0).getTime(),
   },
   { name: 'actions', label: '', field: 'id', align: 'right' as const },
 ]
@@ -129,11 +130,11 @@ function formatDate(dt: string | null | undefined) {
 }
 
 function canEdit(row: PostOut) {
-  return auth.me?.isAdmin || String(row.authorId) === String(auth.me?.id)
+  return auth.me?.isAdmin || String(row.ownerId) === String(auth.me?.id) || row.editorIds?.includes(String(auth.me?.id))
 }
 
 function canDelete(row: PostOut) {
-  return auth.me?.isAdmin || String(row.authorId) === String(auth.me?.id)
+  return auth.me?.isAdmin || String(row.ownerId) === String(auth.me?.id)
 }
 
 let loadRequest = 0
@@ -148,7 +149,7 @@ async function load() {
     ])
     if (request !== loadRequest) return
     const board = allBoards.find((b) => b.id === requestedBoard)
-    boardTitle.value = board?.title ?? '게시판'
+    boardTitle.value = board?.title ?? '문서 관리'
     posts.value = allPosts
   } catch {
     if (request !== loadRequest) return
@@ -178,10 +179,17 @@ function openPost(row: PostOut) {
 
 function confirmDelete(row: PostOut) {
   $q.dialog({
-    title: '게시글 삭제',
-    message: '이 게시글을 삭제하시겠습니까?',
+    title: '문서 삭제',
+    message: '이 문서를 삭제하시겠습니까? 하위 문서가 있으면 먼저 이동해야 합니다.',
     cancel: true,
-  }).onOk(() => { void (async () => { await boardService.deletePost(boardId.value, row.id); await load() })() })
+  }).onOk(() => { void (async () => {
+    try {
+      await boardService.deletePost(boardId.value, row.id)
+      await load()
+    } catch {
+      $q.notify({ type: 'negative', message: '문서를 삭제할 수 없습니다. 하위 문서를 먼저 이동하거나 삭제해 주세요.' })
+    }
+  })() })
 }
 
 watch(() => route.params.boardId, (id) => {
