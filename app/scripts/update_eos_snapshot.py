@@ -1,7 +1,8 @@
-"""외부망에서 endoflife.date 데이터를 받아 소스 반입용 EoS snapshot을 갱신한다.
+"""Collect unreviewed feed candidates, or render vendor-reviewed offline snapshots.
 
-별도 패키지 설치 없이 자동화할 수 있도록 Python 표준 라이브러리만 사용한다.
-외부 API가 전부 실패하면 기존 파일을 건드리지 않고 실패 코드로 종료한다.
+Scheduled automation uses --candidate-report and never changes runtime data.
+--render-reviewed requires no network; only lifecycle_audit.json supplies dates.
+The legacy invocation still collects feeds but cannot override reviewed facts.
 """
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from urllib.request import Request, urlopen
 if __package__ in {None, ''}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from app.lifecycle_mapping import update_vmware_dates
+from app.lifecycle_audit import reviewed_eos_map
 
 logger = logging.getLogger("update_eos_snapshot")
 
@@ -93,7 +95,7 @@ def read_existing(path: Path) -> dict[str, str]:
         return {}
 
 
-def build_snapshot(path: Path, frontend_output: Path | None = None) -> tuple[int, int]:
+def build_snapshot(path: Path, frontend_output: Path | None = None, candidate_report: Path | None = None) -> tuple[int, int]:
     slugs = [*PRODUCT_DISPLAY, WINDOWS_SLUG]
     fetched: dict[str, list[dict[str, Any]]] = {}
     failures: list[str] = []
@@ -111,7 +113,7 @@ def build_snapshot(path: Path, frontend_output: Path | None = None) -> tuple[int
         raise RuntimeError("외부 EoS API가 모두 실패했습니다. 기존 snapshot을 유지합니다.")
 
     existing = read_existing(path)
-    result = dict(existing)
+    result = {} if candidate_report is not None else dict(existing)
     for slug, display in PRODUCT_DISPLAY.items():
         for entry in fetched.get(slug, []):
             update_vmware_dates(result, display, entry)
@@ -132,11 +134,6 @@ def build_snapshot(path: Path, frontend_output: Path | None = None) -> tuple[int
         elif cycle in {"10", "11"}:
             result[f"Windows {cycle}|{cycle}"] = eol
 
-    for win_name in ("Windows 10", "Windows 11"):
-        prefix = f"{win_name}|"
-        dates = [value for key, value in result.items() if key.startswith(prefix)]
-        if dates:
-            result[f"{win_name}|{win_name}"] = max(dates)
 
     aliases: dict[str, str] = {}
     for key, value in result.items():
@@ -147,6 +144,27 @@ def build_snapshot(path: Path, frontend_output: Path | None = None) -> tuple[int
                 aliases[f"Windows Server|{normalized}"] = value
     result.update(aliases)
 
+    if candidate_report is not None:
+        reviewed = reviewed_eos_map({})
+        payload = {
+            "collected_at": datetime.now(timezone.utc).isoformat(),
+            "status": "unreviewed_candidates_only",
+            "failed_products": sorted(failures),
+            "changes": {key: {"reviewed": reviewed.get(key), "candidate": value}
+                        for key, value in sorted(result.items()) if reviewed.get(key) != value},
+        }
+        candidate_report.parent.mkdir(parents=True, exist_ok=True)
+        candidate_report.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return len(payload["changes"]), len(fetched)
+
+    return write_reviewed_snapshot(path, frontend_output, len(fetched), failures)
+
+
+def write_reviewed_snapshot(path: Path, frontend_output: Path | None = None,
+                            success_count: int = 0, failures: list[str] | None = None) -> tuple[int, int]:
+    """Render reviewed facts offline. Candidate API responses are never inputs."""
+    existing = read_existing(path)
+    result = reviewed_eos_map({})
     if frontend_output is not None:
         vmware = {key: value for key, value in sorted(result.items())
                   if key.startswith(("ESXi|", "vCenter|"))}
@@ -157,20 +175,20 @@ def build_snapshot(path: Path, frontend_output: Path | None = None) -> tuple[int
 
     if result == existing:
         logger.info("EoS 데이터 변경 없음: 기존 snapshot을 유지합니다.")
-        return len(result), len(fetched)
+        return len(result), success_count
 
     payload = {
         "updated_at": datetime.now(timezone.utc).isoformat(),
-        "source": "endoflife.date + curated fallbacks",
-        "successful_products": len(fetched),
-        "failed_products": sorted(failures),
+        "source": "vendor-reviewed lifecycle_audit.json",
+        "successful_products": success_count,
+        "failed_products": sorted(failures or []),
         "data": dict(sorted(result.items())),
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(f"{path.suffix}.tmp")
     tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     tmp_path.replace(path)
-    return len(result), len(fetched)
+    return len(result), success_count
 
 
 def main() -> int:
@@ -179,12 +197,19 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=default_output)
     parser.add_argument("--frontend-output", type=Path,
                         help="VMware 프런트엔드 오프라인 맵도 함께 생성")
+    parser.add_argument("--candidate-report", type=Path, help="검토 후보 보고서만 생성; 배포 데이터 변경 없음")
+    parser.add_argument("--render-reviewed", action="store_true", help="외부 조회 없이 검증 원본으로 스냅샷 생성")
     args = parser.parse_args()
+    if args.render_reviewed and args.candidate_report:
+        parser.error("--render-reviewed and --candidate-report are mutually exclusive")
     if args.frontend_output is None and args.output == default_output:
         args.frontend_output = Path(__file__).resolve().parents[2] / "frontend/optool/src/data/vmware_lifecycle_snapshot.json"
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     try:
-        item_count, success_count = build_snapshot(args.output, args.frontend_output)
+        if args.render_reviewed:
+            item_count, success_count = write_reviewed_snapshot(args.output, args.frontend_output)
+        else:
+            item_count, success_count = build_snapshot(args.output, args.frontend_output, args.candidate_report)
     except Exception as exc:
         logger.error("EoS snapshot 갱신 실패: %s", exc)
         return 1

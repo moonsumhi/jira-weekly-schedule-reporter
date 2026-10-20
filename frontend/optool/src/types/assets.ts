@@ -1,3 +1,5 @@
+import type { SystemInformation } from './assetSystemInfo'
+
 export type FieldPrimitive = string | number | boolean | null
 export type FieldValue = FieldPrimitive | Record<string, unknown> | unknown[]
 export type FieldsMap = Record<string, FieldValue>
@@ -9,6 +11,7 @@ export type ServerAsset = {
   assetId?: string | null
   assetNo?: string | null
   fields: FieldsMap
+  systemInfo?: SystemInformation | null
   createdAt?: string | null
   createdBy?: string | null
   updatedAt?: string | null
@@ -43,6 +46,7 @@ export const eosStatusOptions = [
   { label: '지원 기간 중', value: 'ACTIVE' },
   { label: '보안 유지보수 중', value: 'MAINTENANCE' },
   { label: '세부 버전 확인 필요', value: 'VERSION_REQUIRED' },
+  { label: '근거 확인 필요', value: 'REVIEW_REQUIRED' },
   { label: 'EoS 지남', value: 'EOS' },
 ] as const
 

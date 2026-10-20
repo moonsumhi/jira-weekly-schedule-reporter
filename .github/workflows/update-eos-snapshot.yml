@@ -1,4 +1,4 @@
-name: Update EoS snapshot
+name: Review EoS candidates
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch to update
+        description: Branch to inspect
         required: true
         default: main
         type: choice
@@ -22,11 +22,11 @@ on:
           - dev
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: update-eos-snapshot-${{ github.event_name == 'push' && github.ref_name || github.event.inputs.branch || 'main' }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
@@ -38,6 +38,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_BRANCH }}
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,21 +46,19 @@ jobs:
           python-version: "3.12"
 
       - name: Check lifecycle mapping
-        run: python -m unittest discover -s tests -p test_vmware_snapshot.py
-
-      - name: Refresh snapshot
-        run: python app/scripts/update_eos_snapshot.py --frontend-output frontend/optool/src/data/vmware_lifecycle_snapshot.json
-
-      - name: Commit changed snapshot
-        shell: bash
         run: |
-          if git diff --quiet -- app/data/eos_map_snapshot.json frontend/optool/src/data/vmware_lifecycle_snapshot.json; then
-            echo "EoS snapshot is already up to date."
-            exit 0
-          fi
+          python -m unittest discover -s tests -p test_vmware_snapshot.py
+          python -m unittest discover -s tests -p test_lifecycle_audit.py
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/data/eos_map_snapshot.json frontend/optool/src/data/vmware_lifecycle_snapshot.json
-          git commit -m "chore: update EoS snapshot"
-          git push origin "HEAD:${TARGET_BRANCH}"
+      - name: Collect unreviewed candidates
+        run: python app/scripts/update_eos_snapshot.py --candidate-report lifecycle-candidates.json
+
+      - name: Keep reviewed files unchanged
+        run: git diff --exit-code -- app/data frontend/optool/src/data
+
+      - name: Upload candidates for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifecycle-candidates-${{ env.TARGET_BRANCH }}
+          path: lifecycle-candidates.json
+          retention-days: 30

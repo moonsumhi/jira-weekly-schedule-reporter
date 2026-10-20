@@ -4,7 +4,15 @@ export const OS_TREE: Record<string, Record<string, Record<string, string[]>>> =
   Windows: {
     'Windows Server': { '2012': [], '2012 R2': [], '2016': [], '1909': [], '2004': [], '20H2': [], '2019': [], '2022': [], '2025': [] },
     'Windows 10': { '22H2': [] },
-    'Windows 11': { '21H2': [], '22H2': [], '23H2': [] },
+    'Windows 11': {
+      '21H2': ['21H2 Home/Pro', '21H2 Enterprise/Education'],
+      '22H2': ['22H2 Home/Pro', '22H2 Enterprise/Education'],
+      '23H2': ['23H2 Home/Pro', '23H2 Enterprise/Education'],
+      '24H2': ['24H2 Home/Pro', '24H2 Enterprise/Education', '24H2 Enterprise LTSC', '24H2 IoT Enterprise LTSC'],
+      '25H2': ['25H2 Home/Pro', '25H2 Enterprise/Education'],
+      '26H1': ['26H1 Home/Pro', '26H1 Enterprise/Education'],
+      '26H2': ['26H2 Home/Pro', '26H2 Enterprise/Education'],
+    },
   },
   Linux: {
     Ubuntu: {
@@ -15,7 +23,7 @@ export const OS_TREE: Record<string, Record<string, Record<string, string[]>>> =
     },
     'Rocky Linux': {
       '8': ['8.3', '8.4', '8.5', '8.6', '8.7', '8.8', '8.9', '8.10'],
-      '9': ['9.0', '9.1', '9.2', '9.3', '9.4', '9.5'],
+      '9': ['9.0', '9.1', '9.2', '9.3', '9.4', '9.5', '9.6', '9.7', '9.8'],
     },
     CentOS: {
       '6': ['6.0', '6.1', '6.2', '6.3', '6.4', '6.5', '6.6', '6.7', '6.8', '6.9', '6.10'],

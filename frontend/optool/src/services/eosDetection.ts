@@ -1,8 +1,7 @@
 import type { EosActionStatus } from 'src/types/assets'
-import { DBMS_TREE } from 'src/constants/dbmsVersions'
 import { OS_TREE } from 'src/constants/osVersions'
-import { NETWORK_EOS_LIST, NETWORK_MANUAL_LIST } from 'src/constants/networkEos'
-import { getEosMap } from 'src/services/eosData'
+import { NETWORK_EOS_LIST } from 'src/constants/networkEos'
+import { softwareEvidence, softwareAliases, supportStatus, REVIEW_NOTE } from 'src/services/lifecycleAudit'
 import { normalizeVmware } from 'src/services/vmwareLifecycle'
 
 // ── OS 탐지 ──────────────────────────────────────────────────────────────────
@@ -66,10 +65,6 @@ export function detectOsMajor(dist: string, version: string): string {
 
 // ── EoS 날짜 조회 ─────────────────────────────────────────────────────────────
 
-function lookupEosDate(key: string): string | undefined {
-  return getEosMap()[key]
-}
-
 /**
  * 마이너 버전 목록이 있는 제품에서 메이저 버전만 고른 경우에는 실제 설치된
  * 마이너 버전의 지원 여부를 확정할 수 없다. 계열 종료일은 보여주되 지원 중으로
@@ -86,35 +81,24 @@ function isMaintenancePhase(dist: string, version: string, today: string): boole
     && today >= '2024-05'
 }
 
-export function getAutoEos(dist: string, version: string): { status: EosActionStatus; date: string } | null {
-  // fields는 느슨한 타입이라 실제로는 문자열이 아닌 값(숫자 등)이 들어올 수 있음
+export function getAutoEos(dist: string, version: string): { status: EosActionStatus; date: string; source: string; basis: string; note: string } | null {
   dist = String(dist ?? '')
   version = String(version ?? '')
   const vmware = normalizeVmware(dist, version)
   if (vmware) ({ dist, version } = vmware)
-  if (!dist || !version) return null
-  let eosDate = lookupEosDate(`${dist}|${version}`)
-  if (!eosDate) {
-    const parent = version.includes('.') ? version.slice(0, version.lastIndexOf('.')) : null
-    if (parent) eosDate = lookupEosDate(`${dist}|${parent}`)
+  dist = resolveDistName(dist)
+  if (!dist) return null
+  // Only explicitly enumerated versions may inherit a series policy.
+  const evidence = softwareEvidence[`${dist}|${version}`] ?? softwareEvidence[softwareAliases[`${dist}|${version}`] ?? '']
+  if (!evidence) {
+    const known = Object.keys(softwareEvidence).some(key => key.startsWith(`${dist}|`))
+    return known ? { status: 'REVIEW_REQUIRED', date: '', source: '', basis: '', note: REVIEW_NOTE } : null
   }
-  // Oracle/SAP HANA처럼 실제 패치 버전과 지원주기 이름의 형식이 다른 DBMS는
-  // 드롭다운 트리에서 소속 시리즈를 찾아 다시 조회한다.
-  if (!eosDate) {
-    const series = Object.entries(DBMS_TREE[dist] ?? {}).find(([, patches]) => patches.includes(version))?.[0]
-    if (series) eosDate = lookupEosDate(`${dist}|${series}`)
-  }
-  if (!eosDate) return null
-  const today = new Date().toISOString().slice(0, 7)
-  // 계열 자체의 종료일이 지났다면 마이너 버전을 몰라도 EoS로 확정할 수 있다.
-  if (eosDate <= today) return { status: 'EOS', date: eosDate }
-  if (requiresMinorVersion(resolveDistName(dist), version)) {
-    return { status: 'VERSION_REQUIRED', date: eosDate }
-  }
-  if (isMaintenancePhase(dist, version, today)) {
-    return { status: 'MAINTENANCE', date: eosDate }
-  }
-  return { status: 'ACTIVE', date: eosDate }
+  const today = new Date().toISOString().slice(0, 10)
+  let status = supportStatus(evidence.date, today)
+  if (status === 'ACTIVE' && requiresMinorVersion(dist, version)) status = 'VERSION_REQUIRED'
+  if (status === 'ACTIVE' && isMaintenancePhase(dist, version, today)) status = 'MAINTENANCE'
+  return { ...evidence, date: evidence.date.slice(0, 7), status }
 }
 
 // ── 네트워크 장비 EoS 탐지 ────────────────────────────────────────────────────
@@ -123,26 +107,13 @@ export function normalizeModel(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-export function getNetworkEos(
-  model: string
-): { status: EosActionStatus; date: string; matchedLabel: string } | null {
+export function getNetworkEos(model: string): {
+  status: EosActionStatus; date: string; matchedLabel: string; source: string; basis: string; note: string
+} | null {
   if (!model.trim()) return null
-  const normalized = normalizeModel(model)
-  const today = new Date().toISOString().slice(0, 7)
-
-  // 날짜 기반 목록 (긴 패턴 우선)
-  const sorted = [...NETWORK_EOS_LIST].sort((a, b) => b.pattern.length - a.pattern.length)
-  const entry = sorted.find(e => normalized.includes(e.pattern))
-  if (entry) {
-    return { status: entry.date <= today ? 'EOS' : 'ACTIVE', date: entry.date, matchedLabel: entry.label }
-  }
-
-  // 날짜 없이 상태만 알려진 목록 (긴 패턴 우선)
-  const sortedManual = [...NETWORK_MANUAL_LIST].sort((a, b) => b.pattern.length - a.pattern.length)
-  const manual = sortedManual.find(e => normalized.includes(e.pattern))
-  if (manual) {
-    return { status: manual.status, date: '', matchedLabel: manual.label }
-  }
-
-  return null
+  const normalized = normalizeModel(model).replace(/^cisco/, '').replace(/^nexus/, '')
+  const entry = NETWORK_EOS_LIST.find(e => e.aliases.includes(normalized))
+  if (!entry) return { status: 'REVIEW_REQUIRED', date: '', matchedLabel: model, source: '', basis: '', note: REVIEW_NOTE }
+  return { status: supportStatus(entry.date), date: entry.date.slice(0, 7), matchedLabel: entry.label,
+    source: entry.source, basis: entry.basis, note: entry.note }
 }

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
@@ -313,11 +313,20 @@ async def patch_issue(
 async def delete_issue(
     project_id: str,
     issue_id: str,
+    request: Request,
     current_user: UserPublic = Depends(get_current_user),
 ):
     await require_pm_member(current_user, project_id)
 
-    await get_issue_or_404(project_id, issue_id)
+    issue = await get_issue_or_404(project_id, issue_id)
+    project = await MongoClientManager.get_pm_projects_collection().find_one({"_id": ObjectId(project_id)})
+    project_key = (project or {}).get("key")
+    issue_key = f"{project_key}-{issue['number']}" if project_key else str(issue['number'])
+    # Capture identity before deletion; middleware logs it only for a successful response.
+    request.state.audit_diff = [
+        {"path": "이슈 번호", "before": issue_key, "after": None},
+        {"path": "이슈 제목", "before": issue.get("title", ""), "after": None},
+    ]
     iid = ObjectId(issue_id)
     await MongoClientManager.get_pm_issue_comments_collection().delete_many({"issue_id": iid})
     await MongoClientManager.get_pm_issue_history_collection().delete_many({"issue_id": iid})
