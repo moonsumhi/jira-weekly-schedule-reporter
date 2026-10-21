@@ -194,7 +194,7 @@ const collapsedIds = ref(new Set<string>())
 const editorNames = ref<Record<string, string>>({})
 const editorSummary = computed(() => post.value?.editorIds?.map((id) => editorNames.value[id] ?? id).join(', ') ?? '')
 function hasChildren(id: string) {
-  return allPosts.value.some((item) => item.parentId === id)
+  return allPosts.value.some((item) => item.parentId === id && relatedDocumentIds.value.has(item.id))
 }
 function toggleExpanded(id: string) {
   const next = new Set(collapsedIds.value)
@@ -202,10 +202,43 @@ function toggleExpanded(id: string) {
   else next.add(id)
   collapsedIds.value = next
 }
+const relatedDocumentIds = computed(() => {
+  const current = post.value
+  if (!current) return new Set<string>()
+
+  const documentsById = new Map(allPosts.value.map((item) => [item.id, item] as const))
+  const relatedIds = new Set<string>([current.id])
+  let parentId = current.parentId
+  while (parentId && !relatedIds.has(parentId)) {
+    const parent = documentsById.get(parentId)
+    if (!parent) break
+    relatedIds.add(parent.id)
+    parentId = parent.parentId
+  }
+
+  if (current.parentId) {
+    for (const sibling of allPosts.value) {
+      if (sibling.parentId === current.parentId) relatedIds.add(sibling.id)
+    }
+  }
+
+  const pending = [current.id]
+  while (pending.length) {
+    const ancestorId = pending.pop()!
+    for (const child of allPosts.value) {
+      if (child.parentId !== ancestorId || relatedIds.has(child.id)) continue
+      relatedIds.add(child.id)
+      pending.push(child.id)
+    }
+  }
+  return relatedIds
+})
 const documentTree = computed(() => {
+  const relatedPosts = allPosts.value.filter((item) => relatedDocumentIds.value.has(item.id))
   const children = new Map<string | null, PostOut[]>()
-  const ids = new Set(allPosts.value.map((item) => item.id))
-  for (const item of allPosts.value) {
+  const relatedById = new Map(relatedPosts.map((item) => [item.id, item] as const))
+  const ids = new Set(relatedById.keys())
+  for (const item of relatedPosts) {
     const parent = item.parentId && ids.has(item.parentId) ? item.parentId : null
     const group = children.get(parent) ?? []
     group.push(item)
@@ -222,7 +255,28 @@ const documentTree = computed(() => {
     }
   }
   visit(null, 0)
-  for (const item of allPosts.value) if (!seen.has(item.id)) result.push({ post: item, depth: 0 })
+  for (const item of relatedPosts) {
+    if (seen.has(item.id)) continue
+
+    // Keep malformed/orphaned items reachable, but don't re-add descendants
+    // that were intentionally hidden under a collapsed ancestor.
+    let ancestorId = item.parentId
+    const checkedAncestors = new Set([item.id])
+    let hiddenByCollapsedAncestor = false
+    while (ancestorId && !checkedAncestors.has(ancestorId)) {
+      if (seen.has(ancestorId) && collapsedIds.value.has(ancestorId)) {
+        hiddenByCollapsedAncestor = true
+        break
+      }
+      checkedAncestors.add(ancestorId)
+      ancestorId = relatedById.get(ancestorId)?.parentId ?? null
+    }
+    if (hiddenByCollapsedAncestor) continue
+
+    result.push({ post: item, depth: 0 })
+    seen.add(item.id)
+    if (!collapsedIds.value.has(item.id)) visit(item.id, 1)
+  }
   return result
 })
 const ancestors = computed(() => {
