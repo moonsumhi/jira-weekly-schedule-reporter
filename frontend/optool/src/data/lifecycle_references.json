@@ -1,0 +1,1180 @@
+{
+  "https://dev.mysql.com/doc/refman/9.7/en/mysql-releases.html": {
+    "path": "/reference/lifecycle/002d53e79c8047a3.pdf",
+    "title": "MySQL :: MySQL 9.7 Reference Manual :: 1.3 MySQL Releases: Innovation and LTS",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:04+00:00",
+    "retrievedUrl": "https://dev.mysql.com/doc/refman/9.7/en/mysql-releases.html",
+    "originalSha256": "2140aba67b72b065b420ad6dcf3817e73b4f6969b4a7e2d329fa2872ff1d5a13",
+    "sha256": "ecdd2edd5569b56bc0aba8f70d68cd8d18d2c9b6c632927b47dd67c1df4568bc",
+    "bytes": 216798
+  },
+  "https://mariadb.com/docs/release-notes/community-server/old-releases/release-notes-mariadb-11-1-series": {
+    "path": "/reference/lifecycle/05bdac7e4e78a89a.pdf",
+    "title": "Release Notes - MariaDB 11.1 Series | Release Notes | MariaDB Documentation",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:04+00:00",
+    "retrievedUrl": "https://mariadb.com/docs/release-notes/community-server/old-releases/11.1",
+    "originalSha256": "c3789f311a6300e15116744d2c19fbbeee2dd51799841b087d68b29b31785453",
+    "sha256": "0a898afa68b49145c30a9792867736eb6717b1981730eacc61d7c51978ad29f5",
+    "bytes": 114186
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/nexus-9332c-9364c-fixed-spine-switch-eol.html": {
+    "path": "/reference/lifecycle/0634d88e896b5f13.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 9332C and 9364C Fixed Spine Switches",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:04+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/nexus-9332c-9364c-fixed-spine-switch-eol.pdf",
+    "originalSha256": "055b18a623390574e5e408293de0e051b24056d26fbd02958bd1e980937465d4",
+    "sha256": "055b18a623390574e5e408293de0e051b24056d26fbd02958bd1e980937465d4",
+    "bytes": 282864
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2012-r2": {
+    "path": "/reference/lifecycle/0758dc698221d41c.pdf",
+    "title": "Windows Server 2012 R2 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:04+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2012-r2",
+    "originalSha256": "b4dca282fae89b6d8b5be0bb4a0f4704b807b486760f35f790a3c958eb0ac0cf",
+    "sha256": "f34b297a9357adf85e5ecd3e4b08c300d524df15e9e9bd6b73847a1c90ae6c7a",
+    "bytes": 183499
+  },
+  "https://sp.ts.fujitsu.com/dmsp/Publications/public/ds-py-rx1330-m4-rh.pdf": {
+    "path": "/reference/lifecycle/0907696ee95d7f4d.pdf",
+    "title": "Data Sheet Fujitsu PRIMERGY RX1330 M4 Server",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:04+00:00",
+    "retrievedUrl": "https://sp.ts.fujitsu.com/dmsp/Publications/public/ds-py-rx1330-m4.pdf",
+    "originalSha256": "15d5fc0843a16b84465164b3857c47e81fa40d0ab787e3cc3151ad2ebf79f7fd",
+    "archiveNote": "기존 데이터시트 URL은 접근이 제한되어 동일 모델의 현재 공식 데이터시트를 보관했습니다. 제품별 종료일 확인은 별도로 필요합니다.",
+    "sha256": "15d5fc0843a16b84465164b3857c47e81fa40d0ab787e3cc3151ad2ebf79f7fd",
+    "bytes": 97397
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/microsoft-sql-server-2008-r2": {
+    "path": "/reference/lifecycle/097a508dbd696064.pdf",
+    "title": "Microsoft SQL Server 2008 R2 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:04+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/microsoft-sql-server-2008-r2",
+    "originalSha256": "91700eb342ecc03e124458d38a09ee32c3cdc408f24dc627344a27f4b72130f1",
+    "sha256": "93bdfaba2afca8df49cfe4333856371e489d9d217eef0b06967fb8451b759c43",
+    "bytes": 192894
+  },
+  "https://wiki.centos.org/FAQ%282f%29General.html": {
+    "path": "/reference/lifecycle/0a3a7278f2432467.pdf",
+    "title": "FAQ/General",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:04+00:00",
+    "retrievedUrl": "https://wiki.centos.org/FAQ%282f%29General.html",
+    "originalSha256": "8c9c0edd738fe467929b81c5b63f70ff1180f9ed5c5d3b95490a439cd0c14128",
+    "sha256": "e4f77c485288a9b645ac96d7be0b7a24f1c55360117b641e4d4a1c68358c26eb",
+    "bytes": 333308
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/microsoft-sql-server-2008": {
+    "path": "/reference/lifecycle/0a3d13531c572c08.pdf",
+    "title": "Microsoft SQL Server 2008 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:05+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/microsoft-sql-server-2008",
+    "originalSha256": "9cc88b26782fceaf4d4692b16b30348aaefe254b1de27d603bfa0ffcf719aac7",
+    "sha256": "72825b9f27c5a925adf1eb9af849809c2a6f5f9714fe6f9f97e3d59cdbc3599c",
+    "bytes": 193294
+  },
+  "https://learn.microsoft.com/en-us/windows/release-health/release-information": {
+    "path": "/reference/lifecycle/0ba8127ea783ba81.pdf",
+    "title": "Windows 10 - release information | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:05+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/windows/release-health/release-information",
+    "originalSha256": "3af159e956da10fc68d2bbac12f772a57b28fe3c24cae59960895311428014bb",
+    "sha256": "3460fd62795958ecbbf8a93e80e899f5b3a44d4a63237bac74413cd342adb214",
+    "bytes": 2599662
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-736391.html": {
+    "path": "/reference/lifecycle/0c587984b16124d6.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 3064 Switch",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:05+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-736391.pdf",
+    "originalSha256": "d1f5af3d197e6080c56b0f1f3fdc5d5cdc318687b06e7bc416236db9e815b4e7",
+    "sha256": "d1f5af3d197e6080c56b0f1f3fdc5d5cdc318687b06e7bc416236db9e815b4e7",
+    "bytes": 281816
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-5000-series-switches/eos-eol-notice-c51-743752.html": {
+    "path": "/reference/lifecycle/0e5f7243ed608808.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 5500, 5600 and 6000 NX-OS 7.3 all versions",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:06+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-5000-series-switches/eos-eol-notice-c51-743752.pdf",
+    "originalSha256": "bebf5d2d4a0361241ca0e9f3e9296c09f807d29756163605d43365e9614f1e0c",
+    "sha256": "bebf5d2d4a0361241ca0e9f3e9296c09f807d29756163605d43365e9614f1e0c",
+    "bytes": 1810362
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2017": {
+    "path": "/reference/lifecycle/12d2bb5736bc5162.pdf",
+    "title": "SQL Server 2017 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:06+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2017",
+    "originalSha256": "1e0cd95cd223dc19ca4cda0051968e5271190c981c0b06c2e8928516ef9a3ec9",
+    "sha256": "4f3f58b1d6717168e04e99ded5f45a59a14316e3a15c85e331f44e70fb950c84",
+    "bytes": 161198
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.html": {
+    "path": "/reference/lifecycle/140bd8e4f4d54ba6.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus Dashboard and APIC M6 Appliances",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:06+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/data-center-analytics/nexus-dashboard/nexus-dashboard-apic-m6-appliances-eol.pdf",
+    "originalSha256": "960fce2cdd3081b303978bf75ed0e06ba25c67b9601fed5b5e1375b98b1f8be5",
+    "sha256": "960fce2cdd3081b303978bf75ed0e06ba25c67b9601fed5b5e1375b98b1f8be5",
+    "bytes": 287019
+  },
+  "https://learn.microsoft.com/lifecycle/products/windows-server-semiannual-channel": {
+    "path": "/reference/lifecycle/142a62f4eff1982b.pdf",
+    "title": "Windows Server Semi-Annual Channel - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:07+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-semiannual-channel",
+    "originalSha256": "82beafbab3043cd99bbd84804649f97722c9c3556def029e70002867bfc8cf86",
+    "sha256": "d0c3e16d5fd8abadcf546d0b04bc2ed71fe864974126649c6b7be3890010ff94",
+    "bytes": 181612
+  },
+  "https://www.oracle.com/uk/database/technologies/faq-jdbc.html": {
+    "path": "/reference/lifecycle/155a674e91b60144.pdf",
+    "title": "Oracle JDBC Frequently Asked Questions | Oracle United Kingdom",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:07+00:00",
+    "retrievedUrl": "https://www.oracle.com/uk/database/technologies/faq-jdbc.html",
+    "originalSha256": "2f276623520bb473516edbb51a7ebc4dc0b3538bcadd13ec2f4929f700719cec",
+    "sha256": "2b2bdf42683cfa4bf47d06ff3f7ca21e5e2deec71933fb120affe17a9b3719ef",
+    "bytes": 465074
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/storage-networking/mds-9100-series-multilayer-fabric-switches/eos-eol-notice-c51-734274.html": {
+    "path": "/reference/lifecycle/1876b8c2ffb525ee.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco MDS 9148 Multilayer Fabric Switch",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:07+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/storage-networking/mds-9100-series-multilayer-fabric-switches/eos-eol-notice-c51-734274.pdf",
+    "originalSha256": "acd5fb4266dfc29522cf6f595636283a3d3b30121adf6f74d25f68f72694be7c",
+    "sha256": "acd5fb4266dfc29522cf6f595636283a3d3b30121adf6f74d25f68f72694be7c",
+    "bytes": 245897
+  },
+  "https://aws.amazon.com/amazon-linux-2/faqs/": {
+    "path": "/reference/lifecycle/193ee3b69e677e0d.pdf",
+    "title": "Amazon Linux 2 FAQs",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:07+00:00",
+    "retrievedUrl": "https://aws.amazon.com/amazon-linux-2/faqs/",
+    "originalSha256": "26d2ff4d13d5a38d0cde51f64a2f46079137ed289176e1389169d755928b1d76",
+    "sha256": "432451f986fbcc534868820eb6f7350ee64a29962166796739e7459c8de06d05",
+    "bytes": 307771
+  },
+  "https://ubuntu.com/about/release-cycle": {
+    "path": "/reference/lifecycle/1a3dfb3a3a9316d4.pdf",
+    "title": "Ubuntu release cycle | Ubuntu",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:07+00:00",
+    "retrievedUrl": "https://ubuntu.com/about/release-cycle",
+    "originalSha256": "c7d8ba5f1a2e12628af7db559223b32ed97ddae075a85430adbf3da57fc907c7",
+    "sha256": "194bc65a23cbbc6e759602e2a38b78e54d2900f7e99c88fac7c2b58848aa30d0",
+    "bytes": 312295
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/eos-eol-notice-c51-739452.pdf": {
+    "path": "/reference/lifecycle/1f545c03ddae52f0.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 9396PX Switch, N9K-M12PQ and N9K-M6PQ-E expansion module",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:07+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/eos-eol-notice-c51-739452.pdf",
+    "originalSha256": "d2dc0b715fd4c1f968412865091fe676360666fd400aa484ab67fd3eaf0dfbc9",
+    "sha256": "d2dc0b715fd4c1f968412865091fe676360666fd400aa484ab67fd3eaf0dfbc9",
+    "bytes": 300355
+  },
+  "https://www.debian.org/releases/": {
+    "path": "/reference/lifecycle/21c2f6a9816e0c41.pdf",
+    "title": "Debian -- Debian Releases",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:07+00:00",
+    "retrievedUrl": "https://www.debian.org/releases/",
+    "originalSha256": "a1fd2f7e9703527c01d086c7e7f070178bdd5a398f200997a72539fde252bfe5",
+    "sha256": "9494dffa5ad87048ad95c65fe234882ad9f4bfd2bd98afd7425eab445a8b18b9",
+    "bytes": 319228
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-5000-series-switches/eos-eol-notice-c51-740720.html": {
+    "path": "/reference/lifecycle/223dcc541f779cba.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 5500 Series Switches",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:08+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-5000-series-switches/eos-eol-notice-c51-740720.pdf",
+    "originalSha256": "44e96f4a78f89faefc8021969f20c9aef53d27e6879ea470e3d1a35e4f25b063",
+    "sha256": "44e96f4a78f89faefc8021969f20c9aef53d27e6879ea470e3d1a35e4f25b063",
+    "bytes": 650323
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2019": {
+    "path": "/reference/lifecycle/230d245892a62d95.pdf",
+    "title": "Windows Server 2019 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:08+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2019",
+    "originalSha256": "f2ad5dcbd562dcf3b375f29767d8b7906fdc4d567a8a53ed28c9fe26b5f68c2f",
+    "sha256": "ba01cc5d8153296e3ff37a107ad53249e794e3e7cf5f5b8b55b2fedd19ac550e",
+    "bytes": 172497
+  },
+  "https://knowledge.broadcom.com/external/article/415405/end-of-general-support-for-vsphere.html": {
+    "path": "/reference/lifecycle/25cabe5d57c24809.pdf",
+    "title": "End of General Support for vSphere 7.0",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:08+00:00",
+    "retrievedUrl": "https://knowledge.broadcom.com/external/article/415405/end-of-general-support-for-vsphere.html",
+    "originalSha256": "f5ef5d596870ed3ca4d4b86a08c1f17ae95301d3975994e4b3f9795d117a46b0",
+    "sha256": "75230224986b5ed6792a443ca698de3a208b3a7712586440cc569b8faab9f08e",
+    "bytes": 188429
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2016": {
+    "path": "/reference/lifecycle/25d11ffdb2bf3b47.pdf",
+    "title": "SQL Server 2016 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:08+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2016",
+    "originalSha256": "632e5953736025ed0cbe693c087f89775c74bec1e5858cebc4774878e1dba29a",
+    "sha256": "1b00dfb2ca4bfc5745da41cb0fb7a41e0838a19f528df71b1416698eb1eaeaff",
+    "bytes": 183243
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/servers-unified-computing/ucs-6400-series-fabric-interconnects/fabric-interconnect-6400-series-eol.html": {
+    "path": "/reference/lifecycle/26e94a2b8773ac2d.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Fabric Interconnect 6400 Series",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:08+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/servers-unified-computing/ucs-6400-series-fabric-interconnects/fabric-interconnect-6400-series-eol.pdf",
+    "originalSha256": "68810ec76944c3761ea2807171aa1200d691ace40065f16bd75beb9e37925f19",
+    "sha256": "68810ec76944c3761ea2807171aa1200d691ace40065f16bd75beb9e37925f19",
+    "bytes": 337940
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/routers/asr-1000-series-aggregation-services-routers/eos-eol-notice-c51-734572.html": {
+    "path": "/reference/lifecycle/28d777738277272c.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco ASR 1000 Series 5- and 10-Gbps Embedded Services Processors, ASR 1000 Series Route Processor (RP1), ASR 1000 Series 10Gbps SPA Interface Processor, and ASR 1001 and ",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:08+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/routers/asr-1000-series-aggregation-services-routers/eos-eol-notice-c51-734572.pdf",
+    "originalSha256": "08ec77cb80f7b058df28e08651b081dfa7ca26f4ddbe444c699e921654b4ac18",
+    "sha256": "08ec77cb80f7b058df28e08651b081dfa7ca26f4ddbe444c699e921654b4ac18",
+    "bytes": 341597
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/eos-eol-notice-c51-738968.html": {
+    "path": "/reference/lifecycle/2a89b80473e8644e.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 9300 Series 93128TX Switch",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:08+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/eos-eol-notice-c51-738968.pdf",
+    "originalSha256": "6f1b6d9c7c0f228a98da6e5dba290e12aa8014db90d118d00ef1161cbe64d8b8",
+    "sha256": "6f1b6d9c7c0f228a98da6e5dba290e12aa8014db90d118d00ef1161cbe64d8b8",
+    "bytes": 218548
+  },
+  "https://mariadb.com/docs/release-notes/community-server/old-releases/10.8/what-is-mariadb-108": {
+    "path": "/reference/lifecycle/2d5c1d0396592090.pdf",
+    "title": "MariaDB 10.8 Changes & Improvements | Release Notes | MariaDB Documentation",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:08+00:00",
+    "retrievedUrl": "https://mariadb.com/docs/release-notes/community-server/old-releases/10.8/what-is-mariadb-108",
+    "originalSha256": "3ab97732ad604442e7b5ee825e9a5ca263361ac471560a80d0ac88daf18ecd21",
+    "sha256": "4e50a7dbdd8438ca259e070ab080d4138d1a296e328bae7c234cff3a6ed14ddc",
+    "bytes": 261271
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-2000-series-fabric-extenders/eos-eol-notice-c51-742812.html": {
+    "path": "/reference/lifecycle/2ea49f055441eb6a.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 2232PP, 2232TM-E, 2332TQ, 2348TQ Fabric Extenders",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-2000-series-fabric-extenders/eos-eol-notice-c51-742812.pdf",
+    "originalSha256": "199f6a31e39d4a0a7960d0352ce5f1e609c04aea819807dccd30ece16986f358",
+    "sha256": "199f6a31e39d4a0a7960d0352ce5f1e609c04aea819807dccd30ece16986f358",
+    "bytes": 452393
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/eos-eol-notice-c51-738969.pdf": {
+    "path": "/reference/lifecycle/309ad3c64494d003.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 9300 Series 9396TX Switch",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/eos-eol-notice-c51-738969.pdf",
+    "originalSha256": "366bce9729fcb5f4b502e0fb35c0dfb07879739c0a307eadf85d204ec8621bdd",
+    "sha256": "366bce9729fcb5f4b502e0fb35c0dfb07879739c0a307eadf85d204ec8621bdd",
+    "bytes": 176473
+  },
+  "https://ftpdocs.broadcom.com/cadocs/0/contentimages/Product_EOTG_Dates.pdf": {
+    "path": "/reference/Product_EOTG_Dates.pdf",
+    "title": "Product Name End of Technical Guidance Date VMware Tools 12.4.x 2031-03-21 VMware Tools 12.3.x 2030-08-31 VMware Tools 12.2.x 2030-03-07 VMware vSAN™ 8.0 2029-10-11 VMware ESXi 8.0 2029-10-11 VMware vCenter Server 8.0 20",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://ftpdocs.broadcom.com/cadocs/0/contentimages/Product_EOTG_Dates.pdf",
+    "originalSha256": "bb355410998596b0204d405a2c4c45dd69afdfd9134accc0f3e5d544d415d683",
+    "sha256": "bb355410998596b0204d405a2c4c45dd69afdfd9134accc0f3e5d544d415d683",
+    "bytes": 119366
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/eos-eol-notice-c51-739451.html": {
+    "path": "/reference/lifecycle/32beb5dc6a0d9cbe.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 9372PX and 9372TX Switches",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/eos-eol-notice-c51-739451.pdf",
+    "originalSha256": "e9e51c91af180201287ed3ad81fd583ca5d717e079d9cb21747e4d9789e30b44",
+    "sha256": "e9e51c91af180201287ed3ad81fd583ca5d717e079d9cb21747e4d9789e30b44",
+    "bytes": 289574
+  },
+  "https://learn.microsoft.com/troubleshoot/sql/general/determine-version-edition-update-level": {
+    "path": "/reference/lifecycle/37808913b0945850.pdf",
+    "title": "Latest Updates and Version History for SQL Server - SQL Server | Microsoft Support",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://support.microsoft.com/en-us/servicing/sql/kb321185-download-and-install-latest-updates",
+    "originalSha256": "cecd2ce5f9e5ac8755eb84ae5b19af43a64a2713dca8cf8c8c5e4e8ce6eedb37",
+    "sha256": "5732b2143c09b10f8babbde01be3be4c5fd9301cdffc3a0e2d22d2026b5fa8dc",
+    "bytes": 1516742
+  },
+  "https://www.cisco.com/c/en/us/support/switches/nexus-93240yc-fx2-switch/model.html": {
+    "path": "/reference/lifecycle/3a22c1eeab2d3123.pdf",
+    "title": "Cisco Nexus 93240YC-FX2 Switch - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/support/switches/nexus-93240yc-fx2-switch/model.html",
+    "originalSha256": "ad6787c7d62ea0dcbdb65c520a5d74ba567baba4149b84bce8e490873aad5c82",
+    "sha256": "4c1869b178872d63319921b8315f1a53be2fc94ae7ce47f65394601c6bee349d",
+    "bytes": 475868
+  },
+  "https://www.cisco.com/c/en/us/support/switches/catalyst-9400-series-switches/series.html": {
+    "path": "/reference/lifecycle/3d1c026f0188faee.pdf",
+    "title": "Cisco Catalyst 9400 Series Switches - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/support/switches/catalyst-9400-series-switches/series.html",
+    "originalSha256": "97eb73e6964b01ae2170adeabfd076dfd7009ec5fdd26dea3cb6612a7afd8381",
+    "sha256": "aec4858131f85c1d83ee648108350a628278a27d3afd4e2655b1a0ecb91960ed",
+    "bytes": 432863
+  },
+  "https://www.cisco.com/c/en/us/support/switches/nexus-9508-switch/model.html": {
+    "path": "/reference/lifecycle/3e9ffc8892256f32.pdf",
+    "title": "Cisco Nexus 9508 Switch - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/support/switches/nexus-9508-switch/model.html",
+    "originalSha256": "4cea59b5d201c05c2878a78871021b0a67acded202de6e5cde29714e5353ed5c",
+    "sha256": "f62ae3cbd2f51bcf37cc184954997aaa026aab967765007afea4c73e3c29936e",
+    "bytes": 609708
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-734491.html": {
+    "path": "/reference/lifecycle/41bffe9ebd468d9f.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 3016 Switch",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-734491.pdf",
+    "originalSha256": "d8ceeefd74e7741d2a3d7033b17e151fa9180dc1b27e482c3ee953b42d6e2428",
+    "sha256": "d8ceeefd74e7741d2a3d7033b17e151fa9180dc1b27e482c3ee953b42d6e2428",
+    "bytes": 206197
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-736390.html": {
+    "path": "/reference/lifecycle/451e631bebbe17ac.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 3064-T Switch",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-736390.pdf",
+    "originalSha256": "dfca19e3d6ac239f63332ecedc97d9a5c1ee0c966517ab5e0500bde6104dae2b",
+    "sha256": "dfca19e3d6ac239f63332ecedc97d9a5c1ee0c966517ab5e0500bde6104dae2b",
+    "bytes": 275489
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-6000-series-switches/eos-eol-notice-c51-735308.html": {
+    "path": "/reference/lifecycle/4c82c8d63e183762.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 6004 Non-Extensible Fixed (Non-EF) Switch and Fabric Extender (FEX) Bundles",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:09+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-6000-series-switches/eos-eol-notice-c51-735308.pdf",
+    "originalSha256": "13b4f6aa7d8e78ffeb60a1daa60d83283e555ea907c27cf56c16b2912e664278",
+    "sha256": "13b4f6aa7d8e78ffeb60a1daa60d83283e555ea907c27cf56c16b2912e664278",
+    "bytes": 239259
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/routers/asr-1000-series-aggregation-services-routers/asr1001-x-1002-x-eol.html": {
+    "path": "/reference/lifecycle/4d2d361127ddc8fb.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco ASR1001-X, ASR1002-X, ASR1000-6TGE, ASR1000-2T+20X1GE and associated miscellaneous ASR1000 SKUs",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:10+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/routers/asr-1000-series-aggregation-services-routers/asr1001-x-1002-x-eol.pdf",
+    "originalSha256": "04ee3606f62d97f9e1ea4aee2e1f05a53fd4943dbf426caf6b8ae3722cb72f47",
+    "sha256": "04ee3606f62d97f9e1ea4aee2e1f05a53fd4943dbf426caf6b8ae3722cb72f47",
+    "bytes": 537129
+  },
+  "https://www.microsoft.com/en-us/windows-server/blog/2009/09/15/support-changes-coming-july-2010-for-windows-2000-server-and-windows-server-2003": {
+    "path": "/reference/lifecycle/4ef7995e98a5a150.pdf",
+    "title": "Support changes coming July 2010 for Windows 2000 Server and Windows Server 2003 | Microsoft Windows Server Blog",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:10+00:00",
+    "retrievedUrl": "https://www.microsoft.com/en-us/windows-server/blog/2009/09/15/support-changes-coming-july-2010-for-windows-2000-server-and-windows-server-2003/",
+    "originalSha256": "4861d12246374c3a9641f9c20678e61d962f3fb65751fbfac0a6b489313df4bd",
+    "sha256": "dfc3cf8bd0885fc109b510468186b80dab3cd3e847bdcb98ac014f8f90201ae7",
+    "bytes": 207235
+  },
+  "https://www.cisco.com/c/en/us/support/switches/catalyst-9300-series-switches/series.html": {
+    "path": "/reference/lifecycle/5088f0fdcea5acb9.pdf",
+    "title": "Cisco Catalyst 9300 Series Switches - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:10+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/support/switches/catalyst-9300-series-switches/series.html",
+    "originalSha256": "a89f55f9a951168eb9054de38ea4a836e3491f9472ef62d0f8e20943db29b594",
+    "sha256": "919a98017cfde40660233eb04dac16ef5618c3bd780580d6d2986f304f7f3e0a",
+    "bytes": 498991
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/storage-networking/mds-9100-series-multilayer-fabric-switches/mds-9148s-16g-multilayer-switch-eol.html": {
+    "path": "/reference/lifecycle/514091fc85361dcd.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco MDS 9148S 16G Multilayer Fabric Switch",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:10+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/storage-networking/mds-9100-series-multilayer-fabric-switches/mds-9148s-16g-multilayer-switch-eol.pdf",
+    "originalSha256": "43be2ffef71e42d49b1660a1c2a78e28910bd821023eaacc344b9639620b049d",
+    "sha256": "43be2ffef71e42d49b1660a1c2a78e28910bd821023eaacc344b9639620b049d",
+    "bytes": 418574
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-738099.pdf": {
+    "path": "/reference/lifecycle/51f179bc1398eb77.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 3064-X Switch",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:10+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-738099.pdf",
+    "originalSha256": "7d61b7170037ae38da45eade7e73bef95e6aedecbff6e153b0564f5885769129",
+    "sha256": "7d61b7170037ae38da45eade7e73bef95e6aedecbff6e153b0564f5885769129",
+    "bytes": 282486
+  },
+  "https://www.cisco.com/c/en/us/support/switches/nexus-9000-series-switches/series.html": {
+    "path": "/reference/lifecycle/52126711b02bd589.pdf",
+    "title": "Cisco Nexus 9000 Series Switches - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/support/switches/nexus-9000-series-switches/series.html",
+    "originalSha256": "9540e2be2c7af3a192f60a4aff38fc38e90df2a28b0dbf4f51a538def02f7a09",
+    "sha256": "ba32d7d2f0a722d61d03ae91a75c6fe375ad1f3f535c237e56737c7491db2283",
+    "bytes": 762717
+  },
+  "https://www.cisco.com/c/en/us/support/switches/catalyst-9200-series-switches/series.html": {
+    "path": "/reference/lifecycle/53559c2b2789bf6a.pdf",
+    "title": "Cisco Catalyst 9200 Series Switches - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/support/switches/catalyst-9200-r-series-switches/series.html",
+    "originalSha256": "00029518d553aeefbede448a6ff8458ef2413c8e7308284148a5272cb0828407",
+    "sha256": "fc3a93af9d6ca8dcc63764226138a1c672a1b2ed0a76967dbd7e5be0addb74f5",
+    "bytes": 447151
+  },
+  "https://www.postgresql.org/support/versioning/": {
+    "path": "/reference/lifecycle/544607d71e2f6ec1.pdf",
+    "title": "PostgreSQL: Versioning Policy",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://www.postgresql.org/support/versioning/",
+    "originalSha256": "c1e471c7576f24353ac2450b14734a4898782a738158b1fb68d3d871496f7dd6",
+    "sha256": "7227e78632efda448eb09b27ea22d858b43ec3bd3c3763a912d4464e64fe6c9b",
+    "bytes": 253214
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2019": {
+    "path": "/reference/lifecycle/5718d03f3f8963c3.pdf",
+    "title": "SQL Server 2019 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2019",
+    "originalSha256": "a407760993a7d3093997d791fb31ffff9ff2650d0c27cc1be49e9267db815dec",
+    "sha256": "bf60b5b0c72b67c4259f88525782a872f16de13e3dc28a893d3a9c9e6ecac153",
+    "bytes": 163304
+  },
+  "https://mariadb.org/about/#maintenance-policy": {
+    "path": "/reference/lifecycle/5e12eb58f03fc78c.pdf",
+    "title": "About MariaDB Server - MariaDB.org",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://mariadb.org/about/#maintenance-policy",
+    "originalSha256": "e9f39110a8a77354225aab36c205b5e0d05aef013a67e6edeb07c5bc76e17334",
+    "sha256": "50ae28617a7a8acda48a99dae59a92978b42cf315d887f9340bc5094fc405eed",
+    "bytes": 494615
+  },
+  "https://access.redhat.com/product-life-cycles/api/v1/plccapi/lifecycle.json?products=Red%20Hat%20Enterprise%20Linux": {
+    "path": "/reference/lifecycle/5fdd1b04e5b4e9a2.pdf",
+    "title": "Red Hat Enterprise Linux — Official lifecycle data",
+    "kind": "data_extract",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://access.redhat.com/product-life-cycles/api/v1/plccapi/lifecycle.json?products=Red%20Hat%20Enterprise%20Linux",
+    "originalSha256": "314138e7c4c0aca2a0d31221910831e4167f41f6a724a9aafed65ff51e76c69e",
+    "sha256": "7bd2329c48adf22c7356502abfce8ae31b431d238dc0de787914e6d25644a60a",
+    "bytes": 101491
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2025": {
+    "path": "/reference/lifecycle/6116fef30321753d.pdf",
+    "title": "Windows Server 2025 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2025",
+    "originalSha256": "a3263b0a350c0d1fe3a237b687b149fd534c241397c75ea4e5ba51fc74307f01",
+    "sha256": "d7f4a9b718a76cfdbe2f30468ec618b799ca80ca3166a9e5742ef8832d1af706",
+    "bytes": 166458
+  },
+  "https://www.centos.org/centos-linux-eol/": {
+    "path": "/reference/lifecycle/64c1e97234fa0804.pdf",
+    "title": "CentOS Linux EOL - The CentOS Project",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://www.centos.org/centos-linux-eol/",
+    "originalSha256": "45a27aba342518139672143739164e24eb42df63cf7cd3760758de8825b766d6",
+    "sha256": "53ff44ab12181b9e29258a90efffba32a7836ba785f5f21b938cdd2071b9ef9b",
+    "bytes": 124429
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-10-home-and-pro": {
+    "path": "/reference/lifecycle/64ebe903850ec640.pdf",
+    "title": "Windows 10 Home and Pro - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-10-home-and-pro",
+    "originalSha256": "23a3e94c83839fea4082fc8481036d011511e4dfbe8512e934e20203b42430ea",
+    "sha256": "b631651bb6b55210d18ff1ab3ebe4301056dd4651b4d1b2b200591dead001f40",
+    "bytes": 191536
+  },
+  "https://archive.ubuntu.com/ubuntu/pool/main/d/distro-info-data/distro-info-data_2026.10.12.orig.tar.xz": {
+    "path": "/reference/lifecycle/65f650e4e4cfbe04.pdf",
+    "title": "Ubuntu distro-info-data — ubuntu.csv",
+    "kind": "data_extract",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://archive.ubuntu.com/ubuntu/pool/main/d/distro-info-data/distro-info-data_2026.10.12.orig.tar.xz",
+    "originalSha256": "52b84d86fadae6483f5b72adcd93dc87a95ad9bba820c5b4cd65442cb252e9d0",
+    "sha256": "278b35aba28aaeda0641ffb1daee345f8440198b35ee5c24c86e6ffd183f005a",
+    "bytes": 233132
+  },
+  "https://mariadb.org/mariadb/all-releases/": {
+    "path": "/reference/lifecycle/7a37db7198c65dda.pdf",
+    "title": "MariaDB Server - All releases - MariaDB.org",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://mariadb.org/mariadb/all-releases/",
+    "originalSha256": "1fb2fa6066ff3c172aa60cb291e45e2b1df13be3a728d0f3239ec6891817a01c",
+    "sha256": "76ccbd8fb3497706a8a57a928ca78e0532234c7770b801edc50b51ae028da303",
+    "bytes": 798136
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-7000-series-switches/eos-eol-notice-c51-2356697.pdf": {
+    "path": "/reference/lifecycle/7dfb1badbf36398c.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus N7K-C7004 Switches",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-7000-series-switches/eos-eol-notice-c51-2356697.pdf",
+    "originalSha256": "3098a1390e6b1859c50b75829f40368a4bc7bdce5138555b285d0419adf6117e",
+    "sha256": "3098a1390e6b1859c50b75829f40368a4bc7bdce5138555b285d0419adf6117e",
+    "bytes": 313485
+  },
+  "https://docs.aws.amazon.com/linux/al2023/ug/release-cadence.html": {
+    "path": "/reference/lifecycle/7ea0caa4fc736c8b.pdf",
+    "title": "Release cadence - Amazon Linux 2023",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://docs.aws.amazon.com/linux/al2023/ug/release-cadence.html",
+    "originalSha256": "924d83b49948515d744b787890226ba1f1b3ec29035158b100aa2d4d33b8da4c",
+    "sha256": "d429e4796a473d742a1bfb1cfdfb9d552bd0b3d04cf3e0285bb78aa71f8377b6",
+    "bytes": 160226
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.html": {
+    "path": "/reference/lifecycle/822e3ed68286f798.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco ACI Software Releases 5.2 and 15.2",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-2-and-15-2-eol.pdf",
+    "originalSha256": "1364e6666794184c55f61fce25b77b2e79b065bb85ae2e1321a042e563275d69",
+    "sha256": "1364e6666794184c55f61fce25b77b2e79b065bb85ae2e1321a042e563275d69",
+    "bytes": 286716
+  },
+  "https://learn.microsoft.com/fr-fr/lifecycle/end-of-support/end-of-support-2025": {
+    "path": "/reference/lifecycle/87789c6243b067f9.pdf",
+    "title": "Fin du support en 2025 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/fr-fr/lifecycle/end-of-support/end-of-support-2025",
+    "originalSha256": "849490d59b0c57dc7c9766699396a42c8fd43b6de4914fb3c924d5e2a8271e1f",
+    "sha256": "42de5e5bf31cdee5d2c047be6ca1ee751b036d47de696dd36a1e03d758a4345d",
+    "bytes": 234616
+  },
+  "https://learn.microsoft.com/en-us/troubleshoot/sql/releases/download-and-install-latest-updates": {
+    "path": "/reference/lifecycle/8c121111a73fcf95.pdf",
+    "title": "Latest Updates and Version History for SQL Server - SQL Server | Microsoft Support",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://support.microsoft.com/en-us/servicing/sql/kb321185-download-and-install-latest-updates",
+    "originalSha256": "98332f782d57abc8302e7766cb44b28807648e44c62567f3a0aa58ebf3fabcbb",
+    "sha256": "7e98cc01f79ab562aa4bf8260d4bb50b83ceaad76ae883ce5cc13afa7bebd843",
+    "bytes": 1516742
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/microsoft-sql-server-2005": {
+    "path": "/reference/lifecycle/8db63a9b7e175c38.pdf",
+    "title": "Microsoft SQL Server 2005 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/microsoft-sql-server-2005",
+    "originalSha256": "6c8251867c11cbf82c0b48a85741976ad02ed5b2012732da4b188169b9b6f3ec",
+    "sha256": "2a9f1ea84db25fe1fb0055e04f9cd2f90bfa38d10df6b83c24029f2798d08636",
+    "bytes": 185437
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.html": {
+    "path": "/reference/lifecycle/8f3866668133b43f.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco ACI 4.2 and 14.2",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-4-2-14-2-eol.pdf",
+    "originalSha256": "bb84dfaa6716b6d2e36952ee485cdfe5f04caa4a975a3e20c237afeb40e21868",
+    "sha256": "bb84dfaa6716b6d2e36952ee485cdfe5f04caa4a975a3e20c237afeb40e21868",
+    "bytes": 328849
+  },
+  "https://knowledge.broadcom.com/external/article/326984/end-of-general-support-for-vsan-656667.html": {
+    "path": "/reference/lifecycle/975becbe127bc1fd.pdf",
+    "title": "End of General Support for vSphere 6.5/6.7/7.0",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:11+00:00",
+    "retrievedUrl": "https://knowledge.broadcom.com/external/article/326984/end-of-general-support-for-vsan-656667.html",
+    "originalSha256": "aa5f8a0a931efc927164381aaafe41551bff1005bf840c71e8dfdfe367f69c9e",
+    "sha256": "d19c9f75c7a91cc6e801d3fc7eba037ac3f3eab0bc0c3dd895cc7aa4534da88f",
+    "bytes": 161750
+  },
+  "https://www.oracle.com/us/support/library/lifetime-support-technology-069183.pdf": {
+    "path": "/reference/lifecycle/99790a0967a3898f.pdf",
+    "title": "Oracle Lifetime Support Policy for Technology Products Guide",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:12+00:00",
+    "retrievedUrl": "https://www.oracle.com/us/support/library/lifetime-support-technology-069183.pdf",
+    "originalSha256": "3cf4059a90ea0e9ff93aad3bc068cfde439620198cb79c3d93ff084aaec16374",
+    "sha256": "3cf4059a90ea0e9ff93aad3bc068cfde439620198cb79c3d93ff084aaec16374",
+    "bytes": 659381
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-743427.pdf": {
+    "path": "/reference/lifecycle/9fbfdc0f273e7865.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 3048 Switch",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eos-eol-notice-c51-743427.pdf",
+    "originalSha256": "cf9f8eed5389efe2917281b7a1b15e1e496b537969a0f99ad6bcd6b4d8d70f84",
+    "sha256": "cf9f8eed5389efe2917281b7a1b15e1e496b537969a0f99ad6bcd6b4d8d70f84",
+    "bytes": 313136
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-11-home-and-pro": {
+    "path": "/reference/lifecycle/9fd1bcf0285119c2.pdf",
+    "title": "Windows 11 Home and Pro - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-11-home-and-pro",
+    "originalSha256": "9dd477919c6ab796d1b6ccfca2f39b684480fdaad5e6b091f7635b4cb75f45db",
+    "sha256": "853f72f7cdcc8d1dfd8709bd5a6120b78d13ce48c8c8eebdb9e7c01ff8e6f50f",
+    "bytes": 182391
+  },
+  "https://mariadb.com/docs/release-notes/community-server/old-releases/11.2/11.2.6": {
+    "path": "/reference/lifecycle/a00265921361bf30.pdf",
+    "title": "MariaDB 11.2.6 Release Notes | Release Notes | MariaDB Documentation",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://mariadb.com/docs/release-notes/community-server/old-releases/11.2/11.2.6",
+    "originalSha256": "e2f9b7598c0217faadfd2c8e3e08befe79394e787cf493f6f1957e4ef40b03a5",
+    "sha256": "77bb5d9c5b0407075de5629889ea71f7a2aefd369be9d999c65e26c808327816",
+    "bytes": 271275
+  },
+  "https://www.cisco.com/c/en/us/support/switches/nexus-7000-10-slot-switch/model.html": {
+    "path": "/reference/lifecycle/a1da2841ef7bb98c.pdf",
+    "title": "Cisco Nexus 7000 10-Slot Switch - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/support/switches/nexus-7000-10-slot-switch/model.html",
+    "originalSha256": "2d2056ccfdd099b2c916086fd9dbb3523d648c2a7f8e2772b5d7cf23b3e6631a",
+    "sha256": "1b9e8d0e052e59194ed6eaf3b7ed523ce1872c17af3ef4bfac0b11ebe6d4a29f",
+    "bytes": 619265
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2014": {
+    "path": "/reference/lifecycle/a26b09c1995ed332.pdf",
+    "title": "SQL Server 2014 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2014",
+    "originalSha256": "728622f61e5c0f6bccc4cfb2c48319ed7c218a84616cf1e6d161273aeea36810",
+    "sha256": "fa4a2ff71ced53acecbbb6823f3eb93cea11bf589b7ca0a4f1ac74c80ac5f9a9",
+    "bytes": 184076
+  },
+  "https://support.sap.com/en/release-upgrade-maintenance.html": {
+    "path": "/reference/lifecycle/a331e9f716ea6517.pdf",
+    "title": "Maintenance",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://support.sap.com/en/release-upgrade-maintenance.html",
+    "originalSha256": "1b7d255674c2357a336f8ed4c3ce42ebdc9098b47b0eb6442f408f42989940b7",
+    "sha256": "af4ab9f69e542985d9be42472656ddc7063580618fb5995dadac8c2269cfeca8",
+    "bytes": 175771
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2008-r2": {
+    "path": "/reference/lifecycle/a79f8912e5df50bd.pdf",
+    "title": "Windows Server 2008 R2 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2008-r2",
+    "originalSha256": "af79485a191facda808279d9562f6ce581f30d0baf8fe49aef24cdd0c70d0a61",
+    "sha256": "be1afd83286fc7ed8d47dd6e2bf77bb00a18b4c18f9e9fc74aa2393a801fe54b",
+    "bytes": 188213
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-2000-series-fabric-extenders/eol_c51-708777.html": {
+    "path": "/reference/lifecycle/ae22cc4f6fa573f1.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 2148T Fabric Extender",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-2000-series-fabric-extenders/eol_c51-708777.pdf",
+    "originalSha256": "7ffc3e58c48bbdfd491d63ed6b23fe74e9c9dd13284b9a96b588d91cc53cd34e",
+    "sha256": "7ffc3e58c48bbdfd491d63ed6b23fe74e9c9dd13284b9a96b588d91cc53cd34e",
+    "bytes": 212594
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/catalyst-2960-x-series-switches/eos-eol-notice-c51-744432.html": {
+    "path": "/reference/lifecycle/ae2e4391f25d5b75.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Catalyst 2960X Product Family",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/catalyst-2960-x-series-switches/eos-eol-notice-c51-744432.pdf",
+    "originalSha256": "ea3927abcdf98ca457c225d6600599b7ef2b7b892317356e8fc768c65ba9bf32",
+    "sha256": "ea3927abcdf98ca457c225d6600599b7ef2b7b892317356e8fc768c65ba9bf32",
+    "bytes": 569795
+  },
+  "https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information": {
+    "path": "/reference/lifecycle/ae9ebda3371d5529.pdf",
+    "title": "Windows 11 - release information | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information",
+    "originalSha256": "53b3e7f27b4667f7f8d5f14a9c803a9fb2b6234b9de33b7676fa7a7599c9d3a3",
+    "sha256": "7383dce8ba626dc8e46c8f8c845cdad81cbcc4047012a8f554c236dd87dd623a",
+    "bytes": 932087
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.html": {
+    "path": "/reference/lifecycle/b5ff8ef48ad69a85.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco ACI Software Releases 5.3 and 15.3",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/aci-software-releases-5-3-and-15-3-eol.pdf",
+    "originalSha256": "6e3d39c3a744a30038ce2626902f52ffd443d84d68932883ba2c59f0db8736a9",
+    "sha256": "6e3d39c3a744a30038ce2626902f52ffd443d84d68932883ba2c59f0db8736a9",
+    "bytes": 269067
+  },
+  "https://learn.microsoft.com/ko-kr/lifecycle/products/windows-server-2003-": {
+    "path": "/reference/lifecycle/b7b60f86c5e96eaa.pdf",
+    "title": "Windows Server 2003  - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:13+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/ko-kr/lifecycle/products/windows-server-2003-",
+    "originalSha256": "e4ea1adf41f1d7ada96e9c4cbee4b17e774b487aac4c9b5b1c9a41cb8295f003",
+    "sha256": "6e59dbf144069aad0485a3c6a422e710ab500daed6a388143d6771c26cdafd38",
+    "bytes": 236494
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-6000-series-switches/eos-eol-notice-c51-737195.html": {
+    "path": "/reference/lifecycle/ba1f88be048d5998.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 6000 Series Switches",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-6000-series-switches/eos-eol-notice-c51-737195.pdf",
+    "originalSha256": "99a279dde5c3009d864766d48371179fc6532ebec1d052d773dc9847e289a9a0",
+    "sha256": "99a279dde5c3009d864766d48371179fc6532ebec1d052d773dc9847e289a9a0",
+    "bytes": 392872
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.html": {
+    "path": "/reference/lifecycle/baf081cc0f7e6524.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Application Policy Infrastructure Controller (APIC-L1 and APIC-M1)",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-737079.pdf",
+    "originalSha256": "706754c251406bc5f3cfc2d3b0b9e0a224a3f895fc6c2164b65637faf3c9705e",
+    "sha256": "706754c251406bc5f3cfc2d3b0b9e0a224a3f895fc6c2164b65637faf3c9705e",
+    "bytes": 315120
+  },
+  "https://mariadb.com/docs/release-notes/community-server/old-releases/10.7/what-is-mariadb-107": {
+    "path": "/reference/lifecycle/bb556490bedac247.pdf",
+    "title": "MariaDB 10.7 Changes & Improvements | Release Notes | MariaDB Documentation",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://mariadb.com/docs/release-notes/community-server/old-releases/10.7/what-is-mariadb-107",
+    "originalSha256": "fc1d4672b6a79f126eac803b1f6d6b8def58539ba2dfaccefc8afdbf2c462e16",
+    "sha256": "c963f5f60b05dff2deeae02e0ba1740b7172befd6a1e03f0541156a5ddc24efa",
+    "bytes": 282592
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-11-enterprise-and-education": {
+    "path": "/reference/lifecycle/bc4e48753f8a549b.pdf",
+    "title": "Windows 11 Enterprise and Education - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-11-enterprise-and-education",
+    "originalSha256": "36d1999ea5b0481a21b2ff12be0cbd3d5c05418f6e4a6526f768d5b67c0b8310",
+    "sha256": "23ba2e59f8252f90471c6491a3a150ffb39b2d3395881f2aca49182a12483831",
+    "bytes": 180047
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2025": {
+    "path": "/reference/lifecycle/c00cdc0b57a3f7f9.pdf",
+    "title": "SQL Server 2025 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2025",
+    "originalSha256": "045d4afa2aba934194292f83ceccf4c463877bbd4a0baa50964ed2eb69c6d556",
+    "sha256": "b7a807e1016aa207c1efc8fa76572b08322652ef943030913a3d0dad77db089e",
+    "bytes": 162768
+  },
+  "https://wiki.debian.org/LTS": {
+    "path": "/reference/lifecycle/c45fc0723d40041f.pdf",
+    "title": "Debian -- Debian Long Term Support",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://www.debian.org/lts/",
+    "originalSha256": "351cf67a89b7dc63024820df4736e02eda327ce95b1907e60635019473fd5704",
+    "archiveNote": "Debian Wiki의 공개 LTS 공식 안내 페이지를 보관했습니다.",
+    "sha256": "995e7caefab994f4480fe964e64e23b4b2f466168d7d0f221b13f557e6bf188c",
+    "bytes": 160997
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2012": {
+    "path": "/reference/lifecycle/c4d0e7028376fded.pdf",
+    "title": "Windows Server 2012 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2012",
+    "originalSha256": "73c31038f8152e5d41e5c14597c89c78d811f20fcf1f16ffed72ec0cc4507b62",
+    "sha256": "ffb0f9fb6325e7c9c36b695426817f07a145bdfee2e777a7c4e2d4b3d8a2642b",
+    "bytes": 184702
+  },
+  "https://download.microsoft.com/documents/uk/mediumbusiness/products/servers/sqlServer2008/SQLServer_EndOfSupport.pdf": {
+    "path": "/reference/lifecycle/c68b7c0a21b4e7ab.pdf",
+    "title": "Understanding the SQL Server support lifecycle can help you maximize the management of your IT investments",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://download.microsoft.com/documents/uk/mediumbusiness/products/servers/sqlServer2008/SQLServer_EndOfSupport.pdf",
+    "originalSha256": "5698e97e0c3018726efbdb2e09fd6508ad968982ed3662faeea71f9a58d93aeb",
+    "sha256": "5698e97e0c3018726efbdb2e09fd6508ad968982ed3662faeea71f9a58d93aeb",
+    "bytes": 293272
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2022": {
+    "path": "/reference/lifecycle/c79b82e19d855409.pdf",
+    "title": "SQL Server 2022 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/sql-server-2022",
+    "originalSha256": "d1f1a515d171ca5d632a8ffbbac3c0e8f2a6b539f167ba054519a9d19898f327",
+    "sha256": "9a23433cb3b1ccbfb99873b949109146e72b4d3b6c4c44992896ff404d60b332",
+    "bytes": 160228
+  },
+  "https://www.cisco.com/c/en/us/support/switches/nexus-9504-switch/model.html": {
+    "path": "/reference/lifecycle/ca629741ce1efc08.pdf",
+    "title": "Cisco N9504 Switch - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/switches/nexus-9504-switch/index.html",
+    "originalSha256": "2251b71a7266b9dcabe9113fe220ff42569ef1dcb156482e641d1d2562248d40",
+    "archiveNote": "기존 지원 페이지가 없어 현재 공식 N9504 제품 페이지를 보관했습니다. 이 자료로 서비스 종료일을 확정하지 않습니다.",
+    "sha256": "1178f3d489037a26a474c08952bd121748ebe77a12f1715a30cb68d2f752b5d0",
+    "bytes": 188973
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-2000-series-fabric-extenders/eos-eol-notice-c51-736205.html": {
+    "path": "/reference/lifecycle/ca7ebeb1a1a52b6b.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 2224TP, 2248TP, 2232TM, and 2248PQ Fabric Extenders",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-2000-series-fabric-extenders/eos-eol-notice-c51-736205.pdf",
+    "originalSha256": "8271c3b3389b683c85726845d4f7d089c033b89705b11d03badc6e8172e54695",
+    "sha256": "8271c3b3389b683c85726845d4f7d089c033b89705b11d03badc6e8172e54695",
+    "bytes": 269830
+  },
+  "https://support.broadcom.com/group/ecx/productlifecycle": {
+    "path": "/reference/lifecycle/cae0ab769b80b5cf.pdf",
+    "title": "Product lifecycle and end of life information for Broadcom, Symantec, and VMware products",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://knowledge.broadcom.com/external/article/150550/product-lifecycle-and-end-of-life-inform.html",
+    "originalSha256": "cac622d0ff4b79e26e396c5cbe0136a91c3d927fe9f961dd72b9cb5eafce0f25",
+    "archiveNote": "공식 제품별 수명주기 표는 로그인이 필요합니다. 공개된 Broadcom의 조회 안내 문서를 보관했으며, 제품별 종료일 근거로 사용하지 않습니다.",
+    "sha256": "e04f4bf83ad621d3db173b78d29cfa9f1e50bc5d07b39ffa2fb773c43834b8e2",
+    "bytes": 188784
+  },
+  "https://blogs.vmware.com/vmware-japan/2014/12/vs55migration-01.html": {
+    "path": "/reference/lifecycle/cd6311934d413f94.pdf",
+    "title": "【SE必見】vSphere 最新バージョンを使おう！～簡単移行方法のご案内～メリット編 - VMware Japan Blog",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://blogs.vmware.com/vmware-japan/2014/12/vs55migration-01.html",
+    "originalSha256": "0c2738bebf54bfa68b352e3d42292c01075ffae9d0c097ff57980dfc6441e85e",
+    "sha256": "3e67640ba90c95ace0172b61b241979fe09c53bee0c549f3023e118ae564aaf2",
+    "bytes": 639853
+  },
+  "https://mariadb.com/docs/release-notes/community-server/old-releases/11.0/what-is-mariadb-110": {
+    "path": "/reference/lifecycle/d1cdeae72ad7c2f7.pdf",
+    "title": "MariaDB 11.0 Changes & Improvements | Release Notes | MariaDB Documentation",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://mariadb.com/docs/release-notes/community-server/old-releases/11.0/what-is-mariadb-110",
+    "originalSha256": "0afba487e4901ab80b161291d6c418336cae341e88340ba04276f70f0932f270",
+    "sha256": "c80a1c0d97e3c38cbc52715bf3ce6ee2126baa74c460185ef7ceed107bb03948",
+    "bytes": 214885
+  },
+  "https://access.redhat.com/support/policy/updates/errata": {
+    "path": "/reference/lifecycle/d39c4af8ed4c0a4b.pdf",
+    "title": "Red Hat Enterprise Linux Life Cycle | Red Hat Customer Portal",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://access.redhat.com/support/policy/updates/errata",
+    "originalSha256": "069946ad1fa1d72ed6dd7462628bac8bc0ecce526f7e6751b0084089f3589588",
+    "sha256": "f4d877433f06e5f970594bd4383c208423f3220765a52907a719a0acec9568ad",
+    "bytes": 311298
+  },
+  "https://docs.rockylinux.org/latest/releases/": {
+    "path": "/reference/lifecycle/d3beec7d7dfc47b5.pdf",
+    "title": "Rocky Releases - Documentation",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://docs.rockylinux.org/latest/releases/",
+    "originalSha256": "ff05d4c5c9f1d608a7dde5b753d7d6a96b84d812e87263201e4f519e431b1ade",
+    "sha256": "63014b0b1855619c644fee90bd3bb51b88986a9940bf965ee4cd33fb5c01aedc",
+    "bytes": 323711
+  },
+  "https://knowledge.broadcom.com/external/article/456708/upcoming-end-of-service-for-vsphere-8-vs.html": {
+    "path": "/reference/lifecycle/d545ca4a68b66182.pdf",
+    "title": "Upcoming End of Service for vSphere 8, vSAN 8, Aria 8, NSX 4 and VCF 5 product suite",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://knowledge.broadcom.com/external/article/456708/upcoming-end-of-service-for-vsphere-8-vs.html",
+    "originalSha256": "df6cbdbdaf019a3f0b4aa0aeda97302efd850d3838c9f37f00359a43fe8510bc",
+    "sha256": "6daef79a1bf8472561e672649b9047d78450f47e6db44e0abdde7b373430bf86",
+    "bytes": 210938
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/hyperconverged-infrastructure/hyperflex-hx-series/hyperflex-converged-compute-m6-platform-eol.html": {
+    "path": "/reference/lifecycle/d5795fe35516d607.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco HyperFlex Converged and Compute M6 Platform",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/hyperconverged-infrastructure/hyperflex-hx-series/hyperflex-converged-compute-m6-platform-eol.pdf",
+    "originalSha256": "aa52fb2ec6e60c4d55257025bbce2e0952b40f1901c2e0eb04319ed09ddb1a7b",
+    "sha256": "aa52fb2ec6e60c4d55257025bbce2e0952b40f1901c2e0eb04319ed09ddb1a7b",
+    "bytes": 325490
+  },
+  "https://www.piolink.com/kr/company/News.php?idx=493&vType=view": {
+    "path": "/reference/lifecycle/d66aea68b98c565f.pdf",
+    "title": "파이오링크, 비용 효율적인 ADC 신모델 출시",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://www.piolink.com/kr/company/News.php?idx=493&vType=view",
+    "originalSha256": "c8160f8ac2f80384232fcad8c7b6e6f1f207682f5837f5cd27528bb0a2398d7a",
+    "sha256": "c4eb0fc3eff1e968632751d632ad632a0f954df3e56256b5f985cf8243f1554a",
+    "bytes": 263876
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2016": {
+    "path": "/reference/lifecycle/d7244c52f617d5e5.pdf",
+    "title": "Windows Server 2016 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:14+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2016",
+    "originalSha256": "19f366bd6b47f9fa368c2b168991d635907de3936856ae165a7f5ddf3b49a578",
+    "sha256": "a028718b36b4255530bb0ca17dd0dd76066f9e095372c28ffc3bfa6b2d8746f9",
+    "bytes": 170835
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eol_c51-713679.html": {
+    "path": "/reference/lifecycle/da11c252f33c90b4.pdf",
+    "title": "Product End-of-Life Notice",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-3000-series-switches/eol_c51-713679.pdf",
+    "originalSha256": "09a3a684425fbfc8fcb7beef9d258b07e98d27f1525fca618eca4b4f2a947ece",
+    "sha256": "09a3a684425fbfc8fcb7beef9d258b07e98d27f1525fca618eca4b4f2a947ece",
+    "bytes": 137783
+  },
+  "https://access.redhat.com/articles/4038291": {
+    "path": "/reference/lifecycle/db710256cd62fbfc.pdf",
+    "title": "Red Hat Enterprise Linux Retired Life Cycle Dates - Red Hat Customer Portal",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://access.redhat.com/articles/4038291",
+    "originalSha256": "4590e2ae523fdb94c931bfca2f04418c0cd64e5060196da38c62334b58ac7d8e",
+    "sha256": "fbcac334027dbf3a54a70113bd7b16ee9573a4591c18df1dbe8bf6f62da1630e",
+    "bytes": 252399
+  },
+  "https://knowledge.broadcom.com/external/article/318892/end-of-general-support-for-vsphere-60.html": {
+    "path": "/reference/lifecycle/de96c5cbe3ae1f26.pdf",
+    "title": "End of General Support for vSphere 6.0",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://knowledge.broadcom.com/external/article/318892/end-of-general-support-for-vsphere-60.html",
+    "originalSha256": "fa9778f26b2e8624700c28c44bb19c805ffd73d166170cabb3d062756e5210f1",
+    "sha256": "d6028f7de90fbd29da2a9b049610e649ca38e82006b9912143aad71950b331da",
+    "bytes": 157776
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/n9k-c93180yc-c93108tc-ex-eol.html": {
+    "path": "/reference/lifecycle/dfd0b6e6fbb06f2d.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco N9K-C93180YC-EX and Cisco N9K-C93108TC-EX",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-9000-series-switches/n9k-c93180yc-c93108tc-ex-eol.pdf",
+    "originalSha256": "e239dad53f47fcb6e52908e6189482a4b89057a665e49b4535dd4eafab5083f9",
+    "sha256": "e239dad53f47fcb6e52908e6189482a4b89057a665e49b4535dd4eafab5083f9",
+    "bytes": 329331
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-7000-series-switches/eos-eol-notice-c51-2357752.pdf": {
+    "path": "/reference/lifecycle/dfe307ff72a8d1e0.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus N7K-C7018 Switches",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-7000-series-switches/eos-eol-notice-c51-2357752.pdf",
+    "originalSha256": "388908ad8baa66a81bc792aa9682dd639a0a0ce8696dfd2b56a85e9529c48b97",
+    "sha256": "388908ad8baa66a81bc792aa9682dd639a0a0ce8696dfd2b56a85e9529c48b97",
+    "bytes": 309527
+  },
+  "https://www.cisco.com/c/en/us/support/switches/nexus-93120tx-switch/model.html": {
+    "path": "/reference/lifecycle/e38bf9f864a6e575.pdf",
+    "title": "Cisco Nexus 93120TX Switch - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/support/switches/nexus-93120tx-switch/model.html",
+    "originalSha256": "e9ea0ff4d30c343f9ab51c167245dace92f8d794a7b23cfef86d3b6631670af5",
+    "sha256": "f7f1ce4ab94908072ed33bf0943d30f4a692062b235075e79b9bd251c330492e",
+    "bytes": 258424
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.html": {
+    "path": "/reference/lifecycle/e497d5768627dd2b.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco APIC-M3, APIC-L3 and SE-NODE-G2",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/apic-m3-l3-se-node-g2-eol.pdf",
+    "originalSha256": "3eeef17c6d2488f640bae863435532b6da003f6dc6d3a9d7968740ea0981a059",
+    "sha256": "3eeef17c6d2488f640bae863435532b6da003f6dc6d3a9d7968740ea0981a059",
+    "bytes": 366918
+  },
+  "https://learn.microsoft.com/en-gb/lifecycle/products/microsoft-sql-server-2012": {
+    "path": "/reference/lifecycle/e6e01862c84d2598.pdf",
+    "title": "Microsoft SQL Server 2012 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-gb/lifecycle/products/microsoft-sql-server-2012",
+    "originalSha256": "4768c6d2d3c91338496f0e721784295d10ca1cd399dfb16ed398380c79724c44",
+    "sha256": "84091d88d5f9561dc9de197e0e78bcd2a47e77221cea04795c0789629f116bd7",
+    "bytes": 186857
+  },
+  "https://aws.amazon.com/amazon-linux-ami/faqs/": {
+    "path": "/reference/lifecycle/e79ebc6e8e8d04d7.pdf",
+    "title": "Amazon Linux AMI FAQs",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://aws.amazon.com/amazon-linux-ami/faqs/",
+    "originalSha256": "13cba5c204d6ef43103b7d8a916e2f024505ee8fe0bcdf59f1f8dda1884c7c4d",
+    "sha256": "4ad49e2399440aefa4d37abb2a230c1cbca3419f02b1b88c911909a9309806e7",
+    "bytes": 237440
+  },
+  "https://mariadb.com/docs/release-notes/community-server/old-releases/10.10/10.10.7": {
+    "path": "/reference/lifecycle/e8962848b9ee9478.pdf",
+    "title": "MariaDB 10.10.7 Release Notes | Release Notes | MariaDB Documentation",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://mariadb.com/docs/release-notes/community-server/old-releases/10.10/10.10.7",
+    "originalSha256": "d701598d2a0db7259c18e00391d5ddc5165160a7e1ae2edb89fc19175945edc5",
+    "sha256": "7da82845e93bd82a42a3d8308fb0f7553b0fb1bb4e1b6620d30c4ce5c2f4ccc7",
+    "bytes": 387965
+  },
+  "https://mariadb.com/docs/release-notes/community-server/old-releases/10.9/what-is-mariadb-109": {
+    "path": "/reference/lifecycle/ed72365aad50871a.pdf",
+    "title": "MariaDB 10.9 Changes & Improvements | Release Notes | MariaDB Documentation",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:15+00:00",
+    "retrievedUrl": "https://mariadb.com/docs/release-notes/community-server/old-releases/10.9/what-is-mariadb-109",
+    "originalSha256": "3b3cf34da037194e594046dbd3e446501923c878975472c4761c9dd40228471c",
+    "sha256": "5c59f168db1704572d4353a34a6bf8d072e35009784f9f20a9681439257fdfa2",
+    "bytes": 239840
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-7000-series-switches/eos-eol-notice-c51-2356763.pdf": {
+    "path": "/reference/lifecycle/ed8022e1522c5ab2.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus N7K-C7009 Switches",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-7000-series-switches/eos-eol-notice-c51-2356763.pdf",
+    "originalSha256": "be4bbc646440759e673c83f551e050474dbbdd6e5917bc9c62006374df750b4b",
+    "sha256": "be4bbc646440759e673c83f551e050474dbbdd6e5917bc9c62006374df750b4b",
+    "bytes": 328286
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-10-enterprise-and-education": {
+    "path": "/reference/lifecycle/ed99f217a6be9a6f.pdf",
+    "title": "Windows 10 Enterprise and Education - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-10-enterprise-and-education",
+    "originalSha256": "efab9b85fda08b7caa0a9f0d1f0fe3402f950b26fb5744dcda7f773bf5722d47",
+    "sha256": "1e16beac0b15037d50bfe817ebae7869bc68b2bf80c1a69f6be81b7f70bfe5ba",
+    "bytes": 189421
+  },
+  "https://learn.microsoft.com/en-us/windows/release-health/windows-server-release-info": {
+    "path": "/reference/lifecycle/ee714cd2fbc0fccb.pdf",
+    "title": "Windows Server release information | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/windows/release-health/windows-server-release-info",
+    "originalSha256": "426107f52ad416641dc5abf0c41d9d4083b0fcb6386e8ed3319197c1774826a6",
+    "sha256": "0809502084a5032a06b3a3e3a6cd324179bf1e33548d064205e8b1dda022ec98",
+    "bytes": 1247979
+  },
+  "https://access.redhat.com/articles/how-to-upgrade-rhel-7": {
+    "path": "/reference/lifecycle/ef71c05e3059fdd2.pdf",
+    "title": "How to Upgrade from RHEL 7 to RHEL 8 using Leapp - Red Hat Customer Portal",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://access.redhat.com/articles/how-to-upgrade-rhel-7",
+    "originalSha256": "a870908bbf046e4e2f94d76d152bf84656b3b9c191875a48fc9c708190ed755e",
+    "sha256": "0b29f72edb7e37331df1416220f9aa282d8ab12fb98911dcab61f897e4575f46",
+    "bytes": 209760
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-5000-series-switches/eol_c51-709037.html": {
+    "path": "/reference/lifecycle/f6ca09347a711e02.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Nexus 5010 and Nexus 5020 Switches",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/switches/nexus-5000-series-switches/eol_c51-709037.pdf",
+    "originalSha256": "89093f709419682d74cdf384bf8e7bd0483326a186c807c1aa47136a0a8ce190",
+    "sha256": "89093f709419682d74cdf384bf8e7bd0483326a186c807c1aa47136a0a8ce190",
+    "bytes": 180093
+  },
+  "https://learn.microsoft.com/en-us/windows/whats-new/ltsc/enable-extended-security-updates-windows-10-ltsb-2016": {
+    "path": "/reference/lifecycle/f7360ed0bd454b7b.pdf",
+    "title": "Enable Extended Security Updates (ESU) for Windows 10 LTSB 2016 and Windows 10 Enterprise LTSC 2021 | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/windows/whats-new/ltsc/enable-extended-security-updates-windows-10-ltsb-2016",
+    "originalSha256": "594d050a7ad84d20ba9e915d6f187b3dd8bc73e0cbc448d4c6bb7cf19f2b4999",
+    "sha256": "a5429dbb6f48e42e9c4b3875faade707b93a54e0922ec9f7026d4ab91b0ffa56",
+    "bytes": 308210
+  },
+  "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.html": {
+    "path": "/reference/lifecycle/fe493f9e40f195ce.pdf",
+    "title": "End-of-Sale and End-of-Life Announcement for the Cisco Application Policy Infrastructure Controller (APIC-L2 and APIC-M2) and Cisco Application Policy Infrastructure Software (2.x and 12.x)",
+    "kind": "original_pdf",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/products/collateral/cloud-systems-management/application-policy-infrastructure-controller-apic/eos-eol-notice-c51-742143.pdf",
+    "originalSha256": "aaacc94877af87a93787882db76e69360daa2d3432736793b7c8af56281cc779",
+    "sha256": "aaacc94877af87a93787882db76e69360daa2d3432736793b7c8af56281cc779",
+    "bytes": 439603
+  },
+  "https://www.cisco.com/c/en/us/support/switches/nexus-9336c-fx2-switch/model.html": {
+    "path": "/reference/lifecycle/fe66c5cda006c967.pdf",
+    "title": "Cisco Nexus 9336C-FX2 Switch - Cisco",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://www.cisco.com/c/en/us/support/switches/nexus-9336c-fx2-switch/model.html",
+    "originalSha256": "ee3023f9e723a39709cb1c81fd4b15dcdd7ec7d02a8f447b2b2cb7685aa9eadb",
+    "sha256": "ab968c79591a8f9177cf3f96b8707db67fd8e00387195834dcfbed0befca3538",
+    "bytes": 481352
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2022": {
+    "path": "/reference/lifecycle/fe6a00710af13fb4.pdf",
+    "title": "Windows Server 2022 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2022",
+    "originalSha256": "ebf27f840e3cc2960dfcfcfbf433e67485e03b7189100e9268a1cfe74ecaca8e",
+    "sha256": "0faf855b58c4716c743328fd856fc8c72d01553d287956223b3a1bc6e0dbcd41",
+    "bytes": 173652
+  },
+  "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2008": {
+    "path": "/reference/lifecycle/fe866233efb9fd7a.pdf",
+    "title": "Windows Server 2008 - Microsoft Lifecycle | Microsoft Learn",
+    "kind": "web_capture",
+    "capturedAt": "2026-10-21T00:09:16+00:00",
+    "retrievedUrl": "https://learn.microsoft.com/en-us/lifecycle/products/windows-server-2008",
+    "originalSha256": "5e7c8487502f65c11f2b4f9dc6042f7273e983283aa8e6927fa62226051e07cc",
+    "sha256": "f905a65d968794f1ba512d5a814eff7c4e0c47730f9e68d1c49844dd39734358",
+    "bytes": 191161
+  },
+  "https://community.sap.com/t5/technology-blog-posts-by-sap/important-reminder-sap-hana-1-0-maintenance-has-ended-sap-analytics-cloud/ba-p/13524770": {
+    "unavailableReason": "SAP HANA 1.0 공지 원문은 제조사 사이트의 접근 제한으로 PDF를 확보하지 못했습니다. 내부망용 공식 문서 등록이 필요합니다.",
+    "checkedAt": "2026-10-21"
+  }
+}

@@ -11,16 +11,14 @@
     <div class="text-caption q-mt-xs">
       서비스 종료일: <strong>{{ result?.date || '확인 필요' }}</strong>
       <q-badge v-if="result" class="q-ml-sm" :color="eosStatusColor(result.status)">{{ eosStatusLabel(result.status) }}</q-badge>
-      <a v-if="result?.source" class="q-ml-sm" :href="result.source" target="_blank" rel="noopener noreferrer">공식 근거</a>
-    </div>
-    <div v-for="stage in result?.milestones ?? []" :key="stage.basis" class="text-caption text-grey-8">
-      {{ stage.basis }}: {{ stage.date }}
+      <LifecycleReferenceButton label="소프트웨어 EoS" :entry="result" />
     </div>
     <div v-if="!result?.date" class="text-caption text-grey-8">{{ result?.note || '소프트웨어 종류와 설치 버전을 입력하면 별도로 확인합니다.' }}</div>
   </div>
 </template>
 <script setup lang="ts">
 import { computed } from 'vue'
+import LifecycleReferenceButton from 'src/components/asset/LifecycleReferenceButton.vue'
 import { getAutoEos } from 'src/services/eosDetection'
 import { eosStatusColor, eosStatusLabel } from 'src/utils/rules/eos'
 import { NETWORK_EOS_LIST } from 'src/constants/networkEos'
