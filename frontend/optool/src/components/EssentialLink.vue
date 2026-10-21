@@ -93,6 +93,7 @@ const menuIconColorStyle = computed(() => ({
 const isActive = computed(() => {
   if (!props.link || props.link === '#') return false
   const [linkPath, linkQueryStr] = props.link.split('?')
+  if (route.meta.activeMenuLink === linkPath && !linkQueryStr) return true
   if (route.path !== linkPath) return false
   if (!linkQueryStr) return Object.keys(route.query).length === 0
   const linkParams = new URLSearchParams(linkQueryStr)

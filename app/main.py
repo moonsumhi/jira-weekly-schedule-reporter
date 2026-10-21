@@ -32,6 +32,7 @@ from app.routers import notifications as notifications_router
 from app.core.config import settings
 from app.db.mongo import MongoClientManager
 from app.db.startup import run_startup
+from app.routers import spaces
 from app.services.jira_poller import JiraPollerService
 from app.services.delayed_digest_service import DelayedDigestService
 from app.services.recurring_issue_scheduler import RecurringIssueScheduler
@@ -160,6 +161,7 @@ app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(assets.router, prefix="/assets", tags=["assets"])
 app.include_router(asset_work_history.router, prefix="/assets", tags=["assets"])
 app.include_router(racks.router, prefix="/racks", tags=["racks"])
+app.include_router(spaces.router, prefix="/spaces", tags=["spaces"])
 app.include_router(watch.router, prefix="/watch", tags=["watch"])
 app.include_router(pilot.router, prefix="/pilot", tags=["pilot"])
 app.include_router(job.router, prefix="/job", tags=["job"])

@@ -6,6 +6,28 @@ const routes: RouteRecordRaw[] = [
     component: () => import('layouts/MainLayout.vue'),
     children: [
       {
+        path: 'spaces',
+        meta: { requiresAuth: true, requiresPermission: 'spaces' },
+        children: [
+          { path: '', redirect: '/spaces/people' },
+          { path: 'people', component: () => import('pages/spaces/PeoplePage.vue') },
+          { path: 'rooms', component: () => import('pages/spaces/RoomsPage.vue') },
+          {
+            path: 'rooms/:roomId/plan',
+            name: 'space-room-plan',
+            component: () => import('pages/spaces/PlansPage.vue'),
+            meta: { activeMenuLink: '/spaces/rooms' },
+          },
+          {
+            path: 'plans',
+            redirect: (to) => typeof to.query.room === 'string' && to.query.room
+              ? { name: 'space-room-plan', params: { roomId: to.query.room } }
+              : '/spaces/rooms',
+          },
+          { path: 'seats', component: () => import('pages/spaces/SeatsPage.vue') },
+        ],
+      },
+      {
         path: '',
         name: 'auth',
         component: () => import('pages/auth/AuthPage.vue'),
