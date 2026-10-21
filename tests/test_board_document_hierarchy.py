@@ -41,6 +41,18 @@ class FakeHistories:
     async def insert_one(self, record):
         self.records.append(record)
 
+    async def update_one(self, query, update, upsert=False):
+        record = next((
+            item for item in self.records
+            if item.get("post_id") == query.get("post_id") and item.get("version") == query.get("version")
+        ), None)
+        if record is None and upsert:
+            record = dict(update.get("$setOnInsert", {}))
+            self.records.append(record)
+        if record is not None:
+            record.update(update.get("$setOnInsert", {}))
+            record.update(update.get("$set", {}))
+
 
 class DocumentHierarchyTests(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_descendant_as_parent(self):
@@ -75,7 +87,8 @@ class DocumentHierarchyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.author_name, "퇴사한 작성자")
         self.assertEqual(result.owner_name, "새 책임자")
         self.assertEqual(result.version, 2)
-        self.assertEqual(histories.records[0]["diff"][0]["field"], "문서 책임자")
+        current_history = next(record for record in histories.records if record.get("version") == 2)
+        self.assertEqual(current_history["diff"][0]["field"], "문서 책임자")
 
     async def test_designated_editor_cannot_transfer_responsibility(self):
         post_id, owner_id, editor_id, new_owner = (str(ObjectId()) for _ in range(4))
@@ -102,6 +115,17 @@ class DocumentHierarchyTests(unittest.IsolatedAsyncioTestCase):
             await _validate_post_parent(posts, "board", parent_id)
 
         self.assertEqual(error.exception.status_code, 400)
+
+    async def test_returns_parent_category_for_child(self):
+        parent_id = str(ObjectId())
+        posts = FakePosts({parent_id: {
+            "_id": ObjectId(parent_id), "board_id": "board", "parent_id": None,
+            "category": "운영 가이드",
+        }})
+
+        category = await _validate_post_parent(posts, "board", parent_id)
+
+        self.assertEqual(category, "운영 가이드")
 
 
 if __name__ == "__main__":

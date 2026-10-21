@@ -577,7 +577,7 @@ onMounted(async () => {
     editForm.value = { name: proj.name, description: proj.description ?? '' }
 
     const counts: Record<IssueStatus, number> = { BACKLOG: 0, TODO: 0, IN_PROGRESS: 0, IMPLEMENTED: 0, DONE: 0 }
-    for (const issue of issues) counts[issue.status]++
+    for (const issue of issues) counts[issue.status === 'IMPLEMENTED' ? 'DONE' : issue.status]++
     issueCounts.value = counts
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })

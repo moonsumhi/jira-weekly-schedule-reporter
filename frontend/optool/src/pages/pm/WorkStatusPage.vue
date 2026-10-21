@@ -123,10 +123,11 @@ const PALETTE = [
 // 미배정은 팔레트에 없는 고정 회색을 써서 실제 담당자 색과 절대 겹치지 않게 한다.
 // STATUS_COLOR.BACKLOG(grey-5)와 동일한 회색으로 맞춰 "백로그"와 시각적으로 통일.
 const UNASSIGNED_COLOR = '#bdbdbd'
+const NO_ASSIGNEE_KEY = '__unassigned__'
 const colorMap = new Map<string, string>()
 
 function getAssigneeColor(assigneeId: string | null): string {
-  if (!assigneeId) return UNASSIGNED_COLOR
+  if (!assigneeId || assigneeId === NO_ASSIGNEE_KEY) return UNASSIGNED_COLOR
   if (!colorMap.has(assigneeId)) colorMap.set(assigneeId, PALETTE[colorMap.size % PALETTE.length]!)
   return colorMap.get(assigneeId)!
 }
@@ -150,11 +151,19 @@ function isWorkStatusIssue(issue: Issue): boolean {
   return issue.type === 'TASK' || issue.type === 'SUB_TASK'
 }
 
+function workStatusAssigneeId(issue: Issue): string {
+  return issue.assigneeId && !issue.assigneeName?.includes('삭제된 회원')
+    ? issue.assigneeId
+    : NO_ASSIGNEE_KEY
+}
+
 // ── 담당자 목록 (이슈 로드 후 자동 추출) ──────────────────────────────
 const allAssignees = computed(() => {
   const map = new Map<string, string>()
   for (const i of allIssues.value) {
-    if (isWorkStatusIssue(i) && i.assigneeId && i.assigneeName) map.set(i.assigneeId, i.assigneeName)
+    if (!isWorkStatusIssue(i)) continue
+    const id = workStatusAssigneeId(i)
+    map.set(id, id === NO_ASSIGNEE_KEY ? '담당자없음' : i.assigneeName || '담당자없음')
   }
   return [...map.entries()].map(([id, name]) => ({ id, name }))
 })
@@ -201,12 +210,13 @@ function calendarEventContent(arg: EventContentArg): { domNodes: Node[] } {
 const filteredEvents = computed<EventInput[]>(() => {
   const base = selectedIds.value.size === 0
     ? allIssues.value
-    : allIssues.value.filter(i => i.assigneeId !== null && selectedIds.value.has(i.assigneeId))
+    : allIssues.value.filter(i => selectedIds.value.has(workStatusAssigneeId(i)))
 
   return base
     .filter(i => isWorkStatusIssue(i) && (i.dueDate ?? i.startDate))
     .map(i => {
-      const color = getAssigneeColor(i.assigneeId)
+      const assigneeId = workStatusAssigneeId(i)
+      const color = getAssigneeColor(assigneeId)
       const eventColor = i.type === 'SUB_TASK' ? lightenSubTaskColor(color) : color
       const start = (i.startDate ?? i.dueDate)!.slice(0, 10)
       const rawEnd = i.dueDate ? i.dueDate.slice(0, 10) : null
@@ -215,7 +225,9 @@ const filteredEvents = computed<EventInput[]>(() => {
         : null
       return {
         id: i.id,
-        title: `[${i.assigneeName ?? '미배정'}] ${calendarIssueTitle(i)}`,
+        title: assigneeId === NO_ASSIGNEE_KEY
+          ? `[담당자없음] ${i.projectName || i.projectKey || calendarIssueTitle(i)}`
+          : `[${i.assigneeName}] ${calendarIssueTitle(i)}`,
         start,
         ...(end && end !== start ? { end } : {}),
         allDay: true,

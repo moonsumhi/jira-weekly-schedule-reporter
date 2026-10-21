@@ -360,20 +360,51 @@
           <q-btn flat dense icon="close" v-close-popup />
         </q-card-section>
         <q-separator />
-        <q-card-section class="text-body2">
-          선택한 템플릿의 아래 항목이 비어 있습니다. 가져온 추가 내용을 참고해 해당 항목을 입력해 주세요.
+        <q-card-section class="text-body2 q-pb-sm">
+          원본 파일에서 자동으로 양식에 연결하지 못한 위치입니다. 원본 구역·항목·행과 추출된 내용을 확인해 주세요.
+          전체 가져온 내용은 편집 화면의 <strong>가져온 추가 내용</strong>에서도 확인할 수 있습니다.
+          <div class="text-caption text-grey-7 q-mt-xs">{{ importWarningCountLabel }}</div>
         </q-card-section>
         <q-card-section class="col scroll q-pt-none" style="min-height: 0">
-          <q-list bordered separator>
-            <q-item v-for="(warning, idx) in importWarningItems" :key="idx" dense>
-              <q-item-section avatar>
-                <q-icon :name="warning.summary ? 'error' : 'error_outline'" color="negative" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label class="text-body2">{{ importWarningLabel(warning) }}</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-list>
+          <div v-if="importWarningItems.length" class="column q-gutter-sm">
+            <q-card v-for="warning in importWarningItems" :key="warning.id" flat bordered class="import-warning-card">
+              <q-card-section v-if="warning.summary" class="q-pa-md">
+                <div class="row items-start no-wrap">
+                  <q-icon name="error" color="negative" size="sm" class="q-mr-sm q-mt-xs" />
+                  <div>
+                    <div class="text-weight-bold">가져오지 못한 항목 {{ warning.occurrences.length }}건</div>
+                    <div class="text-body2 q-mt-xs">{{ warning.message }}</div>
+                  </div>
+                </div>
+              </q-card-section>
+              <q-card-section v-else class="q-pa-md">
+                <div class="row items-center q-gutter-xs q-mb-sm">
+                  <q-icon name="error_outline" color="negative" size="sm" />
+                  <span class="text-caption text-grey-7">원본 위치</span>
+                  <q-chip dense square color="blue-grey-1" text-color="blue-grey-10">{{ warning.sourceSection || '구역 확인 불가' }}</q-chip>
+                  <q-chip dense square color="blue-grey-1" text-color="blue-grey-10">{{ warning.sourceField || '항목명 없음' }}</q-chip>
+                  <q-chip v-if="warning.occurrences.length === 1 && warning.occurrences[0]?.row != null" dense square color="orange-1" text-color="orange-10">
+                    {{ warning.occurrences[0].row }}번째 데이터 행
+                  </q-chip>
+                  <q-chip v-else-if="warning.occurrences.some((item) => item.row != null)" dense square color="orange-1" text-color="orange-10">
+                    {{ warning.occurrences.filter((item) => item.row != null).length }}개 행
+                  </q-chip>
+                </div>
+                <div class="text-body2 text-negative text-weight-medium">문제: {{ warning.message }}</div>
+                <div v-if="warning.targetSection" class="text-caption text-grey-8 q-mt-xs">
+                  양식에서 확인할 위치: <strong>{{ warning.targetSection }}</strong><span v-if="warning.targetFields.length"> &gt; {{ warning.targetFields.join(', ') }}</span>
+                </div>
+                <div v-else class="text-caption text-grey-8 q-mt-xs">연결할 양식 구역을 찾지 못했습니다. 가져온 추가 내용에서 원문을 확인해 주세요.</div>
+                <div v-if="warning.occurrences.some((item) => item.preview)" class="import-warning-preview-list q-mt-sm">
+                  <div v-for="(item, itemIndex) in warning.occurrences" :key="`${warning.id}-${itemIndex}`" class="import-warning-preview">
+                    <div class="text-caption text-grey-7">{{ item.row != null ? `${item.row}번째 행의 원본 내용` : '원본 내용' }}</div>
+                    <div class="text-body2 import-warning-preview-text">{{ item.preview || '추출된 미리보기 없음' }}</div>
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+          <q-banner v-else rounded class="bg-positive text-white">확인할 매핑 오류가 없습니다.</q-banner>
         </q-card-section>
         <q-separator />
         <q-card-actions align="right">
@@ -608,6 +639,17 @@ type ImportMappingWarning = {
   message: string
   sourcePreview?: string
 }
+type ImportWarningOccurrence = { row?: number | null | undefined; preview?: string | undefined }
+type ImportWarningItem = {
+  id: string
+  summary: boolean
+  sourceSection: string
+  sourceField: string
+  targetSection: string
+  targetFields: string[]
+  message: string
+  occurrences: ImportWarningOccurrence[]
+}
 const importWarnings = ref<ImportMappingWarning[]>([])
 
 function normalizedImportWarningPart(value?: string): string {
@@ -674,45 +716,56 @@ function warningTemplateFields(warning: ImportMappingWarning, section: FormSecti
   return []
 }
 
-const importWarningItems = computed<ImportMappingWarning[]>(() => {
-  const items: ImportMappingWarning[] = []
-  const expandedSourceWarnings = new Set<string>()
-  for (const warning of importWarnings.value) {
+const importWarningItems = computed<ImportWarningItem[]>(() => {
+  const items: ImportWarningItem[] = []
+  const grouped = new Map<string, ImportWarningItem>()
+  for (const [index, warning] of importWarnings.value.entries()) {
+    const sourceSection = warning.section?.trim() ?? ''
+    const sourceField = warning.field?.trim() ?? ''
+    const targetSection = resolveImportWarningSection(sourceSection)
+    const targetFields = targetSection ? warningTemplateFields(warning, targetSection) : []
+    const occurrence = { row: warning.row, preview: warning.sourcePreview?.trim() }
     if (warning.summary) {
-      items.push(warning)
+      items.push({
+        id: `summary-${index}`,
+        summary: true,
+        sourceSection,
+        sourceField,
+        targetSection: '',
+        targetFields: [],
+        message: warning.message,
+        occurrences: [occurrence],
+      })
       continue
     }
-    const targetSection = resolveImportWarningSection(warning.section)
-    if (!targetSection) {
-      items.push(warning)
-      continue
-    }
-    const targetFields = warningTemplateFields(warning, targetSection)
-    const sourceKey = `${normalizedImportWarningPart(warning.section)}>${normalizedImportWarningPart(warning.field)}`
-    if (targetFields.length > 1) {
-      if (expandedSourceWarnings.has(sourceKey)) continue
-      expandedSourceWarnings.add(sourceKey)
-      for (const field of targetFields) {
-        items.push({ ...warning, section: targetSection.title, field })
+    const key = [sourceSection, sourceField, warning.message, targetSection?.title ?? ''].join('|')
+    const existing = grouped.get(key)
+    if (existing) {
+      if (!existing.occurrences.some((item) => item.row === occurrence.row && item.preview === occurrence.preview)) {
+        existing.occurrences.push(occurrence)
       }
       continue
     }
-    // 매핑되지 않은 원본 열 제목은 화면에 그대로 노출하지 않고,
-    // 선택한 템플릿의 섹션만 표시해 사용자가 추가 내용을 참고하도록 한다.
-    items.push({ ...warning, section: targetSection.title, field: targetFields[0] ?? '' })
+    const item: ImportWarningItem = {
+      id: `mapping-${index}`,
+      summary: false,
+      sourceSection,
+      sourceField,
+      targetSection: targetSection?.title ?? '',
+      targetFields,
+      message: warning.message,
+      occurrences: [occurrence],
+    }
+    grouped.set(key, item)
+    items.push(item)
   }
   return items
 })
 
-function importWarningLabel(warning: ImportMappingWarning): string {
-  if (warning.summary) return `템플릿에 넣지 못한 내용이 있습니다: ${warning.message}`
-  const section = warning.section?.trim()
-  const field = warning.field?.trim()
-  if (section && field) return `${section} > ${field} 항목이 비어 있습니다.`
-  if (section) return `${section} 항목이 비어 있습니다.`
-  if (field) return `${field} 항목이 비어 있습니다.`
-  return warning.message
-}
+const importWarningCountLabel = computed(() => {
+  const count = importWarnings.value.filter((warning) => !warning.summary).length
+  return `매핑 오류 ${count}건 · 같은 원본 위치의 오류는 묶어서 표시합니다.`
+})
 const importedImages = ref<string[]>([])
 const importedOriginalFile = ref<OriginalFile | null>(null)
 // 캡션을 추출할 수 없는 문서는 그룹 없이 flat하게 표시한다.
@@ -1703,4 +1756,10 @@ watch(() => route.query.entryId, () => { if (!loading.value) void openLinkedEntr
 .image-thumb--selected { border: 2px solid #43a047; background: #f1f8e9; box-shadow: 0 0 0 2px #43a04766; }
 .import-warning-resolved { opacity: 0.58; }
 .import-warning-resolved .text-body2 { text-decoration: line-through; }
+.import-warning-card { border-radius: 8px; background: #fff; }
+.import-warning-preview-list { display: flex; flex-direction: column; gap: 6px; }
+.import-warning-preview { min-width: 0; border-left: 3px solid #ef9a9a; padding: 5px 9px; background: #fff8f7; border-radius: 0 4px 4px 0; }
+.import-warning-preview-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+:global(body.body--dark) .import-warning-card { background: #182334; }
+:global(body.body--dark) .import-warning-preview { background: #2b2022; }
 </style>

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.mention import MentionedUser
 from app.models.comment_reaction import CommentReactionOut, CommentReactionToggle
@@ -22,7 +22,12 @@ IssueType = Literal["EPIC", "STORY", "TASK", "BUG", "SUB_TASK"]
 IssueStatus = Literal["BACKLOG", "TODO", "IN_PROGRESS", "IMPLEMENTED", "DONE"]
 IssuePriority = Literal["LOWEST", "LOW", "MEDIUM", "HIGH", "HIGHEST"]
 
-ISSUE_STATUS_ORDER = ["BACKLOG", "TODO", "IN_PROGRESS", "IMPLEMENTED", "DONE"]
+ISSUE_STATUS_ORDER = ["BACKLOG", "TODO", "IN_PROGRESS", "DONE"]
+
+
+def canonical_issue_status(value: str) -> str:
+    """Keep old IMPLEMENTED records readable while using DONE going forward."""
+    return "DONE" if value == "IMPLEMENTED" else value
 
 
 class IssueCreate(AssetSelection):
@@ -44,6 +49,11 @@ class IssueCreate(AssetSelection):
     attachments: List[Attachment] = []
     show_on_dashboard: bool = False
 
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        return canonical_issue_status(value)
+
 
 class IssuePatch(AssetSelection):
     title: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -64,6 +74,11 @@ class IssuePatch(AssetSelection):
     attachments: Optional[List[Attachment]] = None
     order: Optional[float] = None
     show_on_dashboard: Optional[bool] = None
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def normalize_status(cls, value):
+        return canonical_issue_status(value) if value is not None else None
 
 
 class SubtaskSummary(BaseModel):

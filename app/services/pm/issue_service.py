@@ -6,6 +6,7 @@ from typing import Any
 from bson import ObjectId
 
 from app.db.mongo import MongoClientManager
+from app.models.pm.issue import canonical_issue_status
 from app.services import asset_links
 
 
@@ -77,10 +78,20 @@ async def record_history(
     })
 
 
+def assignee_display_name(issue: dict, user: dict | None) -> str | None:
+    if not issue.get("assignee_id"):
+        return None
+    if user:
+        return user.get("full_name") or user.get("email", "")
+    snapshot = issue.get("assignee_name_snapshot")
+    return f"{snapshot} (삭제된 회원)" if snapshot else "삭제된 회원"
+
+
 async def enrich_issue(doc: dict) -> dict:
     """이슈 doc에 담당자/보고자 이름을 JOIN하여 반환."""
     users = MongoClientManager.get_users_collection()
     d = dict(doc)
+    d["status"] = canonical_issue_status(d.get("status", "BACKLOG"))
     await asset_links.hydrate([d])
     issue_object_id = d.pop("_id")
     d["id"] = str(issue_object_id)
@@ -100,7 +111,7 @@ async def enrich_issue(doc: dict) -> dict:
     if d.get("assignee_id"):
         d["assignee_id"] = str(d["assignee_id"])
         user = await users.find_one({"_id": ObjectId(d["assignee_id"])}, {"full_name": 1, "email": 1})
-        d["assignee_name"] = user.get("full_name") or user.get("email", "") if user else ""
+        d["assignee_name"] = assignee_display_name(doc, user)
     else:
         d["assignee_id"] = None
         d["assignee_name"] = None

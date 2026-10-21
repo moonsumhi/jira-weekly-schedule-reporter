@@ -337,6 +337,12 @@
                 <q-icon name="arrow_forward" color="grey-4" size="14px" />
                 <q-badge color="positive" label="최종 완료" />
               </div>
+              <div class="text-caption text-grey-7 q-mt-sm">
+                <strong>처리 완료</strong>: 담당자가 SR 티켓의 요청 사항을 처리한 상태입니다.
+              </div>
+              <div class="text-caption text-grey-7">
+                <strong>최종 완료</strong>: 요청자가 처리 완료된 내용을 확인하고 완료 처리한 상태입니다.
+              </div>
               <div class="row q-gutter-sm q-mt-sm">
                 <div class="row items-center q-gutter-xs">
                   <q-badge color="brown"    label="보류" />

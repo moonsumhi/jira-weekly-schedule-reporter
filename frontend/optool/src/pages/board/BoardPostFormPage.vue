@@ -27,10 +27,12 @@
               <q-input v-model="form.part" label="업무 파트" outlined dense placeholder="예: 데이터운영팀, API 개발 파트 등" />
             </div>
             <div class="col-12 col-sm-6">
-              <q-select
+              <q-select v-if="!form.parentId"
                 v-model="form.category" label="카테고리" outlined dense clearable
                 :options="categoryOptions" emit-value map-options
               />
+              <q-input v-else :model-value="form.category" label="카테고리" outlined dense readonly
+                hint="상위 문서의 카테고리를 따릅니다." />
             </div>
           </div>
         </div>
@@ -86,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { boardService, type PostAttachment, type PostAttachmentInput, type PostOut } from 'src/services/boards'
@@ -125,6 +127,14 @@ const categoryOptions = ref<{ label: string; value: string }[]>([])
 
 const form = ref({ title: '', part: '', category: '', content: '', parentId: null as string | null, editorIds: [] as string[], ownerId: null as string | null })
 const allPosts = ref<PostOut[]>([])
+watch(() => form.value.parentId, (parentId) => {
+  if (!parentId) {
+    form.value.category = ''
+    return
+  }
+  const parent = allPosts.value.find((post) => post.id === parentId)
+  if (parent) form.value.category = parent.category ?? ''
+})
 const parentOptions = computed(() => allPosts.value
   .filter((post) => post.id !== postId.value && !isDescendant(post.id, postId.value))
   .map((post) => ({ label: post.title, value: post.id })))

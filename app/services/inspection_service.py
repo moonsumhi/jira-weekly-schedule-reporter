@@ -11,6 +11,7 @@ from pymongo.errors import DuplicateKeyError
 
 from app.db.mongo import MongoClientManager as M
 from app.services.pm.permission import require_pm_member
+from app.services.pm.issue_service import assignee_display_name
 from app.services.asset_catalog import asset_map, asset_snapshot
 from app.utils.mongo import oid
 
@@ -88,7 +89,7 @@ async def issue_snapshot(issue):
             'key': f"{(project or {}).get('key', '')}-{issue['number']}",
             'title': issue['title'], 'status': issue['status'],
             'assignee_id': str(issue['assignee_id']) if issue.get('assignee_id') else None,
-            'assignee_name': (assignee or {}).get('full_name') or (assignee or {}).get('email') or '미배정'}
+            'assignee_name': assignee_display_name(issue, assignee) or '미배정'}
 
 
 def effective_issue(occurrence, live):

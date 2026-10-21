@@ -37,9 +37,9 @@ def _board_to_out(doc: dict, post_count: int = 0) -> BoardOut:
     )
 
 
-async def _validate_post_parent(posts_col, board_id: str, parent_id: str | None, post_id: str | None = None):
+async def _validate_post_parent(posts_col, board_id: str, parent_id: str | None, post_id: str | None = None) -> str | None:
     if not parent_id:
-        return
+        return None
     if parent_id == post_id:
         raise HTTPException(status_code=400, detail="문서를 자기 자신의 하위 문서로 지정할 수 없습니다.")
     parent = await posts_col.find_one({"_id": parse_oid(parent_id, "잘못된 상위 문서 ID입니다."), "board_id": board_id})
@@ -55,6 +55,7 @@ async def _validate_post_parent(posts_col, board_id: str, parent_id: str | None,
         cursor = await posts_col.find_one({"_id": parse_oid(ancestor_id, "잘못된 상위 문서 ID입니다."), "board_id": board_id})
         if not cursor:
             break
+    return parent.get("category") or ""
 
 
 async def _validate_editors(editor_ids: list[str]):
@@ -214,7 +215,7 @@ async def create_post(
         raise HTTPException(status_code=404, detail="게시판을 찾을 수 없습니다.")
 
     posts_col = MongoClientManager.get_board_posts_collection()
-    await _validate_post_parent(posts_col, board_id, payload.parent_id)
+    parent_category = await _validate_post_parent(posts_col, board_id, payload.parent_id)
     await _validate_editors(payload.editor_ids)
     mentioned = await resolve_mentions(payload.mentioned_user_ids, actor_id=str(current_user.id))
     now = datetime.now(timezone.utc)
@@ -222,7 +223,7 @@ async def create_post(
         "board_id": board_id,
         "title": payload.title,
         "part": payload.part,
-        "category": payload.category,
+        "category": parent_category if payload.parent_id else payload.category,
         "content": payload.content,
         "author_id": current_user.id,
         "author_name": current_user.full_name or current_user.email,
@@ -297,14 +298,16 @@ async def patch_post(
         next_owner_name = next_owner.get("full_name") or next_owner.get("email", "")
     if payload.expected_version is not None and doc.get("version", 1) != payload.expected_version:
         raise HTTPException(status_code=409, detail="다른 사용자가 문서를 수정했습니다. 새로고침 후 다시 수정해 주세요.")
-    await _validate_post_parent(posts_col, board_id, payload.parent_id, post_id)
+    parent_category = await _validate_post_parent(posts_col, board_id, payload.parent_id, post_id)
+    next_category = parent_category if payload.parent_id else payload.category
     old_mentioned = {item.get("user_id") for item in doc.get("mentioned_users", [])}
     mentioned = await resolve_mentions(payload.mentioned_user_ids, actor_id=str(current_user.id))
     new_mentioned_ids = {item.user_id for item in mentioned}
 
     diff = []
     for field, label in (("title", "제목"), ("part", "업무 파트"), ("category", "카테고리"), ("content", "내용"), ("parent_id", "상위 문서")):
-        before, after = doc.get(field, "") or "", getattr(payload, field) or ""
+        before = doc.get(field, "") or ""
+        after = (next_category if field == "category" else getattr(payload, field)) or ""
         if before != after:
             diff.append({"key": field, "field": label, "before": before, "after": after})
     attachments = [a.model_dump() for a in payload.attachments]
@@ -325,7 +328,7 @@ async def patch_post(
     update_fields = {
         "title": payload.title,
         "part": payload.part,
-        "category": payload.category,
+        "category": next_category,
         "content": payload.content,
         "attachments": attachments,
         "parent_id": payload.parent_id,

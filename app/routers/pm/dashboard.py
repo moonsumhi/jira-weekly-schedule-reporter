@@ -26,7 +26,7 @@ async def get_dashboard(current_user: UserPublic = Depends(get_current_user)):
     # 내 담당 이슈 (완료 제외)
     my_issues_docs = await issues_col.find({
         "assignee_id": uid,
-        "status": {"$ne": "DONE"},
+        "status": {"$nin": ["DONE", "IMPLEMENTED"]},
     }).sort("updated_at", -1).limit(50).to_list(None)
     my_issues = [await enrich_issue(d) for d in my_issues_docs]
 
@@ -34,7 +34,7 @@ async def get_dashboard(current_user: UserPublic = Depends(get_current_user)):
     my_issue_ids = {d["id"] for d in my_issues}
     reported_docs = await issues_col.find({
         "reporter_id": uid,
-        "status": {"$ne": "DONE"},
+        "status": {"$nin": ["DONE", "IMPLEMENTED"]},
     }).sort("updated_at", -1).limit(50).to_list(None)
     reported_issues = [
         await enrich_issue(d) for d in reported_docs
@@ -52,11 +52,15 @@ async def get_dashboard(current_user: UserPublic = Depends(get_current_user)):
             {"$group": {"_id": "$status", "count": {"$sum": 1}}},
         ]
         status_counts = await issues_col.aggregate(pipeline).to_list(None)
+        counts = {}
+        for item in status_counts:
+            key = "DONE" if item["_id"] == "IMPLEMENTED" else item["_id"]
+            counts[key] = counts.get(key, 0) + item["count"]
         project_stats.append({
             "project_id": str(pid),
             "project_name": project["name"],
             "project_key": project["key"],
-            "status_counts": {s["_id"]: s["count"] for s in status_counts},
+            "status_counts": counts,
         })
 
     # 최근 변경이력 (내 프로젝트 이슈 기준)

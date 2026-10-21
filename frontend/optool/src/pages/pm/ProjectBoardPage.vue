@@ -383,7 +383,11 @@ async function loadBoard() {
   try {
     const data = await getBoard(projectId, selectedSprintId.value ?? undefined)
     const empty: Record<IssueStatus, Issue[]> = { BACKLOG: [], TODO: [], IN_PROGRESS: [], IMPLEMENTED: [], DONE: [] }
-    board.value = { ...empty, ...data }
+    board.value = {
+      ...empty, ...data,
+      DONE: [...(data.DONE ?? []), ...(data.IMPLEMENTED ?? [])],
+      IMPLEMENTED: [],
+    }
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '보드 로드 실패') })
   }

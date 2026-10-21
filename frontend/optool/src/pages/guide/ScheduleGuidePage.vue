@@ -301,15 +301,15 @@
               <div class="mock-section-label q-mb-xs">하위 작업</div>
               <div class="column q-gutter-xs q-mb-sm">
                 <div class="row items-center q-gutter-sm bg-grey-1 q-pa-xs rounded-borders">
-                  <q-icon name="check_circle" color="positive" size="16px" />
+                  <q-badge color="positive" label="완료" />
                   <span class="text-body2" style="text-decoration:line-through;color:#9e9e9e">DB 스키마 설계</span>
                 </div>
                 <div class="row items-center q-gutter-sm bg-grey-1 q-pa-xs rounded-borders">
-                  <q-icon name="radio_button_unchecked" color="grey-4" size="16px" />
+                  <q-badge color="blue-4" label="할 일" />
                   <span class="text-body2">API 엔드포인트 구현</span>
                 </div>
                 <div class="row items-center q-gutter-sm bg-grey-1 q-pa-xs rounded-borders">
-                  <q-icon name="radio_button_unchecked" color="grey-4" size="16px" />
+                  <q-badge color="blue-4" label="할 일" />
                   <span class="text-body2">Swagger 문서 작성</span>
                 </div>
               </div>
@@ -944,8 +944,8 @@ const scenarios: Scenario[] = [
         desc: '우측 사이드바에서 상태, 타입, 우선순위, 담당자, 보고자, 스프린트, 상위 Epic, 스토리 포인트, 시작일, 마감일, 라벨을 수정합니다. 각 항목을 클릭하면 드롭다운 또는 날짜 선택기가 열립니다.',
       },
       {
-        label: '하위 작업 추가·완료·정렬',
-        desc: 'Story, Task 이슈에서 하위 작업(체크리스트)을 관리합니다. 체크박스 클릭으로 완료 여부를 토글하고, 드래그로 순서를 변경하며, 하단 인라인 폼으로 새 항목을 추가합니다. Epic과 Sub-task 이슈에는 이 섹션이 없습니다.',
+        label: '하위 작업 추가·상태 확인·정렬',
+        desc: 'Story, Task 이슈에서 하위 작업을 관리합니다. 상태 배지와 시작일~종료일을 확인하고, 항목을 열어 상태를 변경할 수 있습니다. 드래그로 순서를 변경하고 하단 인라인 폼에서 새 항목을 추가합니다.',
       },
       {
         label: '댓글 작성·답글·파일 첨부·@멘션',

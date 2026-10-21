@@ -42,6 +42,13 @@
                 :rules="[val => !!val || '비밀번호를 입력해 주세요.']"
               />
 
+              <q-checkbox
+                v-model="rememberEmail"
+                label="아이디 저장"
+                dense
+                @update:model-value="onRememberEmailChange"
+              />
+
               <div class="row items-center q-mt-md">
                 <q-space />
                 <q-btn
@@ -185,9 +192,12 @@ const auth = useAuthStore()
 const theme = useThemeStore()
 
 const TEAM_OPTIONS = ['데이터운영팀', '데이터구축팀', '데이터활용팀', '데이터결합팀']
+const SAVED_LOGIN_EMAIL_KEY = 'savedLoginEmail'
+const savedLoginEmail = localStorage.getItem(SAVED_LOGIN_EMAIL_KEY) ?? ''
 
 const mode = ref<'login' | 'register'>('login')
-const email = ref('')
+const email = ref(savedLoginEmail)
+const rememberEmail = ref(Boolean(savedLoginEmail))
 const password = ref('')
 const fullName = ref('')
 const team = ref<string | null>(null)
@@ -227,8 +237,18 @@ async function onSubmitLogin() {
     return
   }
 
+  if (rememberEmail.value) {
+    localStorage.setItem(SAVED_LOGIN_EMAIL_KEY, email.value.trim())
+  } else {
+    localStorage.removeItem(SAVED_LOGIN_EMAIL_KEY)
+  }
+
   $q.notify({ type: 'positive', message: '로그인되었습니다.' })
   goAfterAuth()
+}
+
+function onRememberEmailChange(remember: boolean) {
+  if (!remember) localStorage.removeItem(SAVED_LOGIN_EMAIL_KEY)
 }
 
 async function onSubmitRegister() {

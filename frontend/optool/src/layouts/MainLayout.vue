@@ -15,7 +15,7 @@
 
         <q-toolbar-title>{{ theme.appName }}</q-toolbar-title>
 
-        <div>{{ theme.appName }} v1.0</div>
+        <div>{{ theme.appName }} v1.1.0</div>
 
         <!-- 알림 벨 -->
         <NotificationBell v-if="auth.isLoggedIn" class="q-ml-xs" />

@@ -32,6 +32,9 @@ def display_snapshot(occurrence, plan, users):
     person = users.get(info.get('assignee_id'))
     if person:
         info['assignee_name'] = person.get('full_name') or person.get('email') or info['assignee_name']
+    elif info.get('assignee_id') and info.get('assignee_name'):
+        if not info['assignee_name'].endswith(' (삭제된 회원)'):
+            info['assignee_name'] += ' (삭제된 회원)'
     return info
 
 

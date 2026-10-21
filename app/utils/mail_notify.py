@@ -226,7 +226,7 @@ async def send_sr_notification(doc: dict, event: str) -> None:
     # 실제 메일 템플릿(Backoffice_IssueInfo.html, th:text)이 읽는 키만 채운다:
     # subject(제목) / description(내용) / start_date(생성일자) /
     # adminInfo(담당자) / custom_field_values(요청자) / due_date(마감일자)
-    # link는 issueAssign_link 템플릿 전용 신규 키(담당자 배정 메일의 바로가기 버튼).
+    # 처리 완료 템플릿은 link/action_label로 SR 상세 바로가기 버튼을 표시한다.
     data_map = {
         "subject": _sanitize_for_mail(doc.get("title") or "-"),
         "description": _mail_description(description or "-"),
@@ -236,6 +236,8 @@ async def send_sr_notification(doc: dict, event: str) -> None:
         "due_date": _fmt_date(doc.get("desired_due_date")),
         "link": detail_url,
     }
+    if event == "completed":
+        data_map["action_label"] = "SR 상세 바로가기"
 
     url = _EVENT_URLS.get(event, lambda: settings.SR_MAIL_SERVICE_URL)()
     await _post_mail(
