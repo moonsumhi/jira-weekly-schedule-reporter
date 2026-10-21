@@ -37,10 +37,10 @@ class VmwareSnapshotTests(unittest.TestCase):
             data = json.loads(report.read_text())
             self.assertEqual(data['status'], 'unreviewed_candidates_only')
             self.assertEqual(data['changes']['ESXi|7.0']['candidate'], '2099-01')
-            self.assertEqual(data['changes']['ESXi|7.0']['reviewed'], '2025-10')
+            self.assertIsNone(data['changes']['ESXi|7.0']['reviewed'])
             updater.write_reviewed_snapshot(backend, frontend)
             rendered = json.loads(backend.read_text())['data']
-            self.assertEqual(rendered['ESXi|7.0'], '2025-10')
+            self.assertNotIn('ESXi|7.0', rendered)
             self.assertEqual(rendered['ESXi|7.0|technicalGuidance'], '2027-04-02')
 
     def test_generator_syncs_frontend_and_preserves_failed_product(self):
@@ -56,7 +56,7 @@ class VmwareSnapshotTests(unittest.TestCase):
             with patch.object(updater, 'fetch_product', side_effect=fetch):
                 updater.build_snapshot(backend, frontend)
                 data = json.loads(backend.read_text())['data']
-                self.assertEqual(data['ESXi|7.0'], '2025-10')
+                self.assertNotIn('ESXi|7.0', data)
                 self.assertEqual(data['ESXi|7.0|generalSupport'], '2025-10-02')
                 self.assertEqual(data['ESXi|7.0|technicalGuidance'], '2027-04-02')
                 self.assertEqual({k: v for k, v in data.items() if k.startswith(('ESXi|', 'vCenter|'))}, json.loads(frontend.read_text()))

@@ -1,7 +1,8 @@
 import type { EosActionStatus } from 'src/types/assets'
 import { OS_TREE } from 'src/constants/osVersions'
 import { NETWORK_EOS_LIST } from 'src/constants/networkEos'
-import { softwareEvidence, softwareAliases, supportStatus, REVIEW_NOTE } from 'src/services/lifecycleAudit'
+import { softwareEvidence, softwareAliases, supportStatus, REVIEW_NOTE, type LifecycleEvidence } from 'src/services/lifecycleAudit'
+import { normalizeCiscoSoftware } from 'src/services/ciscoLifecycle'
 import { normalizeVmware } from 'src/services/vmwareLifecycle'
 
 // ── OS 탐지 ──────────────────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ export function osMinorOptions(dist: string, major: string): string[] {
 }
 
 export function detectOsMajor(dist: string, version: string): string {
-  const vmware = normalizeVmware(dist, version)
+  const vmware = normalizeCiscoSoftware(dist, version) ?? normalizeVmware(dist, version)
   if (vmware) ({ dist, version } = vmware)
   const majors = osMajorOptions(dist)
   if (majors.includes(version)) return version
@@ -81,10 +82,10 @@ function isMaintenancePhase(dist: string, version: string, today: string): boole
     && today >= '2024-05'
 }
 
-export function getAutoEos(dist: string, version: string): { status: EosActionStatus; date: string; source: string; basis: string; note: string } | null {
+export function getAutoEos(dist: string, version: string): (LifecycleEvidence & { status: EosActionStatus }) | null {
   dist = String(dist ?? '')
   version = String(version ?? '')
-  const vmware = normalizeVmware(dist, version)
+  const vmware = normalizeCiscoSoftware(dist, version) ?? normalizeVmware(dist, version)
   if (vmware) ({ dist, version } = vmware)
   dist = resolveDistName(dist)
   if (!dist) return null
@@ -92,13 +93,15 @@ export function getAutoEos(dist: string, version: string): { status: EosActionSt
   const evidence = softwareEvidence[`${dist}|${version}`] ?? softwareEvidence[softwareAliases[`${dist}|${version}`] ?? '']
   if (!evidence) {
     const known = Object.keys(softwareEvidence).some(key => key.startsWith(`${dist}|`))
-    return known ? { status: 'REVIEW_REQUIRED', date: '', source: '', basis: '', note: REVIEW_NOTE } : null
+    return known ? { status: 'REVIEW_REQUIRED', date: '', source: '', basis: '', note: REVIEW_NOTE }
+      : NETWORK_EOS_LIST.some(e => e.aliases.includes(normalizeModel(dist).replace(/^cisco/, '').replace(/^nexus/, ''))) ? getNetworkEos(dist) : null
   }
   const today = new Date().toISOString().slice(0, 10)
-  let status = supportStatus(evidence.date, today)
+  const end = evidence.dateKind === 'service_end' ? evidence.date : ''
+  let status = supportStatus(end, today)
   if (status === 'ACTIVE' && requiresMinorVersion(dist, version)) status = 'VERSION_REQUIRED'
   if (status === 'ACTIVE' && isMaintenancePhase(dist, version, today)) status = 'MAINTENANCE'
-  return { ...evidence, date: evidence.date.slice(0, 7), status }
+  return { ...evidence, date: end.slice(0, 7), status }
 }
 
 // ── 네트워크 장비 EoS 탐지 ────────────────────────────────────────────────────
@@ -108,12 +111,13 @@ export function normalizeModel(s: string): string {
 }
 
 export function getNetworkEos(model: string): {
-  status: EosActionStatus; date: string; matchedLabel: string; source: string; basis: string; note: string
+  status: EosActionStatus; date: string; matchedLabel: string; source: string; basis: string; note: string; milestones?: Array<{date: string; basis: string; source: string}>
 } | null {
   if (!model.trim()) return null
   const normalized = normalizeModel(model).replace(/^cisco/, '').replace(/^nexus/, '')
   const entry = NETWORK_EOS_LIST.find(e => e.aliases.includes(normalized))
   if (!entry) return { status: 'REVIEW_REQUIRED', date: '', matchedLabel: model, source: '', basis: '', note: REVIEW_NOTE }
-  return { status: supportStatus(entry.date), date: entry.date.slice(0, 7), matchedLabel: entry.label,
+  const end = entry.dateKind === 'service_end' ? entry.date : ''
+  return { ...entry, status: supportStatus(end), date: end.slice(0, 7), matchedLabel: entry.label,
     source: entry.source, basis: entry.basis, note: entry.note }
 }

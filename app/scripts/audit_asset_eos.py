@@ -8,7 +8,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from app.db.mongo import MongoClientManager
-from app.lifecycle_audit import AUDIT, asset_eos, normalize_model
+from app.lifecycle_audit import AUDIT, asset_eos, asset_eol, software_entry, network_entry
 
 
 async def run(apply: bool = False) -> dict:
@@ -20,20 +20,23 @@ async def run(apply: bool = False) -> dict:
         async for doc in db[collection].find({'is_deleted': {'$ne': True}}):
             counts['scanned'] += 1
             fields = doc.get('fields') or {}
-            proposed = asset_eos(fields, category)
-            if not proposed or all(fields.get(k, '') == v for k, v in proposed.items()):
-                continue
-            # Only replace recognizable legacy automatic values. Preserve custom values for review.
-            product = str(fields.get('운영체제') or '')
-            version = str(fields.get('version') or '')
-            old_date = fields.get('eos_date') or ''
-            legacy = AUDIT['software'].get(product + '|' + version, {}).get('previousDate')
-            if category in ('네트워크', '정보보호시스템'):
-                normalized = normalize_model(product)
-                matches = sorted((r for r in AUDIT['network'] if r['pattern'] in normalized), key=lambda r: -len(r['pattern']))
-                legacy = matches[0]['previousDate'] if matches else ''
-            if old_date and old_date != legacy:
-                counts['manual_review'] += 1
+            proposed = {}
+            for section, date_key, result in (
+                ('software', 'eos_date', asset_eos(fields, category)),
+                ('eol', 'eol_date', asset_eol(fields)),
+            ):
+                if not result or all(fields.get(k, '') == v for k, v in result.items()):
+                    continue
+                entry = software_entry(fields, section)
+                if section == 'software' and category in ('네트워크', '정보보호시스템'):
+                    entry = network_entry(str(fields.get('운영체제') or ''))
+                old_date = fields.get(date_key) or ''
+                legacy = (entry or {}).get('legacyDates', [])
+                if old_date and old_date not in legacy:
+                    counts['manual_review'] += 1
+                    continue
+                proposed.update(result)
+            if not proposed:
                 continue
             counts['changes'] += 1
             if not apply:

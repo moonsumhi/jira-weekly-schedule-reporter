@@ -62,6 +62,31 @@ class MigrationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(assets.writes, [])
         self.assertEqual(history.backups, [])
 
+    async def test_intermediate_dates_removed_with_backup_but_manual_eol_preserved(self):
+        fields = {'운영체제': 'Oracle', 'version': '19.3', 'eos_date': '2032-12',
+                  'eos_action_status': 'ACTIVE', 'eol_date': '2028-02', 'eol_status': 'X'}
+        assets, history = Collection([{'_id': 'example', 'fields': fields}]), Collection()
+        with patch('app.scripts.audit_asset_eos.MongoClientManager.get_db', return_value={'dbms': assets, 'asset_lifecycle_audit': history}), patch('app.scripts.audit_asset_eos.MongoClientManager.CATEGORY_COLLECTIONS', {'DBMS': ('dbms', '')}):
+            counts = await run(True)
+        self.assertEqual(counts['applied'], 1)
+        self.assertEqual(counts['manual_review'], 1)
+        values = assets.writes[0][1]['$set']
+        self.assertEqual(values['fields.eos_date'], '')
+        self.assertEqual(values['fields.eos_action_status'], 'REVIEW_REQUIRED')
+        self.assertNotIn('fields.eol_date', values)
+        self.assertEqual(history.backups[0]['before']['eos_date'], '2032-12')
+
+    async def test_previous_auto_eol_cleared_for_alias(self):
+        fields = {'운영체제': 'Ubuntu', 'version': '22.04.3', 'eos_date': '2027-05',
+                  'eos_action_status': 'ACTIVE', 'eol_date': '2027-05', 'eol_status': 'X'}
+        assets, history = Collection([{'_id': 'example', 'fields': fields}]), Collection()
+        with patch('app.scripts.audit_asset_eos.MongoClientManager.get_db', return_value={'server': assets, 'asset_lifecycle_audit': history}), patch('app.scripts.audit_asset_eos.MongoClientManager.CATEGORY_COLLECTIONS', {'서버': ('server', '')}):
+            counts = await run(True)
+        self.assertEqual(counts['applied'], 1)
+        self.assertEqual(counts['manual_review'], 0)
+        self.assertEqual(assets.writes[0][1]['$set']['fields.eol_date'], '')
+        self.assertEqual(assets.writes[0][1]['$set']['fields.eol_status'], 'REVIEW_REQUIRED')
+
 
 if __name__ == '__main__':
     unittest.main()
