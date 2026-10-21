@@ -5,6 +5,7 @@ export const SLUG_PERM: Record<string, string> = {
   job: 'job', asset: 'asset', watch: 'watch',
   server_check: 'server_check',
   pm: 'pm', sr: 'sr', calendar: 'calendar',
+  spaces: 'spaces',
 }
 
 export const PERM_SLUG: Record<string, string> = Object.fromEntries(

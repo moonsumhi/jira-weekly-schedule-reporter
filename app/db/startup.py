@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # 시스템 메뉴 초기값 (slug가 없으면 자동 생성)
 # ──────────────────────────────────────────────
 _SYSTEM_MENUS = [
+    {"slug": "spaces", "title": "인적자원 관리", "icon": "fa-solid fa-building-user", "sort_order": 11},
     {"slug": "job",      "title": "작업 관리",   "icon": "fa-solid fa-briefcase",  "sort_order": 2},
     {"slug": "asset",    "title": "자산",        "icon": "fa-solid fa-computer",   "sort_order": 3},
     {"slug": "watch",    "title": "당직 시간표", "icon": "fa-solid fa-clock",      "sort_order": 4},
@@ -124,6 +125,11 @@ async def seed_system_menus() -> None:
             await menus_col.update_one({"slug": "calendar"}, {"$unset": {"link": ""}})
         elif sm["slug"] == "pm" and existing.get("title") == "PM":
             await menus_col.update_one({"slug": "pm"}, {"$set": {"title": "스케줄 관리"}})
+        elif sm["slug"] == "spaces" and existing.get("title") == "조직·공간관리":
+            await menus_col.update_one(
+                {"slug": "spaces", "title": "조직·공간관리"},
+                {"$set": {"title": sm["title"]}},
+            )
 
     # account 메뉴는 하단 유저 카드로 대체 — DB에서 제거
     await menus_col.delete_one({"slug": "account"})
@@ -440,6 +446,11 @@ _JOB_FORM_TEMPLATES = [
 # job: form templates에서 동적으로 로드 → 여기서 정의 안 함
 # account: 하단 유저 카드 표시 → 여기서 정의 안 함
 _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
+    "spaces": {"submenus": [
+        {"title": "인원 현황", "icon": "fa-solid fa-users", "link": "/spaces/people"},
+        {"title": "공간 관리", "icon": "fa-solid fa-building", "link": "/spaces/rooms"},
+        {"title": "좌석 배정", "icon": "fa-solid fa-chair", "link": "/spaces/seats"},
+    ]},
     "asset": {
         "submenus": [
             {"title": "전체",          "icon": "fa-solid fa-layer-group",   "link": "/asset/list"},
@@ -506,6 +517,14 @@ async def seed_system_menu_extras() -> None:
             update["submenus"] = extras["submenus"]
         if update:
             await menus_col.update_one({"slug": slug}, {"$set": update})
+
+
+async def migrate_space_plan_submenu() -> None:
+    """배치도를 공간 관리의 사무실 상세로 통합한다. 다른 메뉴 설정은 보존한다."""
+    await MongoClientManager.get_menus_collection().update_one(
+        {"slug": "spaces", "submenus.link": "/spaces/plans"},
+        {"$pull": {"submenus": {"link": "/spaces/plans"}}},
+    )
 
 
 async def migrate_pm_report_submenu_access() -> None:
@@ -1357,8 +1376,11 @@ async def migrate_full_rack_placements_to_front() -> None:
 async def run_startup() -> None:
     """lifespan startup에서 호출하는 진입점."""
     await create_indexes()
+    from app.services.spaces import initialize as initialize_spaces
+    await initialize_spaces()
     await seed_system_menus()
     await seed_system_menu_extras()
+    await migrate_space_plan_submenu()
     await migrate_inspection_tasks()
     from app.services.monthly_inspection_reports import indexes as report_indexes
     await report_indexes()

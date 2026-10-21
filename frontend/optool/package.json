@@ -13,6 +13,7 @@
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0",
     "test:backlog": "node --test scripts/test-backlog-state.mjs",
+    "test:spaces": "node --test scripts/test-space-plan.mjs",
     "test:resources": "node --test scripts/test-resource-results.mjs",
     "test:report-participants": "node --test scripts/test-report-participants.mjs",
     "test:report-resources": "node --test scripts/test-report-resources.mjs",
