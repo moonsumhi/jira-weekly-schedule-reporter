@@ -95,3 +95,42 @@ test('APIC bundles, servers and software retain independent service dates', () =
   assert.equal(getNetworkEos('SE-NODE-G2').date, '2028-10')
   assert.equal(getNetworkEos('ND-NODE-L4').date, '2031-06')
 })
+
+const { localLifecycleDocument, lifecycleDocumentNotice, assetLifecycleEvidence } = load('src/services/lifecycleReferences')
+test('all vendor evidence resolves to bundled PDFs without falling back to external URLs', () => {
+  const audit = load('src/data/lifecycle_audit.json')
+  const sources = new Set()
+  const collect = value => {
+    if (!value || typeof value !== 'object') return
+    for (const [key, child] of Object.entries(value)) {
+      if (key === 'source' && typeof child === 'string' && child.startsWith('https://')) sources.add(child)
+      else collect(child)
+    }
+  }
+  collect(audit)
+  for (const source of sources) {
+    const doc = localLifecycleDocument(source)
+    assert.ok(doc || lifecycleDocumentNotice(source), source)
+    if (doc) {
+      assert.match(doc.path, /^\/reference\/[^.]+\.pdf$/)
+      assert.ok(fs.readFileSync(path.join(root, 'public', doc.path)).subarray(0, 5).equals(Buffer.from('%PDF-')))
+    }
+  }
+  for (const source of ['https://unregistered.example/doc.pdf', '//outside.example/file.pdf', 'javascript:alert(1)', undefined]) {
+    assert.equal(localLifecycleDocument(source), null)
+  }
+})
+test('status icons use the same normalized product evidence as lifecycle calculations', () => {
+  for (const fields of [
+    {'운영체제':'Cisco APIC','version':'5.2(8g)'},
+    {'운영체제':'APIC-CLUSTER-M3'},
+    {'운영체제':'PostgreSQL','version':'15.2'},
+    {'운영체제':'Windows Server','version':2022},
+    {'운영체제':'VMware ESXi','version':'7.0 U3'},
+  ]) {
+    assert.ok(localLifecycleDocument(assetLifecycleEvidence(fields, 'eos')?.source), JSON.stringify(fields))
+  }
+  assert.ok(localLifecycleDocument(assetLifecycleEvidence({'운영체제':'PostgreSQL','version':'15.2'}, 'eol')?.source))
+  assert.equal(assetLifecycleEvidence(undefined, 'eos'), null)
+  assert.equal(assetLifecycleEvidence({'운영체제':'VMware ESXi','version':'7.0 U3'}, 'eol'), null)
+})

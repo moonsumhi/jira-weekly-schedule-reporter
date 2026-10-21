@@ -69,3 +69,6 @@ for (const [section, kind] of [['software', 'service_end'], ['eol', 'life_end']]
     if (entry.date && entry.dateKind !== kind) throw new Error(`${section} ${key}: 잘못된 종료일 의미`)
   }
 }
+
+// 내부망 배포 시 원문 PDF 누락/변조와 외부 URL 회귀를 빌드 전에 차단한다.
+await import('./check-lifecycle-references.mjs')
