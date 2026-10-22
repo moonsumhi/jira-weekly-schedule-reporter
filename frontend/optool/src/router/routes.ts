@@ -24,7 +24,16 @@ const routes: RouteRecordRaw[] = [
               ? { name: 'space-room-plan', params: { roomId: to.query.room } }
               : '/spaces/rooms',
           },
-          { path: 'seats', component: () => import('pages/spaces/SeatsPage.vue') },
+          {
+            path: 'seats',
+            redirect: (to) => typeof to.query.room === 'string' && to.query.room
+              ? {
+                  name: 'space-room-plan',
+                  params: { roomId: to.query.room },
+                  query: { person: to.query.person, seat: to.query.seat },
+                }
+              : '/spaces/rooms',
+          },
         ],
       },
       {

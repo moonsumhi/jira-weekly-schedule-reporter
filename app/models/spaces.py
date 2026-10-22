@@ -45,6 +45,7 @@ class PersonInput(Input):
     name: Name
     team_id: Identifier
     title: str = Field(default="", max_length=100)
+    extension: Annotated[str, StringConstraints(strip_whitespace=True, max_length=30)] = ""
     room_id: Identifier | None = None
     user_id: Identifier | None = None
     active: bool = True
