@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 from app.db.mongo import MongoClientManager
+from app.models.pm.issue import canonical_issue_status
 from app.services.sr.sr_service import compute_is_delayed
 from app.utils.mail_notify import send_delayed_digest
 from app.utils.time import KST, next_9am_kst
@@ -125,7 +126,14 @@ class DelayedDigestService:
 
         issues_col = MongoClientManager.get_pm_issues_collection()
         raw_issues = []
-        async for doc in issues_col.find({"status": {"$ne": "DONE"}, "due_date": {"$exists": True, "$ne": None}}):
+        async for doc in issues_col.find({
+            "status": {"$nin": ["DONE", "IMPLEMENTED"]},
+            "due_date": {"$exists": True, "$ne": None},
+        }):
+            # 기존 "구현완료" 값(IMPLEMENTED)도 완료로 취급한다.
+            # DB 조건과 함께 방어적으로 확인해 완료된 업무가 지연 메일에 들어가지 않게 한다.
+            if canonical_issue_status(doc.get("status", "BACKLOG")) == "DONE":
+                continue
             due_date = doc["due_date"]
             if due_date.tzinfo is None:
                 due_date = due_date.replace(tzinfo=timezone.utc)
