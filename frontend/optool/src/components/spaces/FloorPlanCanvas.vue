@@ -204,7 +204,7 @@
             :tabindex="!editable && obj.seatId && matches(obj) ? 0 : undefined"
             :aria-label="
               obj.seatId
-                ? `${seatFor(obj)?.number} · ${personName(obj.seatId) || '미배정'} · 좌석 정보 열기`
+                ? `${seatDescription(obj)} · 좌석 정보 열기`
                 : undefined
             "
             :transform="`translate(${obj.x} ${obj.y}) rotate(${obj.rotation})`"
@@ -218,7 +218,7 @@
             @keydown.space.stop.prevent="activateSeat(obj)"
           >
             <title v-if="obj.kind === 'desk'">
-              {{ seatFor(obj)?.number }} · {{ personName(obj.seatId) || '미배정' }}
+              {{ seatDescription(obj) }}
             </title>
             <rect
               v-if="obj.kind === 'wall'"
@@ -254,22 +254,23 @@
               />
               <text
                 :x="obj.width / 2"
-                :y="obj.height / 2 - seatFontSize * 0.35"
+                :y="personExtension(obj.seatId) ? obj.height * 0.45 : obj.height * 0.55"
                 text-anchor="middle"
-                fill="#263238"
-                :font-size="seatFontSize"
+                fill="#000000"
+                :font-size="deskLabelSize(obj)"
                 font-weight="600"
               >
-                {{ shortLabel(seatFor(obj)?.number || '좌석', obj.width) }}
+                {{ shortLabel(personName(obj.seatId) || '미배정', obj.width, deskLabelSize(obj)) }}
               </text>
               <text
+                v-if="personExtension(obj.seatId)"
                 :x="obj.width / 2"
-                :y="obj.height / 2 + seatFontSize * 0.9"
+                :y="obj.height * 0.68"
                 text-anchor="middle"
-                fill="#455a64"
-                :font-size="seatFontSize"
+                fill="#000000"
+                :font-size="deskLabelSize(obj) * 0.82"
               >
-                {{ shortLabel(personName(obj.seatId) || '미배정', obj.width) }}
+                {{ shortLabel(personExtension(obj.seatId), obj.width, deskLabelSize(obj) * 0.82) }}
               </text>
             </g>
             <g v-else-if="obj.kind === 'cabinet'">
@@ -314,15 +315,15 @@
               </text>
             </g>
             <rect
-              v-if="selected.includes(obj.id) || (selectedSeatId && obj.seatId === selectedSeatId)"
+              v-if="selected.includes(obj.id) || (selectedSeatId && obj.seatId === selectedSeatId) || (focusSeatId && obj.seatId === focusSeatId)"
               x="-4"
               y="-4"
               :width="obj.width + 8"
               :height="obj.height + 8"
               fill="none"
-              stroke="#1565c0"
-              stroke-width="2"
-              stroke-dasharray="6 3"
+              :stroke="focusSeatId && obj.seatId === focusSeatId ? '#ef6c00' : '#1565c0'"
+              :stroke-width="focusSeatId && obj.seatId === focusSeatId ? 4 : 2"
+              :stroke-dasharray="focusSeatId && obj.seatId === focusSeatId ? undefined : '6 3'"
               pointer-events="none"
             />
             <g v-if="editable && selected.length === 1 && selected[0] === obj.id">
@@ -522,7 +523,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { drawingBounds, newSpaceId } from 'src/utils/spacePlan';
 import { useQuasar } from 'quasar';
 import type {
@@ -543,9 +544,10 @@ const props = withDefaults(
     people: Person[];
     teamFilter?: string | null;
     selectedSeatId?: string | null;
+    focusSeatId?: string | null;
     visibleSeatIds?: string[];
   }>(),
-  { editable: false, teamFilter: null, selectedSeatId: null },
+  { editable: false, teamFilter: null, selectedSeatId: null, focusSeatId: null },
 );
 const emit = defineEmits<{ 'update:modelValue': [value: Plan]; selectSeat: [id: string] }>();
 const $q = useQuasar();
@@ -594,8 +596,8 @@ const seatFontSize = computed(() => {
   );
   return Math.max(13, Math.min(24, 11 / Math.max(scale, 0.01)));
 });
-function shortLabel(text: string, width: number) {
-  const limit = Math.max(2, (width - 12) / seatFontSize.value);
+function shortLabel(text: string, width: number, fontSize = seatFontSize.value) {
+  const limit = Math.max(2, (width - 12) / fontSize);
   let used = 0,
     result = '';
   for (const char of text) {
@@ -670,10 +672,28 @@ function fitDrawing() {
   if (bounds) view.value = bounds;
   else fit();
 }
+function focusSeat(seatId: string) {
+  const desk = props.modelValue.objects.find((obj) => obj.kind === 'desk' && obj.seatId === seatId);
+  if (!desk) return;
+  const angle = desk.rotation * Math.PI / 180;
+  const centerX = desk.x + desk.width / 2 * Math.cos(angle) - desk.height / 2 * Math.sin(angle);
+  const centerY = desk.y + desk.width / 2 * Math.sin(angle) + desk.height / 2 * Math.cos(angle);
+  const width = Math.min(view.value.width, Math.max(520, desk.width * 4.5));
+  const height = view.value.height * width / view.value.width;
+  view.value = { x: centerX - width / 2, y: centerY - height / 2, width, height };
+}
+watch(() => props.focusSeatId, (seatId, previous) => {
+  if (props.editable) return;
+  if (seatId) focusSeat(seatId);
+  else if (previous) fitDrawing();
+});
 onMounted(() => {
   document.addEventListener('pointerdown', pointerFocus, true);
   window.addEventListener('blur', deactivate);
-  if (!props.editable) fitDrawing();
+  if (!props.editable) {
+    fitDrawing();
+    if (props.focusSeatId) focusSeat(props.focusSeatId);
+  }
   resizeObserver = new ResizeObserver(([entry]) => {
     if (entry)
       canvasPixels.value = { width: entry.contentRect.width, height: entry.contentRect.height };
@@ -724,9 +744,30 @@ function teamColor(id?: string | null) {
 function seatFor(obj: PlanObject) {
   return props.modelValue.seats.find((s) => s.id === obj.seatId);
 }
+const peopleById = computed(() => new Map(props.people.map((person) => [person.id, person])));
+const personBySeat = computed(() => {
+  const people = new Map<string, Person>();
+  for (const assignment of props.assignments) {
+    const person = peopleById.value.get(assignment.personId);
+    if (person) people.set(assignment.seatId, person);
+  }
+  return people;
+});
+function personForSeat(seatId: string | null) {
+  return seatId ? personBySeat.value.get(seatId) : undefined;
+}
 function personName(seatId: string | null) {
-  const a = props.assignments.find((a) => a.seatId === seatId);
-  return props.people.find((p) => p.id === a?.personId)?.name ?? '';
+  return personForSeat(seatId)?.name ?? '';
+}
+function personExtension(seatId: string | null) {
+  return personForSeat(seatId)?.extension?.trim() ?? '';
+}
+function seatDescription(obj: PlanObject) {
+  const extension = personExtension(obj.seatId);
+  return `${personName(obj.seatId) || '미배정'}${extension ? ` · 내선 ${extension}` : ''}`;
+}
+function deskLabelSize(obj: PlanObject) {
+  return Math.min(seatFontSize.value, Math.max(8, (obj.height - 12) / 2.8));
 }
 function matches(obj: PlanObject) {
   if (

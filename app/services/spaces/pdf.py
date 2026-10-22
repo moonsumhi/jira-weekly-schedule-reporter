@@ -221,20 +221,17 @@ class Report:
             shape.commit()
         elif kind == "desk":
             seat = self.seats[obj["seat_id"]]
+            person = self.person(seat["id"]) or {}
+            extension = str(person.get("extension") or "").strip()
             color = _color(self.teams.get(seat["team_id"], {}).get("color"))
             rectangle(0, 0, w, h, color, color, 0.13)
             rectangle(w * 0.3, h - 6, w * 0.4, 13, fill=color)
-            size = min(14, h / 3)
-            label(seat["number"], w / 2, h / 2 - size * 0.35, size, w - 10, True)
-            label(
-                (self.person(seat["id"]) or {}).get("name", "미배정"),
-                w / 2,
-                h / 2 + size * 0.9,
-                size,
-                w - 10,
-                True,
-                _muted,
-            )
+            size = min(14, max(8, (h - 12) / 2.8))
+            if extension:
+                label(person.get("name", "미배정"), w / 2, h * 0.45, size, w - 10, True, (0, 0, 0))
+                label(extension, w / 2, h * 0.68, size * 0.82, w - 10, True, (0, 0, 0))
+            else:
+                label(person.get("name", "미배정"), w / 2, h * 0.55, size, w - 10, True, (0, 0, 0))
         elif kind == "cabinet":
             rectangle(0, 0, w, h, _muted, (0.89, 0.91, 0.93))
             page.draw_line(
@@ -261,9 +258,10 @@ class Report:
             return
         columns = [
             ("좌석번호", 75),
-            ("사용 팀", 145),
-            ("배정 인원", 145),
-            ("직책", 158),
+            ("사용 팀", 130),
+            ("배정 인원", 130),
+            ("직책", 95),
+            ("내선번호", 93),
         ]
         page, y = None, 0
         for seat in sorted(
@@ -280,6 +278,7 @@ class Report:
                 team.get("name", "팀 미지정"),
                 person.get("name", "미배정"),
                 person.get("title") or "—",
+                person.get("extension") or "—",
             ]
             lines = [
                 self.wrap(value, width - (24 if i == 1 else 16))
