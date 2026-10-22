@@ -47,7 +47,7 @@ class Report:
     def person(self, seat_id):
         return self.people.get(self.assignments.get(seat_id))
 
-    def text(self, page, point, text, size=10, color=_ink, width=None, rotation=0):
+    def text(self, page, point, text, size=10, color=_ink, width=None, rotation=0, bold=False):
         text = _clean(text)
         if width is not None and text:
             size = min(size, width / max(self.font.text_length(text, fontsize=1), 0.01))
@@ -58,6 +58,9 @@ class Report:
             fontsize=size,
             fontname="spacefont",
             color=color,
+            fill=color,
+            render_mode=2 if bold else 0,
+            border_width=size * 0.025 if bold else 0.05,
             morph=(point, pdf.Matrix(-rotation)) if rotation else None,
         )
 
@@ -189,17 +192,28 @@ class Report:
             )
             shape.commit()
 
-        def label(text, x, y, size=14, width=None, center=False, color=_ink):
+        def label(text, x, y, size=14, width=None, center=False, color=_ink, bold=False, upright=False):
             text = _clean(text)
             if width is not None and text:
                 size = min(
                     size,
                     max(1, width) / max(self.font.text_length(text, fontsize=1), 0.01),
                 )
-            if center:
-                x -= self.font.text_length(text, fontsize=size) / 2
+            if upright:
+                anchor = point(obj["width"] / 2, obj["height"] / 2)
+                anchor += pdf.Point(
+                    (x - obj["width"] / 2) * scale,
+                    (y - obj["height"] / 2) * scale,
+                )
+                if center:
+                    anchor.x -= self.font.text_length(text, fontsize=size) * scale / 2
+            else:
+                if center:
+                    x -= self.font.text_length(text, fontsize=size) / 2
+                anchor = point(x, y)
             self.text(
-                page, point(x, y), text, size * scale, color, rotation=obj["rotation"]
+                page, anchor, text, size * scale, color,
+                rotation=0 if upright else obj["rotation"], bold=bold,
             )
 
         w, h, kind = obj["width"], obj["height"], obj["kind"]
@@ -227,11 +241,16 @@ class Report:
             rectangle(0, 0, w, h, color, color, 0.13)
             rectangle(w * 0.3, h - 6, w * 0.4, 13, fill=color)
             size = min(14, max(8, (h - 12) / 2.8))
+            name_y = h * (0.45 if extension else 0.55)
+            label(
+                seat["number"], w / 2, name_y - size * 1.15,
+                min(11, size * 0.55), w - 10, True, _muted, upright=True,
+            )
             if extension:
-                label(person.get("name", "미배정"), w / 2, h * 0.45, size, w - 10, True, (0, 0, 0))
-                label(extension, w / 2, h * 0.68, size * 0.82, w - 10, True, (0, 0, 0))
+                label(person.get("name", "미배정"), w / 2, h * 0.45, size, w - 10, True, (0, 0, 0), upright=True)
+                label(extension, w / 2, h * 0.68, size * 0.82, w - 10, True, (0, 0, 0), upright=True)
             else:
-                label(person.get("name", "미배정"), w / 2, h * 0.55, size, w - 10, True, (0, 0, 0))
+                label(person.get("name", "미배정"), w / 2, h * 0.55, size, w - 10, True, (0, 0, 0), upright=True)
         elif kind == "cabinet":
             rectangle(0, 0, w, h, _muted, (0.89, 0.91, 0.93))
             page.draw_line(
@@ -251,7 +270,11 @@ class Report:
                 color=color,
             )
         else:
-            label(obj["name"] or "텍스트", 4, min(h - 2, 22), 18, w - 8)
+            size = obj.get("font_size", 18)
+            label(
+                obj["name"] or "텍스트", 4, min(h - 2, size + 4), size,
+                bold=obj.get("bold", False),
+            )
 
     def seat_pages(self):
         if not self.seats:
