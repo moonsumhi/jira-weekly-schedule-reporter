@@ -2,24 +2,36 @@
   <q-page padding class="board-post-detail-page">
     <div class="document-detail-layout" :class="{ 'document-nav-open': docNavOpen }">
       <aside v-if="docNavOpen" class="document-nav-panel">
-        <q-card flat bordered>
-          <q-card-section class="text-subtitle2">문서 탐색</q-card-section>
+        <q-card flat bordered class="document-outline-card">
+          <q-card-section class="document-outline-heading">
+            <q-icon name="account_tree" size="20px" color="primary" />
+            <div>
+              <div class="text-subtitle2">문서 구조</div>
+              <div class="text-caption text-grey-6">현재 문서와 같은 구조의 관련 문서</div>
+            </div>
+          </q-card-section>
           <q-separator />
-          <q-list dense class="q-py-sm">
-            <q-item v-for="item in documentTree" :key="item.post.id" clickable
-              :active="item.post.id === postId" active-class="bg-blue-1 text-primary"
-              :style="{ paddingLeft: `${12 + item.depth * 18}px` }"
-              @click="openFromSidebar(item.post)">
-              <q-item-section avatar style="min-width: 28px">
-                <q-btn v-if="hasChildren(item.post.id)" flat dense round size="xs"
-                  :icon="collapsedIds.has(item.post.id) ? 'chevron_right' : 'expand_more'"
-                  @click.stop="toggleExpanded(item.post.id)" />
-                <q-icon v-else name="description" size="18px" />
-              </q-item-section>
-              <q-item-section><q-item-label lines="1">{{ item.post.title }}</q-item-label></q-item-section>
-            </q-item>
-            <q-item v-if="!documentTree.length"><q-item-section class="text-grey-6">문서가 없습니다.</q-item-section></q-item>
-          </q-list>
+          <div v-if="documentTree.length" class="document-tree q-py-sm">
+            <div v-for="item in documentTree" :key="item.post.id"
+              class="document-tree-row"
+              :class="{ 'is-current': item.post.id === postId }"
+              :data-depth="item.depth"
+              :style="{ paddingLeft: `${8 + item.depth * 18}px` }">
+              <q-btn v-if="hasChildren(item.post.id)" flat dense round size="sm"
+                class="document-tree-folder"
+                :icon="collapsedIds.has(item.post.id) ? 'folder' : 'folder_open'"
+                :aria-label="collapsedIds.has(item.post.id) ? '하위 문서 펼치기' : '하위 문서 접기'"
+                @click.stop="toggleExpanded(item.post.id)" />
+              <q-icon v-else name="article" size="18px" class="document-tree-page-icon" />
+              <button type="button" class="document-tree-title"
+                :aria-current="item.post.id === postId ? 'page' : undefined"
+                @click="openFromSidebar(item.post)">
+                <span class="document-tree-title-text">{{ item.post.title }}</span>
+                <span v-if="item.post.id === postId" class="document-tree-current-label">현재 문서</span>
+              </button>
+            </div>
+          </div>
+          <div v-else class="document-tree-empty">연결된 문서가 없습니다.</div>
         </q-card>
       </aside>
       <main class="document-detail-main">
@@ -208,21 +220,31 @@ const relatedDocumentIds = computed(() => {
 
   const documentsById = new Map(allPosts.value.map((item) => [item.id, item] as const))
   const relatedIds = new Set<string>([current.id])
+  const ancestry = [current]
   let parentId = current.parentId
   while (parentId && !relatedIds.has(parentId)) {
     const parent = documentsById.get(parentId)
     if (!parent) break
     relatedIds.add(parent.id)
+    ancestry.push(parent)
     parentId = parent.parentId
   }
 
-  if (current.parentId) {
+  // Keep siblings at every level of the current path visible. This includes
+  // the selected document's siblings and the selected parent's siblings.
+  const siblingBranches: string[] = []
+  for (const pathItem of ancestry) {
+    if (!pathItem.parentId) continue
     for (const sibling of allPosts.value) {
-      if (sibling.parentId === current.parentId) relatedIds.add(sibling.id)
+      if (sibling.parentId !== pathItem.parentId) continue
+      relatedIds.add(sibling.id)
+      if (sibling.id !== pathItem.id) siblingBranches.push(sibling.id)
     }
   }
 
-  const pending = [current.id]
+  // Include descendants of the selected document and sibling branches so
+  // their document trees remain navigable from this sidebar.
+  const pending = [current.id, ...siblingBranches]
   while (pending.length) {
     const ancestorId = pending.pop()!
     for (const child of allPosts.value) {
@@ -477,14 +499,8 @@ async function load() {
     comments.value = await boardService.listComments(boardId.value, postId.value).catch(() => [])
     commentsLoading.value = false
     const expandableIds = new Set(documents.filter((item) => documents.some((child) => child.parentId === item.id)).map((item) => item.id))
-    const branchToExpand = new Set<string>()
-    if (expandableIds.has(p.id)) branchToExpand.add(p.id)
-    let ancestorId = p.parentId
-    while (ancestorId && !branchToExpand.has(ancestorId)) {
-      branchToExpand.add(ancestorId)
-      ancestorId = documents.find((item) => item.id === ancestorId)?.parentId ?? null
-    }
-    collapsedIds.value = new Set([...expandableIds].filter((id) => !branchToExpand.has(id)))
+    const relatedExpandableIds = new Set([...expandableIds].filter((id) => relatedDocumentIds.value.has(id)))
+    collapsedIds.value = new Set([...expandableIds].filter((id) => !relatedExpandableIds.has(id)))
     if (p.editorIds?.length) {
       try {
         const users = await listPmUsers()
@@ -525,6 +541,53 @@ watch(postId, () => { void load() })
 .document-nav-panel,
 .document-detail-main { min-width: 0; }
 .document-nav-panel { overflow: hidden; }
+.document-outline-card { overflow: hidden; }
+.document-outline-heading { display: flex; align-items: flex-start; gap: 10px; padding: 16px; }
+.document-tree { max-height: calc(100vh - 220px); overflow: auto; }
+.document-tree-row {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  gap: 4px;
+  margin: 2px 8px;
+  padding-top: 2px;
+  padding-right: 8px;
+  padding-bottom: 2px;
+  border-radius: 8px;
+  color: #334155;
+}
+.document-tree-row.is-current { background: #edf4ff; color: #244f91; }
+.document-tree-row:hover:not(.is-current) { background: #f5f7fa; }
+.document-tree-folder { z-index: 1; flex: 0 0 30px; color: #6b7f9a; }
+.document-tree-page-icon { z-index: 1; flex: 0 0 30px; color: #8795a8; text-align: center; }
+.document-tree-title {
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+}
+.document-tree-title-text { overflow: hidden; flex: 1; text-overflow: ellipsis; white-space: nowrap; }
+.document-tree-title:focus-visible { border-radius: 4px; outline: 2px solid var(--q-primary); outline-offset: 3px; }
+.document-tree-current-label {
+  flex: 0 0 auto;
+  border-radius: 10px;
+  padding: 2px 6px;
+  background: #dceaff;
+  color: #345d99;
+  font-size: 10px;
+  font-weight: 600;
+}
+.document-tree-empty { padding: 18px 16px; color: #8290a2; font-size: 13px; }
 @media (max-width: 700px) {
   .document-detail-layout.document-nav-open { grid-template-columns: minmax(0, 1fr); }
 }
