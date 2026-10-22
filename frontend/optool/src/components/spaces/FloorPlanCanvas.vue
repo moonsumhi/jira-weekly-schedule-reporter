@@ -252,26 +252,40 @@
                 rx="5"
                 :fill="teamColor(seatFor(obj)?.teamId)"
               />
-              <text
-                :x="obj.width / 2"
-                :y="personExtension(obj.seatId) ? obj.height * 0.45 : obj.height * 0.55"
-                text-anchor="middle"
-                fill="#000000"
-                :font-size="deskLabelSize(obj)"
-                font-weight="600"
+              <g
+                :transform="`rotate(${-obj.rotation} ${obj.width / 2} ${obj.height / 2})`"
               >
-                {{ shortLabel(personName(obj.seatId) || '미배정', obj.width, deskLabelSize(obj)) }}
-              </text>
-              <text
-                v-if="personExtension(obj.seatId)"
-                :x="obj.width / 2"
-                :y="obj.height * 0.68"
-                text-anchor="middle"
-                fill="#000000"
-                :font-size="deskLabelSize(obj) * 0.82"
-              >
-                {{ shortLabel(personExtension(obj.seatId), obj.width, deskLabelSize(obj) * 0.82) }}
-              </text>
+                <text
+                  v-if="seatFor(obj)?.number"
+                  :x="obj.width / 2"
+                  :y="(personExtension(obj.seatId) ? obj.height * 0.45 : obj.height * 0.55) - deskLabelSize(obj) * 1.15"
+                  text-anchor="middle"
+                  fill="#455a64"
+                  :font-size="Math.min(11, deskLabelSize(obj) * 0.55)"
+                >
+                  {{ shortLabel(seatFor(obj)?.number || '', obj.width, Math.min(11, deskLabelSize(obj) * 0.55)) }}
+                </text>
+                <text
+                  :x="obj.width / 2"
+                  :y="personExtension(obj.seatId) ? obj.height * 0.45 : obj.height * 0.55"
+                  text-anchor="middle"
+                  fill="#000000"
+                  :font-size="deskLabelSize(obj)"
+                  font-weight="600"
+                >
+                  {{ shortLabel(personName(obj.seatId) || '미배정', obj.width, deskLabelSize(obj)) }}
+                </text>
+                <text
+                  v-if="personExtension(obj.seatId)"
+                  :x="obj.width / 2"
+                  :y="obj.height * 0.68"
+                  text-anchor="middle"
+                  fill="#000000"
+                  :font-size="deskLabelSize(obj) * 0.82"
+                >
+                  {{ shortLabel(personExtension(obj.seatId), obj.width, deskLabelSize(obj) * 0.82) }}
+                </text>
+              </g>
             </g>
             <g v-else-if="obj.kind === 'cabinet'">
               <rect
@@ -310,7 +324,13 @@
             </g>
             <g v-else>
               <rect :width="obj.width" :height="obj.height" fill="transparent" />
-              <text x="4" :y="Math.min(obj.height - 2, 22)" font-size="18" fill="#263238">
+              <text
+                x="4"
+                :y="Math.min(obj.height - 2, (obj.fontSize ?? 18) + 4)"
+                :font-size="obj.fontSize ?? 18"
+                :font-weight="obj.bold ? 700 : 400"
+                fill="#263238"
+              >
                 {{ obj.name || '텍스트' }}
               </text>
             </g>
@@ -393,6 +413,38 @@
             class="q-mb-sm"
             @change="(v: string) => property('name', String(v))"
           />
+          <template v-if="current.kind === 'text'">
+            <div class="plan-section-label q-mt-lg">글자 서식</div>
+            <div class="row items-start q-col-gutter-sm">
+              <div class="col">
+                <q-input
+                  :model-value="current.fontSize ?? 18"
+                  type="number"
+                  outlined
+                  dense
+                  label="글자 크기"
+                  suffix="px"
+                  min="8"
+                  max="120"
+                  step="1"
+                  :rules="[(v) => Number.isInteger(Number(v)) && Number(v) >= 8 && Number(v) <= 120 || '8~120 사이의 정수를 입력하세요.']"
+                  lazy-rules
+                  @change="(v: string) => property('fontSize', Number(v))"
+                />
+              </div>
+              <div class="col-auto">
+                <q-btn
+                  color="primary"
+                  :outline="!current.bold"
+                  :unelevated="!!current.bold"
+                  icon="format_bold"
+                  label="굵게"
+                  :aria-pressed="!!current.bold"
+                  @click="property('bold', !current.bold)"
+                />
+              </div>
+            </div>
+          </template>
           <div class="plan-section-label q-mt-lg">위치와 크기</div>
           <div class="row q-col-gutter-sm">
             <div v-for="field in numberFields" :key="field.key" class="col-6">
@@ -764,7 +816,9 @@ function personExtension(seatId: string | null) {
 }
 function seatDescription(obj: PlanObject) {
   const extension = personExtension(obj.seatId);
-  return `${personName(obj.seatId) || '미배정'}${extension ? ` · 내선 ${extension}` : ''}`;
+  return [seatFor(obj)?.number, personName(obj.seatId) || '미배정', extension ? `내선 ${extension}` : '']
+    .filter(Boolean)
+    .join(' · ');
 }
 function deskLabelSize(obj: PlanObject) {
   return Math.min(seatFontSize.value, Math.max(8, (obj.height - 12) / 2.8));
@@ -802,6 +856,7 @@ function add(kind: ObjectKind, x: number, y: number) {
       width: kind === 'zone' ? 400 : kind === 'wall' ? 1 : 120,
       height: kind === 'zone' ? 240 : kind === 'wall' ? 8 : kind === 'text' ? 40 : 80,
       rotation: 0,
+      ...(kind === 'text' ? { fontSize: 18, bold: false } : {}),
       seatId,
       teamId: kind === 'zone' ? (props.teams[0]?.id ?? null) : null,
     });
@@ -846,16 +901,22 @@ function remove() {
   });
   selected.value = [];
 }
-function property(key: keyof PlanObject, value: string | number | null) {
+function property(key: keyof PlanObject, value: string | number | boolean | null) {
   if (!current.value) return;
   if (
     typeof value === 'number' &&
     (!Number.isFinite(value) || (['width', 'height'].includes(key) && value <= 0))
   )
     return;
+  if (key === 'fontSize' && (typeof value !== 'number' || !Number.isInteger(value) || value < 8 || value > 120))
+    return;
   mutate((p) => {
     const o = p.objects.find((o) => o.id === current.value?.id);
-    if (o) Object.assign(o, { [key]: value });
+    if (o) {
+      Object.assign(o, { [key]: value });
+      if (key === 'fontSize' && typeof value === 'number')
+        o.height = Math.max(o.height, value + 8);
+    }
   });
 }
 function seatProperty(key: 'number' | 'teamId', value: string | null) {

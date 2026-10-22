@@ -38,6 +38,8 @@ export type PlanObject = {
   width: number;
   height: number;
   rotation: number;
+  fontSize?: number;
+  bold?: boolean;
   seatId: string | null;
   teamId: string | null;
 };
