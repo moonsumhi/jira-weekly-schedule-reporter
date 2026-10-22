@@ -1,5 +1,5 @@
 <template>
-  <q-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)">
+  <q-dialog :model-value="modelValue" :persistent="saving" @update:model-value="$emit('update:modelValue', $event)">
     <q-card class="rp-dialog">
       <q-card-section class="row items-center q-pb-none">
         <q-avatar size="30px" square rounded :color="mode === 'move' ? 'orange' : 'primary'" text-color="white">
@@ -10,9 +10,10 @@
 
       <q-separator class="q-mt-md" />
 
-      <q-card-section class="rp-form-grid">
-          <!-- 자산 선택 (배치) 또는 표시 (이동/프리셋) -->
-          <div class="rp-label">{{ mode === 'move' ? '이동할 자산' : '배치할 자산' }} <span class="rp-required">*</span></div>
+      <q-card-section>
+        <RackPlacementFields v-model="form" :racks="racks" :rack-readonly="mode === 'place'" :disabled="saving"
+          :asset-label="mode === 'move' ? '이동할 자산' : '배치할 자산'">
+          <template #asset>
           <div v-if="mode === 'move'" class="rp-fixed-value">
             <span>{{ asset?.name }}</span>
             <span class="text-caption text-grey-7">{{ asset?.assetCategory }}</span>
@@ -34,6 +35,7 @@
               placeholder="미배치 자산 선택"
               outlined dense
               :loading="searching"
+              :disable="saving"
               @filter="onAssetFilter"
             >
               <template #option="scope">
@@ -49,45 +51,13 @@
               </template>
             </q-select>
           </div>
-
-          <!-- 대상 랙 -->
-          <div class="rp-label">랙 <span class="rp-required">*</span></div>
-          <div class="rp-control">
-            <q-select
-              v-model="form.rackId"
-              :options="rackOptions"
-              emit-value map-options
-              aria-label="랙"
-              outlined dense
-              :readonly="mode === 'place'"
-            />
-          </div>
-
-          <div class="rp-label">시작 U <span class="rp-required">*</span></div>
-          <div class="rp-control">
-            <q-input v-model.number="form.startU" type="number" aria-label="시작 U" outlined dense min="1" />
-          </div>
-
-          <div class="rp-label">높이(U) <span class="rp-required">*</span></div>
-          <div class="rp-control">
-            <q-input v-model.number="form.heightU" type="number" aria-label="높이(U)" outlined dense min="1" />
-          </div>
-
-          <div class="rp-label">장착면</div>
-          <div class="rp-control">
-            <q-select v-model="form.mountSide" :options="MOUNT_OPTIONS" emit-value map-options aria-label="장착면" outlined dense />
-          </div>
-
-          <div class="rp-label">점유 예정</div>
-          <div class="rp-range" :class="rangeValid ? 'text-grey-8' : 'text-negative'">
-            U{{ form.startU }}~U{{ endU }}
-            <span v-if="!rangeValid"> — 시작 U/높이를 확인하세요</span>
-          </div>
+          </template>
+        </RackPlacementFields>
       </q-card-section>
 
       <q-separator />
       <q-card-actions align="right" class="q-px-md q-py-sm">
-        <q-btn flat label="취소" v-close-popup />
+        <q-btn flat label="취소" :disable="saving" v-close-popup />
         <q-btn
           color="primary"
           :label="mode === 'move' ? '수정' : '배치'"
@@ -101,10 +71,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Notify } from 'quasar'
 import { createPlacement, listUnplacedAssets, movePlacement } from 'src/services/racks'
-import type { MountSide, RackPlacementAsset, RackSummary, UnplacedAsset } from 'src/types/racks'
+import type { MountSide, RackPlacementAsset, RackPlacementForm, RackSummary, UnplacedAsset } from 'src/types/racks'
+import RackPlacementFields from './RackPlacementFields.vue'
+import { placementRangeError } from 'src/utils/rackPlacement'
 
 const props = defineProps<{
   modelValue: boolean
@@ -124,12 +96,7 @@ const emit = defineEmits<{
   (e: 'saved'): void
 }>()
 
-const MOUNT_OPTIONS = [
-  { label: '전면', value: 'FRONT' },
-  { label: '후면', value: 'REAR' },
-]
-
-const form = reactive<{ rackId: string; startU: number; heightU: number; mountSide: MountSide }>({
+const form = ref<RackPlacementForm>({
   rackId: props.rackId,
   startU: 1,
   heightU: 1,
@@ -142,14 +109,8 @@ const allUnplaced = ref<UnplacedAsset[]>([])
 const searching = ref(false)
 const saving = ref(false)
 
-const rackOptions = computed(() =>
-  props.racks.map((r) => ({ label: `${r.name} (${r.usedU}/${r.totalU}U)`, value: r.rackId })),
-)
-
-const endU = computed(() => form.startU + form.heightU - 1)
-const rangeValid = computed(() => form.startU >= 1 && form.heightU >= 1)
 const canSave = computed(() =>
-  rangeValid.value && !!form.rackId && (props.mode === 'move' || !!selectedAsset.value),
+  !saving.value && !placementRangeError(form.value, props.racks) && (props.mode === 'move' || !!selectedAsset.value),
 )
 
 // 다이얼로그 열릴 때 초기화
@@ -157,10 +118,12 @@ watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
-    form.rackId = props.mode === 'move' ? props.rackId : props.rackId
-    form.startU = props.presetStartU ?? props.asset?.startU ?? 1
-    form.heightU = props.presetHeight ?? props.asset?.heightU ?? 1
-    form.mountSide = props.asset?.mountSide ?? props.presetMountSide ?? 'FRONT'
+    form.value = {
+      rackId: props.rackId,
+      startU: props.presetStartU ?? props.asset?.startU ?? 1,
+      heightU: props.presetHeight ?? props.asset?.heightU ?? 1,
+      mountSide: props.asset?.mountSide ?? props.presetMountSide ?? 'FRONT',
+    }
     // 미배치 목록에서 고른 자산이 있으면 그대로 사용
     selectedAsset.value = props.presetAsset
       ? { assetCategory: props.presetAsset.assetCategory, assetId: props.presetAsset.assetId, name: props.presetAsset.name }
@@ -202,15 +165,13 @@ function errMessage(e: unknown, fallback: string): string {
 }
 
 async function save() {
+  if (!canSave.value) return
   saving.value = true
   try {
     if (props.mode === 'move') {
       if (!props.placementId) return
       await movePlacement(props.placementId, {
-        rackId: form.rackId,
-        startU: form.startU,
-        heightU: form.heightU,
-        mountSide: form.mountSide,
+        ...form.value,
         expectedVersion: props.asset?.version,
       })
       Notify.create({ type: 'positive', message: '수정했습니다.' })
@@ -219,10 +180,7 @@ async function save() {
       await createPlacement({
         assetCategory: selectedAsset.value.assetCategory,
         assetId: selectedAsset.value.assetId,
-        rackId: form.rackId,
-        startU: form.startU,
-        heightU: form.heightU,
-        mountSide: form.mountSide,
+        ...form.value,
       })
       Notify.create({ type: 'positive', message: '배치했습니다.' })
     }
@@ -241,30 +199,13 @@ async function save() {
   width: 520px;
   max-width: 95vw;
 }
-.rp-form-grid {
-  display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
-  align-items: center;
-  column-gap: 16px;
-  row-gap: 12px;
-}
-.rp-label {
-  color: #607d8b;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: right;
-}
-.rp-required {
-  color: #d32f2f;
-}
 .rp-control {
   min-width: 0;
 }
 .rp-control :deep(.q-field) {
   width: 100%;
 }
-.rp-fixed-value,
-.rp-range {
+.rp-fixed-value {
   min-width: 0;
   min-height: 40px;
   border: 1px solid #cfd8dc;
@@ -279,16 +220,5 @@ async function save() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.rp-range {
-  border-color: #eceff1;
-  background: #f7f9fa;
-  font-size: 13px;
-}
-@media (max-width: 480px) {
-  .rp-form-grid {
-    grid-template-columns: 88px minmax(0, 1fr);
-    column-gap: 10px;
-  }
 }
 </style>
