@@ -122,37 +122,9 @@
 
       <!-- 우측 -->
       <div class="col-12 col-md-3">
-        <div class="rk-panel-label">{{ selectedAsset ? '자산 상세' : '랙 정보' }}</div>
-        <!-- 상세 / 랙 정보 -->
+        <div class="rk-panel-label">랙 정보</div>
         <q-card flat bordered class="q-mb-md rk-detail-card">
-          <template v-if="selectedAsset">
-            <div class="rk-detail-head" :style="{ '--accent': catColor(selectedAsset.assetCategory) }">
-              <q-avatar size="34px" square rounded :style="{ background: catColor(selectedAsset.assetCategory) }" text-color="white">
-                <q-icon :name="catIcon(selectedAsset.assetCategory)" size="18px" />
-              </q-avatar>
-              <div class="col ellipsis">
-                <div class="rk-detail-name">{{ selectedAsset.name }}</div>
-                <div class="rk-detail-cat">{{ selectedAsset.assetCategory }}</div>
-              </div>
-              <q-btn flat round dense size="sm" icon="info" :loading="loadingAssetInfo" @click="openAssetInfo">
-                <q-tooltip>자산 상세 정보</q-tooltip>
-              </q-btn>
-              <q-btn flat round dense size="sm" icon="close" @click="selectedAsset = null; highlightAssetId = null" />
-            </div>
-            <q-separator />
-            <div class="rk-kv">
-              <div class="rk-kv-row"><span>자산번호</span><b>{{ selectedAsset.assetNo || '—' }}</b></div>
-              <div class="rk-kv-row"><span>IP</span><b>{{ selectedAsset.ip || '—' }}</b></div>
-              <div class="rk-kv-row"><span>랙 위치</span><b>{{ layout?.rack.name }} / U{{ selectedAsset.startU }}~U{{ selectedAsset.endU }}</b></div>
-              <div class="rk-kv-row"><span>크기 / 면</span><b>{{ selectedAsset.heightU }}U · {{ mountLabel(selectedAsset.mountSide) }}</b></div>
-            </div>
-            <q-separator />
-            <div class="rk-detail-actions">
-              <q-btn unelevated color="primary" icon="edit_location_alt" label="수정" class="col" @click="openMove" />
-              <q-btn outline color="negative" icon="logout" label="반출" class="col" :loading="removing" @click="confirmRemove" />
-            </div>
-          </template>
-          <template v-else-if="layout">
+          <template v-if="layout">
             <div class="rk-detail-head" style="--accent: #607d8b">
               <q-avatar size="34px" square rounded color="blue-grey-6" text-color="white"><q-icon name="dns" size="18px" /></q-avatar>
               <div class="col ellipsis">
@@ -218,7 +190,7 @@
             <q-btn v-if="!rackEditing && canViewWorkHistory" flat no-caps color="primary" icon="article"
               label="운영 이력" class="full-width q-mb-sm" @click="workHistoryOpen = true" />
           </template>
-          <div v-else class="rk-empty"><q-icon name="touch_app" size="28px" color="blue-grey-2" /><div>자산 또는 랙을 선택하세요.</div></div>
+          <div v-else class="rk-empty"><q-icon name="touch_app" size="28px" color="blue-grey-2" /><div>좌측에서 랙을 선택하세요.</div></div>
         </q-card>
 
         <!-- 미배치 자산 -->
@@ -276,46 +248,20 @@
 
     <RackPlacementDialog
       v-model="dialogOpen"
-      :mode="dialogMode"
+      mode="place"
       :rack-id="selectedRackId"
       :racks="racks"
       :preset-start-u="presetStartU"
       :preset-height="presetHeight"
       :preset-mount-side="presetMountSide"
-      :asset="dialogMode === 'move' ? selectedAsset : null"
-      :placement-id="selectedAsset?.placementId ?? null"
-      :preset-asset="dialogMode === 'place' && pendingAsset
+      :preset-asset="pendingAsset
         ? { assetCategory: pendingAsset.assetCategory, assetId: pendingAsset.assetId, name: pendingAsset.name }
         : null"
       @saved="onSaved"
     />
 
-    <!-- 자산 상세 정보 -->
-    <q-dialog v-model="assetInfoDialog">
-      <q-card style="width: 520px; max-width: 95vw">
-        <q-card-section class="row items-center q-pb-sm" :style="{ borderTop: `3px solid ${catColor(assetInfo?.fields?.['자산유형'] as string || selectedAsset?.assetCategory || '')}` }">
-          <q-avatar size="34px" square rounded :style="{ background: catColor(selectedAsset?.assetCategory || '') }" text-color="white">
-            <q-icon :name="catIcon(selectedAsset?.assetCategory || '')" size="18px" />
-          </q-avatar>
-          <div class="col q-ml-sm ellipsis">
-            <div class="text-h6 ellipsis">{{ assetInfo?.name }}</div>
-            <div class="text-caption text-grey-6">{{ selectedAsset?.assetCategory }}</div>
-          </div>
-          <q-btn flat round dense icon="close" v-close-popup />
-        </q-card-section>
-        <q-separator />
-        <q-card-section style="max-height: 60vh; overflow-y: auto">
-          <div class="rk-info-grid">
-            <template v-if="assetInfo">
-              <div class="rk-info-row"><span>자산번호</span><b>{{ assetInfo.assetNo || '—' }}</b></div>
-              <div class="rk-info-row"><span>IP</span><b>{{ assetInfo.ip || '—' }}</b></div>
-              <div v-for="e in assetInfoEntries" :key="e.label" class="rk-info-row"><span>{{ e.label }}</span><b>{{ e.value }}</b></div>
-            </template>
-          </div>
-        </q-card-section>
-        <q-card-actions align="right"><q-btn flat label="닫기" v-close-popup /></q-card-actions>
-      </q-card>
-    </q-dialog>
+    <RackAssetDetailDialog v-model="assetInfoDialog" :placement="selectedAsset" :rack-name="layout?.rack.name ?? ''"
+      :rack-id="selectedRackId" :racks="racks" @saved="onAssetPlacementSaved" @removed="onSaved" />
 
     <!-- 랙 추가 -->
     <q-dialog v-model="rackDialog">
@@ -431,10 +377,11 @@ import { useQuasar } from 'quasar'
 import { useAuthStore } from 'stores/auth'
 import RackElevation from './RackElevation.vue'
 import RackPlacementDialog from './RackPlacementDialog.vue'
+import RackAssetDetailDialog from './RackAssetDetailDialog.vue'
 import AssetWorkDocuments from 'src/components/asset/AssetWorkDocuments.vue'
 import {
   getRackHistory, getRackLayout, integrityCheck, listRacks, listUnplacedAssets,
-  migrateRackFromFields, movePlacement, removePlacement, searchRackAssets,
+  migrateRackFromFields, movePlacement, searchRackAssets,
 } from 'src/services/racks'
 import { createServer, deleteServer, getServer, patchServer } from 'src/services/assets'
 import { envCategoryService } from 'src/services/envCategory'
@@ -457,7 +404,6 @@ const layout = ref<RackLayout | null>(null)
 const selectedAsset = ref<RackPlacementAsset | null>(null)
 const highlightAssetId = ref<string | null>(null)
 const loading = ref(false)
-const removing = ref(false)
 const side = ref<'ALL' | 'FRONT' | 'REAR'>('ALL')
 
 const searchQ = ref('')
@@ -469,7 +415,6 @@ const unplacedList = ref<HTMLElement | null>(null)
 const pendingAsset = ref<UnplacedAsset | null>(null)
 
 const dialogOpen = ref(false)
-const dialogMode = ref<'place' | 'move'>('place')
 const presetStartU = ref<number | null>(null)
 const presetHeight = ref<number | null>(null)
 const presetMountSide = ref<MountSide>('FRONT')
@@ -495,8 +440,6 @@ const rackEditForm = reactive({
 })
 
 const assetInfoDialog = ref(false)
-const assetInfo = ref<ServerAsset | null>(null)
-const loadingAssetInfo = ref(false)
 
 const historyDialog = ref(false)
 const history = ref<PlacementHistory[]>([])
@@ -510,40 +453,9 @@ const totalAssets = computed(() => racks.value.reduce((s, r) => s + (r.assetCoun
 const CAT_COLOR: Record<string, string> = {
   서버: '#1976d2', 네트워크: '#009688', 정보보호시스템: '#9c27b0', DBMS: '#f57c00', VMware: '#43a047',
 }
-const CAT_ICON: Record<string, string> = {
-  서버: 'dns', 네트워크: 'lan', 정보보호시스템: 'shield', DBMS: 'storage', VMware: 'cloud',
-}
 function catColor(c: string): string { return CAT_COLOR[c] || '#64748b' }
-function catIcon(c: string): string { return CAT_ICON[c] || 'memory' }
 function usageColor(r: number): string { return r >= 90 ? 'negative' : r >= 70 ? 'orange' : 'primary' }
 function statusColor(s?: string | null): string { return s === '폐기' ? 'negative' : s === '점검' ? 'orange' : 'positive' }
-function mountLabel(s: MountSide): string { return s === 'FRONT' ? '전면' : '후면' }
-
-const FIELD_LABELS: Record<string, string> = {
-  rack_no: 'RackNo.', rack_unit_no: 'Rack Unit No.',
-}
-const assetInfoEntries = computed(() => {
-  const f = assetInfo.value?.fields ?? {}
-  return Object.entries(f)
-    .filter(([k, v]) => !['asset_id', 'assetId', '__asset_id__'].includes(k) && v !== null && v !== undefined && v !== '')
-    .map(([k, v]) => ({
-      label: FIELD_LABELS[k] ?? k,
-      value: Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v),
-    }))
-})
-
-async function openAssetInfo() {
-  if (!selectedAsset.value) return
-  loadingAssetInfo.value = true
-  try {
-    assetInfo.value = await getServer(selectedAsset.value.assetId, selectedAsset.value.assetCategory)
-    assetInfoDialog.value = true
-  } catch (e) {
-    $q.notify({ type: 'negative', message: apiErr(e, '자산 정보를 불러오지 못했습니다.') })
-  } finally {
-    loadingAssetInfo.value = false
-  }
-}
 
 const SELECTED_RACK_KEY = 'rackMgmt:selectedRackId'
 watch(() => route.query.assetId, (id) => {
@@ -569,6 +481,7 @@ async function loadRacks() {
 
 async function selectRack(rackId: string) {
   cancelRackEdit()
+  assetInfoDialog.value = false
   workHistoryOpen.value = false
   selectedRackId.value = rackId
   selectedAsset.value = null
@@ -590,6 +503,7 @@ function onSelectAsset(p: RackPlacementAsset) {
   cancelRackEdit()
   selectedAsset.value = p
   highlightAssetId.value = p.assetId
+  assetInfoDialog.value = true
 }
 
 function selectPending(a: UnplacedAsset) {
@@ -599,44 +513,10 @@ function selectPending(a: UnplacedAsset) {
 
 function onClickEmpty(u: number, s: MountSide) {
   if (!selectedRackId.value) return
-  dialogMode.value = 'place'
   presetStartU.value = u
   presetHeight.value = 1
   presetMountSide.value = s
   dialogOpen.value = true
-}
-
-function openMove() {
-  if (!selectedAsset.value) return
-  dialogMode.value = 'move'
-  presetStartU.value = selectedAsset.value.startU
-  presetHeight.value = selectedAsset.value.heightU
-  dialogOpen.value = true
-}
-
-function confirmRemove() {
-  if (!selectedAsset.value) return
-  const p = selectedAsset.value
-  $q.dialog({
-    title: '자산 반출',
-    message: `${p.name} 을(를) 랙에서 반출합니다. 해당 U 는 비게 됩니다.`,
-    cancel: true,
-    ok: { label: '반출', color: 'negative', unelevated: true },
-  }).onOk(() => { void doRemove(p) })
-}
-
-async function doRemove(p: RackPlacementAsset) {
-  removing.value = true
-  try {
-    await removePlacement(p.placementId)
-    $q.notify({ type: 'positive', message: '반출했습니다.' })
-    selectedAsset.value = null
-    await reloadAll()
-  } catch {
-    $q.notify({ type: 'negative', message: '반출에 실패했습니다.' })
-  } finally {
-    removing.value = false
-  }
 }
 
 async function onMoveDrop(payload: { placement: RackPlacementAsset; startU: number; targetSide: 'FRONT' | 'REAR' }) {
@@ -655,7 +535,16 @@ async function onMoveDrop(payload: { placement: RackPlacementAsset; startU: numb
 
 async function onSaved() {
   pendingAsset.value = null
-  await reloadAll()
+  try {
+    await reloadAll()
+  } catch (e) {
+    $q.notify({ type: 'warning', message: apiErr(e, '배치도 갱신에 실패했습니다. 화면을 새로고침해 주세요.') })
+  }
+}
+
+async function onAssetPlacementSaved(rackId: string) {
+  selectedRackId.value = rackId
+  await onSaved()
 }
 
 async function doSearch() {
@@ -1041,24 +930,6 @@ onMounted(() => { void loadRacks(); void loadUnplaced(); void checkIntegrity(); 
 }
 .rk-pending-active { background: #e8f2fe; }
 .rk-unplaced-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-
-/* 자산 상세 정보 */
-.rk-info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px 20px;
-}
-.rk-info-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 2px;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 12px;
-  min-width: 0;
-}
-.rk-info-row span { color: #9e9e9e; flex: 0 0 auto; }
-.rk-info-row b { color: #37474f; font-weight: 600; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 빈 상태 */
 .rk-empty {

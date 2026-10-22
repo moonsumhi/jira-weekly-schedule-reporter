@@ -94,6 +94,9 @@
           :key="`p-${p.assetId}`"
           class="rk-dev"
           :class="{ 'is-sel': p.assetId === highlightAssetId, 'is-dragging': draggingId === p.assetId }"
+          role="button"
+          tabindex="0"
+          :aria-label="`${p.name} 자산 상세보기`"
           draggable="true"
           :style="{
             gridColumn: deviceCol(p),
@@ -101,6 +104,8 @@
             '--accent': colorFor(p.assetCategory),
           }"
           @click="$emit('select', p)"
+          @keydown.enter.prevent="$emit('select', p)"
+          @keydown.space.prevent="$emit('select', p)"
           @dragstart="onDragStart(p)"
           @dragend="draggingId = null; dragOver = null"
         >
@@ -123,7 +128,7 @@
         <span class="rk-legend-dot" :style="{ background: c.color }" />{{ c.cat }}
       </span>
       <q-space />
-      <span class="rk-legend-hint"><q-icon name="drag_indicator" size="13px" /> 끌어서 이동 · 빈 칸 클릭 배치</span>
+      <span class="rk-legend-hint">자산 클릭 상세보기 · 끌어서 이동 · 빈 칸 클릭 배치</span>
     </div>
   </div>
 </template>
@@ -374,7 +379,7 @@ const legend = computed(() => {
   border: 1px solid #e0e0e0;
   border-left: 3px solid var(--accent, #607d8b);
   border-radius: 4px;
-  cursor: grab;
+  cursor: pointer;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -383,6 +388,7 @@ const legend = computed(() => {
   transition: background-color 0.1s, border-color 0.1s;
 }
 .rk-dev:hover { background: #f5f7fa; }
+.rk-dev:focus-visible { outline: 2px solid #1976d2; outline-offset: 2px; }
 .rk-dev:active { cursor: grabbing; }
 .rk-dev.is-sel {
   border-color: #1976d2;
@@ -426,6 +432,7 @@ const legend = computed(() => {
 .rk-dev-grip {
   color: #e0e0e0;
   flex: 0 0 auto;
+  cursor: grab;
 }
 .rk-dev:hover .rk-dev-grip { color: #bdbdbd; }
 
