@@ -150,7 +150,6 @@ function confirmAdoptVersion(version: number) {
     title: '버전 채택',
     message: `v${version} 내용을 현재 문서로 적용합니다. 지금 내용은 새 수정 이력으로 보존됩니다. 진행할까요?`,
     cancel: true,
-    persistent: true,
   }).onOk(() => { void adoptVersion(version) })
 }
 

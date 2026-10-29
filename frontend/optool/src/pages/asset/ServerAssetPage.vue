@@ -4381,7 +4381,7 @@ async function allowDetailClose() {
   if (!systemInfoDirty.value) return true
   return new Promise<boolean>(resolve => {
     $q.dialog({ title: '편집 취소', message: '저장하지 않은 시스템 정보가 있습니다. 편집을 취소할까요?',
-      cancel: { label: '계속 편집', flat: true }, ok: { label: '편집 취소', color: 'primary' }, persistent: true })
+      cancel: { label: '계속 편집', flat: true }, ok: { label: '편집 취소', color: 'primary' } })
       .onOk(() => resolve(true)).onCancel(() => resolve(false))
   })
 }

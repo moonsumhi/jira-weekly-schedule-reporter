@@ -287,7 +287,6 @@ function confirm(message: string, label: string): Promise<boolean> {
     $q.dialog({
       title: label,
       message,
-      persistent: true,
       cancel: { label: '취소', flat: true },
       ok: { label, color: 'primary' },
     })

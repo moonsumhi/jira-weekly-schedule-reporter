@@ -289,7 +289,7 @@
         ></template>
       </q-table>
     </section>
-    <q-dialog v-model="dialog" persistent>
+    <q-dialog v-model="dialog" :persistent="busy" no-backdrop-dismiss>
       <q-card class="space-dialog"
         ><q-form @submit="save">
           <q-card-section class="space-dialog__header"

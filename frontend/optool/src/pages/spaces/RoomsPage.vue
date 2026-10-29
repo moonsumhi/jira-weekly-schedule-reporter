@@ -436,7 +436,7 @@
           ><q-btn unelevated color="primary" icon="add" label="팀 추가" @click="edit('teams')"
         /></q-card-actions> </q-card
     ></q-dialog>
-    <q-dialog v-model="dialog" persistent
+    <q-dialog v-model="dialog" :persistent="busy" no-backdrop-dismiss
       ><q-card class="space-dialog"
         ><q-form @submit="save">
           <q-card-section class="space-dialog__header"
