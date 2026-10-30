@@ -484,13 +484,20 @@ async def refresh_weekly_report(
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
 
+    if doc.get("status", "DRAFT") not in {"DRAFT", "REVIEWING"}:
+        raise HTTPException(status_code=409, detail="확정 전 보고서만 재집계할 수 있습니다.")
+
     ns, ne = _next_week(doc["start_date"], doc["end_date"])
     all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
         doc["start_date"], doc["end_date"], ns, ne
     )
     sr_summary = await _aggregate_sr(doc["start_date"], doc["end_date"])
     updated = await col.find_one_and_update(
-        {"_id": ObjectId(report_id)},
+        {
+            "_id": ObjectId(report_id),
+            "deleted_at": None,
+            "$or": [{"status": {"$in": ["DRAFT", "REVIEWING"]}}, {"status": {"$exists": False}}],
+        },
         {
             "$set": {
                 "by_project":     [p.model_dump() for p in by_project],
@@ -506,6 +513,8 @@ async def refresh_weekly_report(
         },
         return_document=True,
     )
+    if not updated:
+        raise HTTPException(status_code=409, detail="보고서 상태가 변경되어 재집계할 수 없습니다. 새로고침 후 다시 확인해 주세요.")
     return await _enrich(_doc_to_out(updated), updated)
 
 
