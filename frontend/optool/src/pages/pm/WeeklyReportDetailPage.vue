@@ -274,16 +274,16 @@
 
                 <!-- 상세 내용 -->
                 <template v-if="item.section === 'MAIN_AGENDA'">
-                  <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
+                  <MarkdownContent v-if="item.content" :content="item.content" class="text-body2 text-grey-8 q-mb-xs" />
                 </template>
                 <template v-if="item.section === 'ISSUE_RISK'">
-                  <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">내용:</span> {{ item.content }}</div>
-                  <div v-if="item.actionPlan" class="text-body2 text-grey-8"><span class="text-caption text-grey-6">대응:</span> {{ item.actionPlan }}</div>
+                  <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">내용:</span><MarkdownContent :content="item.content" /></div>
+                  <div v-if="item.actionPlan" class="text-body2 text-grey-8"><span class="text-caption text-grey-6">대응:</span><MarkdownContent :content="item.actionPlan" /></div>
                 </template>
                 <template v-if="item.section === 'DECISION_REQUIRED'">
-                  <div v-if="item.background" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">배경:</span> {{ item.background }}</div>
-                  <div v-if="item.options" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">선택지:</span> {{ item.options }}</div>
-                  <div v-if="item.requestedDecision" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">요청:</span> {{ item.requestedDecision }}</div>
+                  <div v-if="item.background" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">배경:</span><MarkdownContent :content="item.background" /></div>
+                  <div v-if="item.options" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">선택지:</span><MarkdownContent :content="item.options" /></div>
+                  <div v-if="item.requestedDecision" class="text-body2 text-grey-8 q-mb-xs"><span class="text-caption text-grey-6">요청:</span><MarkdownContent :content="item.requestedDecision" /></div>
                   <div v-if="item.desiredDate" class="text-caption text-grey-6">희망 결정일: {{ fmtDateKst(item.desiredDate) }}</div>
                 </template>
                 <template v-if="item.section === 'NETWORK'">
@@ -300,7 +300,7 @@
                   <div v-if="item.actionPlan" class="text-body2 text-grey-8"><span class="text-caption text-grey-6">의견:</span> {{ item.actionPlan }}</div>
                 </template>
                 <template v-if="item.section === 'ANNOUNCEMENT'">
-                  <div v-if="item.content" class="text-body2 text-grey-8 q-mb-xs" style="white-space:pre-wrap">{{ item.content }}</div>
+                  <MarkdownContent v-if="item.content" :content="item.content" class="text-body2 text-grey-8 q-mb-xs" />
                 </template>
 
                 <div v-if="item.owner" class="text-caption text-grey-6 q-mt-xs">담당자: {{ item.owner }}</div>

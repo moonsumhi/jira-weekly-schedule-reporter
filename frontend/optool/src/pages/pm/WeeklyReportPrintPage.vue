@@ -125,7 +125,7 @@
           </td>
           <td>
             <div class="cell-title">{{ item.title }}</div>
-            <div v-if="item.content" class="cell-sub">{{ item.content }}</div>
+            <div v-if="item.content" class="cell-sub md-cell" v-html="renderMd(item.content)" />
           </td>
           <td class="c">{{ item.owner ?? '-' }}</td>
         </tr>
@@ -149,9 +149,9 @@
           </td>
           <td>
             <div class="cell-title">{{ item.title }}</div>
-            <div v-if="item.content" class="cell-sub">{{ item.content }}</div>
+            <div v-if="item.content" class="cell-sub md-cell" v-html="renderMd(item.content)" />
           </td>
-          <td class="cell-sub">{{ item.actionPlan ?? '-' }}</td>
+          <td class="cell-sub md-cell" v-html="renderMd(item.actionPlan)" />
           <td class="c">{{ item.owner ?? '-' }}</td>
         </tr>
       </tbody>
@@ -166,13 +166,13 @@
         <table class="decision-detail">
           <tbody>
             <tr v-if="item.background">
-              <th>배경</th><td>{{ item.background }}</td>
+              <th>배경</th><td class="md-cell" v-html="renderMd(item.background)" />
             </tr>
             <tr v-if="item.options">
-              <th>선택지</th><td style="white-space:pre-line">{{ item.options }}</td>
+              <th>선택지</th><td class="md-cell" v-html="renderMd(item.options)" />
             </tr>
             <tr v-if="item.requestedDecision">
-              <th>요청 결정</th><td class="req-decision">{{ item.requestedDecision }}</td>
+              <th>요청 결정</th><td class="req-decision md-cell" v-html="renderMd(item.requestedDecision)" />
             </tr>
             <tr>
               <th>담당 / 희망일</th>
@@ -213,7 +213,7 @@
         <tr v-for="(item, i) in announcementItems" :key="item.id">
           <td class="c">{{ i + 1 }}</td>
           <td class="cell-title">{{ item.title }}</td>
-          <td class="cell-sub" style="white-space:pre-wrap">{{ item.content ?? '-' }}</td>
+          <td class="cell-sub md-cell" v-html="renderMd(item.content)" />
           <td class="c">{{ item.owner ?? '-' }}</td>
         </tr>
       </tbody>
