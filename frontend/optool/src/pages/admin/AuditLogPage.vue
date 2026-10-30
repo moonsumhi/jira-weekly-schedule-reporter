@@ -318,6 +318,7 @@ const categoryOptions = [
   { label: '메뉴 관리', value: '메뉴 관리' },
   { label: '회원 관리', value: '회원 관리' },
   { label: '자산 관리', value: '자산 관리' },
+  { label: '인적자원 관리', value: '인적자원 관리' },
   { label: '관리자 설정', value: '관리자 설정' },
   { label: '서버실 점검', value: '서버실 점검' },
 ]

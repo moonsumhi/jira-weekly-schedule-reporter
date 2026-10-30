@@ -1,5 +1,5 @@
 """
-Middleware that logs selected page views and successful SR/PM mutations to
+Middleware that logs selected page views and successful business mutations to
 activity_logs. Page views are deduplicated with a 5-minute cooldown; mutations
 are recorded for every successful request.
 """
@@ -37,8 +37,14 @@ def _business_category(path: str) -> Optional[str]:
         return "메뉴 관리"
     if re.match(r"^/admin/users(?:/|$)", path):
         return "회원 관리"
-    if re.match(r"^/assets(?:/|$)", path):
+    if re.match(r"^/(?:assets|racks)(?:/|$)", path):
         return "자산 관리"
+    if path in {"/auth/change-password", "/auth/prefs"}:
+        return "회원 관리"
+    if path == "/notifications/notice":
+        return "관리자 설정"
+    if re.match(r"^/spaces(?:/|$)", path):
+        return "인적자원 관리"
     if re.match(r"^/(?:settings|env-categories|links|ddays|notices|branding)(?:/|$)", path):
         return "관리자 설정"
     return None
@@ -124,6 +130,8 @@ def _match_page(path: str, query_params: dict) -> Optional[str]:
     _RULES: list[tuple[re.Pattern, str]] = [
         (re.compile(r"^/auth/home-ping$"),          "메인 페이지"),
         (re.compile(r"^/admin/audit-log/ping$"),    "Audit Log"),
+        (re.compile(r"^/spaces$"),                  "인적자원 관리"),
+        (re.compile(r"^/racks$"),                   "랙 자산"),
         (re.compile(r"^/form-entries$"),           "작업 관리"),
         (re.compile(r"^/form-templates$"),         "작업 관리"),
         (re.compile(r"^/(?:job|job-result|job-non-service)$"), "작업 관리"),
@@ -297,7 +305,7 @@ class ActivityLoggerMiddleware(BaseHTTPMiddleware):
             await col.insert_one({
                 "action": action,
                 "category": category or "활동",
-                "asset_id": next((str(v) for k, v in reversed(list(request.path_params.items())) if k.endswith("_id")), ""),
+                "asset_id": next((str(v) for k, v in reversed(list(request.path_params.items())) if k.endswith("_id") or (category == "인적자원 관리" and k == "ident")), ""),
                 "source": f"{request.method} {path}",
                 "changed_at": now,
                 "changed_by": email,
