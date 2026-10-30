@@ -22,7 +22,7 @@
       <HelpButton feature="weekly-report-detail" guide-path="/pm/schedule/guide" />
       <!-- 액션 버튼 -->
       <template v-if="report">
-        <q-btn v-if="report.status === 'DRAFT'" flat icon="refresh" label="재집계" color="teal" no-caps
+        <q-btn v-if="report.status === 'DRAFT' || report.status === 'REVIEWING'" flat icon="refresh" label="재집계" color="teal" no-caps
           :loading="refreshing" @click="doRefresh" />
         <q-btn v-if="report.status === 'DRAFT'" flat icon="rate_review" label="검토 완료" color="orange" no-caps
           @click="changeStatus('REVIEWING')" />
@@ -63,7 +63,7 @@
             <div class="text-subtitle1 text-weight-bold">자동 집계 업무</div>
             <q-badge color="grey-5" :label="`총 ${report.stats.total}건`" class="q-ml-sm" />
             <q-space />
-            <q-btn v-if="report.status === 'DRAFT'" flat dense icon="refresh" label="재집계" size="sm" color="teal" no-caps
+            <q-btn v-if="report.status === 'DRAFT' || report.status === 'REVIEWING'" flat dense icon="refresh" label="재집계" size="sm" color="teal" no-caps
               :loading="refreshing" @click="doRefresh" />
           </div>
         </q-card-section>
