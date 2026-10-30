@@ -108,6 +108,23 @@ class ActivityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(activity._business_category("/boards/board-id/posts"), "게시판")
         self.assertEqual(activity._business_category("/admin/users/user-id"), "회원 관리")
 
+    async def test_racks_account_and_admin_notice_mutations_are_logged(self):
+        col = SimpleNamespace(insert_one=AsyncMock())
+        with patch.object(MongoClientManager, "get_activity_logs_collection", return_value=col), patch.object(activity, "decode_token", return_value="user@example.com"):
+            await self.log("POST", "/racks/placements", 201, payload={"rack_id": "r1"})
+            await self.log("DELETE", "/racks/placements/p1")
+            await self.log("POST", "/auth/change-password", 204, payload={"current_password": "old", "new_password": "new"})
+            await self.log("PUT", "/auth/prefs", payload={"theme": "dark"})
+            await self.log("POST", "/notifications/notice", 201, payload={"title": "공지"})
+            await self.log("POST", "/notifications/read-all", 204)
+            await self.log("POST", "/auth/refresh", 200)
+        docs = [call.args[0] for call in col.insert_one.await_args_list]
+        self.assertEqual([doc["category"] for doc in docs], ["자산 관리", "자산 관리", "회원 관리", "회원 관리", "관리자 설정"])
+        self.assertEqual([doc["action"] for doc in docs], ["CREATE", "DELETE", "UPDATE", "UPDATE", "CREATE"])
+        password_values = {item["path"]: item["after"] for item in docs[2]["diff"]}
+        self.assertEqual(password_values["입력.current_password"], "[REDACTED]")
+        self.assertEqual(password_values["입력.new_password"], "[REDACTED]")
+
 
 class SrHistoryTests(unittest.IsolatedAsyncioTestCase):
     async def test_requester_and_admin_record_previously_omitted_fields(self):
