@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import json
 import re
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
@@ -55,8 +56,7 @@ async def _attach_comment_counts(items: list[dict]) -> None:
 
 # ── 전체 SR 목록 ──────────────────────────────────────────────────────
 
-@router.get("", response_model=SRListPage)
-async def list_all_srs(
+def _sr_query(
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     request_type: Optional[str] = Query(None),
@@ -65,8 +65,13 @@ async def list_all_srs(
     related_system: Optional[str] = Query(None),
     assignee_id: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
+    request_type_in: Optional[str] = Query(None),
+    requester_department_in: Optional[str] = Query(None),
+    requester_name_in: Optional[str] = Query(None),
+    related_system_in: Optional[str] = Query(None),
+    assignee_id_in: Optional[str] = Query(None),
+    priority_in: Optional[str] = Query(None),
     is_urgent: Optional[bool] = Query(None),
-    is_delayed: Optional[bool] = Query(None),
     my_assigned: Optional[bool] = Query(None),
     created_from: Optional[str] = Query(None),
     created_to: Optional[str] = Query(None),
@@ -74,28 +79,15 @@ async def list_all_srs(
     desired_due_to: Optional[str] = Query(None),
     planned_due_from: Optional[str] = Query(None),
     planned_due_to: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
-    sort_by: Optional[str] = Query(None),
-    descending: bool = Query(True),
+    date_from: Optional[str] = Query(None, include_in_schema=False),
+    date_to: Optional[str] = Query(None, include_in_schema=False),
     current_user: UserPublic = Depends(get_current_user),
-):
-    require_sr_operator(current_user)
-    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
-
-    _SORT_FIELDS = {
-        "created_at", "updated_at",
-        "desired_due_date", "planned_due_date",
-        "sr_no", "title", "assignee_name",
-        "requester_name", "requester_department", "priority", "status",
-    }
-    sort_field = sort_by if sort_by in _SORT_FIELDS else "created_at"
-    sort_dir   = -1 if descending else 1
-
+) -> dict:
+    """The list and Excel download share all selection conditions."""
+    # Keep older export URLs working with the same KST date boundaries.
+    created_from = created_from or date_from
+    created_to = created_to or date_to
     q: dict = {"deleted_at": None}
-    # 자신에게 배정된 SR만 보기 (operator 전용 필터)
-    if my_assigned:
-        q["assignee_id"] = ObjectId(current_user.id)
     if status:
         # 쉼표 구분 복수 상태 지원: "SUBMITTED,REVIEWING" 또는 "!COMPLETED,!CLOSED"
         statuses = [s.strip() for s in status.split(",") if s.strip()]
@@ -127,18 +119,35 @@ async def list_all_srs(
         if matching_types:
             or_conditions.append({"request_type": {"$in": matching_types}})
         q["$or"] = or_conditions
-    if request_type:
-        q["request_type"] = request_type
-    if requester_department:
-        q["requester_department"] = {"$regex": requester_department, "$options": "i"}
-    if requester_name:
-        q["requester_name"] = {"$regex": requester_name, "$options": "i"}
-    if related_system:
-        q["related_system"] = {"$regex": related_system, "$options": "i"}
-    if assignee_id:
-        q["assignee_id"] = ObjectId(assignee_id)
-    if priority:
-        q["priority"] = priority
+    def apply_selection(field: str, single: Optional[str], multiple: Optional[str], *, object_ids: bool = False):
+        values = [single] if single else []
+        if multiple is not None:
+            try:
+                values = json.loads(multiple)
+            except (ValueError, TypeError):
+                raise HTTPException(status_code=422, detail=f"잘못된 {field} 필터입니다.")
+            if not isinstance(values, list) or any(not isinstance(v, str) or not v for v in values):
+                raise HTTPException(status_code=422, detail=f"잘못된 {field} 필터입니다.")
+        if object_ids:
+            if any(not ObjectId.is_valid(v) for v in values):
+                raise HTTPException(status_code=422, detail="잘못된 담당자 필터입니다.")
+            values = [ObjectId(v) for v in values]
+        if values:
+            q[field] = values[0] if len(values) == 1 else {"$in": values}
+
+    apply_selection("request_type", request_type, request_type_in)
+    apply_selection("requester_department", requester_department, requester_department_in)
+    apply_selection("requester_name", requester_name, requester_name_in)
+    apply_selection("related_system", related_system, related_system_in)
+    apply_selection("assignee_id", assignee_id, assignee_id_in, object_ids=True)
+    apply_selection("priority", priority, priority_in)
+    if my_assigned:
+        me = ObjectId(current_user.id)
+        selected = q.get("assignee_id")
+        if selected is None or selected == me or (isinstance(selected, dict) and me in selected["$in"]):
+            q["assignee_id"] = me
+        else:
+            q["assignee_id"] = {"$in": []}
     if is_urgent is not None:
         q["is_urgent"] = is_urgent
 
@@ -171,6 +180,32 @@ async def list_all_srs(
         if planned_due_to:
             pf["$lte"] = _dt(planned_due_to)
         q["planned_due_date"] = pf
+
+    return q
+
+
+def _sr_sort(sort_by: Optional[str], descending: bool) -> tuple[str, int]:
+    fields = {
+        "created_at", "updated_at", "desired_due_date", "planned_due_date",
+        "sr_no", "title", "assignee_name", "requester_name",
+        "requester_department", "priority", "status",
+    }
+    return (sort_by if sort_by in fields else "created_at", -1 if descending else 1)
+
+
+@router.get("", response_model=SRListPage)
+async def list_all_srs(
+    q: dict = Depends(_sr_query),
+    is_delayed: Optional[bool] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    sort_by: Optional[str] = Query(None),
+    descending: bool = Query(True),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    require_sr_operator(current_user)
+    col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
+    sort_field, sort_dir = _sr_sort(sort_by, descending)
 
     # is_delayed 필터는 Python 연산이므로 페이지네이션 전에 전체 조회 후 필터링
     if is_delayed is not None:
@@ -844,11 +879,10 @@ async def get_stats(
 
 @router.get("/export", response_class=StreamingResponse)
 async def export_excel(
-    status: Optional[str] = Query(None),
-    request_type: Optional[str] = Query(None),
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    q: dict = Depends(_sr_query),
     is_delayed: Optional[bool] = Query(None),
+    sort_by: Optional[str] = Query(None),
+    descending: bool = Query(True),
     current_user: UserPublic = Depends(get_current_user),
 ):
     require_sr_admin(current_user)
@@ -857,20 +891,8 @@ async def export_excel(
     from datetime import date
 
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
-    q: dict = {"deleted_at": None}
-    if status:
-        q["status"] = status
-    if request_type:
-        q["request_type"] = request_type
-    if date_from or date_to:
-        df: dict = {}
-        if date_from:
-            df["$gte"] = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
-        if date_to:
-            df["$lte"] = datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc)
-        q["created_at"] = df
-
-    all_docs = await col.find(q).sort("created_at", -1).to_list(None)
+    sort_field, sort_dir = _sr_sort(sort_by, descending)
+    all_docs = await col.find(q).sort(sort_field, sort_dir).to_list(None)
     if is_delayed is not None:
         docs = [d for d in all_docs if compute_is_delayed(d) == is_delayed]
     else:
