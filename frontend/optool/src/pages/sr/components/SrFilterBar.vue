@@ -148,45 +148,68 @@
         <!-- 필터 그리드: md+ 3열, sm 2열, xs 1열 -->
         <div class="row q-col-gutter-sm q-mb-md">
           <div class="col-12 col-sm-6 col-md-4">
-            <q-input
-              v-model="localFilter.requesterDepartment"
+            <q-select
+              :model-value="localFilter.requesterDepartment"
+              @update:model-value="localFilter.requesterDepartment = $event ?? []"
               label="요청 부서" outlined dense clearable bg-color="white"
+              :options="filteredOptions.requesterDepartments" :loading="optionsLoading"
+              multiple use-chips use-input input-debounce="0"
+              @filter="(value, update) => filterDropdown('requesterDepartments', value, update)"
             >
               <template #prepend><q-icon name="business" size="16px" color="grey-5" /></template>
-            </q-input>
-          </div>
-          <div class="col-12 col-sm-6 col-md-4">
-            <q-input
-              v-model="localFilter.requesterName"
-              label="요청자" outlined dense clearable bg-color="white"
-            >
-              <template #prepend><q-icon name="person" size="16px" color="grey-5" /></template>
-            </q-input>
+              <template #no-option>
+                <q-item><q-item-section class="text-grey">일치하는 부서가 없습니다.</q-item-section></q-item>
+              </template>
+            </q-select>
           </div>
           <div class="col-12 col-sm-6 col-md-4">
             <q-select
-              v-model="localFilter.requestType"
+              :model-value="localFilter.requesterName"
+              @update:model-value="localFilter.requesterName = $event ?? []"
+              label="요청자" outlined dense clearable bg-color="white"
+              :options="filteredOptions.requesterNames" :loading="optionsLoading"
+              multiple use-chips use-input input-debounce="0"
+              @filter="(value, update) => filterDropdown('requesterNames', value, update)"
+            >
+              <template #prepend><q-icon name="person" size="16px" color="grey-5" /></template>
+              <template #no-option>
+                <q-item><q-item-section class="text-grey">일치하는 요청자가 없습니다.</q-item-section></q-item>
+              </template>
+            </q-select>
+          </div>
+          <div class="col-12 col-sm-6 col-md-4">
+            <q-select
+              :model-value="localFilter.requestType"
+              @update:model-value="localFilter.requestType = $event ?? []"
               label="SR 유형" outlined dense clearable bg-color="white"
-              :options="requestTypeOptions" emit-value map-options
+              :options="requestTypeOptions" emit-value map-options multiple use-chips
             >
               <template #prepend><q-icon name="category" size="16px" color="grey-5" /></template>
             </q-select>
           </div>
           <div class="col-12 col-sm-6 col-md-4">
-            <q-input
-              v-model="localFilter.relatedSystem"
+            <q-select
+              :model-value="localFilter.relatedSystem"
+              @update:model-value="localFilter.relatedSystem = $event ?? []"
               label="관련 시스템" outlined dense clearable bg-color="white"
+              :options="filteredOptions.relatedSystems" :loading="optionsLoading"
+              multiple use-chips use-input input-debounce="0"
+              @filter="(value, update) => filterDropdown('relatedSystems', value, update)"
             >
               <template #prepend><q-icon name="computer" size="16px" color="grey-5" /></template>
-            </q-input>
+              <template #no-option>
+                <q-item><q-item-section class="text-grey">일치하는 시스템이 없습니다.</q-item-section></q-item>
+              </template>
+            </q-select>
           </div>
           <div class="col-12 col-sm-6 col-md-4">
             <q-select
-              v-model="localFilter.assigneeId"
+              :model-value="localFilter.assigneeId"
+              @update:model-value="localFilter.assigneeId = $event ?? []"
               label="담당자" outlined dense clearable bg-color="white"
               :options="filteredUserOptions"
               emit-value map-options
-              use-input fill-input hide-selected input-debounce="0"
+              multiple use-chips use-input input-debounce="0"
               @filter="filterUsersFn"
             >
               <template #prepend><q-icon name="manage_accounts" size="16px" color="grey-5" /></template>
@@ -197,9 +220,10 @@
           </div>
           <div class="col-12 col-sm-6 col-md-4">
             <q-select
-              v-model="localFilter.priority"
+              :model-value="localFilter.priority"
+              @update:model-value="localFilter.priority = $event ?? []"
               label="중요도" outlined dense clearable bg-color="white"
-              :options="priorityOptions" emit-value map-options
+              :options="priorityOptions" emit-value map-options multiple use-chips
             >
               <template #prepend><q-icon name="flag" size="16px" color="grey-5" /></template>
             </q-select>
@@ -286,10 +310,12 @@ import { REQUEST_TYPE_OPTIONS, SR_PRIORITY_OPTIONS } from 'src/services/sr'
 import type { PmUser } from 'src/services/pm/users'
 import {
   SR_STATUS_TAB_OPTIONS,
+  type SRFilterOptions,
   type SrFilterState,
   type SrFilterPreset,
   type SrActiveChip,
   defaultSrFilter,
+  normalizeSrFilter,
 } from '../useSrSearch'
 
 // ── Props / Emits ─────────────────────────────────────────────────────────
@@ -300,6 +326,8 @@ interface Props {
   tab:         string[]
   loading:     boolean
   pmUsers:     PmUser[]
+  filterOptions: SRFilterOptions
+  optionsLoading: boolean
   presets:     SrFilterPreset[]
   activeChips: SrActiveChip[]
 }
@@ -317,14 +345,14 @@ const emit = defineEmits<{
 
 // ── 로컬 편집 상태 (적용 전 드래프트) ────────────────────────────────────
 
-const localFilter    = ref<SrFilterState>({ ...props.filter })
+const localFilter    = ref<SrFilterState>(normalizeSrFilter(props.filter))
 // q-input clearable은 지울 때 null을 emit하므로 string | null로 선언
 const localSearch    = ref<string | null>(props.search ?? '')
 const localStatuses  = ref<string[]>([...props.tab])
 const expanded       = ref(false)
 
 // 부모에서 filter/search/tab이 변경되면 로컬 상태도 동기화
-watch(() => props.filter, (v) => { localFilter.value = { ...v } }, { deep: true })
+watch(() => props.filter, (v) => { localFilter.value = normalizeSrFilter(v) }, { deep: true })
 watch(() => props.search, (v) => { localSearch.value = v ?? '' })
 watch(() => props.tab,    (v) => { localStatuses.value = [...v] }, { deep: true })
 
@@ -343,6 +371,21 @@ watch(
 const statusOptions      = SR_STATUS_TAB_OPTIONS
 const requestTypeOptions = REQUEST_TYPE_OPTIONS
 const priorityOptions    = SR_PRIORITY_OPTIONS
+
+const optionSearch = ref({ requesterNames: '', requesterDepartments: '', relatedSystems: '' })
+const filteredOptions = computed<SRFilterOptions>(() => {
+  const matching = (key: keyof SRFilterOptions) => props.filterOptions[key]
+    .filter(value => value.toLocaleLowerCase().includes(optionSearch.value[key]))
+  return {
+    requesterNames: matching('requesterNames'),
+    requesterDepartments: matching('requesterDepartments'),
+    relatedSystems: matching('relatedSystems'),
+  }
+})
+
+function filterDropdown(key: keyof SRFilterOptions, value: string, update: (fn: () => void) => void) {
+  update(() => { optionSearch.value[key] = value.trim().toLocaleLowerCase() })
+}
 
 const filteredUsers = ref<PmUser[]>([])
 watch(() => props.pmUsers, (v) => { filteredUsers.value = v }, { immediate: true })
@@ -436,12 +479,12 @@ function hasDateError(field: DateField): boolean {
 const advancedFilterCount = computed(() => {
   const f = localFilter.value
   let n = 0
-  if (f.requesterDepartment)                        n++
-  if (f.requesterName)                              n++
-  if (f.requestType)                                n++
-  if (f.relatedSystem)                              n++
-  if (f.assigneeId)                                 n++
-  if (f.priority)                                   n++
+  if (f.requesterDepartment.length)                        n++
+  if (f.requesterName.length)                              n++
+  if (f.requestType.length)                                n++
+  if (f.relatedSystem.length)                              n++
+  if (f.assigneeId.length)                                 n++
+  if (f.priority.length)                                   n++
   if (f.createdFrom || f.createdTo)                 n++
   if (f.dueDateFrom || f.dueDateTo)                 n++
   if (f.plannedDueDateFrom || f.plannedDueDateTo)   n++
