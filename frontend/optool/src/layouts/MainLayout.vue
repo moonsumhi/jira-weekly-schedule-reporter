@@ -9,7 +9,8 @@
           dense
           round
           icon="menu"
-          aria-label="Menu"
+          :aria-label="miniDrawer ? '사이드바 펼치기' : (isNarrowLayout ? '메뉴 열기' : '사이드바 접기')"
+          :title="miniDrawer ? '사이드바 펼치기' : (isNarrowLayout ? '메뉴 열기' : '사이드바 접기')"
           @click="toggleLeftDrawer"
         />
 
@@ -51,14 +52,28 @@
       v-model="leftDrawerOpen"
       show-if-above
       bordered
+      :width="248"
+      :mini="miniDrawer"
+      :mini-width="80"
+      :breakpoint="767"
     >
       <!-- column layout to pin logout button at bottom -->
       <div class="column fit">
 
         <!-- MENU AREA -->
         <q-scroll-area class="col">
-          <q-list>
-            <q-item-label header class="cursor-pointer" @click="goHome">데이터운영팀</q-item-label>
+          <q-list class="sidebar-menu-list">
+            <q-item v-if="miniDrawer" clickable v-ripple class="sidebar-home-link" @click="goHome">
+              <q-item-section avatar>
+                <q-icon name="home" />
+              </q-item-section>
+              <q-tooltip anchor="center right" self="center left">대시보드</q-tooltip>
+            </q-item>
+            <q-item v-else clickable v-ripple class="sidebar-home-link" @click="goHome">
+              <q-item-section>
+                <q-item-label>데이터운영팀</q-item-label>
+              </q-item-section>
+            </q-item>
 
             <!-- 모든 메뉴를 sortOrder 순서대로 렌더링 -->
             <template v-for="menu in sortedVisibleMenus" :key="menu.id">
@@ -69,7 +84,9 @@
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
                 :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
+                :compact="miniDrawer"
                 :children="jobMenuItems"
+                @expand-sidebar="expandSidebar"
               />
 
               <!-- Admin: 승인 대기 badge 포함 -->
@@ -79,8 +96,10 @@
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
                 :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
+                :compact="miniDrawer"
                 :badge="pendingCount"
                 :children="menuChildren(menu, '/admin/approvals')"
+                @expand-sidebar="expandSidebar"
               />
 
               <!-- leaf 링크 메뉴 -->
@@ -90,7 +109,9 @@
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
                 :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
+                :compact="miniDrawer"
                 :link="menu.link"
+                @expand-sidebar="expandSidebar"
               />
 
               <!-- DB submenus 기반 메뉴 -->
@@ -100,7 +121,9 @@
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
                 :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
+                :compact="miniDrawer"
                 :children="menuChildren(menu)"
+                @expand-sidebar="expandSidebar"
               />
 
               <!-- 동적 게시판 메뉴 (관리자가 추가한 메뉴) -->
@@ -110,7 +133,9 @@
                 :icon="menu.icon"
                 :color="menu.color ?? '#000000'"
                 :icon-color="menu.iconColor ?? menu.color ?? '#000000'"
+                :compact="miniDrawer"
                 :children="boardChildrenOf(menu.id)"
+                @expand-sidebar="expandSidebar"
               />
             </template>
           </q-list>
@@ -122,7 +147,7 @@
         <q-item
           clickable v-ripple
           class="q-py-sm"
-          @click="$router.push('/account/settings')"
+          @click="$router.push('/account/my-page')"
         >
           <q-item-section avatar>
             <q-avatar color="primary" text-color="white" size="36px" class="text-caption">
@@ -432,9 +457,24 @@ let pendingTimer: ReturnType<typeof setInterval> | null = null
 const leftDrawerOpen = ref(false)
 const rightDrawerOpen = ref(false)
 const aiChatOpen = ref(false)
+const sidebarMini = ref(localStorage.getItem('sidebar-mini-mode-v2') !== 'false')
+const isNarrowLayout = computed(() => $q.screen.width <= 767)
+const miniDrawer = computed(() => !isNarrowLayout.value && sidebarMini.value)
+
+watch(sidebarMini, (mini) => {
+  localStorage.setItem('sidebar-mini-mode-v2', String(mini))
+})
 
 function toggleLeftDrawer() {
-  leftDrawerOpen.value = !leftDrawerOpen.value
+  if (isNarrowLayout.value) {
+    leftDrawerOpen.value = !leftDrawerOpen.value
+    return
+  }
+  sidebarMini.value = !sidebarMini.value
+}
+
+function expandSidebar() {
+  if (!isNarrowLayout.value) sidebarMini.value = false
 }
 
 function toggleRightDrawer() {
@@ -697,6 +737,28 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+:deep(.q-drawer--left) {
+  transition:
+    width 180ms cubic-bezier(0.2, 0, 0, 1),
+    transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+:deep(.q-page-container) {
+  transition: padding-left 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+:deep(.q-drawer--mini .sidebar-menu-list .q-item) {
+  padding-left: 16px;
+  padding-right: 0;
+}
+
+:deep(.q-drawer--mini .sidebar-menu-list .q-item__section--avatar) {
+  width: 56px;
+  min-width: 56px;
+  margin-left: 0;
+  margin-right: 0;
+}
+
 .link-card {
   border: 1px solid #e0e0e0;
   border-radius: 6px;

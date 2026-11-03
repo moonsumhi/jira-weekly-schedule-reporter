@@ -2,8 +2,10 @@
   <!-- If has children -> render as expansion -->
   <q-expansion-item
     v-if="children && children.length"
+    :model-value="isExpanded"
     class="sidebar-expansion-item"
     expand-separator
+    @update:model-value="onExpansionToggle"
   >
     <template #header>
       <q-item-section avatar>
@@ -13,13 +15,16 @@
       <q-item-section side v-if="badge && badge > 0">
         <q-badge color="negative" :label="badge" rounded />
       </q-item-section>
+      <q-tooltip v-if="compact" anchor="center right" self="center left">{{ title }}</q-tooltip>
     </template>
     <EssentialLink
       v-for="child in children"
       :key="(child.link ?? child.title) + (child.icon ?? '')"
       v-bind="child"
       :isChild="true"
+      :compact="props.compact ?? false"
       @select="$emit('select', $event)"
+      @expand-sidebar="emit('expand-sidebar')"
     />
   </q-expansion-item>
 
@@ -45,11 +50,12 @@
     <q-item-section side v-if="badge && badge > 0">
       <q-badge color="negative" :label="badge" rounded />
     </q-item-section>
+    <q-tooltip v-if="compact" anchor="center right" self="center left">{{ title }}</q-tooltip>
   </q-item>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 export interface EssentialLinkProps {
@@ -61,6 +67,7 @@ export interface EssentialLinkProps {
   iconColor?: string | null;
   children?: EssentialLinkProps[];
   isChild?: boolean;
+  compact?: boolean;
   badge?: number;
 }
 
@@ -72,13 +79,18 @@ const props = withDefaults(defineProps<EssentialLinkProps>(), {
   iconColor: null,
   children: () => [],
   isChild: false,
+  compact: false,
   badge: 0,
 })
 
-defineEmits(['select'])
+const emit = defineEmits<{
+  (event: 'select', link: string): void
+  (event: 'expand-sidebar'): void
+}>()
 
 const route = useRoute()
 const router = useRouter()
+const isExpanded = ref(false)
 const menuColorStyle = computed(() =>
   ({ color: props.color && /^#[0-9a-fA-F]{6}$/.test(props.color) ? props.color : '#000000' }),
 )
@@ -102,6 +114,15 @@ const isActive = computed(() => {
   }
   return true
 })
+
+function onExpansionToggle(expanded: boolean) {
+  if (props.compact) {
+    isExpanded.value = true
+    emit('expand-sidebar')
+    return
+  }
+  isExpanded.value = expanded
+}
 
 function navigate() {
   if (!props.link || props.link === '#') return
