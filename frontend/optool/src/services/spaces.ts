@@ -15,6 +15,7 @@ export type Person = {
   name: string;
   teamId: string;
   title: string;
+  extension?: string;
   roomId: string | null;
   userId: string | null;
   active: boolean;
@@ -37,6 +38,8 @@ export type PlanObject = {
   width: number;
   height: number;
   rotation: number;
+  fontSize?: number;
+  bold?: boolean;
   seatId: string | null;
   teamId: string | null;
 };

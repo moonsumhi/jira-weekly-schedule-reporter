@@ -45,6 +45,7 @@ class PersonInput(Input):
     name: Name
     team_id: Identifier
     title: str = Field(default="", max_length=100)
+    extension: Annotated[str, StringConstraints(strip_whitespace=True, max_length=30)] = ""
     room_id: Identifier | None = None
     user_id: Identifier | None = None
     active: bool = True
@@ -59,6 +60,8 @@ class PlanObject(Input):
     width: float = Field(gt=0, le=20000, allow_inf_nan=False)
     height: float = Field(gt=0, le=20000, allow_inf_nan=False)
     rotation: float = Field(default=0, ge=-360, le=360, allow_inf_nan=False)
+    font_size: int = Field(default=18, ge=8, le=120)
+    bold: bool = False
     seat_id: Identifier | None = None
     team_id: Identifier | None = None
 

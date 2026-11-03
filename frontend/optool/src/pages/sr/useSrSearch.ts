@@ -3,13 +3,19 @@ import { REQUEST_TYPE_LABEL, SR_PRIORITY_LABEL } from 'src/services/sr'
 
 // ── 타입 ─────────────────────────────────────────────────────────────────────
 
+export type SRFilterOptions = {
+  requesterNames: string[]
+  requesterDepartments: string[]
+  relatedSystems: string[]
+}
+
 export type SrFilterState = {
-  requestType:         string | null
-  requesterDepartment: string
-  requesterName:       string
-  relatedSystem:       string
-  assigneeId:          string | null
-  priority:            string | null
+  requestType:         string[]
+  requesterDepartment: string[]
+  requesterName:       string[]
+  relatedSystem:       string[]
+  assigneeId:          string[]
+  priority:            string[]
   isUrgent:            boolean
   isDelayed:           boolean
   myAssigned:          boolean
@@ -65,14 +71,26 @@ export const SR_SORT_OPTIONS = [
 
 export function defaultSrFilter(): SrFilterState {
   return {
-    requestType: null, requesterDepartment: '', requesterName: '',
-    relatedSystem: '', assigneeId: null, priority: null,
+    requestType: [], requesterDepartment: [], requesterName: [],
+    relatedSystem: [], assigneeId: [], priority: [],
     isUrgent: false, isDelayed: false, myAssigned: false,
     createdFrom: '', createdTo: '',
     dueDateFrom: '', dueDateTo: '',
     plannedDueDateFrom: '', plannedDueDateTo: '',
   }
 }
+
+// 이전에 저장된 단일 값 프리셋도 배열 형태로 복원한다.
+export function normalizeSrFilter(input: Partial<SrFilterState>): SrFilterState {
+  const result = { ...defaultSrFilter(), ...input }
+  for (const key of multiKeys) {
+    const value: unknown = result[key]
+    result[key] = Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && !!v) : typeof value === 'string' && value ? [value] : []
+  }
+  return result
+}
+
+const multiKeys = ['requestType', 'requesterDepartment', 'requesterName', 'relatedSystem', 'assigneeId', 'priority'] as const
 
 /**
  * activeTab 배열 규칙:
@@ -95,12 +113,16 @@ export function buildSrApiParams(
     else if (excludes.length) p.status = excludes.map(s => `!${s}`).join(',')
   }
 
-  if (filter.requestType)             p.request_type         = filter.requestType
-  if (filter.requesterDepartment)     p.requester_department = filter.requesterDepartment
-  if (filter.requesterName)           p.requester_name       = filter.requesterName
-  if (filter.relatedSystem)           p.related_system       = filter.relatedSystem
-  if (filter.assigneeId)              p.assignee_id          = filter.assigneeId
-  if (filter.priority)                p.priority             = filter.priority
+  const add = (key: string, values: string[]) => {
+    if (values.length === 1) p[key] = values[0]!
+    else if (values.length > 1) p[`${key}_in`] = JSON.stringify(values)
+  }
+  add('request_type', filter.requestType)
+  add('requester_department', filter.requesterDepartment)
+  add('requester_name', filter.requesterName)
+  add('related_system', filter.relatedSystem)
+  add('assignee_id', filter.assigneeId)
+  add('priority', filter.priority)
   if (filter.isUrgent)                p.is_urgent            = true
   if (filter.isDelayed)               p.is_delayed           = true
   if (filter.myAssigned)              p.my_assigned          = true
@@ -130,12 +152,12 @@ export function useSrSearch() {
     const rtLabel = (v: string) => (REQUEST_TYPE_LABEL as Record<string, string>)[v] ?? v
     const prLabel = (v: string) => (SR_PRIORITY_LABEL  as Record<string, string>)[v] ?? v
 
-    if (f.requesterDepartment)                      chips.push({ key: 'requesterDepartment', label: '요청 부서',   value: f.requesterDepartment })
-    if (f.requesterName)                            chips.push({ key: 'requesterName',       label: '요청자',      value: f.requesterName })
-    if (f.requestType)                              chips.push({ key: 'requestType',          label: '유형',        value: rtLabel(f.requestType) })
-    if (f.relatedSystem)                            chips.push({ key: 'relatedSystem',        label: '관련 시스템', value: f.relatedSystem })
-    if (f.assigneeId)                               chips.push({ key: 'assigneeId',           label: '담당자',      value: f.assigneeId })
-    if (f.priority)                                 chips.push({ key: 'priority',             label: '중요도',      value: prLabel(f.priority) })
+    if (f.requesterDepartment.length) chips.push({ key: 'requesterDepartment', label: '요청 부서', value: f.requesterDepartment.join(', ') })
+    if (f.requesterName.length)       chips.push({ key: 'requesterName', label: '요청자', value: f.requesterName.join(', ') })
+    if (f.requestType.length)         chips.push({ key: 'requestType', label: '유형', value: f.requestType.map(rtLabel).join(', ') })
+    if (f.relatedSystem.length)       chips.push({ key: 'relatedSystem', label: '관련 시스템', value: f.relatedSystem.join(', ') })
+    if (f.assigneeId.length)          chips.push({ key: 'assigneeId', label: '담당자', value: f.assigneeId.join(', ') })
+    if (f.priority.length)            chips.push({ key: 'priority', label: '중요도', value: f.priority.map(prLabel).join(', ') })
     if (f.isUrgent)                                 chips.push({ key: 'isUrgent',             label: '긴급',        value: 'ON' })
     if (f.isDelayed)                                chips.push({ key: 'isDelayed',            label: '지연',        value: 'ON' })
     if (f.myAssigned)                               chips.push({ key: 'myAssigned',           label: '내 담당',     value: 'ON' })
@@ -150,12 +172,12 @@ export function useSrSearch() {
   function clearChip(key: string) {
     const f = filter.value
     switch (key) {
-      case 'requesterDepartment': f.requesterDepartment = '';              break
-      case 'requesterName':       f.requesterName       = '';              break
-      case 'requestType':         f.requestType         = null;            break
-      case 'relatedSystem':       f.relatedSystem       = '';              break
-      case 'assigneeId':          f.assigneeId          = null;            break
-      case 'priority':            f.priority            = null;            break
+      case 'requesterDepartment': f.requesterDepartment = [];              break
+      case 'requesterName':       f.requesterName       = [];              break
+      case 'requestType':         f.requestType         = [];            break
+      case 'relatedSystem':       f.relatedSystem       = [];              break
+      case 'assigneeId':          f.assigneeId          = [];            break
+      case 'priority':            f.priority            = [];            break
       case 'isUrgent':            f.isUrgent            = false;           break
       case 'isDelayed':           f.isDelayed           = false;           break
       case 'myAssigned':          f.myAssigned          = false;           break
@@ -187,12 +209,23 @@ export function useSrSearch() {
       }
     }
     const f = filter.value
-    if (s('dept'))     f.requesterDepartment = s('dept')!
-    if (s('name'))     f.requesterName       = s('name')!
-    if (s('type'))     f.requestType         = s('type')!
-    if (s('sys'))      f.relatedSystem       = s('sys')!
-    if (s('assignee')) f.assigneeId          = s('assignee')!
-    if (s('priority')) f.priority            = s('priority')!
+    const readMany = (key: string): string[] => {
+      const many = s(`${key}_many`)
+      if (many) {
+        try {
+          const parsed: unknown = JSON.parse(many)
+          if (Array.isArray(parsed)) return parsed.filter((v): v is string => typeof v === 'string' && !!v)
+        } catch { /* Ignore malformed saved URLs. */ }
+      }
+      const single = s(key)
+      return single ? [single] : []
+    }
+    f.requesterDepartment = readMany('dept')
+    f.requesterName = readMany('name')
+    f.requestType = readMany('type')
+    f.relatedSystem = readMany('sys')
+    f.assigneeId = readMany('assignee')
+    f.priority = readMany('priority')
     if (s('urgent'))   f.isUrgent            = s('urgent') === '1'
     if (s('delayed'))  f.isDelayed           = s('delayed') === '1'
     if (s('mine'))     f.myAssigned          = s('mine') === '1'
@@ -214,12 +247,16 @@ export function useSrSearch() {
     const q: Record<string, string> = {}
     const f = filter.value
     if (activeTab.value.length)      q.tab      = activeTab.value.join(',')
-    if (f.requesterDepartment)       q.dept     = f.requesterDepartment
-    if (f.requesterName)             q.name     = f.requesterName
-    if (f.requestType)               q.type     = f.requestType
-    if (f.relatedSystem)             q.sys      = f.relatedSystem
-    if (f.assigneeId)                q.assignee = f.assigneeId
-    if (f.priority)                  q.priority = f.priority
+    const addMany = (key: string, values: string[]) => {
+      if (values.length === 1) q[key] = values[0]!
+      else if (values.length > 1) q[`${key}_many`] = JSON.stringify(values)
+    }
+    addMany('dept', f.requesterDepartment)
+    addMany('name', f.requesterName)
+    addMany('type', f.requestType)
+    addMany('sys', f.relatedSystem)
+    addMany('assignee', f.assigneeId)
+    addMany('priority', f.priority)
     if (f.isUrgent)                  q.urgent   = '1'
     if (f.isDelayed)                 q.delayed  = '1'
     if (f.myAssigned)                q.mine     = '1'
@@ -245,7 +282,7 @@ export function useSrSearch() {
 
   function loadPreset(p: SrFilterPreset) {
     activeTab.value = [...(p.tab ?? [])]
-    filter.value    = { ...p.filter }
+    filter.value    = normalizeSrFilter(p.filter)
   }
 
   function removePreset(i: number) {

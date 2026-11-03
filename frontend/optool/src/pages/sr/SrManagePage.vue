@@ -10,7 +10,9 @@
       <HelpButton feature="sr-manage" guide-path="/pm/sr/guide" class="q-mr-xs" />
       <q-btn v-if="isAdminUser" outline color="indigo-7" icon="settings" label="SR 기본 프로젝트"
         @click="srProjectDialog = true" class="q-mr-sm" />
-      <q-btn outline color="green-7" icon="download" label="Excel" @click="downloadExcel" :loading="exporting" />
+      <q-btn outline color="green-7" icon="download" label="Excel" @click="downloadExcel" :loading="exporting" :disable="loading">
+        <q-tooltip>현재 검색·필터 조건에 맞는 모든 SR을 내려받습니다.</q-tooltip>
+      </q-btn>
     </div>
 
     <!-- ── 통계 카드 ─────────────────────────────────────────────────── -->
@@ -35,6 +37,8 @@
           :tab="srSearch.activeTab.value"
           :loading="loading"
           :pm-users="pmUsers"
+          :filter-options="filterOptions"
+          :options-loading="optionsLoading"
           :presets="srSearch.presets.value"
           :active-chips="resolvedChips"
           @apply="onFilterApply"
@@ -384,6 +388,7 @@ import {
   SR_PRIORITY_OPTIONS,
   type SRListItem, type SRStats, type SRStatus, type SRStatusChange,
 } from 'src/services/sr'
+import { envCategoryService } from 'src/services/envCategory'
 import { listPmUsers, type PmUser } from 'src/services/pm/users'
 import { listProjects, setSrDefaultProject, type Project } from 'src/services/pm/project'
 import { useAuthStore } from 'src/stores/auth'
@@ -396,6 +401,7 @@ import {
   SR_SORT_OPTIONS,
   type SrFilterState,
   type SrFilterPreset,
+  type SRFilterOptions,
 } from './useSrSearch'
 
 // ── 상수 ─────────────────────────────────────────────────────────────────
@@ -433,8 +439,8 @@ const totalActiveConditions = computed(() => {
 const resolvedChips = computed(() =>
   srSearch.activeChips.value.map(chip => {
     if (chip.key === 'assigneeId') {
-      const user = pmUsers.value.find(u => u.id === chip.value)
-      return { ...chip, value: user?.name ?? chip.value }
+      const names = chip.value.split(', ').map(id => pmUsers.value.find(u => u.id === id)?.name || id)
+      return { ...chip, value: names.join(', ') }
     }
     return chip
   }),
@@ -473,6 +479,17 @@ const rows      = ref<SRListItem[]>([])
 const stats     = ref<SRStats | null>(null)
 const selected  = ref<SRListItem[]>([])
 const pmUsers   = ref<PmUser[]>([])
+const relatedSystems = ref<string[]>([])
+const usersLoading = ref(false)
+const systemsLoading = ref(false)
+const optionsLoading = computed(() => usersLoading.value || systemsLoading.value)
+const uniqueOptions = (values: string[]) => [...new Set(values.filter(value => value.trim()))]
+  .sort((a, b) => a.localeCompare(b, 'ko'))
+const filterOptions = computed<SRFilterOptions>(() => ({
+  requesterNames: uniqueOptions(pmUsers.value.map(user => user.name || user.email)),
+  requesterDepartments: uniqueOptions(pmUsers.value.map(user => user.team || '')),
+  relatedSystems: uniqueOptions(relatedSystems.value),
+}))
 
 // ── SR 기본 프로젝트 ──────────────────────────────────────────────────────
 
@@ -601,18 +618,56 @@ function navigateToDetail(row: SRListItem) {
 
 // ── API 조회 ──────────────────────────────────────────────────────────────
 
+// 목록과 다운로드는 같은 검색·필터·정렬을 사용하고 목록에만 페이지 범위를 추가한다.
+const listQueryParams = computed(() => {
+  const search = srSearch.search.value.trim()
+  return buildSrApiParams(srSearch.filter.value, srSearch.activeTab.value, {
+    sort_by: pagination.value.sortBy || 'created_at',
+    descending: pagination.value.descending,
+    ...(search ? { search } : {}),
+  })
+})
+
+async function fetchUsers() {
+  usersLoading.value = true
+  try {
+    const users = await listPmUsers()
+    pmUsers.value = users
+    filteredPmUsers.value = users
+    filteredRequesterUsers.value = users
+  } catch {
+    $q.notify({
+      type: 'negative', message: '회원 목록을 불러오지 못했습니다.',
+      actions: [{ label: '재시도', color: 'white', handler: () => { void fetchUsers() } }],
+    })
+  } finally {
+    usersLoading.value = false
+  }
+}
+
+async function fetchSystems() {
+  systemsLoading.value = true
+  try {
+    relatedSystems.value = (await envCategoryService.itemsByKey('target_system')).map(item => item.label)
+  } catch {
+    $q.notify({
+      type: 'negative', message: '대상 시스템 목록을 불러오지 못했습니다.',
+      actions: [{ label: '재시도', color: 'white', handler: () => { void fetchSystems() } }],
+    })
+  } finally {
+    systemsLoading.value = false
+  }
+}
+
 async function fetchList() {
   loading.value = true
   try {
     const skip = (pagination.value.page - 1) * pagination.value.rowsPerPage
-    const search = srSearch.search.value.trim()
-    const params = buildSrApiParams(srSearch.filter.value, srSearch.activeTab.value, {
+    const params = {
+      ...listQueryParams.value,
       skip,
-      limit:      pagination.value.rowsPerPage,
-      sort_by:    pagination.value.sortBy || 'created_at',
-      descending: pagination.value.descending,
-      ...(search ? { search } : {}),
-    })
+      limit: pagination.value.rowsPerPage,
+    }
     const [page, srStats] = await Promise.all([listAllSRs(params), getSRStats()])
     rows.value  = page.items
     stats.value = srStats
@@ -898,7 +953,7 @@ async function doBulkStatusChange(
 async function downloadExcel() {
   exporting.value = true
   try {
-    const params = buildSrApiParams(srSearch.filter.value, srSearch.activeTab.value)
+    const params = listQueryParams.value
     const res = await api.get('/admin/schedule/service-requests/export', { params, responseType: 'blob' })
     const url = URL.createObjectURL(res.data as Blob)
     const a = document.createElement('a')
@@ -947,11 +1002,8 @@ async function saveSrDefaultProject() {
 onMounted(() => {
   initFromUrl()
   void fetchList()
-  void listPmUsers().then(users => {
-    pmUsers.value         = users
-    filteredPmUsers.value = users
-    filteredRequesterUsers.value = users
-  })
+  void fetchUsers()
+  void fetchSystems()
 })
 
 watch(srProjectDialog, (open) => { if (open) void loadProjects() })

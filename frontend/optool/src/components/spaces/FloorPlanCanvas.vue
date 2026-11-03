@@ -204,7 +204,7 @@
             :tabindex="!editable && obj.seatId && matches(obj) ? 0 : undefined"
             :aria-label="
               obj.seatId
-                ? `${seatFor(obj)?.number} · ${personName(obj.seatId) || '미배정'} · 좌석 정보 열기`
+                ? `${seatDescription(obj)} · 좌석 정보 열기`
                 : undefined
             "
             :transform="`translate(${obj.x} ${obj.y}) rotate(${obj.rotation})`"
@@ -218,7 +218,7 @@
             @keydown.space.stop.prevent="activateSeat(obj)"
           >
             <title v-if="obj.kind === 'desk'">
-              {{ seatFor(obj)?.number }} · {{ personName(obj.seatId) || '미배정' }}
+              {{ seatDescription(obj) }}
             </title>
             <rect
               v-if="obj.kind === 'wall'"
@@ -252,25 +252,40 @@
                 rx="5"
                 :fill="teamColor(seatFor(obj)?.teamId)"
               />
-              <text
-                :x="obj.width / 2"
-                :y="obj.height / 2 - seatFontSize * 0.35"
-                text-anchor="middle"
-                fill="#263238"
-                :font-size="seatFontSize"
-                font-weight="600"
+              <g
+                :transform="`rotate(${-obj.rotation} ${obj.width / 2} ${obj.height / 2})`"
               >
-                {{ shortLabel(seatFor(obj)?.number || '좌석', obj.width) }}
-              </text>
-              <text
-                :x="obj.width / 2"
-                :y="obj.height / 2 + seatFontSize * 0.9"
-                text-anchor="middle"
-                fill="#455a64"
-                :font-size="seatFontSize"
-              >
-                {{ shortLabel(personName(obj.seatId) || '미배정', obj.width) }}
-              </text>
+                <text
+                  v-if="seatFor(obj)?.number"
+                  :x="obj.width / 2"
+                  :y="(personExtension(obj.seatId) ? obj.height * 0.45 : obj.height * 0.55) - deskLabelSize(obj) * 1.15"
+                  text-anchor="middle"
+                  fill="#455a64"
+                  :font-size="Math.min(11, deskLabelSize(obj) * 0.55)"
+                >
+                  {{ shortLabel(seatFor(obj)?.number || '', obj.width, Math.min(11, deskLabelSize(obj) * 0.55)) }}
+                </text>
+                <text
+                  :x="obj.width / 2"
+                  :y="personExtension(obj.seatId) ? obj.height * 0.45 : obj.height * 0.55"
+                  text-anchor="middle"
+                  fill="#000000"
+                  :font-size="deskLabelSize(obj)"
+                  font-weight="600"
+                >
+                  {{ shortLabel(personName(obj.seatId) || '미배정', obj.width, deskLabelSize(obj)) }}
+                </text>
+                <text
+                  v-if="personExtension(obj.seatId)"
+                  :x="obj.width / 2"
+                  :y="obj.height * 0.68"
+                  text-anchor="middle"
+                  fill="#000000"
+                  :font-size="deskLabelSize(obj) * 0.82"
+                >
+                  {{ shortLabel(personExtension(obj.seatId), obj.width, deskLabelSize(obj) * 0.82) }}
+                </text>
+              </g>
             </g>
             <g v-else-if="obj.kind === 'cabinet'">
               <rect
@@ -309,20 +324,26 @@
             </g>
             <g v-else>
               <rect :width="obj.width" :height="obj.height" fill="transparent" />
-              <text x="4" :y="Math.min(obj.height - 2, 22)" font-size="18" fill="#263238">
+              <text
+                x="4"
+                :y="Math.min(obj.height - 2, (obj.fontSize ?? 18) + 4)"
+                :font-size="obj.fontSize ?? 18"
+                :font-weight="obj.bold ? 700 : 400"
+                fill="#263238"
+              >
                 {{ obj.name || '텍스트' }}
               </text>
             </g>
             <rect
-              v-if="selected.includes(obj.id) || (selectedSeatId && obj.seatId === selectedSeatId)"
+              v-if="selected.includes(obj.id) || (selectedSeatId && obj.seatId === selectedSeatId) || (focusSeatId && obj.seatId === focusSeatId)"
               x="-4"
               y="-4"
               :width="obj.width + 8"
               :height="obj.height + 8"
               fill="none"
-              stroke="#1565c0"
-              stroke-width="2"
-              stroke-dasharray="6 3"
+              :stroke="focusSeatId && obj.seatId === focusSeatId ? '#ef6c00' : '#1565c0'"
+              :stroke-width="focusSeatId && obj.seatId === focusSeatId ? 4 : 2"
+              :stroke-dasharray="focusSeatId && obj.seatId === focusSeatId ? undefined : '6 3'"
               pointer-events="none"
             />
             <g v-if="editable && selected.length === 1 && selected[0] === obj.id">
@@ -392,6 +413,38 @@
             class="q-mb-sm"
             @change="(v: string) => property('name', String(v))"
           />
+          <template v-if="current.kind === 'text'">
+            <div class="plan-section-label q-mt-lg">글자 서식</div>
+            <div class="row items-start q-col-gutter-sm">
+              <div class="col">
+                <q-input
+                  :model-value="current.fontSize ?? 18"
+                  type="number"
+                  outlined
+                  dense
+                  label="글자 크기"
+                  suffix="px"
+                  min="8"
+                  max="120"
+                  step="1"
+                  :rules="[(v) => Number.isInteger(Number(v)) && Number(v) >= 8 && Number(v) <= 120 || '8~120 사이의 정수를 입력하세요.']"
+                  lazy-rules
+                  @change="(v: string) => property('fontSize', Number(v))"
+                />
+              </div>
+              <div class="col-auto">
+                <q-btn
+                  color="primary"
+                  :outline="!current.bold"
+                  :unelevated="!!current.bold"
+                  icon="format_bold"
+                  label="굵게"
+                  :aria-pressed="!!current.bold"
+                  @click="property('bold', !current.bold)"
+                />
+              </div>
+            </div>
+          </template>
           <div class="plan-section-label q-mt-lg">위치와 크기</div>
           <div class="row q-col-gutter-sm">
             <div v-for="field in numberFields" :key="field.key" class="col-6">
@@ -522,7 +575,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { drawingBounds, newSpaceId } from 'src/utils/spacePlan';
 import { useQuasar } from 'quasar';
 import type {
@@ -543,9 +596,10 @@ const props = withDefaults(
     people: Person[];
     teamFilter?: string | null;
     selectedSeatId?: string | null;
+    focusSeatId?: string | null;
     visibleSeatIds?: string[];
   }>(),
-  { editable: false, teamFilter: null, selectedSeatId: null },
+  { editable: false, teamFilter: null, selectedSeatId: null, focusSeatId: null },
 );
 const emit = defineEmits<{ 'update:modelValue': [value: Plan]; selectSeat: [id: string] }>();
 const $q = useQuasar();
@@ -594,8 +648,8 @@ const seatFontSize = computed(() => {
   );
   return Math.max(13, Math.min(24, 11 / Math.max(scale, 0.01)));
 });
-function shortLabel(text: string, width: number) {
-  const limit = Math.max(2, (width - 12) / seatFontSize.value);
+function shortLabel(text: string, width: number, fontSize = seatFontSize.value) {
+  const limit = Math.max(2, (width - 12) / fontSize);
   let used = 0,
     result = '';
   for (const char of text) {
@@ -670,10 +724,28 @@ function fitDrawing() {
   if (bounds) view.value = bounds;
   else fit();
 }
+function focusSeat(seatId: string) {
+  const desk = props.modelValue.objects.find((obj) => obj.kind === 'desk' && obj.seatId === seatId);
+  if (!desk) return;
+  const angle = desk.rotation * Math.PI / 180;
+  const centerX = desk.x + desk.width / 2 * Math.cos(angle) - desk.height / 2 * Math.sin(angle);
+  const centerY = desk.y + desk.width / 2 * Math.sin(angle) + desk.height / 2 * Math.cos(angle);
+  const width = Math.min(view.value.width, Math.max(520, desk.width * 4.5));
+  const height = view.value.height * width / view.value.width;
+  view.value = { x: centerX - width / 2, y: centerY - height / 2, width, height };
+}
+watch(() => props.focusSeatId, (seatId, previous) => {
+  if (props.editable) return;
+  if (seatId) focusSeat(seatId);
+  else if (previous) fitDrawing();
+});
 onMounted(() => {
   document.addEventListener('pointerdown', pointerFocus, true);
   window.addEventListener('blur', deactivate);
-  if (!props.editable) fitDrawing();
+  if (!props.editable) {
+    fitDrawing();
+    if (props.focusSeatId) focusSeat(props.focusSeatId);
+  }
   resizeObserver = new ResizeObserver(([entry]) => {
     if (entry)
       canvasPixels.value = { width: entry.contentRect.width, height: entry.contentRect.height };
@@ -724,9 +796,32 @@ function teamColor(id?: string | null) {
 function seatFor(obj: PlanObject) {
   return props.modelValue.seats.find((s) => s.id === obj.seatId);
 }
+const peopleById = computed(() => new Map(props.people.map((person) => [person.id, person])));
+const personBySeat = computed(() => {
+  const people = new Map<string, Person>();
+  for (const assignment of props.assignments) {
+    const person = peopleById.value.get(assignment.personId);
+    if (person) people.set(assignment.seatId, person);
+  }
+  return people;
+});
+function personForSeat(seatId: string | null) {
+  return seatId ? personBySeat.value.get(seatId) : undefined;
+}
 function personName(seatId: string | null) {
-  const a = props.assignments.find((a) => a.seatId === seatId);
-  return props.people.find((p) => p.id === a?.personId)?.name ?? '';
+  return personForSeat(seatId)?.name ?? '';
+}
+function personExtension(seatId: string | null) {
+  return personForSeat(seatId)?.extension?.trim() ?? '';
+}
+function seatDescription(obj: PlanObject) {
+  const extension = personExtension(obj.seatId);
+  return [seatFor(obj)?.number, personName(obj.seatId) || '미배정', extension ? `내선 ${extension}` : '']
+    .filter(Boolean)
+    .join(' · ');
+}
+function deskLabelSize(obj: PlanObject) {
+  return Math.min(seatFontSize.value, Math.max(8, (obj.height - 12) / 2.8));
 }
 function matches(obj: PlanObject) {
   if (
@@ -761,6 +856,7 @@ function add(kind: ObjectKind, x: number, y: number) {
       width: kind === 'zone' ? 400 : kind === 'wall' ? 1 : 120,
       height: kind === 'zone' ? 240 : kind === 'wall' ? 8 : kind === 'text' ? 40 : 80,
       rotation: 0,
+      ...(kind === 'text' ? { fontSize: 18, bold: false } : {}),
       seatId,
       teamId: kind === 'zone' ? (props.teams[0]?.id ?? null) : null,
     });
@@ -805,16 +901,22 @@ function remove() {
   });
   selected.value = [];
 }
-function property(key: keyof PlanObject, value: string | number | null) {
+function property(key: keyof PlanObject, value: string | number | boolean | null) {
   if (!current.value) return;
   if (
     typeof value === 'number' &&
     (!Number.isFinite(value) || (['width', 'height'].includes(key) && value <= 0))
   )
     return;
+  if (key === 'fontSize' && (typeof value !== 'number' || !Number.isInteger(value) || value < 8 || value > 120))
+    return;
   mutate((p) => {
     const o = p.objects.find((o) => o.id === current.value?.id);
-    if (o) Object.assign(o, { [key]: value });
+    if (o) {
+      Object.assign(o, { [key]: value });
+      if (key === 'fontSize' && typeof value === 'number')
+        o.height = Math.max(o.height, value + 8);
+    }
   });
 }
 function seatProperty(key: 'number' | 'teamId', value: string | null) {

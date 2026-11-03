@@ -41,6 +41,7 @@ const rendered = computed(() => {
 .markdown-content :deep(strong) { font-weight: 700; }
 .markdown-content :deep(em)     { font-style: italic; }
 .markdown-content :deep(a)      { color: #1976d2; text-decoration: underline; }
+.markdown-content :deep(img)    { max-width: 100%; height: auto; }
 .markdown-content :deep(table)  { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
 .markdown-content :deep(th),
 .markdown-content :deep(td)     { border: 1px solid #e0e0e0; padding: 0.35em 0.6em; }

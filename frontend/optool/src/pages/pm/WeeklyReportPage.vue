@@ -69,7 +69,7 @@
           <q-td :props="props" class="q-gutter-xs">
             <q-btn flat dense icon="open_in_new" size="sm" color="primary" title="상세 보기" @click="openDetail(props.row)" />
             <q-btn flat dense icon="edit" size="sm" color="grey-7" @click="openEdit(props.row)" />
-            <q-btn flat dense icon="refresh" size="sm" color="teal" title="이슈 재집계"
+            <q-btn v-if="props.row.status === 'DRAFT' || props.row.status === 'REVIEWING'" flat dense icon="refresh" size="sm" color="teal" title="이슈 재집계"
               :loading="refreshingId === props.row.id" @click="doRefresh(props.row)" />
             <q-btn flat dense icon="download" size="sm" color="positive" @click="downloadDetail(props.row.id)" />
             <q-btn flat dense icon="delete" size="sm" color="negative" @click="confirmDelete(props.row)" />

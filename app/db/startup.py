@@ -449,7 +449,6 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
     "spaces": {"submenus": [
         {"title": "인원 현황", "icon": "fa-solid fa-users", "link": "/spaces/people"},
         {"title": "공간 관리", "icon": "fa-solid fa-building", "link": "/spaces/rooms"},
-        {"title": "좌석 배정", "icon": "fa-solid fa-chair", "link": "/spaces/seats"},
     ]},
     "asset": {
         "submenus": [
@@ -519,11 +518,11 @@ async def seed_system_menu_extras() -> None:
             await menus_col.update_one({"slug": slug}, {"$set": update})
 
 
-async def migrate_space_plan_submenu() -> None:
-    """배치도를 공간 관리의 사무실 상세로 통합한다. 다른 메뉴 설정은 보존한다."""
+async def migrate_space_submenus() -> None:
+    """배치도와 좌석 배정을 공간 관리의 사무실 상세로 통합한다."""
     await MongoClientManager.get_menus_collection().update_one(
-        {"slug": "spaces", "submenus.link": "/spaces/plans"},
-        {"$pull": {"submenus": {"link": "/spaces/plans"}}},
+        {"slug": "spaces"},
+        {"$pull": {"submenus": {"link": {"$in": ["/spaces/plans", "/spaces/seats"]}}}},
     )
 
 
@@ -1380,7 +1379,7 @@ async def run_startup() -> None:
     await initialize_spaces()
     await seed_system_menus()
     await seed_system_menu_extras()
-    await migrate_space_plan_submenu()
+    await migrate_space_submenus()
     await migrate_inspection_tasks()
     from app.services.monthly_inspection_reports import indexes as report_indexes
     await report_indexes()

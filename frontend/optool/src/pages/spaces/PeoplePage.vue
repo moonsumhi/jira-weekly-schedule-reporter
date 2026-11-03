@@ -185,7 +185,12 @@
           ><q-td :props="p"
             ><div class="space-person">
               <q-avatar size="34px">{{ p.row.name.slice(0, 1) }}</q-avatar
-              ><strong>{{ p.row.name }}</strong>
+              ><div>
+                <strong>{{ p.row.name }}</strong>
+                <div v-if="p.row.extension?.trim()" class="text-caption space-muted">
+                  내선 {{ p.row.extension }}
+                </div>
+              </div>
             </div></q-td
           ></template
         >
@@ -221,8 +226,9 @@
               icon="event_seat"
               :label="personSeat(p.row.id)?.number"
               :to="{
-                path: '/spaces/seats',
-                query: { room: personSeat(p.row.id)?.roomId, person: p.row.id },
+                name: 'space-room-plan',
+                params: { roomId: personSeat(p.row.id)?.roomId },
+                query: { seat: personSeat(p.row.id)?.id },
               }"
               ><q-tooltip>배치도에서 좌석 확인</q-tooltip></q-btn
             ><span v-else class="space-muted">미배정</span></q-td
@@ -327,6 +333,16 @@
                   @update:model-value="form.roomId = null"
                 />
                 <q-input v-model="form.title" outlined dense label="직책" maxlength="100" />
+                <q-input
+                  v-model="form.extension"
+                  outlined
+                  dense
+                  type="tel"
+                  inputmode="tel"
+                  label="내선번호"
+                  maxlength="30"
+                  hint="예: 1234"
+                />
                 <q-select
                   v-model="form.roomId"
                   :options="
@@ -458,6 +474,7 @@ const empty = () => ({
   name: '',
   teamId: '',
   title: '',
+  extension: '',
   roomId: null as string | null,
   userId: null as string | null,
   active: true,
@@ -532,6 +549,7 @@ function edit(person?: Person) {
         name: person.name,
         teamId: person.teamId,
         title: person.title,
+        extension: person.extension ?? '',
         roomId: person.roomId,
         userId: person.userId,
         active: person.active,

@@ -203,6 +203,60 @@ class SpaceTests(unittest.IsolatedAsyncioTestCase):
             650,
         )
 
+    async def test_text_style_survives_save_publish_and_clone(self):
+        plan = self.plan()
+        plan["objects"].append({
+            "id": "text-title", "kind": "text", "name": "데이터운영팀",
+            "x": 100, "y": 300, "width": 500, "height": 80,
+            "fontSize": 48, "bold": True,
+        })
+        await self.save(plan)
+        draft = (await self.client.get(f"/spaces/rooms/{self.r}/plan?draft=true")).json()
+        self.assertEqual(draft["objects"][-1]["font_size"], 48)
+        self.assertTrue(draft["objects"][-1]["bold"])
+        await self.publish()
+        published = (await self.client.get(f"/spaces/rooms/{self.r}/plan")).json()
+        self.assertEqual(published["objects"][-1]["font_size"], 48)
+        self.assertTrue(published["objects"][-1]["bold"])
+        result = await self.client.post(
+            f"/spaces/rooms/{self.r}/plan/clone",
+            json={"version": 2, "targetRoomId": self.r2},
+        )
+        self.assertEqual(result.status_code, 201, result.text)
+        clone = (await self.client.get(f"/spaces/rooms/{self.r2}/plan?draft=true")).json()
+        self.assertNotEqual(clone["objects"][-1]["id"], "text-title")
+        self.assertEqual(clone["objects"][-1]["font_size"], 48)
+        self.assertTrue(clone["objects"][-1]["bold"])
+        plan["version"] = 2
+        plan["objects"][-1].update(fontSize=24, bold=False)
+        await self.save(plan)
+        self.assertTrue((await self.client.get(f"/spaces/rooms/{self.r}/plan")).json()["objects"][-1]["bold"])
+        await self.publish(3)
+        updated = (await self.client.get(f"/spaces/rooms/{self.r}/plan")).json()["objects"][-1]
+        self.assertEqual(updated["font_size"], 24)
+        self.assertFalse(updated["bold"])
+
+    async def test_text_style_defaults_and_invalid_size_preserve_plan(self):
+        plan = self.plan()
+        plan["objects"].append({
+            "id": "text-old", "kind": "text", "name": "기존 텍스트",
+            "x": 100, "y": 300, "width": 300, "height": 40,
+        })
+        await self.save(plan)
+        saved = (await self.client.get(f"/spaces/rooms/{self.r}/plan?draft=true")).json()
+        self.assertEqual(saved["objects"][-1]["font_size"], 18)
+        self.assertFalse(saved["objects"][-1]["bold"])
+        plan["version"] = 1
+        for value in (0, 7, 121, 18.5, "abc", None):
+            with self.subTest(size=value):
+                plan["objects"][-1]["fontSize"] = value
+                response = await self.client.put(f"/spaces/rooms/{self.r}/plan", json=plan)
+                self.assertEqual(response.status_code, 422, response.text)
+                self.assertEqual(
+                    (await self.client.get(f"/spaces/rooms/{self.r}/plan?draft=true")).json(),
+                    saved,
+                )
+
     async def test_move_person_is_atomic_and_no_plan_edit(self):
         await self.save()
         await self.publish()
@@ -515,33 +569,62 @@ class SpaceTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(res.status_code, 409)
 
+    async def test_person_extension_round_trip_and_validation(self):
+        state = await svc.load()
+        svc.find(state, "people", self.p).pop("extension", None)
+        await M.get_db()[svc.REGISTRY].replace_one({"_id": "directory"}, state)
+        self.assertNotIn("extension", svc.find(await svc.load(), "people", self.p))
+        payload = {
+            "name": "홍길동", "teamId": self.t1["id"], "roomId": self.r,
+            "extension": " 1234 ",
+        }
+        response = await self.client.put(
+            f"/spaces/people/{self.p}", params={"revision": await self.revision()}, json=payload
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        people = (await self.client.get("/spaces")).json()["people"]
+        self.assertEqual(next(p for p in people if p["id"] == self.p)["extension"], "1234")
+        payload["extension"] = "1" * 31
+        response = await self.client.put(
+            f"/spaces/people/{self.p}", params={"revision": await self.revision()}, json=payload
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(svc.find(await svc.load(), "people", self.p)["extension"], "1234")
+
     async def test_space_menu_consolidation_preserves_customization(self):
-        from app.db.startup import migrate_space_plan_submenu, seed_system_menu_extras
+        from app.db.startup import migrate_space_submenus, seed_system_menu_extras
 
         menus = M.get_menus_collection()
         retained = [
             {"title": "공간 설정", "link": "/spaces/rooms", "icon": "custom", "require_admin": True},
-            {"title": "좌석 배정", "link": "/spaces/seats"},
             {"title": "내 바로가기", "link": "/custom"},
         ]
         await menus.insert_one({
             "slug": "spaces", "title": "내 공간 메뉴",
-            "submenus": [*retained, {"title": "배치도 관리", "link": "/spaces/plans"}],
+            "submenus": [
+                *retained,
+                {"title": "좌석 배정", "link": "/spaces/seats"},
+                {"title": "배치도 관리", "link": "/spaces/plans"},
+            ],
         })
-        await menus.insert_one({"slug": "custom", "submenus": [{"link": "/spaces/plans"}]})
+        await menus.insert_one({"slug": "custom", "submenus": [
+            {"link": "/spaces/plans"}, {"link": "/spaces/seats"},
+        ]})
         for _ in range(2):
             await seed_system_menu_extras()
-            await migrate_space_plan_submenu()
+            await migrate_space_submenus()
         result = await menus.find_one({"slug": "spaces"})
         self.assertEqual(result["title"], "내 공간 메뉴")
         self.assertEqual(result["submenus"], retained)
-        self.assertEqual((await menus.find_one({"slug": "custom"}))["submenus"], [{"link": "/spaces/plans"}])
+        self.assertEqual((await menus.find_one({"slug": "custom"}))["submenus"], [
+            {"link": "/spaces/plans"}, {"link": "/spaces/seats"},
+        ])
         await menus.delete_one({"slug": "spaces"})
         await menus.insert_one({"slug": "spaces"})
         await seed_system_menu_extras()
         self.assertEqual(
             [s["link"] for s in (await menus.find_one({"slug": "spaces"}))["submenus"]],
-            ["/spaces/people", "/spaces/rooms", "/spaces/seats"],
+            ["/spaces/people", "/spaces/rooms"],
         )
 
     async def test_initializer_is_idempotent(self):
@@ -1042,6 +1125,12 @@ class SpaceTests(unittest.IsolatedAsyncioTestCase):
         await self.save()
         await self.publish()
         await self.assign()
+        response = await self.client.put(
+            f"/spaces/people/{self.p}",
+            params={"revision": await self.revision()},
+            json={"name": "홍길동", "teamId": self.t1["id"], "roomId": self.r, "extension": "1234"},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
         other = await self.create("people", {"name": "김다른팀", "teamId": self.t2["id"], "title": "책임"})
         await self.assign("seat-3", other)
         await self.create("people", {"name": "배정되지않은인원", "teamId": self.t1["id"]})
@@ -1063,8 +1152,13 @@ class SpaceTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.content.startswith(b"%PDF-"))
         with pymupdf.open(stream=result.content, filetype="pdf") as doc, pymupdf.open(stream=original.content, filetype="pdf") as old:
             text = "\n".join(page.get_text() for page in doc)
-            for expected in ("701호", "본관", "7층", "A-01", "A-02", "A-03", "홍길동", "김다른팀", "책임", self.t1["name"], self.t2["name"], "미배정", "KST"):
+            for expected in ("701호", "본관", "7층", "A-01", "A-02", "A-03", "홍길동", "김다른팀", "책임", "내선번호", "1234", self.t1["name"], self.t2["name"], "미배정", "KST"):
                 self.assertIn(expected, text)
+            self.assertIn("1234", doc[0].get_text())
+            self.assertIn("1234", doc[1].get_text())
+            for seat_number in ("A-01", "A-02", "A-03"):
+                self.assertIn(seat_number, doc[0].get_text())
+                self.assertIn(seat_number, doc[1].get_text())
             for hidden in ("임시저장전용", "DRAFT-01", "배정되지않은인원", "702호"):
                 self.assertNotIn(hidden, text)
             self.assertEqual(len(doc), 2)
@@ -1146,6 +1240,80 @@ class SpaceTests(unittest.IsolatedAsyncioTestCase):
                 for drawing in page.get_drawings():
                     self.assertTrue((page.rect + (-1, -1, 1, 1)).contains(drawing["rect"]))
             self.assertGreater(len(doc[0].get_pixmap(matrix=pymupdf.Matrix(0.5, 0.5)).samples), 0)
+
+    async def test_pdf_preserves_text_size_and_bold(self):
+        import pymupdf
+
+        plan = self.plan()
+        for index, (name, size, bold) in enumerate((
+            ("큰제목", 48, True), ("일반제목", 24, False),
+        )):
+            plan["objects"].append({
+                "id": f"text-{index}", "kind": "text", "name": name,
+                "x": 100, "y": 300 + index * 120, "width": 500, "height": 80,
+                "fontSize": size, "bold": bold,
+            })
+        await self.save(plan)
+        await self.publish()
+        result = await self.client.get(f"/spaces/rooms/{self.r}/plan/pdf")
+        self.assertEqual(result.status_code, 200, result.text if result.status_code != 200 else "")
+        with pymupdf.open(stream=result.content, filetype="pdf") as doc:
+            spans = doc[0].get_texttrace()
+            by_name = {}
+            for span in spans:
+                text = "".join(chr(char[0]) for char in span["chars"])
+                by_name.setdefault(text, []).append(span)
+            bold_spans, regular_spans = by_name["큰제목"], by_name["일반제목"]
+            self.assertAlmostEqual(bold_spans[0]["size"] / regular_spans[0]["size"], 2, places=4)
+            self.assertTrue(any(span["type"] == 1 for span in bold_spans))
+            self.assertTrue(all(span["type"] == 0 for span in regular_spans))
+
+    async def test_pdf_keeps_rotated_seat_labels_horizontal_and_centered(self):
+        import math
+        import pymupdf
+        from app.models.spaces import PlanInput
+        from app.services.spaces.pdf import Report
+
+        state = await svc.load()
+        person = svc.find(state, "people", self.p)
+        state["assignments"] = [{"seat_id": "seat-1", "person_id": self.p}]
+        plan = PlanInput.model_validate(self.plan()).model_dump()
+        desk = next(obj for obj in plan["objects"] if obj["seat_id"] == "seat-1")
+        desk.update(width=120, height=80)
+        for extension in ("1234", ""):
+            person["extension"] = extension
+            for rotation in (0, 45, 90, 180, 270, -90):
+                with self.subTest(rotation=rotation, extension=extension):
+                    desk["rotation"] = rotation
+                    report = Report(state, svc.find(state, "rooms", self.r), plan, None)
+                    try:
+                        page = report.doc.new_page(width=700, height=700)
+                        page.insert_font(fontname="spacefont", fontbuffer=report.font.buffer)
+                        report.object(page, desk, pymupdf.Point(250, 250), 1)
+                        spans = {
+                            "".join(chr(char[0]) for char in span["chars"]): span
+                            for span in page.get_texttrace()
+                        }
+                        angle = math.radians(rotation)
+                        center_x = 250 + desk["x"] + 60 * math.cos(angle) - 40 * math.sin(angle)
+                        center_y = 250 + desk["y"] + 60 * math.sin(angle) + 40 * math.cos(angle)
+                        for text in (["A-01", "홍길동", extension] if extension else ["A-01", "홍길동"]):
+                            span = spans[text]
+                            self.assertAlmostEqual(span["dir"][0], 1, places=5)
+                            self.assertAlmostEqual(span["dir"][1], 0, places=5)
+                            # Embedded font metrics and PDF coordinates have different precision.
+                            self.assertAlmostEqual((span["bbox"][0] + span["bbox"][2]) / 2, center_x, delta=0.05)
+                        name_y = spans["홍길동"]["chars"][0][2][1]
+                        self.assertAlmostEqual(name_y, center_y + (-4 if extension else 4), places=3)
+                        self.assertAlmostEqual(spans["홍길동"]["size"], 14, places=4)
+                        self.assertLess(spans["A-01"]["size"], spans["홍길동"]["size"])
+                        self.assertLess(spans["A-01"]["chars"][0][2][1], name_y)
+                        if extension:
+                            extension_y = spans[extension]["chars"][0][2][1]
+                            self.assertGreater(extension_y, name_y)
+                            self.assertAlmostEqual(spans[extension]["size"], 14 * 0.82, places=4)
+                    finally:
+                        report.doc.close()
 
     async def test_concurrent_pdf_exports_leave_registry_unchanged(self):
         await self.save()

@@ -61,6 +61,9 @@
               <div class="text-caption space-muted">현재 배정 인원</div>
               <strong>{{ occupant.name }}</strong>
               <div class="text-caption space-muted">{{ occupant.title || team?.name }}</div>
+              <div v-if="occupant.extension?.trim()" class="text-caption space-muted">
+                내선 {{ occupant.extension }}
+              </div>
             </div>
             <q-space /><q-badge color="green-1" text-color="green-9" label="배정됨" />
           </div>
@@ -74,7 +77,7 @@
               dense
               autofocus
               clearable
-              label="이름 또는 직책 검색"
+              label="이름 / 직책 / 내선번호 검색"
               :disable="busy"
             >
               <template #prepend><q-icon name="search" /></template>
@@ -113,11 +116,13 @@
                       person.title
                     }}</span></q-item-label
                   >
-                  <q-item-label caption>{{
-                    currentSeat(person.id)
-                      ? `현재 ${seatLabel(currentSeat(person.id))} · 선택 시 이 좌석으로 이동`
-                      : '배정된 좌석 없음'
-                  }}</q-item-label>
+                  <q-item-label caption>
+                    <span v-if="person.extension?.trim()">내선 {{ person.extension }} · </span>{{
+                      currentSeat(person.id)
+                        ? `현재 ${seatLabel(currentSeat(person.id))} · 선택 시 이 좌석으로 이동`
+                        : '배정된 좌석 없음'
+                    }}
+                  </q-item-label>
                 </q-item-section>
               </q-item>
             </q-list>
@@ -128,7 +133,7 @@
               </div>
               <span class="text-caption space-muted">{{
                 search
-                  ? '다른 이름이나 직책으로 검색해 주세요.'
+                  ? '다른 이름, 직책 또는 내선번호로 검색해 주세요.'
                   : '인원 현황에서 인원을 먼저 등록해 주세요.'
               }}</span>
               <q-btn
@@ -253,7 +258,7 @@ const eligible = computed(() =>
 );
 const candidates = computed(() =>
   eligible.value.filter((p) =>
-    `${p.name} ${p.title}`.toLowerCase().includes((search.value || '').trim().toLowerCase()),
+    `${p.name} ${p.title} ${p.extension ?? ''}`.toLowerCase().includes((search.value || '').trim().toLowerCase()),
   ),
 );
 const chosenPerson = computed(() => eligible.value.find((p) => p.id === personId.value));

@@ -25,14 +25,6 @@
         :room-id="roomId"
         :disabled="loading || planLoading || busy || !!error || !!planError"
       />
-      <q-btn
-        v-if="room"
-        outline
-        color="primary"
-        icon="event_seat"
-        label="좌석 목록"
-        :to="{ path: '/spaces/seats', query: { room: roomId } }"
-      />
     </SpaceHeader>
     <section v-if="!room && !loading && !error" class="space-panel">
       <SpaceEmpty
@@ -56,17 +48,6 @@
             >석</span
           >
         </div>
-        <q-space />
-        <q-select
-          v-model="teamFilter"
-          :options="roomTeams.map((t) => ({ label: t.name, value: t.id }))"
-          emit-value
-          map-options
-          clearable
-          outlined
-          dense
-          label="팀별 보기"
-        />
       </div>
       <section class="space-panel plan-workspace">
         <div class="plan-room-teams">
@@ -165,6 +146,52 @@
             이어서 편집하려면 임시저장하세요.</span
           >
         </div>
+        <div v-if="editing || plan.published" class="plan-seat-search" role="group" aria-label="배치도 검색 및 필터">
+          <div class="plan-seat-search__fields" :class="{ 'plan-seat-search__fields--editing': editing }">
+            <q-input
+              v-if="!editing"
+              v-model="seatSearch"
+              outlined
+              dense
+              clearable
+              label="배치도에서 좌석 찾기"
+              placeholder="이름 또는 내선번호"
+            >
+              <template #prepend><q-icon name="search" size="20px" /></template>
+            </q-input>
+            <q-select
+              v-model="teamFilter"
+              :options="roomTeams.map((t) => ({ label: t.name, value: t.id }))"
+              emit-value
+              map-options
+              clearable
+              outlined
+              dense
+              label="팀별 보기"
+            />
+          </div>
+          <div v-if="!editing" class="plan-seat-search__options">
+            <q-toggle v-model="vacantOnly" dense label="미배정만" />
+            <q-btn
+              flat
+              dense
+              color="primary"
+              label="초기화"
+              :disable="!seatSearch && !teamFilter && !vacantOnly"
+              @click="resetSeatFilters"
+            />
+          </div>
+          <div v-if="!editing && seatSearch?.trim()" class="plan-seat-search__results" role="status" aria-live="polite">
+            <template v-if="filteredSeats.length">
+              <span>검색 결과 {{ focusedSearchIndex + 1 }} / {{ filteredSeats.length }}</span>
+              <q-btn flat dense round icon="chevron_left" aria-label="이전 검색 결과"
+                :disable="filteredSeats.length < 2" @click="moveSearchFocus(-1)" />
+              <q-btn flat dense round icon="chevron_right" aria-label="다음 검색 결과"
+                :disable="filteredSeats.length < 2" @click="moveSearchFocus(1)" />
+            </template>
+            <span v-else>일치하는 좌석이 없습니다.</span>
+          </div>
+        </div>
         <q-skeleton v-if="planLoading" height="520px" square animation="fade" />
         <FloorPlanCanvas
           v-else-if="!planError && (editing || plan.published)"
@@ -176,7 +203,9 @@
           :assignments="data.assignments"
           :people="data.people"
           :team-filter="teamFilter"
-          :selected-seat-id="selectedSeatId"
+          :visible-seat-ids="(editing ? plan.seats : filteredSeats).map((seat) => seat.id)"
+          :selected-seat-id="seatSearch?.trim() ? null : selectedSeatId"
+          :focus-seat-id="focusedSeatId"
           @select-seat="openSeat"
         />
         <SpaceEmpty
@@ -306,6 +335,9 @@ const roomId = computed(() => (typeof route.params.roomId === 'string' ? route.p
 const room = computed(() => data.value.rooms.find((r) => r.id === roomId.value));
 const selectedSeatId = ref<string | null>(null),
   assignmentOpen = ref(false);
+const seatSearch = ref(''),
+  vacantOnly = ref(false),
+  focusedSearchIndex = ref(0);
 const editing = ref(false),
   plan = ref(blankPlan()),
   baseline = ref(''),
@@ -379,6 +411,54 @@ const occupied = computed(
   () =>
     plan.value.seats.filter((s) => data.value.assignments.some((a) => a.seatId === s.id)).length,
 );
+function occupant(seatId: string) {
+  const assignment = data.value.assignments.find((a) => a.seatId === seatId);
+  return data.value.people.find((person) => person.id === assignment?.personId);
+}
+const filteredSeats = computed(() => {
+  const query = String(seatSearch.value ?? '').trim().toLocaleLowerCase();
+  return plan.value.seats.filter((seat) => {
+    const person = occupant(seat.id);
+    if (teamFilter.value && seat.teamId !== teamFilter.value) return false;
+    if (vacantOnly.value && person) return false;
+    if (!query) return true;
+    return [person?.name, person?.extension]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase()
+      .includes(query);
+  });
+});
+watch([seatSearch, teamFilter, vacantOnly], () => { focusedSearchIndex.value = 0; });
+watch(filteredSeats, (seats) => {
+  if (focusedSearchIndex.value >= seats.length) focusedSearchIndex.value = 0;
+});
+function moveSearchFocus(step: number) {
+  if (!filteredSeats.value.length) return;
+  focusedSearchIndex.value = (focusedSearchIndex.value + step + filteredSeats.value.length) % filteredSeats.value.length;
+}
+function resetSeatFilters() {
+  seatSearch.value = '';
+  vacantOnly.value = false;
+  teamFilter.value = null;
+}
+const linkedSeatId = computed(() => {
+  const requestedSeat = typeof route.query.seat === 'string' ? route.query.seat : '';
+  const personId = typeof route.query.person === 'string' ? route.query.person : '';
+  const seatId = requestedSeat || data.value.assignments.find((a) => a.personId === personId)?.seatId || '';
+  return plan.value.seats.some((seat) => seat.id === seatId) ? seatId : null;
+});
+const focusedSeatId = computed<string | null>(() =>
+  seatSearch.value?.trim() ? filteredSeats.value[focusedSearchIndex.value]?.id ?? null : linkedSeatId.value,
+);
+watch(linkedSeatId, (id) => {
+  if (!id) return;
+  selectedSeatId.value = id;
+  const teamId = plan.value.seats.find((seat) => seat.id === id)?.teamId;
+  if (teamFilter.value && teamFilter.value !== teamId) teamFilter.value = null;
+  seatSearch.value = '';
+  vacantOnly.value = false;
+}, { immediate: true });
 const cloneTargets = computed(() =>
   data.value.rooms
     .filter(
@@ -412,6 +492,8 @@ watch(
   () => {
     editing.value = route.query.edit === '1' && canEdit.value;
     teamFilter.value = null;
+    seatSearch.value = '';
+    vacantOnly.value = false;
     teamDialog.value = false;
     assignmentOpen.value = false;
     selectedSeatId.value = null;
@@ -606,13 +688,56 @@ onBeforeRouteUpdate(async (to) => {
   border: 0;
   border-radius: 0;
 }
+.plan-seat-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--space-line);
+}
+.plan-seat-search__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
+  gap: 12px;
+  flex: 1 1 460px;
+  max-width: 720px;
+  min-width: 0;
+}
+.plan-seat-search__fields--editing {
+  grid-template-columns: minmax(0, 1fr);
+  flex: 0 1 220px;
+}
+.plan-seat-search__options {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+.plan-seat-search__results {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--space-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
 @media (max-width: 700px) {
-  .space-room-stats {
-    width: 100%;
-    order: 3;
-  }
   .plan-actions__buttons {
     gap: 6px;
+  }
+  .plan-seat-search__fields:not(.plan-seat-search__fields--editing) {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .plan-seat-search__results {
+    margin-left: 0;
+  }
+}
+@media (max-width: 480px) {
+  .plan-seat-search__fields {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

@@ -395,42 +395,32 @@ async def get_audit_log(
         "DBMS": MongoClientManager.ASSETS_DBMS_HISTORY,
         "VMware": MongoClientManager.ASSETS_VMWARE_HISTORY,
     }
-    category_map = {
-        **asset_category_map,
-        "작업계획서": MongoClientManager.JOB_PLANS_HISTORY,
-        "작업계획서(서비스외)": MongoClientManager.JOB_NON_SERVICE_PLANS_HISTORY,
-        "작업결과서": MongoClientManager.JOB_RESULTS_HISTORY,
-        "당직": MongoClientManager.WATCH_HISTORY,
-        "로그인": MongoClientManager.AUTH_LOGS,
-        "활동": MongoClientManager.ACTIVITY_LOGS,
-        "SR": MongoClientManager.ACTIVITY_LOGS,
-        "스케줄 관리": MongoClientManager.ACTIVITY_LOGS,
-        "작업 관리": MongoClientManager.ACTIVITY_LOGS,
-        "작업계획서(서비스)": MongoClientManager.ACTIVITY_LOGS,
-        "작업계획서(서비스외)": MongoClientManager.ACTIVITY_LOGS,
-        "작업결과서": MongoClientManager.ACTIVITY_LOGS,
-        "반입신청서": MongoClientManager.ACTIVITY_LOGS,
-        "장애보고서": MongoClientManager.ACTIVITY_LOGS,
-        "당직 시간표": MongoClientManager.ACTIVITY_LOGS,
-        "게시판": MongoClientManager.ACTIVITY_LOGS,
-        "메뉴 관리": MongoClientManager.ACTIVITY_LOGS,
-        "회원 관리": MongoClientManager.ACTIVITY_LOGS,
-        "자산 관리": MongoClientManager.ACTIVITY_LOGS,
-        "관리자 설정": MongoClientManager.ACTIVITY_LOGS,
-        "서버실 점검": MongoClientManager.ACTIVITY_LOGS,
-    }
+    # One category can have both a dedicated history collection and activity
+    # logs. A dict keyed by category silently discarded the earlier collection.
+    category_sources = list(asset_category_map.items()) + [
+        ("작업계획서", MongoClientManager.JOB_PLANS_HISTORY),
+        ("작업계획서(서비스외)", MongoClientManager.JOB_NON_SERVICE_PLANS_HISTORY),
+        ("작업결과서", MongoClientManager.JOB_RESULTS_HISTORY),
+        ("당직", MongoClientManager.WATCH_HISTORY),
+        ("로그인", MongoClientManager.AUTH_LOGS),
+    ] + [(name, MongoClientManager.ACTIVITY_LOGS) for name in (
+        "활동", "SR", "스케줄 관리", "작업 관리", "작업계획서(서비스)",
+        "작업계획서(서비스외)", "작업결과서", "반입신청서", "장애보고서",
+        "당직 시간표", "게시판", "메뉴 관리", "회원 관리", "자산 관리",
+        "관리자 설정", "서버실 점검", "인적자원 관리",
+    )]
 
-    if category and category in category_map:
-        target_categories = {category: category_map[category]}
+    if category and any(name == category for name, _ in category_sources):
+        target_categories = [(name, collection) for name, collection in category_sources if name == category]
     elif category_group == "assets":
-        target_categories = asset_category_map
+        target_categories = list(asset_category_map.items())
     else:
-        target_categories = category_map
+        target_categories = category_sources
 
     activity_specific_categories = {
         "SR", "스케줄 관리", "작업 관리", "작업계획서(서비스)", "작업계획서(서비스외)",
         "작업결과서", "반입신청서", "장애보고서", "당직 시간표", "게시판", "메뉴 관리",
-        "회원 관리", "자산 관리", "관리자 설정", "서버실 점검",
+        "회원 관리", "자산 관리", "관리자 설정", "서버실 점검", "인적자원 관리",
     }
 
     # Build email→name lookup for display and actor filtering.  Older audit
@@ -462,7 +452,7 @@ async def get_audit_log(
         query["changed_at"] = dt_filter
 
     all_items: list[dict] = []
-    for cat_name, col_name in target_categories.items():
+    for cat_name, col_name in target_categories:
         col = db[col_name]
         category_query = dict(query)
         if col_name == MongoClientManager.ACTIVITY_LOGS:

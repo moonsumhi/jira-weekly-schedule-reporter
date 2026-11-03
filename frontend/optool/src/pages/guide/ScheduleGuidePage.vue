@@ -710,7 +710,7 @@
                 <q-btn flat icon="picture_as_pdf" label="PDF 출력" color="deep-orange" no-caps size="sm" />
                 <q-btn flat icon="download" label="Excel" color="positive" no-caps size="sm" />
               </div>
-              <div class="text-caption text-grey-6">[재집계]는 초안 상태에서만 활성화 · [목록 Excel]은 주간 보고 목록 화면에서도 제공</div>
+              <div class="text-caption text-grey-6">[재집계]는 초안 및 검토중 상태에서 사용 가능 · [목록 Excel]은 주간 보고 목록 화면에서도 제공</div>
             </div>
 
           </div>
@@ -1089,7 +1089,7 @@ const scenarios: Scenario[] = [
       },
       {
         label: '[재집계] · [미리보기] · [PDF 출력] · [Excel]',
-        desc: '초안 상태에서 [재집계]를 누르면 이슈를 최신 데이터로 다시 불러옵니다. [미리보기]로 인쇄 레이아웃을 확인하고, [PDF 출력]으로 브라우저 인쇄 기능을 이용해 PDF를 저장합니다. [Excel]로 보고서 데이터를 .xlsx 파일로 다운로드합니다.',
+        desc: '초안 또는 검토중 상태에서 [재집계]를 누르면 이슈를 최신 데이터로 다시 불러옵니다. 확정 후에는 확정 해제해야 재집계할 수 있습니다. [미리보기]로 인쇄 레이아웃을 확인하고, [PDF 출력]으로 브라우저 인쇄 기능을 이용해 PDF를 저장합니다. [Excel]로 보고서 데이터를 .xlsx 파일로 다운로드합니다.',
       },
       {
         label: 'PDF 출력물 구성 이해',

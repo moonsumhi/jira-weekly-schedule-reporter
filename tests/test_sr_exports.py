@@ -1,5 +1,6 @@
 """Exercise SR download routes and generated workbooks without accessing MongoDB."""
 import io
+import json
 import unittest
 import tempfile
 from pathlib import Path
@@ -46,7 +47,9 @@ class SRExportTests(unittest.IsolatedAsyncioTestCase):
         def collection(rows):
             cursor = SimpleNamespace(to_list=AsyncMock(return_value=rows))
             cursor.sort = Mock(return_value=cursor)
-            return SimpleNamespace(find=Mock(return_value=cursor))
+            cursor.skip = Mock(return_value=cursor)
+            cursor.limit = Mock(return_value=cursor)
+            return SimpleNamespace(find=Mock(return_value=cursor), count_documents=AsyncMock(return_value=len(rows)))
         self.service = collection([self.doc])
         self.service.find_one = AsyncMock(return_value=self.doc)
         self.db = {
@@ -64,8 +67,8 @@ class SRExportTests(unittest.IsolatedAsyncioTestCase):
         self.client = AsyncClient(transport=ASGITransport(app=app, raise_app_exceptions=False), base_url='http://test')
         self.addAsyncCleanup(self.client.aclose)
 
-    async def download(self, path):
-        response = await self.client.get('/admin/schedule/service-requests' + path)
+    async def download(self, path, params=None):
+        response = await self.client.get('/admin/schedule/service-requests' + path, params=params)
         self.assertEqual(response.status_code, 200, response.text[:100] if response.status_code != 200 else '')
         self.assertEqual(response.headers['content-type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         disposition = response.headers['content-disposition']
@@ -281,6 +284,140 @@ class SRExportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(workbook.active['A2'].value, self.doc['sr_no'])
         self.assertEqual(workbook.active['B2'].value, self.doc['title'])
         self.service.find_one.assert_not_awaited()
+
+    async def assert_list_and_export_query(self, params, expected):
+        with patch.object(admin_requests, '_attach_comment_counts', AsyncMock()):
+            response = await self.client.get('/admin/schedule/service-requests', params=params)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(self.service.find.call_args.args[0], expected)
+        await self.download('/export', params)
+        self.assertEqual(self.service.find.call_args.args[0], expected)
+
+    async def test_list_and_export_share_every_filter_and_sort_order(self):
+        assignee = str(ObjectId())
+        params = {
+            'status': 'SUBMITTED,IN_PROGRESS', 'search': 'server[01]',
+            'request_type': 'SERVER_INFRA', 'requester_department': '운영팀', 'requester_name': '김요청',
+            'related_system': '백오피스', 'assignee_id': assignee, 'priority': 'HIGH', 'is_urgent': 'true',
+            'created_from': '2026-10-01', 'created_to': '2026-10-31',
+            'desired_due_from': '2026-11-01', 'desired_due_to': '2026-11-10',
+            'planned_due_from': '2026-11-02', 'planned_due_to': '2026-11-09',
+            'sort_by': 'planned_due_date', 'descending': 'false',
+        }
+        regex = {'$regex': r'server\[01\]', '$options': 'i'}
+        await self.assert_list_and_export_query(params, {
+            'deleted_at': None, 'status': {'$in': ['SUBMITTED', 'IN_PROGRESS']},
+            '$or': [{'title': regex}, {'sr_no': regex}, {'requester_name': regex}],
+            'request_type': 'SERVER_INFRA', 'requester_department': '운영팀',
+            'requester_name': '김요청', 'related_system': '백오피스',
+            'assignee_id': ObjectId(assignee), 'priority': 'HIGH', 'is_urgent': True,
+            'created_at': {'$gte': datetime(2026, 9, 30, 15, tzinfo=timezone.utc),
+                           '$lt': datetime(2026, 10, 31, 15, tzinfo=timezone.utc)},
+            'desired_due_date': {'$gte': datetime(2026, 11, 1, tzinfo=timezone.utc),
+                                 '$lte': datetime(2026, 11, 10, tzinfo=timezone.utc)},
+            'planned_due_date': {'$gte': datetime(2026, 11, 2, tzinfo=timezone.utc),
+                                 '$lte': datetime(2026, 11, 9, tzinfo=timezone.utc)},
+        })
+        self.service.find.return_value.sort.assert_called_with('planned_due_date', 1)
+
+    async def test_status_selection_and_exclusion_match_the_list(self):
+        for status, expected in (
+            ('SUBMITTED', {'$in': ['SUBMITTED']}),
+            ('SUBMITTED,REVIEWING', {'$in': ['SUBMITTED', 'REVIEWING']}),
+            ('!COMPLETED,!CLOSED', {'$nin': ['DRAFT', 'COMPLETED', 'CLOSED']}),
+            ('SUBMITTED,!CLOSED', {'$in': ['SUBMITTED']}),
+        ):
+            with self.subTest(status=status):
+                await self.assert_list_and_export_query({'status': status}, {'deleted_at': None, 'status': expected})
+
+    async def test_dropdown_selections_match_exact_values_in_list_and_export(self):
+        params = {'requester_department': '운영(1팀)', 'requester_name': '김요청', 'related_system': 'ERP[운영]+API'}
+        await self.assert_list_and_export_query(params, {
+            'deleted_at': None, 'status': {'$ne': 'DRAFT'}, **params,
+        })
+
+    async def test_multiple_selections_are_combined_across_filters_for_list_and_export(self):
+        ids = [str(ObjectId()), str(ObjectId())]
+        selections = {
+            'request_type': ['SERVER_INFRA', 'ETC'],
+            'requester_department': ['운영팀', '개발,기획팀'],
+            'requester_name': ['김요청', '이요청'],
+            'related_system': ['ERP[운영]', '백오피스'],
+            'assignee_id': ids,
+            'priority': ['HIGH', 'LOW'],
+        }
+        params = {f'{key}_in': json.dumps(values, ensure_ascii=False) for key, values in selections.items()}
+        expected = {key: {'$in': [ObjectId(v) for v in values] if key == 'assignee_id' else values}
+                    for key, values in selections.items()}
+        await self.assert_list_and_export_query(params, {'deleted_at': None, 'status': {'$ne': 'DRAFT'}, **expected})
+
+    async def test_invalid_multi_select_filter_returns_422(self):
+        for params in ({'assignee_id_in': '["invalid"]'}, {'priority_in': '{bad'}, {'requester_name_in': '[1]'}):
+            for path in ('', '/export'):
+                with self.subTest(params=params, path=path):
+                    response = await self.client.get('/admin/schedule/service-requests' + path, params=params)
+                    self.assertEqual(response.status_code, 422, response.text)
+
+    async def test_my_assigned_intersects_selected_assignees(self):
+        another = str(ObjectId())
+        for selected, expected in (([self.user.id, another], ObjectId(self.user.id)),
+                                   ([another, str(ObjectId())], {'$in': []})):
+            await self.assert_list_and_export_query(
+                {'my_assigned': 'true', 'assignee_id_in': json.dumps(selected)},
+                {'deleted_at': None, 'status': {'$ne': 'DRAFT'}, 'assignee_id': expected},
+            )
+
+    async def test_my_assigned_and_false_urgent_are_not_ignored(self):
+        await self.assert_list_and_export_query({'my_assigned': 'true', 'is_urgent': 'false'}, {
+            'deleted_at': None, 'status': {'$ne': 'DRAFT'}, 'assignee_id': ObjectId(self.user.id), 'is_urgent': False,
+        })
+
+    async def test_searching_a_displayed_type_label_also_matches_request_type(self):
+        label = admin_requests.REQUEST_TYPE_LABEL['SERVER_INFRA']
+        await self.download('/export', {'search': label})
+        conditions = self.service.find.call_args.args[0]['$or']
+        self.assertIn('SERVER_INFRA', conditions[-1]['request_type']['$in'])
+
+    async def test_unfiltered_export_downloads_all_pages_but_excludes_drafts_and_deleted(self):
+        cursor = self.service.find.return_value
+        cursor.to_list.return_value = [{**self.doc, 'sr_no': f'SR-{index:04d}'} for index in range(205)]
+        _, workbook = await self.download('/export', {'skip': 100, 'limit': 20})
+        self.service.find.assert_called_with({'deleted_at': None, 'status': {'$ne': 'DRAFT'}})
+        cursor.skip.assert_not_called()
+        cursor.limit.assert_not_called()
+        self.assertEqual(workbook.active.max_row, 206)
+        self.assertEqual(workbook.active['A2'].value, 'SR-0000')
+        self.assertEqual(workbook.active['A206'].value, 'SR-0204')
+
+    async def test_delay_filter_uses_all_matching_rows_not_the_visible_page(self):
+        cursor = self.service.find.return_value
+        cursor.to_list.return_value = [
+            {**self.doc, 'sr_no': 'LATE-1', 'status': 'IN_PROGRESS', 'planned_due_date': datetime(2000, 1, 1)},
+            {**self.doc, 'sr_no': 'LATE-2', 'status': 'ASSIGNED', 'desired_due_date': datetime(2000, 1, 1)},
+            {**self.doc, 'sr_no': 'FUTURE', 'status': 'IN_PROGRESS', 'desired_due_date': datetime(2999, 1, 1)},
+            {**self.doc, 'sr_no': 'CLOSED', 'planned_due_date': datetime(2000, 1, 1)},
+        ]
+        with patch.object(admin_requests, '_attach_comment_counts', AsyncMock()):
+            response = await self.client.get('/admin/schedule/service-requests', params={'is_delayed': 'true', 'limit': 1})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['total'], 2)
+        self.assertEqual(len(response.json()['items']), 1)
+        for delayed, expected in [('true', ['LATE-1', 'LATE-2']), ('false', ['FUTURE', 'CLOSED'])]:
+            _, workbook = await self.download('/export', {'is_delayed': delayed, 'limit': 1})
+            self.assertEqual([row[0] for row in workbook.active.iter_rows(min_row=2, values_only=True)], expected)
+
+    async def test_empty_filtered_export_has_only_column_headers(self):
+        self.service.find.return_value.to_list.return_value = []
+        _, workbook = await self.download('/export', {'search': 'no matching SR'})
+        self.assertEqual(workbook.active.max_row, 1)
+        self.assertEqual(workbook.active['A1'].value, 'SR번호')
+
+    async def test_legacy_export_dates_keep_inclusive_korean_calendar_days(self):
+        await self.download('/export', {'date_from': '2026-10-01', 'date_to': '2026-10-01'})
+        self.assertEqual(self.service.find.call_args.args[0]['created_at'], {
+            '$gte': datetime(2026, 9, 30, 15, tzinfo=timezone.utc),
+            '$lt': datetime(2026, 10, 1, 15, tzinfo=timezone.utc),
+        })
 
     async def test_filename_with_unicode_and_delimiters_remains_one_safe_header(self):
         self.doc['sr_no'] = 'SR-한글 "검토"; ✓\r\n예시'
