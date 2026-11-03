@@ -5,7 +5,7 @@ from typing import Any, Optional, Literal
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserCreate, UserPublic, Token
@@ -16,6 +16,16 @@ from app.core.security import (
     decode_token,
 )
 router = APIRouter()
+
+
+class UserProfileUpdate(BaseModel):
+    full_name: str | None = None
+    employee_number: str | None = None
+    host_pc_ip: str | None = None
+    position: str | None = None
+    extension: str | None = None
+
+    model_config = ConfigDict(extra="forbid")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -81,6 +91,10 @@ async def get_current_user(
         is_admin=bool(user.get("is_admin", False)),
         permissions=user.get("permissions", []),
         is_internal=internal,
+        employee_number=user.get("employee_number"),
+        host_pc_ip=user.get("host_pc_ip"),
+        position=user.get("position"),
+        extension=user.get("extension"),
     )
 
 
@@ -233,6 +247,22 @@ async def refresh_token(request: Request, token: str = Depends(oauth2_scheme)):
 @router.get("/me", response_model=UserPublic)
 async def read_me(current_user: UserPublic = Depends(get_current_user)):
     return current_user
+
+
+@router.patch("/profile", response_model=UserPublic)
+async def update_my_profile(
+    body: UserProfileUpdate,
+    current_user: UserPublic = Depends(get_current_user),
+):
+    users = MongoClientManager.get_users_collection()
+    update: dict[str, str | None] = {}
+    for field in body.model_fields_set:
+        value = getattr(body, field)
+        update[field] = value.strip() or None if value is not None else None
+
+    if update:
+        await users.update_one({"email": current_user.email}, {"$set": update})
+    return current_user.model_copy(update=update)
 
 
 @router.get("/home-ping", status_code=204)

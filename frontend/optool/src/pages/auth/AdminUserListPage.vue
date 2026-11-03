@@ -115,7 +115,7 @@
 
     <!-- Edit Dialog -->
     <q-dialog v-model="editDialog">
-      <q-card style="width: 520px; max-width: 95vw">
+      <q-card style="width: 520px; max-width: 95vw; max-height: 90vh">
         <q-card-section>
           <div class="text-h6">회원 정보 편집</div>
           <div class="text-body2 text-grey-7 q-mt-xs">{{ selected?.email }}</div>
@@ -123,7 +123,7 @@
 
         <q-separator />
 
-        <q-card-section class="q-gutter-md">
+        <q-card-section class="q-gutter-md" style="max-height: 65vh; overflow-y: auto">
           <div>
             <div class="text-subtitle2 q-mb-sm">기본 정보</div>
             <div class="column q-gutter-sm">
@@ -141,6 +141,10 @@
                 dense
                 clearable
               />
+              <q-input v-model="editEmployeeNumber" label="사번" outlined dense />
+              <q-input v-model="editHostPcIp" label="호스트 PC IP" outlined dense />
+              <q-input v-model="editPosition" label="직책" outlined dense />
+              <q-input v-model="editExtension" label="내선번호" outlined dense />
             </div>
           </div>
 
@@ -248,6 +252,10 @@ type User = {
   email: string
   fullName?: string | null
   team?: string | null
+  employeeNumber?: string | null
+  hostPcIp?: string | null
+  position?: string | null
+  extension?: string | null
   isAdmin: boolean
   isBlocked: boolean
   permissions: string[]
@@ -381,6 +389,10 @@ const editDialog = ref(false)
 const selected = ref<User | null>(null)
 const editFullName = ref('')
 const editTeam = ref<string | null>(null)
+const editEmployeeNumber = ref('')
+const editHostPcIp = ref('')
+const editPosition = ref('')
+const editExtension = ref('')
 const editIsAdmin = ref(false)
 const editPermissions = ref<string[]>([])
 const saving = ref(false)
@@ -402,6 +414,10 @@ function openEdit(user: User) {
   selected.value = user
   editFullName.value = user.fullName ?? ''
   editTeam.value = user.team ?? null
+  editEmployeeNumber.value = user.employeeNumber ?? ''
+  editHostPcIp.value = user.hostPcIp ?? ''
+  editPosition.value = user.position ?? ''
+  editExtension.value = user.extension ?? ''
   editIsAdmin.value = user.isAdmin
   editPermissions.value = [...(user.permissions ?? [])]
   editDialog.value = true
@@ -414,6 +430,10 @@ async function doSave() {
     const res = await api.patch<User>(`/admin/users/${selected.value.id}`, {
       full_name: editFullName.value || null,
       team: editTeam.value || null,
+      employee_number: editEmployeeNumber.value || null,
+      host_pc_ip: editHostPcIp.value || null,
+      position: editPosition.value || null,
+      extension: editExtension.value || null,
       is_admin: editIsAdmin.value,
       permissions: editIsAdmin.value ? [] : editPermissions.value,
     })

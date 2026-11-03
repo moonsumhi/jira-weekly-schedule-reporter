@@ -54,6 +54,10 @@ class UserListItem(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     team: Optional[str] = None
+    employee_number: Optional[str] = None
+    host_pc_ip: Optional[str] = None
+    position: Optional[str] = None
+    extension: Optional[str] = None
     is_admin: bool = False
     is_blocked: bool = False
     permissions: list[str] = []
@@ -64,6 +68,10 @@ class UserListItem(BaseModel):
 class UserUpdateRequest(BaseModel):
     full_name: Optional[str] = None
     team: Optional[str] = None
+    employee_number: Optional[str] = None
+    host_pc_ip: Optional[str] = None
+    position: Optional[str] = None
+    extension: Optional[str] = None
     is_admin: Optional[bool] = None
     permissions: Optional[list[str]] = None
 
@@ -81,6 +89,10 @@ async def list_users(
                 email=doc["email"],
                 full_name=doc.get("full_name"),
                 team=doc.get("team"),
+                employee_number=doc.get("employee_number"),
+                host_pc_ip=doc.get("host_pc_ip"),
+                position=doc.get("position"),
+                extension=doc.get("extension"),
                 is_admin=bool(doc.get("is_admin", False)),
                 is_blocked=bool(doc.get("is_blocked", False)),
                 permissions=doc.get("permissions", []),
@@ -109,6 +121,10 @@ async def update_user(
         update["full_name"] = body.full_name
     if body.team is not None:
         update["team"] = body.team
+    for field in ("employee_number", "host_pc_ip", "position", "extension"):
+        if field in body.model_fields_set:
+            value = getattr(body, field)
+            update[field] = value.strip() or None if value is not None else None
     if body.is_admin is not None:
         update["is_admin"] = body.is_admin
     if body.permissions is not None:
@@ -123,6 +139,10 @@ async def update_user(
         email=doc["email"],
         full_name=doc.get("full_name"),
         team=doc.get("team"),
+        employee_number=doc.get("employee_number"),
+        host_pc_ip=doc.get("host_pc_ip"),
+        position=doc.get("position"),
+        extension=doc.get("extension"),
         is_admin=bool(doc.get("is_admin", False)),
         is_blocked=bool(doc.get("is_blocked", False)),
         permissions=doc.get("permissions", []),
@@ -235,6 +255,8 @@ async def block_user(user_id: str, admin: UserPublic = Depends(require_admin)):
     return UserListItem(
         id=str(doc["_id"]), email=doc["email"], full_name=doc.get("full_name"),
         team=doc.get("team"),
+        employee_number=doc.get("employee_number"), host_pc_ip=doc.get("host_pc_ip"),
+        position=doc.get("position"), extension=doc.get("extension"),
         is_admin=bool(doc.get("is_admin", False)), is_blocked=True,
         permissions=doc.get("permissions", []),
         created_at=doc.get("created_at"), last_login_at=doc.get("last_login_at"),

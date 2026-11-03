@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 # 시스템 메뉴 초기값 (slug가 없으면 자동 생성)
 # ──────────────────────────────────────────────
 _SYSTEM_MENUS = [
+    {"slug": "my-page", "title": "마이페이지", "icon": "fa-solid fa-user", "sort_order": 1, "link": "/account/my-page"},
     {"slug": "spaces", "title": "인적자원 관리", "icon": "fa-solid fa-building-user", "sort_order": 11},
     {"slug": "job",      "title": "작업 관리",   "icon": "fa-solid fa-briefcase",  "sort_order": 2},
     {"slug": "asset",    "title": "자산",        "icon": "fa-solid fa-computer",   "sort_order": 3},
