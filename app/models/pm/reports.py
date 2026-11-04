@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 
 
@@ -222,10 +222,36 @@ class MonthlyReportCreate(BaseModel):
     admin_comment: Optional[str] = None
 
 
+class MonthlyHighlights(BaseModel):
+    accomplishments: str = Field(default="", max_length=10000)
+    concerns: str = Field(default="", max_length=10000)
+    next_plans: str = Field(default="", max_length=10000)
+
+
+class MonthlyInsight(BaseModel):
+    id: str = Field(min_length=1, max_length=100)
+    kind: Literal["MAIN_AGENDA", "ISSUE_RISK", "DECISION_REQUIRED", "MILESTONE"]
+    title: str = Field(min_length=1, max_length=300)
+    content: str = Field(default="", max_length=10000)
+    impact: str = Field(default="", max_length=1000)
+    action_plan: str = Field(default="", max_length=10000)
+    owner: str = Field(default="", max_length=200)
+    due_date: str = Field(default="", max_length=30)
+    planned_date: str = Field(default="", max_length=30)
+    expected_date: str = Field(default="", max_length=30)
+    status: str = Field(default="", max_length=100)
+    source_report_id: Optional[str] = None
+    source_item_id: Optional[str] = None
+    source_label: Optional[str] = None
+
+
 class MonthlyReportPatch(BaseModel):
     title: Optional[str] = None
     department: Optional[str] = None
     admin_comment: Optional[str] = None
+    highlights: Optional[MonthlyHighlights] = None
+    insights: Optional[List[MonthlyInsight]] = Field(default=None, max_length=200)
+    expected_updated_at: Optional[datetime] = None
 
 
 class MonthlyReportOut(BaseModel):
@@ -234,6 +260,7 @@ class MonthlyReportOut(BaseModel):
     report_month: int
     title: str
     department: Optional[str] = None
+    status: str = "DRAFT"
     by_project: List[ProjectBreakdown] = Field(default_factory=list)
     by_person: List[PersonBreakdown] = Field(default_factory=list)
     all_items: List[WorkItem] = Field(default_factory=list)
@@ -246,4 +273,12 @@ class MonthlyReportOut(BaseModel):
     updated_by: Optional[str] = None
     updated_by_name: Optional[str] = None
     updated_at: datetime
+    confirmed_by: Optional[str] = None
+    confirmed_at: Optional[datetime] = None
+    aggregated_at: Optional[datetime] = None
+    aggregated_by_name: Optional[str] = None
+    highlights: MonthlyHighlights = Field(default_factory=MonthlyHighlights)
+    insights: List[MonthlyInsight] = Field(default_factory=list)
+    comparison: Optional[dict] = None
+    operational_summary: Optional[dict] = None
     edit_history: List[EditHistoryEntry] = Field(default_factory=list)

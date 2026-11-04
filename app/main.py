@@ -38,6 +38,7 @@ from app.services.delayed_digest_service import DelayedDigestService
 from app.services.recurring_issue_scheduler import RecurringIssueScheduler
 from app.routers import inspection_tasks, monthly_inspection_reports
 from app.services.inspection_scheduler import InspectionScheduler
+from app.services.monthly_report_scheduler import MonthlyReportScheduler
 from app.middleware.activity_logger import ActivityLoggerMiddleware
 
 
@@ -63,6 +64,8 @@ async def lifespan(app: FastAPI):
     recurring_scheduler.start()
     inspection_scheduler = InspectionScheduler()
     inspection_scheduler.start()
+    monthly_report_scheduler = MonthlyReportScheduler()
+    monthly_report_scheduler.start()
 
     yield
 
@@ -73,6 +76,7 @@ async def lifespan(app: FastAPI):
         digest_service.stop()
     recurring_scheduler.stop()
     inspection_scheduler.stop()
+    monthly_report_scheduler.stop()
     await MongoClientManager.close_client()
 
 

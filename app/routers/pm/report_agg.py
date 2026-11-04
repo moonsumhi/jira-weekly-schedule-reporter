@@ -13,6 +13,15 @@ from app.models.pm.reports import (
     PersonBreakdown, ProjectBreakdown, ReportStats, WorkItem,
 )
 
+_STATUS_FROM_HISTORY = {
+    "백로그": "BACKLOG", "할 일": "TODO", "진행 중": "IN_PROGRESS",
+    "구현완료": "IMPLEMENTED", "완료": "DONE",
+}
+
+
+def _history_status(value):
+    return _STATUS_FROM_HISTORY.get(value, value)
+
 
 def _calc_stats(completed, in_progress, delayed=None) -> ReportStats:
     # delayed 는 in_progress 의 부분집합이므로 total 에 중복 집계하지 않음
@@ -32,6 +41,7 @@ async def aggregate_period(
     end_dt: datetime,
     next_start_dt: Optional[datetime] = None,
     next_end_dt: Optional[datetime] = None,
+    *, monthly_actuals: bool = False,
 ) -> tuple[
     list[WorkItem],          # all_items (현재 기간)
     list[WorkItem],          # upcoming_items (차주/차월)
@@ -111,7 +121,9 @@ async def aggregate_period(
 
         due_date = doc.get("due_date")
         status = canonical_issue_status(doc.get("status", "BACKLOG"))
-        is_delayed = bool(due_date and due_date.replace(tzinfo=timezone.utc) < now and status != "DONE")
+        comparison_time = min(now, end_dt) if monthly_actuals else now
+        comparable_due = (due_date if monthly_actuals and due_date.tzinfo else due_date.replace(tzinfo=timezone.utc)) if due_date else None
+        is_delayed = bool(comparable_due and comparable_due < comparison_time and status != "DONE")
 
         return WorkItem(
             issue_id=str(doc["_id"]),
@@ -157,7 +169,53 @@ async def aggregate_period(
             {"status": "IN_PROGRESS"},
         ],
     }
-    docs = await issues_col.find(query).sort("number", 1).to_list(None)
+    monthly_candidates = []
+    if monthly_actuals:
+        cutoff = min(now, end_dt)
+        docs = await issues_col.find({
+            "type": {"$in": ["TASK", "SUB_TASK"]},
+            "$or": [{"created_at": {"$lte": cutoff}}, {"created_at": {"$exists": False}}],
+        }).sort("number", 1).to_list(None)
+        history_col = MongoClientManager.get_pm_issue_history_collection()
+        histories = await history_col.find({
+            "issue_id": {"$in": [doc["_id"] for doc in docs]}, "field": "status",
+        }).sort([("created_at", 1), ("_id", 1)]).to_list(None)
+        by_issue = {}
+        for entry in histories:
+            by_issue.setdefault(entry["issue_id"], []).append(entry)
+
+        def aware(value):
+            return value.replace(tzinfo=timezone.utc) if value and value.tzinfo is None else value
+
+        selected = []
+        for doc in docs:
+            if cutoff < start_dt:
+                break
+            entries = by_issue.get(doc["_id"], [])
+            before = [h for h in entries if aware(h["created_at"]) <= cutoff]
+            after = [h for h in entries if aware(h["created_at"]) > cutoff]
+            status = _history_status(after[0].get("old_value")) if after else (
+                _history_status(before[-1].get("new_value")) if before else doc.get("status", "BACKLOG")
+            )
+            status = status or doc.get("status", "BACKLOG")
+            monthly_candidates.append({**doc, "status": status})
+            completed_in_month = any(
+                start_dt <= aware(h["created_at"]) <= cutoff and _history_status(h.get("new_value")) == "DONE"
+                for h in before
+            )
+            created = aware(doc.get("created_at"))
+            initial_status = _history_status(entries[0].get("old_value")) if entries else status
+            if initial_status == "DONE" and created and start_dt <= created <= cutoff:
+                completed_in_month = True
+            start = aware(doc.get("start_date"))
+            due = aware(doc.get("due_date"))
+            overlaps = bool((start and start_dt <= start <= end_dt) or (due and start_dt <= due <= end_dt) or
+                            (start and due and start < start_dt and due > end_dt))
+            if (status == "DONE" and completed_in_month) or (status != "DONE" and (overlaps or status == "IN_PROGRESS")):
+                selected.append({**doc, "status": status})
+        docs = selected
+    else:
+        docs = await issues_col.find(query).sort("number", 1).to_list(None)
 
     all_items: list[WorkItem] = []
     for doc in docs:
@@ -177,7 +235,13 @@ async def aggregate_period(
                 {"due_date":   {"$gte": next_start_dt, "$lte": next_end_dt}},
             ],
         }
-        udocs = await issues_col.find(uq).sort("number", 1).to_list(None)
+        if monthly_actuals:
+            udocs = [doc for doc in monthly_candidates if doc.get("type") == "TASK"
+                     and doc.get("status") in {"TODO", "BACKLOG"}
+                     and any(next_start_dt <= aware(doc.get(field)) <= next_end_dt
+                             for field in ("start_date", "due_date") if doc.get(field))]
+        else:
+            udocs = await issues_col.find(uq).sort("number", 1).to_list(None)
         for doc in udocs:
             if str(doc["_id"]) in existing_ids:
                 continue
