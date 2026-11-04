@@ -8,11 +8,13 @@ from typing import Dict, List, Optional
 
 import msoffcrypto
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, UploadFile, status
+from pymongo.errors import DuplicateKeyError
 
 from app.core.config import settings
 
 from app.models.assets import (
     AssetHistoryOut,
+    McpAssetCreate,
     ServerAssetCreate,
     ServerAssetDelete,
     ServerAssetOut,
@@ -24,6 +26,8 @@ from app.routers.admin import require_admin
 from app.routers.auth import get_current_user
 from app.routers.permissions import require_asset_access
 from app.services.assets_service import AssetsService, list_all_assets
+from app.services import asset_import_batches
+from app.services.asset_registration import evaluate_lifecycle, prepare_mcp_asset
 from app.services.eos_service import EosService
 from app.lifecycle_audit import asset_eos
 from app.utils.mongo import oid
@@ -101,6 +105,81 @@ async def get_eos_summary(current_user: UserPublic = Depends(get_current_user)):
         "eos_assets": eos_list,
         "soon_assets": soon_list,
     }
+@router.post('/imports')
+async def start_asset_import(filename: str = Body(..., embed=True), current_user: UserPublic = Depends(require_asset_access)):
+    return await asset_import_batches.start_batch(filename, current_user.email)
+
+
+@router.get('/mcp-schema')
+async def mcp_asset_schema(current_user: UserPublic = Depends(require_asset_access)):
+    """MCP가 고정 스키마와 유형별 규칙을 백엔드에서 함께 조회한다."""
+    return {
+        'schema': McpAssetCreate.model_json_schema(),
+        'required_fields': ['구분', '서버명', '설명', '운영체제'],
+        'category_rules': {
+            '서버': '운영체제/배포판 필수, system_info 선택',
+            'VMware': '운영체제/배포판 필수',
+            '네트워크': '운영체제에 장비 기종 입력',
+            '정보보호시스템': '운영체제에 장비 기종, 제조사 필수',
+            'DBMS': '운영체제에 DB 종류, version 또는 db_series 필수',
+        },
+        'note': '자산번호는 asset_no, 자산명은 fields.서버명, 호스트명은 name에 입력합니다. 랙 배치는 지원하지 않습니다.',
+    }
+
+
+@router.post('/mcp-create', status_code=status.HTTP_201_CREATED)
+async def create_mcp_asset(body: McpAssetCreate, current_user: UserPublic = Depends(require_asset_access)):
+    """Validate once, then create the asset and its rollback snapshot in one write."""
+    fields, lifecycle = prepare_mcp_asset(body)
+    service = _svc(body.category)
+    col = service._col()
+    asset_id = body.asset_id.strip() if body.asset_id else None
+    if asset_id:
+        duplicate_id = await col.find_one({'asset_id': asset_id}, {'_id': 1, 'is_deleted': 1})
+        if duplicate_id:
+            raise HTTPException(409, detail={'code': 'DUPLICATE_ASSET_ID', 'message': '같은 자산 ID가 이미 있습니다.', 'asset_id': str(duplicate_id['_id']), 'is_deleted': duplicate_id.get('is_deleted', False)})
+    candidates = await col.find({'ip': body.ip.strip(), 'is_deleted': {'$ne': True}},
+                                {'_id': 1, 'name': 1, 'ip': 1, 'asset_id': 1}).limit(10).to_list(None)
+    if candidates and not body.confirm_duplicate_ip:
+        raise HTTPException(409, detail={
+            'code': 'DUPLICATE_IP', 'message': '같은 유형에 동일 IP가 있습니다. 사용자에게 확인받은 후 다시 요청하세요.',
+            'candidates': [{'id': str(d['_id']), 'name': d.get('name', ''), 'ip': d.get('ip', ''), 'asset_id': d.get('asset_id')} for d in candidates],
+        })
+    batch = await asset_import_batches.start_batch(f'MCP 등록 · {body.name.strip()}', current_user.email, source='mcp')
+    batch_id = batch['id']
+    try:
+        async with asset_import_batches.reserve(batch_id, current_user.email):
+            asset = await service.create(
+                ip=body.ip.strip(), name=body.name.strip(), asset_id=asset_id,
+                asset_no=body.asset_no.strip(), fields=fields, system_info=body.system_info,
+                actor_email=current_user.email, source='mcp', import_batch_id=batch_id,
+            )
+            await asset_import_batches.collection().update_one({'_id': oid(batch_id)}, {'$inc': {'write_count': 1}})
+        return {'asset': ServerAssetOut(**asset), 'batch_id': batch_id, 'lifecycle': lifecycle}
+    except DuplicateKeyError as exc:
+        raise HTTPException(409, detail={'code': 'DUPLICATE_ASSET_ID', 'message': '같은 자산 ID가 이미 있습니다.', 'batch_id': batch_id}) from exc
+    except ValueError as exc:
+        raise HTTPException(409, detail={'message': str(exc), 'batch_id': batch_id}) from exc
+    finally:
+        await asset_import_batches.finish_batch(batch_id, current_user.email)
+
+
+@router.get('/imports')
+async def list_asset_imports(skip: int = Query(0, ge=0), limit: int = Query(51, ge=1, le=100),
+                             current_user: UserPublic = Depends(require_admin)):
+    return await asset_import_batches.list_batches(skip, limit)
+
+
+@router.post('/imports/{batch_id}/finish', status_code=204)
+async def finish_asset_import(batch_id: str, current_user: UserPublic = Depends(require_asset_access)):
+    await asset_import_batches.finish_batch(batch_id, current_user.email)
+
+
+@router.post('/imports/{batch_id}/rollback')
+async def rollback_asset_import(batch_id: str, current_user: UserPublic = Depends(require_admin)):
+    return await asset_import_batches.rollback_batch(batch_id, current_user.email)
+
+
 @router.get("", response_model=List[ServerAssetOut])
 async def list_servers(
     category: Optional[str] = Query(None),
@@ -132,19 +211,25 @@ async def create_server(
     body: ServerAssetCreate,
     category: Optional[str] = Query(None),
     source: str = Query(default="manual"),
+    import_batch_id: Optional[str] = Query(None),
+    auto_lifecycle: bool = Query(False),
+    lifecycle_series: Optional[str] = Query(None),
     current_user: UserPublic = Depends(require_asset_access),
 ):
     cat = category or (body.fields or {}).get("자산유형", "서버")
     try:
-        out = await _svc(cat).create(
-            ip=body.ip,
-            name=body.name,
-            asset_id=body.asset_id,
-            asset_no=body.asset_no,
-            fields=body.fields,
-            actor_email=current_user.email,
-            source=source,
-        )
+        async with asset_import_batches.reserve(import_batch_id, current_user.email) as batch_id:
+            fields = dict(body.fields or {})
+            if auto_lifecycle:
+                computed, _ = evaluate_lifecycle(fields, cat, lifecycle_series)
+                fields.update(computed)
+            out = await _svc(cat).create(
+                ip=body.ip, name=body.name, asset_id=body.asset_id, asset_no=body.asset_no,
+                fields=fields, actor_email=current_user.email,
+                source='import' if batch_id else source, import_batch_id=batch_id, system_info=body.system_info,
+            )
+            if import_batch_id:
+                await asset_import_batches.collection().update_one({'_id': oid(import_batch_id)}, {'$inc': {'write_count': 1}})
     except ValueError as e:
         logger.warning("409 create_server: cat=%s ip=%s name=%s asset_id=%s err=%s", cat, body.ip, body.name, body.asset_id, e)
         raise HTTPException(status_code=409, detail=str(e))
@@ -181,15 +266,17 @@ async def patch_server(
     server_id: str,
     body: ServerAssetPatch,
     category: Optional[str] = Query(None),
+    import_batch_id: Optional[str] = Query(None),
     current_user: UserPublic = Depends(require_asset_access),
 ):
     try:
-        out = await _svc(category).patch(
-            _id=oid(server_id),
-            patch=body.model_dump(exclude_unset=True),
-            expected_version=body.version,
-            actor_email=current_user.email,
-        )
+        async with asset_import_batches.reserve(import_batch_id, current_user.email) as batch_id:
+            out = await _svc(category).patch(
+                _id=oid(server_id), patch=body.model_dump(exclude_unset=True),
+                expected_version=body.version, actor_email=current_user.email, import_batch_id=batch_id,
+            )
+            if import_batch_id:
+                await asset_import_batches.collection().update_one({'_id': oid(import_batch_id)}, {'$inc': {'write_count': 1}})
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
@@ -221,6 +308,8 @@ async def restore_server(
         out = await _svc(category).restore(_id=oid(server_id), actor_email=current_user.email)
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return ServerAssetOut(**out)
 
 

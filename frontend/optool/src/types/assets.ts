@@ -33,6 +33,7 @@ export type AssetHistory = {
   changedAt: string
 
   changedBy?: string | null
+  source?: string | null
   createdBy?: string | null
 
   patch?: Record<string, unknown> | null

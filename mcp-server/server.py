@@ -53,6 +53,16 @@ def _backend_post(path: str, json_body: dict, params: dict | None = None) -> htt
         resp = httpx.post(url, json=json_body, params=params, headers=headers, timeout=15.0)
     return resp
 
+def _backend_get(path: str) -> httpx.Response:
+    token = _token_cache["token"] or _login()
+    url = f"{BACKEND_API_URL}{path}"
+    resp = httpx.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15.0)
+    if resp.status_code == 401:
+        token = _login()
+        resp = httpx.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=15.0)
+    return resp
+
+
 # 내부망 배포 — DNS rebinding 보호를 끄지 않으면 외부 서버(LibreChat 등) 요청이 421로 거부된다.
 mcp = FastMCP(
     "백오피스",
@@ -119,44 +129,23 @@ def list_assets(category: str = "서버", limit: int = 100, skip: int = 0) -> st
     })
 
 
-def _asset_field_keys(category: str, sample: int = 200) -> list[str]:
-    """해당 유형 기존 자산들이 fields에 실제로 쓰는 키를, 자주 쓰인 순으로 반환한다."""
-    col = ASSET_COLLECTIONS.get(category)
-    if not col:
-        return []
-    counts: dict[str, int] = {}
-    for doc in db[col].find({"is_deleted": {"$ne": True}}, {"fields": 1}).limit(sample):
-        for k in (doc.get("fields") or {}):
-            counts[k] = counts.get(k, 0) + 1
-    return sorted(counts, key=lambda k: -counts[k])
-
-
-def _asset_schema(category: str) -> dict:
-    """create_asset 입력에 참고할 스키마(고정 필드 + 기존 fields 키)."""
-    return {
-        "category": category,
-        "top_level_fields": {
-            "name": "자산 이름 (필수)",
-            "ip": "IP 주소",
-            "asset_id": "유형별 고유 PK (중복 방지용, 있으면 채움)",
-            "asset_no": "자산번호",
-        },
-        "field_keys": _asset_field_keys(category),  # fields dict에 쓰는 키 (기존 자산 기준)
-        "note": "fields에는 위 field_keys를 참고해 {키:값}으로 넣으세요. 해당 없는 값은 생략.",
-    }
-
-
 @mcp.tool()
 def get_asset_schema(category: str = "서버") -> str:
-    """자산 등록(create_asset) 전에, 해당 유형이 어떤 필드를 쓰는지 알려줍니다.
+    """자산 등록에 필요한 실제 백오피스 입력 스키마와 유형별 필수값을 조회합니다.
 
-    category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware
-    기존 자산들이 실제로 쓰는 fields 키 목록을 돌려주니, 그 키에 맞춰 create_asset의
-    fields를 구성하세요.
+    category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware.
+    응답의 schema는 system_info의 CPU·메모리·디스크·하드웨어·네트워크 필드,
+    타입, 범위와 허용값을 포함합니다. system_info는 서버 유형에서만 입력합니다.
+    요청하기 전 확인해 누락된 필수 항목을 사용자에게 물어보세요.
     """
     if category not in ASSET_COLLECTIONS:
         return _dump({"error": f"알 수 없는 category '{category}'. 사용 가능: {', '.join(ASSET_COLLECTIONS)}"})
-    return _dump(_asset_schema(category))
+    try:
+        response = _backend_get('/assets/mcp-schema')
+        response.raise_for_status()
+        return _dump({'category': category, **response.json()})
+    except Exception as exc:
+        return _dump({'error': f'자산 등록 스키마를 불러오지 못했습니다: {type(exc).__name__}: {exc}'})
 
 
 @mcp.tool()
@@ -167,78 +156,62 @@ def create_asset(
     asset_id: str = "",
     asset_no: str = "",
     fields: dict | str | None = None,
+    system_info: dict | str | None = None,
+    db_series: str = "",
+    confirm_duplicate_ip: bool = False,
 ) -> str:
-    """자산을 백오피스에 등록합니다. (서버·네트워크·보안장비·DBMS·VMware 등 모든 유형)
+    """자산을 등록하고 관리자 전용 롤백 이력을 남깁니다.
 
-    사람이 붙여넣은 장비 정보를 파싱해서 호출하세요.
-
-    category : 자산 유형 (필수) — 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware
-    name     : 자산 이름 (필수)
-    ip       : IP 주소 (없으면 비워둠)
-    asset_id : 유형별 고유 PK. 재등록 시 중복 방지에 쓰이므로 고유 식별자를 알면 채우세요.
-    asset_no : 자산번호 (있으면)
-    fields   : 그 외 나머지 속성 전부를 {키: 값} 형태로. 어떤 키로 넣을지는 붙여넣은
-               정보의 항목명에 맞춰 자유롭게 판단하세요. (한글 키 권장)
-               필드 키가 애매하면 먼저 get_asset_schema(category)로 기존 자산이 쓰는
-               필드 키를 확인하고 그에 맞추면 됩니다.
-
-    성공 시 생성된 자산 정보를 반환합니다. 실패 시 사유와 함께 schema_hint(사용 가능한
-    필드 정보)를 돌려주니, 그걸 참고해 fields를 고쳐서 다시 호출하세요.
+    먼저 get_asset_schema(category)로 필수 항목과 system_info 스키마를 확인하세요.
+    category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware. 랙 배치는 지원하지 않습니다.
+    name: 호스트명, ip: IP, asset_no: 자산번호 (모두 필수). asset_id는 고유 식별자(선택).
+    fields: 구분, 서버명(자산명), 설명, 운영체제(배포판/기종/DB 종류)가 필수인 JSON 객체.
+    DBMS는 fields.version 또는 db_series가 필요하며 정보보호시스템은 fields.제조사가 필요합니다.
+    system_info: 서버에만 사용하는 JSON 객체. 스키마의 camelCase와 snake_case 모두 허용합니다.
+      cpu, memory, memory_modules, disks,
+    hardware, network_interfaces, notes의 세부 키와 제약은 get_asset_schema에서 확인하세요.
+    EoS/EoL은 백엔드가 검증된 근거로 자동 계산하며, 근거가 없으면 확인 필요로 남깁니다.
+    동일 유형 IP가 이미 있으면 기존 후보를 알려줍니다. 사용자에게 명시적으로 확인받은
+    경우에만 confirm_duplicate_ip=true로 다시 요청하세요. 자산 ID 중복은 등록할 수 없습니다.
+    등록 결과의 batch_id는 백오피스 관리자가 해당 건을 되돌릴 때 사용할 수 있습니다.
+    네트워크 오류나 응답 유실 시 재시도 전에 먼저 기존 자산과 등록 이력을 확인하세요.
     """
     if category not in ASSET_COLLECTIONS:
-        return _dump({
-            "ok": False,
-            "error": f"알 수 없는 category '{category}'. 사용 가능: {', '.join(ASSET_COLLECTIONS)}",
-        })
+        return _dump({'ok': False, 'error': f"알 수 없는 category '{category}'. 사용 가능: {', '.join(ASSET_COLLECTIONS)}"})
 
-    # 약한 LLM이 fields를 dict가 아니라 JSON 문자열로 넘기는 경우가 많아 관대하게 파싱한다.
-    if isinstance(fields, str):
-        try:
-            fields = json.loads(fields) if fields.strip() else {}
-        except (json.JSONDecodeError, ValueError):
-            return _dump({
-                "ok": False,
-                "error": f"fields 를 JSON 객체로 파싱하지 못했습니다: {fields[:200]}",
-                "schema_hint": _asset_schema(category),
-                "note": "fields 는 {\"키\":\"값\"} 형태의 JSON 객체여야 합니다. schema_hint 를 참고해 다시 호출하세요.",
-            })
-    if not isinstance(fields, dict):
-        fields = {}
+    def parse_object(value, label):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (json.JSONDecodeError, ValueError):
+                raise ValueError(f'{label}은 JSON 객체여야 합니다.')
+        if not isinstance(value, dict):
+            raise ValueError(f'{label}은 JSON 객체여야 합니다.')
+        return value
 
-    merged_fields: dict = dict(fields)
-    merged_fields.setdefault("자산유형", category)
-
-    body = {
-        "ip": ip,
-        "name": name,
-        "asset_id": asset_id or None,
-        "asset_no": asset_no or None,
-        "fields": merged_fields,
-    }
     try:
-        resp = _backend_post(
-            "/assets", body, params={"category": category, "source": "mcp"}
-        )
-    except Exception as e:
-        return _dump({"ok": False, "error": f"백엔드 호출 실패: {type(e).__name__}: {e}"})
-
+        fields = parse_object(fields, 'fields') or {}
+        system_info = parse_object(system_info, 'system_info')
+    except ValueError as exc:
+        return _dump({'ok': False, 'error': str(exc), 'note': 'get_asset_schema로 입력 형식을 확인하세요.'})
+    body = {'category': category, 'name': name, 'ip': ip, 'asset_id': asset_id or None,
+            'asset_no': asset_no, 'fields': fields, 'system_info': system_info,
+            'db_series': db_series or None, 'confirm_duplicate_ip': confirm_duplicate_ip}
+    try:
+        resp = _backend_post('/assets/mcp-create', body)
+    except Exception as exc:
+        return _dump({'ok': False, 'error': f'백엔드 호출 실패: {type(exc).__name__}: {exc}',
+                      'note': '응답 유실 가능성이 있으므로 재시도 전에 기존 자산과 등록 이력을 확인하세요.'})
     if resp.status_code in (200, 201):
-        return _dump({"ok": True, "asset": resp.json()})
-    if resp.status_code == 409:
-        return _dump({
-            "ok": False,
-            "error": "이미 존재하는 자산입니다(중복). asset_id 또는 IP가 기존 자산과 겹칩니다. "
-                     "재시도하지 말고 사용자에게 알리거나, 다른 자산이면 값을 바꿔 호출하세요.",
-            "detail": resp.text[:300],
-        })
-    # 검증오류(422/400 등) — LLM이 스키마를 몰라 헤매지 않도록 사용 가능한 필드 정보를 함께 준다.
-    return _dump({
-        "ok": False,
-        "status": resp.status_code,
-        "error": resp.text[:300],
-        "schema_hint": _asset_schema(category),
-        "note": "위 schema_hint의 필드에 맞춰 입력을 고쳐서 다시 호출하세요.",
-    })
+        return _dump({'ok': True, **resp.json()})
+    try:
+        detail = resp.json().get('detail', resp.text[:500])
+    except (ValueError, AttributeError):
+        detail = resp.text[:500]
+    return _dump({'ok': False, 'status': resp.status_code, 'detail': detail,
+                  'note': '중복 IP는 사용자에게 확인받은 경우에만 confirm_duplicate_ip=true로 재요청하세요.' if isinstance(detail, dict) and detail.get('code') == 'DUPLICATE_IP' else 'get_asset_schema로 필수 항목과 입력 형식을 확인하세요.'})
 
 
 @mcp.tool()
@@ -260,7 +233,7 @@ def search_assets(query: str, category: str = "서버", limit: int = 100, skip: 
         ],
     }
     total = db[col].count_documents(flt)
-    docs = list(db[col].find(flt).skip(skip).limit(limit))
+    docs = list(db[col].find(flt, {'_import_journals': 0, '_rollback_asset_id': 0}).skip(skip).limit(limit))
     return _dump({
         "category": category,
         "query": query,
@@ -279,8 +252,8 @@ def get_asset(asset_db_id: str, category: str = "서버") -> str:
     asset_db_id: list_assets 결과의 id 값
     """
     col = ASSET_COLLECTIONS.get(category, "assets_servers")
-    hist_col = col + "_history"
-    doc = db[col].find_one({"_id": ObjectId(asset_db_id)})
+    hist_col = "assets_server_history" if col == "assets_servers" else col + "_history"
+    doc = db[col].find_one({"_id": ObjectId(asset_db_id)}, {"_import_journals": 0, "_rollback_asset_id": 0})
     history = list(db[hist_col].find({"asset_id": asset_db_id}).sort("changed_at", -1).limit(10))
     return _dump({"asset": doc, "history": history})
 

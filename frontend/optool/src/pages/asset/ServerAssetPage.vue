@@ -67,6 +67,10 @@
               <q-item-section avatar><q-icon name="upload_file" /></q-item-section>
               <q-item-section>Import (엑셀)</q-item-section>
             </q-item>
+            <q-item v-if="inspectionAuth.me?.isAdmin" clickable v-close-popup @click="openImportHistory()">
+              <q-item-section avatar><q-icon name="history" /></q-item-section>
+              <q-item-section>자산 등록 이력 및 롤백</q-item-section>
+            </q-item>
             <q-item clickable v-close-popup :disable="exportLoading" @click="doExport">
               <q-item-section avatar>
                 <q-spinner v-if="exportLoading" size="20px" />
@@ -2197,6 +2201,9 @@
               v-for="h in detailHistory" :key="h.id"
               :title="h.action" :subtitle="fmtHistoryDate(h.changedAt)"
             >
+              <div v-if="h.source === 'import_rollback'" class="text-caption text-negative">Import 롤백</div>
+              <div v-else-if="h.source === 'import'" class="text-caption text-grey-7">Excel Import</div>
+              <div v-else-if="h.source === 'mcp'" class="text-caption text-grey-7">MCP 등록</div>
               <div v-if="h.action === 'CREATE'" class="text-caption">
                 생성자: {{ h.changedBy || detailTarget.createdBy || '확인 불가' }}
               </div>
@@ -2361,6 +2368,47 @@
         <q-card-actions align="right">
           <q-btn flat label="취소" v-close-popup />
           <q-btn color="primary" label="확인" :disable="!selectedAssetType" @click="onAssetTypeConfirm" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="importHistoryDialog">
+      <q-card style="width: 760px; max-width: 95vw">
+        <q-card-section class="row items-center">
+          <div class="text-h6 col">자산 등록 이력 및 롤백</div>
+          <q-btn flat round dense icon="close" v-close-popup />
+        </q-card-section>
+        <q-card-section class="q-pt-none text-caption text-grey-7">
+          등록 이후 변경된 자산, 랙 자산 및 배치·운영 이력이 연결된 신규 자산은 건너뜁니다. 이 기능을 적용하기 전 기록은 표시되지 않습니다.
+        </q-card-section>
+        <q-separator />
+        <q-card-section style="max-height: 60vh; overflow-y: auto">
+          <div v-if="importHistoryLoading" class="text-center q-pa-md">불러오는 중…</div>
+          <div v-else-if="!importBatches.length" class="text-center text-grey q-pa-md">등록 이력이 없습니다.</div>
+          <q-list v-else separator>
+            <q-item v-for="batch in importBatches" :key="batch.id">
+              <q-item-section>
+                <q-item-label>{{ batch.filename || '이름 없는 파일' }}</q-item-label>
+                <q-item-label caption>{{ batch.source === 'mcp' ? 'MCP 등록' : 'Excel Import' }} · {{ fmtHistoryDate(batch.createdAt) }} · {{ batch.createdBy }} · 처리 {{ batch.writeCount }}건</q-item-label>
+                <q-item-label v-if="batch.status === 'PARTIAL'" caption class="text-warning">일부 자산을 건너뛰었습니다. 이전 결과를 확인하고 필요한 자산을 직접 수정해 주세요.</q-item-label>
+                <q-expansion-item v-if="batch.lastResult?.conflicts.length" dense dense-toggle label="건너뛴 자산 보기">
+                  <div v-for="item in batch.lastResult.conflicts" :key="item.assetId" class="text-caption q-py-xs">
+                    {{ item.category }} · {{ item.name }}: {{ item.reason }}
+                  </div>
+                </q-expansion-item>
+                <q-item-label v-if="batch.status === 'ROLLED_BACK'" caption>롤백 완료 · {{ fmtHistoryDate(batch.rollbackAt) }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-btn v-if="batch.status === 'RUNNING' || batch.status === 'FINISHED' || batch.status === 'PARTIAL'" outline color="negative" :label="batch.status === 'RUNNING' ? '중단 후 롤백' : '롤백'" :disable="importRollbackLoading || importing" @click="confirmImportRollback(batch)" />
+                <span v-else-if="batch.status === 'ROLLING_BACK'" class="text-caption">롤백 중</span>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+        <q-card-actions v-if="importHistoryPage > 0 || importHistoryHasMore" align="right">
+          <q-btn flat label="이전" :disable="importHistoryPage === 0 || importHistoryLoading" @click="openImportHistory(importHistoryPage - 1)" />
+          <span class="text-caption">{{ importHistoryPage + 1 }}페이지</span>
+          <q-btn flat label="다음" :disable="!importHistoryHasMore || importHistoryLoading" @click="openImportHistory(importHistoryPage + 1)" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -3849,26 +3897,13 @@ async function doCreate() {
     const fields: FieldsMap = {}
     for (const [k, v] of Object.entries(createFields.value)) {
       if (k === '자산번호') continue  // top-level asset_no field
+      if ([EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY].some(key => key === k)) continue
       if ((v ?? '').toString().trim()) fields[k] = k.startsWith('Cisco 소프트웨어') ? v : parseSmartValue(v)
     }
     if (createTags.value.length) fields[TAGS_KEY] = createTags.value
-    // watch가 아직 실행되지 않았을 경우를 대비해 EoS/EoL 직접 계산.
-    // fetchEosMap()이 이 페이지에서 아직 한 번도 호출된 적 없으면(예: 목록을
-    // 안 거치고 바로 생성) EoS 맵이 비어있어 항상 null이 되므로 먼저 확실히 채운다.
-    await fetchEosMap()
-    const eos = getAutoEos(createFields.value['운영체제'] ?? '', createFields.value['version'] ?? '')
-    if (eos) {
-      fields[EOS_STATUS_KEY] = eos.status
-      fields[EOS_DATE_KEY] = eos.date
-    }
-    const eol = getAutoEol(createFields.value['운영체제'] ?? '', createFields.value['version'] ?? '')
-    if (eol) {
-      fields[EOL_STATUS_KEY] = eol.status
-      fields[EOL_DATE_KEY] = eol.date
-    }
     // 자산유형을 초기 생성 시부터 전달 → 같은 IP·다른 자산유형 레코드 허용
     const assetNo = (createFields.value['자산번호'] ?? '').toString().trim() || null
-    const patched = await createServer(ip, name, Object.keys(fields).length > 0 ? fields : undefined, assetNo, activeCreateCategory.value || undefined)
+    const patched = await createServer(ip, name, Object.keys(fields).length > 0 ? fields : undefined, assetNo, activeCreateCategory.value || undefined, undefined, undefined, true, createDbSeries.value || undefined)
     rows.value = [patched, ...rows.value]
     createDialog.value = false
     $q.notify({ type: 'positive', message: '생성 완료' })
@@ -4602,6 +4637,64 @@ function normalizeOsName(v: string): string {
 }
 const importFileInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
+const importBatchId = ref<string | null>(null)
+const importBatchFilename = ref('')
+const importHistoryDialog = ref(false)
+const importHistoryLoading = ref(false)
+const importHistoryPage = ref(0)
+const importHistoryHasMore = ref(false)
+const importRollbackLoading = ref(false)
+type ImportBatch = { id: string; filename: string; source?: string; createdBy: string; createdAt: string; status: string; writeCount: number; rollbackAt?: string; lastResult?: ImportRollbackResult }
+type ImportRollbackResult = { restored: number; deleted: number; conflicts: { category: string; assetId: string; name: string; reason: string }[] }
+const importBatches = ref<ImportBatch[]>([])
+
+async function openImportHistory(page = 0) {
+  importHistoryDialog.value = true
+  importHistoryLoading.value = true
+  try {
+    const batches = (await api.get<ImportBatch[]>('/assets/imports', { params: { skip: page * 50, limit: 51 } })).data
+    importBatches.value = batches.slice(0, 50)
+    importHistoryHasMore.value = batches.length > 50
+    importHistoryPage.value = page
+  } catch (error) {
+    $q.notify({ type: 'negative', message: getErrorMessage(error, '자산 등록 이력을 불러오지 못했습니다.') })
+  } finally { importHistoryLoading.value = false }
+}
+
+function confirmImportRollback(batch: ImportBatch) {
+  const warning = batch.status === 'RUNNING' ? '진행 중인 등록을 중단합니다. ' : ''
+  $q.dialog({ title: '자산 등록 롤백', message: `${warning}${batch.filename}의 변경을 되돌리시겠습니까? 신규 자산은 삭제 처리하고 기존 자산은 등록 전 값으로 복원합니다. 이후 변경된 자산은 건너뜁니다.`, cancel: true, persistent: true })
+    .onOk(() => { void runImportRollback(batch) })
+}
+
+async function runImportRollback(batch: ImportBatch) {
+  importRollbackLoading.value = true
+  try {
+    const result = (await api.post<ImportRollbackResult>(`/assets/imports/${batch.id}/rollback`)).data
+    await load()
+    await openImportHistory(importHistoryPage.value)
+    if (result.conflicts.length) {
+      $q.dialog({ title: `롤백 완료: 복원 ${result.restored}건, 삭제 ${result.deleted}건`, message: `건너뜀 ${result.conflicts.length}건:\n` + result.conflicts.map(item => `${item.category} · ${item.name}: ${item.reason}`).join('\n'), ok: '확인' })
+    } else {
+      $q.notify({ type: 'positive', message: `롤백 완료: 기존 자산 복원 ${result.restored}건, 신규 자산 삭제 ${result.deleted}건` })
+    }
+  } catch (error) {
+    $q.notify({ type: 'negative', message: getErrorMessage(error, '자산 등록 롤백에 실패했습니다.') })
+  } finally { importRollbackLoading.value = false }
+}
+
+function activeImportId(): string {
+  if (!importBatchId.value) throw new Error('Import 이력이 없어 저장할 수 없습니다. 파일을 다시 선택해 주세요.')
+  return importBatchId.value
+}
+
+function createImportedServer(ip: string, name: string, fields?: FieldsMap, assetNo?: string | null, category?: string, assetId?: string | null) {
+  return createServer(ip, name, fields, assetNo, category, assetId, activeImportId())
+}
+function patchImportedServer(id: string, payload: Parameters<typeof patchServer>[1], category: string, version: number | null | undefined) {
+  return patchServer(id, { ...payload, version: version ?? 1 }, category, activeImportId())
+}
+
 
 interface ImportFailedRow {
   rowIndex: number
@@ -4665,7 +4758,7 @@ async function _doSaveSeparate(row: ImportSkippedRow, ip: string, name: string, 
     if (k !== 'asset_id' && v) createFields[k] = v
   }
   const rowCat = (fields['자산유형'] || importOverrideCategory.value || category.value || '서버')
-  const newServer = await createServer(ip, name || ip, Object.keys(createFields).length > 0 ? createFields : undefined, undefined, rowCat, importAssetId)
+  const newServer = await createImportedServer(ip, name || ip, Object.keys(createFields).length > 0 ? createFields : undefined, undefined, rowCat, importAssetId)
   rows.value = [newServer, ...rows.value]
   row.separateSaved = true
   row.separateError = ''
@@ -4715,6 +4808,7 @@ function openFailEdit(idx: number) {
 async function doImportRowRetry(row: ImportFailedRow) {
   const rowAssetType = row.fields['자산유형'] || '서버'
   const existing = rows.value.find(r => {
+    if (r.isDeleted) return false
     const t = (r.fields?.['자산유형'] as string) || '서버'
     if (t !== rowAssetType) return false
     // IP가 있으면 IP 기준, 없으면 hostname 기준 매칭
@@ -4727,13 +4821,13 @@ async function doImportRowRetry(row: ImportFailedRow) {
     const patch: Record<string, unknown> = { fields: nextFields, asset_id: retryAssetId }
     if (row.name && row.name !== existing.name) patch['name'] = row.name
     const retryCat = row.fields['자산유형'] || importOverrideCategory.value || category.value || '서버'
-    const updated_ = await patchServer(String(existing.id), patch, retryCat)
+    const updated_ = await patchImportedServer(String(existing.id), patch, retryCat, existing.version)
     rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
   } else {
     const createF = { ...row.fields }
     const retryAssetId = row.fields['asset_id'] || null
     const retryCatNew = row.fields['자산유형'] || importOverrideCategory.value || category.value || '서버'
-    const newServer = await createServer(row.ip, row.name || row.ip, Object.keys(createF).length > 0 ? createF : undefined, undefined, retryCatNew, retryAssetId)
+    const newServer = await createImportedServer(row.ip, row.name || row.ip, Object.keys(createF).length > 0 ? createF : undefined, undefined, retryCatNew, retryAssetId)
     rows.value = [newServer, ...rows.value]
   }
 }
@@ -4790,7 +4884,7 @@ async function retrySkipRow(idx: number) {
     for (const [k, v] of Object.entries(row.rawData)) {
       if (k !== 'ip' && k !== 'name') fields[k] = v
     }
-    await doImportRowRetry({ ...row, fields, isNew: !rows.value.some(r => r.ip === row.ip), error: '', retrying: false, retrySuccess: false })
+    await doImportRowRetry({ ...row, fields, isNew: !rows.value.some(r => !r.isDeleted && r.ip === row.ip), error: '', retrying: false, retrySuccess: false })
     row.retrySuccess = true
   } catch (err: unknown) {
     row.reason = getErrorMessage(err, '재시도 실패')
@@ -4828,7 +4922,7 @@ async function forceApplySkip(idx: number) {
     const patch: Record<string, unknown> = { fields: nextFields, asset_id: skipAssetId }
     if (row.name && row.name !== existing.name) patch['name'] = row.name
     const skipCat = ((existing.fields?.['자산유형'] as string) || importOverrideCategory.value || category.value || '서버')
-    const updated_ = await patchServer(String(existing.id), patch, skipCat)
+    const updated_ = await patchImportedServer(String(existing.id), patch, skipCat, existing.version)
     rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
     row.retrySuccess = true
   } catch (err: unknown) {
@@ -4849,7 +4943,7 @@ async function forceApplyFailed(idx: number) {
     const patch: Record<string, unknown> = { fields: nextFields, asset_id: failAssetId }
     if (row.name && row.name !== existing.name) patch['name'] = row.name
     const failCat = ((existing.fields?.['자산유형'] as string) || importOverrideCategory.value || category.value || '서버')
-    const updated_ = await patchServer(String(existing.id), patch, failCat)
+    const updated_ = await patchImportedServer(String(existing.id), patch, failCat, existing.version)
     rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
     row.retrySuccess = true
   } catch (err: unknown) {
@@ -4893,6 +4987,10 @@ async function onImportFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   if (importing.value) return
+  importBatchFilename.value = file.name
+  importBatchId.value = null
+  importFailedRows.value = []
+  importSkippedRows.value = []
   importing.value = true
   ;(e.target as HTMLInputElement).value = ''
 
@@ -4989,7 +5087,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
     // (예: "서버" 탭에서 import해도, 자산유형이 비어있는 행이 실제로는 DBMS 자산일 수 있으므로
     //  asset_id로 전체에서 찾아, 그 자산의 실제 자산유형으로 업데이트해야 카테고리별 중복 생성을 막을 수 있음)
     const allAssetsForMatching = await listServers(true)
-    const existingByAssetId = new Map(allAssetsForMatching.filter(r => r.assetId).map(r => [r.assetId!, r]))
+    const existingByAssetId = new Map(allAssetsForMatching.filter(r => !r.isDeleted && r.assetId).map(r => [r.assetId!, r]))
     console.log('[Import] existingByAssetId size:', existingByAssetId.size)
 
     // IP 기준으로 기존 서버 맵 (폴백)
@@ -4998,14 +5096,17 @@ async function _runImport(buf: ArrayBuffer, password: string) {
     // ip + 자산유형 + hostname 복합키 (같은 IP라도 hostname이 다르면 별개 레코드)
     const assetTypeKey = (r: { ip: string; name: string; fields?: Record<string, unknown> | null }) =>
       `${r.ip}__${(r.fields?.['자산유형'] as string) || '서버'}__${r.name}`
-    const existingByIp = new Map(rows.value.filter(r => r.ip).map(r => [assetTypeKey(r), r]))
+    const existingByIp = new Map(rows.value.filter(r => !r.isDeleted && r.ip).map(r => [assetTypeKey(r), r]))
 
     // hostname 기준 맵 (IP가 없는 행 매칭용)
     const assetTypeNameKey = (r: { name: string; fields?: Record<string, unknown> | null }) =>
       `${r.name}__${(r.fields?.['자산유형'] as string) || '서버'}`
-    const existingByName = new Map(rows.value.filter(r => r.name).map(r => [assetTypeNameKey(r), r]))
+    const existingByName = new Map(rows.value.filter(r => !r.isDeleted && r.name).map(r => [assetTypeNameKey(r), r]))
 
     console.log('[Import] rows.value:', rows.value.length, '/ existingByIp keys:', existingByIp.size, '/ filteredRows:', filteredRows.value.length)
+
+    const batch = await api.post<{ id: string }>('/assets/imports', { filename: importBatchFilename.value })
+    importBatchId.value = batch.data.id
 
     let created = 0
     const updatedIds = new Set<string>()
@@ -5060,7 +5161,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
           if (existingByNo2Empty) {
             const nextFields2Empty = { ...(existingByNo2Empty.fields ?? {}), ...fields2Empty }
             try {
-              const updated2Empty = await patchServer(String(existingByNo2Empty.id), { fields: nextFields2Empty, asset_id: importAssetId2Empty ?? existingByNo2Empty.assetId ?? null }, ((existingByNo2Empty.fields?.['자산유형'] as string) || fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버'))
+              const updated2Empty = await patchImportedServer(String(existingByNo2Empty.id), { fields: nextFields2Empty, asset_id: importAssetId2Empty ?? existingByNo2Empty.assetId ?? null }, ((existingByNo2Empty.fields?.['자산유형'] as string) || fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버'), existingByNo2Empty.version)
               rows.value = rows.value.map(r => r.id === existingByNo2Empty.id ? updated2Empty : r)
               existingByAssetId.set(importAssetId2Empty!, updated2Empty)
               updatedIds.add(String(existingByNo2Empty.id))
@@ -5071,7 +5172,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
             // Asset ID는 있지만 기존 레코드 없음 → 신규 생성
             const createF2Empty = { ...fields2Empty }
             try {
-              const newServer2Empty = await createServer('', '', Object.keys(createF2Empty).length > 0 ? createF2Empty : undefined, undefined, fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버', importAssetId2Empty)
+              const newServer2Empty = await createImportedServer('', '', Object.keys(createF2Empty).length > 0 ? createF2Empty : undefined, undefined, fields2Empty['자산유형'] || importOverrideCategory.value || category.value || '서버', importAssetId2Empty)
               rows.value = [newServer2Empty, ...rows.value]
               existingByAssetId.set(importAssetId2Empty, newServer2Empty)
               created++
@@ -5123,7 +5224,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
                 continue
               }
             }
-            const updated2 = await patchServer(String(existing2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existing2.assetId ?? null }, rowAssetType2)
+            const updated2 = await patchImportedServer(String(existing2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existing2.assetId ?? null }, rowAssetType2, existing2.version)
             rows.value = rows.value.map(r => r.id === existing2.id ? updated2 : r)
             existingByName.set(nameKey, updated2)
             updatedIds.add(String(existing2.id))
@@ -5133,7 +5234,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
             const existingByNo2 = importAssetId2 ? existingByAssetId.get(importAssetId2) : undefined
             if (existingByNo2) {
               const nextFields2 = { ...(existingByNo2.fields ?? {}), ...fields2 }
-              const updated2 = await patchServer(String(existingByNo2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existingByNo2.assetId ?? null }, (existingByNo2.fields?.['자산유형'] as string) || rowAssetType2)
+              const updated2 = await patchImportedServer(String(existingByNo2.id), { fields: nextFields2, asset_id: importAssetId2 ?? existingByNo2.assetId ?? null }, (existingByNo2.fields?.['자산유형'] as string) || rowAssetType2, existingByNo2.version)
               rows.value = rows.value.map(r => r.id === existingByNo2.id ? updated2 : r)
               existingByName.set(nameKey, updated2)
               existingByAssetId.set(importAssetId2!, updated2)
@@ -5142,7 +5243,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
             } else {
               // hostname만으로 신규 생성 (IP 빈 값)
               const createF2 = { ...fields2 }
-              const newServer2 = await createServer('', hostname2, Object.keys(createF2).length > 0 ? createF2 : undefined, undefined, rowAssetType2, importAssetId2)
+              const newServer2 = await createImportedServer('', hostname2, Object.keys(createF2).length > 0 ? createF2 : undefined, undefined, rowAssetType2, importAssetId2)
               rows.value = [newServer2, ...rows.value]
               existingByName.set(nameKey, newServer2)
               if (importAssetId2) existingByAssetId.set(importAssetId2, newServer2)
@@ -5226,7 +5327,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
           // asset_id로 다른 카테고리의 기존 자산을 찾은 경우, import 행의 (비어있을 수 있는) 자산유형이 아니라
           // 기존 자산의 실제 자산유형을 우선해 그 카테고리로 업데이트한다.
           const patchCategory = (existing.fields?.['자산유형'] as string) || rowAssetType
-          const updated_ = await patchServer(String(existing.id), patch, patchCategory)
+          const updated_ = await patchImportedServer(String(existing.id), patch, patchCategory, existing.version)
           rows.value = rows.value.map(r => r.id === existing.id ? updated_ : r)
           existingByIp.set(rowKey, updated_)
           if (importAssetId) existingByAssetId.set(importAssetId, updated_)
@@ -5235,7 +5336,7 @@ async function _runImport(buf: ArrayBuffer, password: string) {
         } else {
           // 신규 서버 생성 — HostName 없으면 IP를 기본값으로 사용
           const createF = { ...fields }
-          const newServer = await createServer(ip, hostname || ip, Object.keys(createF).length > 0 ? createF : undefined, undefined, rowAssetType, importAssetId)
+          const newServer = await createImportedServer(ip, hostname || ip, Object.keys(createF).length > 0 ? createF : undefined, undefined, rowAssetType, importAssetId)
           rows.value = [newServer, ...rows.value]
           existingByIp.set(rowKey, newServer)
           if (importAssetId) existingByAssetId.set(importAssetId, newServer)
@@ -5293,6 +5394,10 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       $q.notify({ type: 'negative', message: getErrorMessage(err, 'Import 실패') })
     }
   } finally {
+    if (importBatchId.value) {
+      try { await api.post(`/assets/imports/${importBatchId.value}/finish`) }
+      catch { $q.notify({ type: 'warning', message: 'Import 종료 상태를 기록하지 못했습니다. 관리자가 이력에서 확인해 주세요.' }) }
+    }
     importing.value = false
   }
 }

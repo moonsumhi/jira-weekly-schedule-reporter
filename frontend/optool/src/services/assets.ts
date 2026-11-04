@@ -18,9 +18,9 @@ export async function getServer(id: string, category?: string): Promise<ServerAs
   return res.data
 }
 
-export async function createServer(ip: string, name: string, fields?: FieldsMap, assetNo?: string | null, category?: string, assetId?: string | null): Promise<ServerAsset> {
+export async function createServer(ip: string, name: string, fields?: FieldsMap, assetNo?: string | null, category?: string, assetId?: string | null, importBatchId?: string, autoLifecycle = false, lifecycleSeries?: string): Promise<ServerAsset> {
   const res = await api.post<ServerAsset>(SERVERS, { ip, name, fields: fields ?? {}, asset_id: assetId ?? null, asset_no: assetNo ?? null }, {
-    params: category ? { category } : {},
+    params: { ...(category ? { category } : {}), ...(importBatchId ? { import_batch_id: importBatchId } : {}), ...(autoLifecycle ? { auto_lifecycle: true } : {}), ...(lifecycleSeries ? { lifecycle_series: lifecycleSeries } : {}) },
   })
   return res.data
 }
@@ -29,9 +29,10 @@ export async function patchServer(
   id: string,
   payload: Partial<Pick<ServerAsset, 'ip' | 'name' | 'version'>> & { fields?: FieldsMap; asset_id?: string | null; asset_no?: string | null; system_info?: SystemInformation },
   category?: string,
+  importBatchId?: string,
 ): Promise<ServerAsset> {
   const res = await api.patch<ServerAsset>(`${SERVERS}/${id}`, payload, {
-    params: category ? { category } : {},
+    params: { ...(category ? { category } : {}), ...(importBatchId ? { import_batch_id: importBatchId } : {}) },
   })
   return res.data
 }

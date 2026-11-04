@@ -8,6 +8,7 @@
   "private": true,
   "scripts": {
     "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{ts,js,cjs,mjs,vue}\"",
+    "check:types": "quasar prepare && vue-tsc --noEmit -p tsconfig.json",
     "check:lifecycle": "node scripts/check-lifecycle-maps.mjs",
     "test:lifecycle": "node --test scripts/test-lifecycle-audit.mjs",
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",

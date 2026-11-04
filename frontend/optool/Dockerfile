@@ -28,7 +28,11 @@ elif [ -n "$NPM_REGISTRY" ]; then \
     npm install --legacy-peer-deps --registry=$NPM_REGISTRY; \
 fi
 
-RUN npm run build
+# Run each check to completion before starting the next one. Running them in
+# Vite's parallel checker at the same time as bundling can exhaust a 4 GB VM.
+RUN npm run check:types
+RUN NODE_ENV=production npm run lint
+RUN QUASAR_SERIAL_CHECKS=true npm run build
 
 # Stage 2: Serve
 FROM ${NGINX_BASE_IMAGE}
