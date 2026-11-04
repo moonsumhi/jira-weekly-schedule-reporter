@@ -229,6 +229,11 @@ const routes: RouteRecordRaw[] = [
             path: 'monthly-report',
             component: () => import('pages/pm/MonthlyReportPage.vue')
           },
+          {
+            path: 'monthly-report/:id',
+            meta: { activeMenuLink: '/pm/monthly-report' },
+            component: () => import('pages/pm/MonthlyReportPage.vue')
+          },
           // ── SR (Service Request) ────────────────────────────
           {
             path: 'sr/new',

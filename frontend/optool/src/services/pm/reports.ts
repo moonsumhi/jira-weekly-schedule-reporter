@@ -238,12 +238,30 @@ export function weeklyExportDetailUrl(id: string) {
 }
 
 // ── 월간 보고 ────────────────────────────────────────────────────────
+export interface MonthlyHighlights { accomplishments: string; concerns: string; nextPlans: string }
+export interface MonthlyInsight {
+  id: string
+  kind: 'MAIN_AGENDA' | 'ISSUE_RISK' | 'DECISION_REQUIRED' | 'MILESTONE'
+  title: string
+  content: string
+  impact: string
+  actionPlan: string
+  owner: string
+  dueDate: string
+  plannedDate: string
+  expectedDate: string
+  status: string
+  sourceReportId: string | null
+  sourceItemId: string | null
+  sourceLabel: string | null
+}
 export interface MonthlyReport {
   id: string
   reportYear: number
   reportMonth: number
   title: string
   department: string | null
+  status: ReportStatus
   byProject: ProjectBreakdown[]
   byPerson: PersonBreakdown[]
   allItems: WorkItem[]
@@ -256,6 +274,18 @@ export interface MonthlyReport {
   updatedBy: string | null
   updatedByName: string | null
   updatedAt: string
+  confirmedBy: string | null
+  confirmedAt: string | null
+  aggregatedAt: string | null
+  aggregatedByName: string | null
+  highlights: MonthlyHighlights
+  insights: MonthlyInsight[]
+  comparison: { reportId: string; title: string; year: number; month: number; stats: ReportStats } | null
+  operationalSummary: {
+    asOf: string; capturedAt: string
+    sr: { received: number; completed: number; open: number } | null
+    inspectionReports: { id: string; title: string; planned: number; done: number; pending: number; rolled: number; danger: number; warning: number }[] | null
+  } | null
 }
 
 export interface MonthlyReportCreate {
@@ -270,6 +300,13 @@ export interface MonthlyReportPatch {
   title?: string
   department?: string
   admin_comment?: string
+  expected_updated_at?: string
+  highlights?: { accomplishments: string; concerns: string; next_plans: string }
+  insights?: Array<{
+    id: string; kind: MonthlyInsight['kind']; title: string; content: string; impact: string; action_plan: string
+    owner: string; due_date: string; planned_date: string; expected_date: string; status: string
+    source_report_id: string | null; source_item_id: string | null; source_label: string | null
+  }>
 }
 
 export async function listMonthlyReports(params: { year?: number; month?: number; status?: string } = {}) {
@@ -294,6 +331,11 @@ export async function updateMonthlyReport(id: string, payload: MonthlyReportPatc
 
 export async function refreshMonthlyReport(id: string) {
   const { data } = await api.post<MonthlyReport>(`/pm/monthly-reports/${id}/refresh`)
+  return data
+}
+
+export async function changeMonthlyReportStatus(id: string, status: ReportStatus) {
+  const { data } = await api.patch<MonthlyReport>(`/pm/monthly-reports/${id}/status`, { status })
   return data
 }
 

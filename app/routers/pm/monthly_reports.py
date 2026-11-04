@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from calendar import monthrange
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
 from bson import ObjectId
@@ -11,11 +11,13 @@ from fastapi.responses import StreamingResponse
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.models.pm.reports import (
-    MonthlyReportCreate, MonthlyReportPatch, MonthlyReportOut,
+    MonthlyReportCreate, MonthlyReportPatch, MonthlyReportOut, WeeklyReportStatusPatch,
     ProjectBreakdown, PersonBreakdown, WorkItem, ReportStats, EditHistoryEntry,
 )
 from app.routers.auth import get_current_user
 from app.routers.pm.report_agg import aggregate_period
+from app.services.monthly_report_context import capture_context, AGGREGATION_VERSION
+from app.services.monthly_report_scheduler import SYSTEM_USER, TEAM
 from app.routers.pm.weekly_reports import (
     _require_pm, _history_entry, _user_name, _excel_response, _write_items_table,
     STATUS_KO, PRIORITY_KO, STATUS_ISSUE_KO,
@@ -47,6 +49,7 @@ def _doc_to_out(doc: dict) -> MonthlyReportOut:
         report_month=doc["report_month"],
         title=doc["title"],
         department=doc.get("department"),
+        status=doc.get("status", "DRAFT"),
         by_project=_parse_breakdown(doc.get("by_project", []), ProjectBreakdown),
         by_person=_parse_breakdown(doc.get("by_person", []), PersonBreakdown),
         all_items=_parse_items(doc.get("all_items", [])),
@@ -59,6 +62,13 @@ def _doc_to_out(doc: dict) -> MonthlyReportOut:
         updated_by=str(doc["updated_by"]) if doc.get("updated_by") else None,
         updated_by_name=None,
         updated_at=doc["updated_at"],
+        confirmed_by=str(doc["confirmed_by"]) if doc.get("confirmed_by") else None,
+        confirmed_at=doc.get("confirmed_at"),
+        aggregated_at=doc.get("aggregated_at"),
+        highlights=doc.get("highlights") or {},
+        insights=doc.get("insights") or [],
+        comparison=doc.get("comparison"),
+        operational_summary=doc.get("operational_summary"),
         edit_history=[
             EditHistoryEntry(
                 editor_id=str(e["editor_id"]),
@@ -71,16 +81,50 @@ def _doc_to_out(doc: dict) -> MonthlyReportOut:
     )
 
 
-async def _enrich(out: MonthlyReportOut, doc: dict) -> MonthlyReportOut:
-    out.created_by_name = await _user_name(doc.get("created_by"))
+def _mask_operational(out: MonthlyReportOut, user: UserPublic) -> None:
+    if not out.operational_summary or user.is_admin:
+        return
+    summary = dict(out.operational_summary)
+    if "sr" not in (user.permissions or []):
+        summary["sr"] = None
+    if "server_check" not in (user.permissions or []):
+        summary["inspection_reports"] = None
+    out.operational_summary = summary
+
+
+async def _hide_feedback_memos(out: MonthlyReportOut) -> None:
+    # Older accepted items embedded the private note before the report text.
+    # Strip only the exact stored note, leaving the saved data and other edits intact.
+    ids = [item.id.removeprefix('feedback-') for item in out.insights
+           if item.id.startswith('feedback-') and ObjectId.is_valid(item.id.removeprefix('feedback-'))]
+    if not ids:
+        return
+    docs = await MongoClientManager.get_db()['pm_monthly_feedback'].find(
+        {'_id': {'$in': [ObjectId(value) for value in ids]}}, {'comment': 1}
+    ).to_list(None)
+    notes = {str(doc['_id']): doc.get('comment', '') for doc in docs}
+    for item in out.insights:
+        key = item.id.removeprefix('feedback-')
+        if item.id.startswith('feedback-') and key in notes:
+            prefix = f"팀장님 코멘트: {notes[key]}\n\n"
+            if item.content.startswith(prefix):
+                item.content = item.content[len(prefix):]
+
+
+async def _enrich(out: MonthlyReportOut, doc: dict, user: UserPublic) -> MonthlyReportOut:
+    out.created_by_name = "시스템" if doc.get("created_by") == SYSTEM_USER else await _user_name(doc.get("created_by"))
     out.updated_by_name = await _user_name(doc.get("updated_by"))
+    out.aggregated_by_name = "시스템" if doc.get("aggregated_by") == SYSTEM_USER else await _user_name(doc.get("aggregated_by"))
+    _mask_operational(out, user)
+    await _hide_feedback_memos(out)
     return out
 
 
 def _month_range(year: int, month: int):
     last = monthrange(year, month)[1]
-    start = datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc)
-    end   = datetime(year, month, last, 23, 59, 59, tzinfo=timezone.utc)
+    kst = timezone(timedelta(hours=9))
+    start = datetime(year, month, 1, tzinfo=kst).astimezone(timezone.utc)
+    end = (datetime(year, month, last, tzinfo=kst) + timedelta(days=1) - timedelta(microseconds=1)).astimezone(timezone.utc)
     return start, end
 
 
@@ -110,9 +154,7 @@ async def list_monthly_reports(
     docs = await col.find(q).sort([("report_year", -1), ("report_month", -1)]).to_list(None)
     result = []
     for doc in docs:
-        out = _doc_to_out(doc)
-        out.created_by_name = await _user_name(doc.get("created_by"))
-        result.append(out)
+        result.append(await _enrich(_doc_to_out(doc), doc, current_user))
     return result
 
 
@@ -138,7 +180,7 @@ async def export_monthly_list(
     hf    = PatternFill("solid", fgColor="2F75B6")
     hfont = Font(color="FFFFFF", bold=True)
 
-    headers = ["연도", "월", "부서", "제목", "총", "완료", "진행", "지연", "완료율", "작성자", "작성일"]
+    headers = ["연도", "월", "부서", "제목", "총", "완료", "진행", "지연", "완료율", "작성자", "작성일", "상태"]
     for ci, h in enumerate(headers, 1):
         c = ws.cell(1, ci, h); c.fill = hf; c.font = hfont
         c.alignment = Alignment(horizontal="center")
@@ -156,8 +198,9 @@ async def export_monthly_list(
         ws.cell(ri, 9, f"{s.get('completion_rate', 0)}%")
         ws.cell(ri, 10, await _user_name(doc.get("created_by")) or "")
         ws.cell(ri, 11, doc["created_at"].strftime("%Y-%m-%d"))
+        ws.cell(ri, 12, STATUS_KO.get(doc.get("status", "DRAFT"), doc.get("status", "DRAFT")))
 
-    for ci in range(1, 12):
+    for ci in range(1, 13):
         ws.column_dimensions[openpyxl.utils.get_column_letter(ci)].width = 16
     ws.column_dimensions["D"].width = 40
 
@@ -175,7 +218,7 @@ async def get_monthly_report(
     )
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
-    return await _enrich(_doc_to_out(doc), doc)
+    return await _enrich(_doc_to_out(doc), doc, current_user)
 
 
 @router.post("", response_model=MonthlyReportOut, status_code=201)
@@ -187,32 +230,49 @@ async def create_monthly_report(
     col = MongoClientManager.get_pm_monthly_reports_collection()
     now = datetime.now(timezone.utc)
 
+    if (body.department or '').strip() in ('', TEAM):
+        existing = await col.find_one({
+            'report_year': body.report_year, 'report_month': body.report_month,
+            'department': {'$in': [None, '', TEAM]}, 'deleted_at': None,
+        }, {'_id': 1})
+        if existing:
+            raise HTTPException(status_code=409, detail='해당 월의 데이터운영팀 보고서가 이미 있습니다.')
+
     start_dt, end_dt = _month_range(body.report_year, body.report_month)
     ns, ne = _next_month_range(body.report_year, body.report_month)
     all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
-        start_dt, end_dt, ns, ne
+        start_dt, end_dt, ns, ne, monthly_actuals=True
     )
+    comparison, operational_summary = await capture_context(body.report_year, body.report_month, body.department, start_dt, end_dt)
 
     result = await col.insert_one({
         "report_year":    body.report_year,
         "report_month":   body.report_month,
         "title":          body.title,
         "department":     body.department,
+        "status":         "DRAFT",
         "by_project":     [p.model_dump() for p in by_project],
         "by_person":      [p.model_dump() for p in by_person],
         "all_items":      [i.model_dump() for i in all_items],
         "upcoming_items": [i.model_dump() for i in upcoming_items],
         "stats":          stats.model_dump(),
+        "aggregation_version": AGGREGATION_VERSION,
+        "comparison": comparison,
+        "operational_summary": operational_summary,
         "admin_comment":  body.admin_comment,
         "created_by":     ObjectId(current_user.id),
         "updated_by":     None,
         "created_at":     now,
         "updated_at":     now,
+        "confirmed_by":   None,
+        "confirmed_at":   None,
+        "aggregated_at":  now,
+        "aggregated_by":  ObjectId(current_user.id),
         "deleted_at":     None,
         "edit_history":   [_history_entry(current_user, "생성")],
     })
     doc = await col.find_one({"_id": result.inserted_id})
-    return await _enrich(_doc_to_out(doc), doc)
+    return await _enrich(_doc_to_out(doc), doc, current_user)
 
 
 @router.patch("/{report_id}", response_model=MonthlyReportOut)
@@ -227,16 +287,26 @@ async def patch_monthly_report(
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
 
+    if doc.get("status", "DRAFT") == "CONFIRMED":
+        raise HTTPException(status_code=409, detail="확정된 보고서는 수정할 수 없습니다.")
     patch = body.model_dump(exclude_unset=True)
+    expected_updated_at = patch.pop("expected_updated_at", None)
+    if "department" in patch and (patch["department"] or "") != (doc.get("department") or ""):
+        patch["comparison"] = None
     patch["updated_by"] = ObjectId(current_user.id)
     patch["updated_at"] = datetime.now(timezone.utc)
 
+    update_filter = {"_id": ObjectId(report_id), "deleted_at": None, "status": {"$ne": "CONFIRMED"}}
+    if expected_updated_at is not None:
+        update_filter["updated_at"] = expected_updated_at
     updated = await col.find_one_and_update(
-        {"_id": ObjectId(report_id)},
+        update_filter,
         {"$set": patch, "$push": {"edit_history": _history_entry(current_user, "수정")}},
         return_document=True,
     )
-    return await _enrich(_doc_to_out(updated), updated)
+    if not updated:
+        raise HTTPException(status_code=409, detail="보고서가 변경되어 저장할 수 없습니다. 내용을 보관한 뒤 최신 보고서를 다시 불러와 주세요.")
+    return await _enrich(_doc_to_out(updated), updated, current_user)
 
 
 @router.post("/{report_id}/refresh", response_model=MonthlyReportOut)
@@ -251,13 +321,16 @@ async def refresh_monthly_report(
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
 
+    if doc.get("status", "DRAFT") not in {"DRAFT", "REVIEWING"}:
+        raise HTTPException(status_code=409, detail="확정 전 보고서만 재집계할 수 있습니다.")
     start_dt, end_dt = _month_range(doc["report_year"], doc["report_month"])
     ns, ne = _next_month_range(doc["report_year"], doc["report_month"])
     all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
-        start_dt, end_dt, ns, ne
+        start_dt, end_dt, ns, ne, monthly_actuals=True
     )
+    comparison, operational_summary = await capture_context(doc["report_year"], doc["report_month"], doc.get("department"), start_dt, end_dt)
     updated = await col.find_one_and_update(
-        {"_id": ObjectId(report_id)},
+        {"_id": ObjectId(report_id), "deleted_at": None, "department": doc.get("department"), "$or": [{"status": {"$in": ["DRAFT", "REVIEWING"]}}, {"status": {"$exists": False}}]},
         {
             "$set": {
                 "by_project":     [p.model_dump() for p in by_project],
@@ -265,6 +338,11 @@ async def refresh_monthly_report(
                 "all_items":      [i.model_dump() for i in all_items],
                 "upcoming_items": [i.model_dump() for i in upcoming_items],
                 "stats":          stats.model_dump(),
+                "aggregation_version": AGGREGATION_VERSION,
+                "comparison": comparison,
+                "operational_summary": operational_summary,
+                "aggregated_at":  datetime.now(timezone.utc),
+                "aggregated_by":  ObjectId(current_user.id),
                 "updated_by":     ObjectId(current_user.id),
                 "updated_at":     datetime.now(timezone.utc),
             },
@@ -272,7 +350,28 @@ async def refresh_monthly_report(
         },
         return_document=True,
     )
-    return await _enrich(_doc_to_out(updated), updated)
+    if not updated:
+        raise HTTPException(status_code=409, detail="보고서 상태가 변경되어 재집계할 수 없습니다.")
+    return await _enrich(_doc_to_out(updated), updated, current_user)
+
+
+@router.patch("/{report_id}/status", response_model=MonthlyReportOut)
+async def change_monthly_report_status(report_id: str, body: WeeklyReportStatusPatch, current_user: UserPublic = Depends(get_current_user)):
+    _require_pm(current_user)
+    if body.status not in {"DRAFT", "REVIEWING", "CONFIRMED"}:
+        raise HTTPException(status_code=400, detail="유효하지 않은 상태값입니다.")
+    now = datetime.now(timezone.utc)
+    updated = await MongoClientManager.get_pm_monthly_reports_collection().find_one_and_update(
+        {"_id": ObjectId(report_id), "deleted_at": None},
+        {"$set": {"status": body.status, "updated_by": ObjectId(current_user.id), "updated_at": now,
+                  "confirmed_by": ObjectId(current_user.id) if body.status == "CONFIRMED" else None,
+                  "confirmed_at": now if body.status == "CONFIRMED" else None},
+         "$push": {"edit_history": _history_entry(current_user, f"상태 변경: {STATUS_KO[body.status]}")}},
+        return_document=True,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    return await _enrich(_doc_to_out(updated), updated, current_user)
 
 
 @router.delete("/{report_id}", status_code=204)
@@ -281,11 +380,20 @@ async def delete_monthly_report(
     current_user: UserPublic = Depends(get_current_user),
 ):
     _require_pm(current_user)
-    result = await MongoClientManager.get_pm_monthly_reports_collection().update_one(
-        {"_id": ObjectId(report_id), "deleted_at": None},
+    linked_feedback = await MongoClientManager.get_db()['pm_monthly_feedback'].find_one({
+        '$or': [{'source_report_id': report_id}, {'target_report_id': report_id}],
+        'status': {'$ne': 'CANCELLED'},
+    }, {'_id': 1})
+    if linked_feedback:
+        raise HTTPException(status_code=409, detail='피드백 요청과 연결된 보고서는 삭제할 수 없습니다.')
+    col = MongoClientManager.get_pm_monthly_reports_collection()
+    result = await col.update_one(
+        {"_id": ObjectId(report_id), "deleted_at": None, "status": {"$ne": "CONFIRMED"}},
         {"$set": {"deleted_at": datetime.now(timezone.utc)}},
     )
     if result.matched_count == 0:
+        if await col.find_one({"_id": ObjectId(report_id), "deleted_at": None}):
+            raise HTTPException(status_code=409, detail="확정된 보고서는 삭제할 수 없습니다.")
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
 
 
@@ -305,6 +413,8 @@ async def export_monthly_detail(
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
 
     r = _doc_to_out(doc)
+    _mask_operational(r, current_user)
+    await _hide_feedback_memos(r)
     r.created_by_name = await _user_name(doc.get("created_by"))
 
     hf    = PatternFill("solid", fgColor="2F75B6")
@@ -319,6 +429,7 @@ async def export_monthly_detail(
     for i, (lbl, val) in enumerate([
         ("보고 기간", f"{r.report_year}년 {r.report_month}월"),
         ("부서", r.department or ""), ("작성자", r.created_by_name or ""),
+        ("상태", STATUS_KO.get(r.status, r.status)),
     ], 3):
         ws1.cell(i, 1, lbl).font = bold; ws1.cell(i, 2, val)
 
@@ -333,6 +444,67 @@ async def export_monthly_detail(
         row += 1
         ws1.cell(row, 1, "관리자 코멘트").font = Font(bold=True, size=12); row += 1
         ws1.cell(row, 1, r.admin_comment)
+
+    summary = wb.create_sheet("월간 요약")
+    def text_cell(ws, row, column, value):
+        cell = ws.cell(row, column, value)
+        if isinstance(value, str):
+            cell.data_type = "s"
+        return cell
+    summary.column_dimensions["A"].width = 22
+    summary.column_dimensions["B"].width = 85
+    row = 1
+    for label, value in [("주요 성과", r.highlights.accomplishments), ("주의 사항", r.highlights.concerns),
+                         ("차월 핵심 계획", r.highlights.next_plans)]:
+        summary.cell(row, 1, label).font = bold
+        text_cell(summary, row, 2, value).alignment = Alignment(wrap_text=True, vertical="top")
+        row += 1
+    if r.comparison:
+        summary.cell(row, 1, "전월 비교 기준").font = bold
+        text_cell(summary, row, 2, r.comparison.get("title", ""))
+        row += 1
+        previous = r.comparison.get("stats", {})
+        for label, key, current in [("완료", "completed", r.stats.completed), ("진행 중", "in_progress", r.stats.in_progress), ("지연", "delayed", r.stats.delayed)]:
+            summary.cell(row, 1, label)
+            summary.cell(row, 2, f"전월 {previous.get(key, 0)} · 이번 달 {current}")
+            row += 1
+    delayed_items = sorted((item for item in r.all_items if item.is_delayed and item.due_date),
+                           key=lambda item: item.due_date.isoformat())[:5]
+    for item in delayed_items:
+        summary.cell(row, 1, "오래 지연된 업무")
+        due = item.due_date if item.due_date.tzinfo else item.due_date.replace(tzinfo=timezone.utc)
+        due_kst = due.astimezone(timezone(timedelta(hours=9))).strftime("%Y-%m-%d")
+        text_cell(summary, row, 2, f"{item.project_name}-{item.issue_number} · {item.title} · 마감일 {due_kst}")
+        row += 1
+    if r.operational_summary:
+        summary.cell(row, 1, "운영 현황 범위").font = bold
+        text_cell(summary, row, 2, "전체 SR과 서버 점검 결과서 기준 (부서별 필터 없음)")
+        row += 1
+        sr = r.operational_summary.get("sr")
+        if sr is not None:
+            summary.cell(row, 1, "SR 현황").font = bold
+            summary.cell(row, 2, f"접수 {sr.get('received', 0)} · 완료 {sr.get('completed', 0)} · 기준일 처리 중 {sr.get('open', 0)}")
+            row += 1
+            summary.cell(row, 1, "SR 집계 기준일")
+            as_of = r.operational_summary.get("as_of")
+            text_cell(summary, row, 2, str(as_of) if as_of else "")
+            row += 1
+        for inspection in r.operational_summary.get("inspection_reports") or []:
+            summary.cell(row, 1, "서버 점검")
+            text_cell(summary, row, 2, f"{inspection.get('title', '')}: 완료 {inspection.get('done', 0)}/{inspection.get('planned', 0)} · 미완료 {inspection.get('pending', 0)} · 이월 {inspection.get('rolled', 0)} · 위험 {inspection.get('danger', 0)} · 주의 {inspection.get('warning', 0)}")
+            row += 1
+
+    if r.insights:
+        ws_insights = wb.create_sheet("주요 항목")
+        headings = ["구분", "제목", "내용", "영향", "대응 / 요청", "담당자", "기한", "계획일", "예상일", "상태 / 변경 사유", "출처"]
+        for ci, heading in enumerate(headings, 1):
+            cell = ws_insights.cell(1, ci, heading); cell.fill = hf; cell.font = hfont
+        kind_labels = {"MAIN_AGENDA": "주요 안건", "ISSUE_RISK": "이슈·리스크", "DECISION_REQUIRED": "결정 요청", "MILESTONE": "주요 일정"}
+        for ri, item in enumerate(r.insights, 2):
+            for ci, value in enumerate([kind_labels.get(item.kind, item.kind), item.title, item.content, item.impact,
+                                         item.action_plan, item.owner, item.due_date, item.planned_date,
+                                         item.expected_date, item.status, item.source_label or ""], 1):
+                text_cell(ws_insights, ri, ci, value).alignment = Alignment(wrap_text=True, vertical="top")
 
     for ws_title, breakdowns, next_label in [
         ("프로젝트별", r.by_project, "차월 계획"),
@@ -362,5 +534,6 @@ async def export_monthly_detail(
         for ci in range(1, 12):
             ws.column_dimensions[openpyxl.utils.get_column_letter(ci)].width = 18
         ws.column_dimensions["B"].width = 40
+    summary.column_dimensions["B"].width = 85
 
     return _excel_response(wb, f"월간보고_{r.report_year}년_{r.report_month:02d}월.xlsx")
