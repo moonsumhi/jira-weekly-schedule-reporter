@@ -86,6 +86,9 @@ export default defineConfig((ctx) => {
         [
           'vite-plugin-checker',
           {
+            // Docker runs the same checks before bundling to avoid three
+            // memory-intensive processes competing inside a small VM.
+            enableBuild: process.env.QUASAR_SERIAL_CHECKS !== 'true',
             vueTsc: true,
             eslint: {
               lintCommand: 'eslint -c ./eslint.config.js "./src*/**/*.{ts,js,mjs,cjs,vue}"',

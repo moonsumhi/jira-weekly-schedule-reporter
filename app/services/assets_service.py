@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
 from fastapi import HTTPException
+from pymongo.errors import DuplicateKeyError
 
 from app.db.mongo import MongoClientManager
 from app.models.asset_system_info import SystemInformation
@@ -42,6 +43,9 @@ async def _write_history(
     history_col=None,
     source: str = "manual",
 ):
+    # 내부 롤백 스냅샷은 자산 변경 이력에 중복 저장하지 않는다.
+    before = {k: v for k, v in before.items() if not k.startswith(('_import_journals', '_rollback_asset_id'))} if before is not None else None
+    after = {k: v for k, v in after.items() if not k.startswith(('_import_journals', '_rollback_asset_id'))} if after is not None else None
     h = history_col if history_col is not None else MongoClientManager.get_assets_server_history_collection()
     doc = {
         "asset_id": asset_id,
@@ -143,6 +147,8 @@ class AssetsService:
         fields: Optional[Dict[str, Any]],
         actor_email: str,
         source: str = "manual",
+        import_batch_id: Optional[str] = None,
+        system_info: Optional[SystemInformation] = None,
     ) -> Dict[str, Any]:
         col = self._col()
 
@@ -174,6 +180,14 @@ class AssetsService:
             doc["asset_id"] = asset_id
         if asset_no:
             doc["asset_no"] = asset_no
+        if system_info is not None:
+            if self._category != '서버':
+                raise ValueError('시스템 정보는 서버 자산에만 입력할 수 있습니다.')
+            doc['system_info'] = system_info.model_dump(mode='json')
+        if import_batch_id:
+            from app.services.asset_import_batches import JOURNAL, snapshot
+            doc[JOURNAL] = {import_batch_id: {'kind': 'created', 'before': None,
+                                             'after': snapshot(doc), 'after_version': 1}}
         res = await col.insert_one(doc)
         doc["_id"] = res.inserted_id
 
@@ -265,6 +279,7 @@ class AssetsService:
         patch: Dict[str, Any],
         actor_email: str,
         expected_version: Optional[int] = None,
+        import_batch_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         col = self._col()
 
@@ -353,11 +368,23 @@ class AssetsService:
         update["updated_by"] = actor_email
         update["version"] = int(existing.get("version", 1)) + 1
 
+        if import_batch_id:
+            from app.services.asset_import_batches import JOURNAL, snapshot
+            previous = existing.get(JOURNAL, {}).get(import_batch_id)
+            if previous and (previous['after_version'] != existing.get('version', 1) or previous['after'] != snapshot(existing)):
+                raise ValueError('이 Import로 처리한 뒤 다른 변경이 있어 다시 적용할 수 없습니다.')
+            journal = dict(previous) if previous else {'kind': 'updated', 'before': snapshot(existing)}
+            after_data = {**existing, **update}
+            for key in unset:
+                after_data.pop(key, None)
+            journal.update({'after': snapshot(after_data), 'after_version': update['version']})
+            update[f'{JOURNAL}.{import_batch_id}'] = journal
+
         mongo_update: Dict[str, Any] = {"$set": update}
         if unset:
             mongo_update["$unset"] = unset
         match: Dict[str, Any] = {"_id": _id, "is_deleted": {"$ne": True}}
-        if expected_version is not None:
+        if expected_version is not None or import_batch_id:
             match["version"] = existing.get("version", {"$exists": False})
         saved = await col.update_one(match, mongo_update)
         if not saved.matched_count:
@@ -375,8 +402,9 @@ class AssetsService:
             changed_by=actor_email,
             before=before_out,
             after=after_out,
-            patch={"$set": update},
+            patch={"$set": {k: v for k, v in update.items() if not k.startswith('_import_journals')}},
             history_col=self._hist(),
+            source='import' if import_batch_id else 'manual',
         )
         if self._category == "랙":
             await rack_placement_service.sync_rack_asset_mirrors(_id)
@@ -451,6 +479,10 @@ class AssetsService:
         if not existing:
             raise KeyError("찾을 수 없거나 삭제된 상태가 아닙니다.")
 
+        rollback_asset_id = existing.get('_rollback_asset_id')
+        if rollback_asset_id:
+            await _check_asset_id(col, rollback_asset_id, exclude_id=_id)
+
         now = TimeUtil.now_utc()
         update = {
             "is_deleted": False,
@@ -458,15 +490,21 @@ class AssetsService:
             "updated_by": actor_email,
             "version": int(existing.get("version", 1)) + 1,
         }
-        await col.update_one(
-            {"_id": _id},
-            {"$set": update, "$unset": {"delete_reason": "", "deleted_at": "", "deleted_by": ""}},
-        )
+        if rollback_asset_id:
+            update['asset_id'] = rollback_asset_id
+        try:
+            await col.update_one(
+                {"_id": _id},
+                {"$set": update, "$unset": {"delete_reason": "", "deleted_at": "", "deleted_by": "", "_rollback_asset_id": ""}},
+            )
+        except DuplicateKeyError:
+            raise ValueError('해당 자산 ID가 이미 사용 중입니다.')
 
         after = {**existing, **update, "_id": _id}
         after.pop("delete_reason", None)
         after.pop("deleted_at", None)
         after.pop("deleted_by", None)
+        after.pop("_rollback_asset_id", None)
 
         await _write_history(
             asset_id=str(_id),

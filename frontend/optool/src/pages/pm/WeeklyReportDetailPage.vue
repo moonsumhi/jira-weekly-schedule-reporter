@@ -22,8 +22,6 @@
       <HelpButton feature="weekly-report-detail" guide-path="/pm/schedule/guide" />
       <!-- 액션 버튼 -->
       <template v-if="report">
-        <q-btn v-if="report.status === 'DRAFT' || report.status === 'REVIEWING'" flat icon="refresh" label="재집계" color="teal" no-caps
-          :loading="refreshing" @click="doRefresh" />
         <q-btn v-if="report.status === 'DRAFT'" flat icon="rate_review" label="검토 완료" color="orange" no-caps
           @click="changeStatus('REVIEWING')" />
         <q-btn v-if="report.status === 'REVIEWING'" flat icon="check_circle" label="보고 확정" color="positive" no-caps
@@ -57,7 +55,7 @@
       </div>
 
       <!-- 자동 집계 섹션 -->
-      <q-card flat bordered>
+      <AutoWorkPanel v-slot="{ expanded, toggle }">
         <q-card-section class="q-py-sm q-px-md">
           <div class="row items-center">
             <div class="text-subtitle1 text-weight-bold">자동 집계 업무</div>
@@ -65,6 +63,9 @@
             <q-space />
             <q-btn v-if="report.status === 'DRAFT' || report.status === 'REVIEWING'" flat dense icon="refresh" label="재집계" size="sm" color="teal" no-caps
               :loading="refreshing" @click="doRefresh" />
+            <q-btn flat dense :icon="expanded ? 'fullscreen_exit' : 'fullscreen'"
+              :label="expanded ? '전체화면 종료' : '전체화면'" :aria-label="expanded ? '자동 집계 업무 전체화면 종료' : '자동 집계 업무 전체화면 보기'"
+              :aria-pressed="expanded" size="sm" no-caps @click="toggle" />
           </div>
         </q-card-section>
         <q-separator />
@@ -75,7 +76,7 @@
           <q-tab v-if="report.upcomingItems.length" name="upcoming" label="차주 계획" />
         </q-tabs>
         <q-separator />
-        <q-card-section style="max-height:60vh;overflow-y:auto" class="q-pa-md">
+        <q-card-section style="max-height:60vh;overflow-y:auto" class="q-pa-md auto-work-scroll">
           <q-tab-panels v-model="tab" animated>
 
             <!-- 프로젝트별 -->
@@ -87,25 +88,22 @@
                 class="q-mb-sm" :header-class="`${headerBg(i)} ${headerText(i)} text-weight-bold`">
                 <q-card flat>
                   <q-card-section class="q-pa-sm">
-                    <template v-for="sec in breakdown(pb)" :key="sec.label">
-                      <div v-if="sec.items.length" class="q-mb-sm">
-                        <div class="text-caption text-weight-bold q-mb-xs" :class="`text-${sec.color}`">{{ sec.label }}</div>
-                        <div v-for="item in sec.items" :key="item.issueId"
-                          class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders cursor-pointer issue-row"
-                          @click="openIssueDetail(item.issueId)">
-                          <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
-                          <div class="col issue-row-title">
-                            <span class="text-body2 ellipsis">{{ item.title }}</span>
-                            <q-badge v-if="item.isDelayed" outline color="negative" label="지연" class="issue-delay-badge" />
-                          </div>
-                          <span v-if="item.assigneeName" class="text-caption text-grey-7">{{ item.assigneeName }}</span>
-                          <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
-                          <q-badge color="grey-5" :label="ISSUE_STATUS_KO[item.status] ?? item.status" />
-                          <span v-if="item.dueDate" class="text-caption text-grey-6">{{ fmtDateKst(item.dueDate) }}</span>
-                        </div>
+                    <div class="text-caption text-grey-6 q-mb-xs">시작일순 · 시작일이 없으면 마감일 기준</div>
+                    <div v-for="item in projectTimeline(pb)" :key="item.issueId"
+                      class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders cursor-pointer issue-row"
+                      @click="openIssueDetail(item.issueId)">
+                      <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
+                      <div class="col issue-row-title">
+                        <span class="text-body2 ellipsis">{{ item.title }}</span>
+                        <q-badge v-if="item.isDelayed" outline color="negative" label="지연" class="issue-delay-badge" />
                       </div>
-                    </template>
-                    <div v-if="!breakdown(pb).some(sec => sec.items.length)"
+                      <span v-if="item.assigneeName" class="text-caption text-grey-7">{{ item.assigneeName }}</span>
+                      <q-badge v-if="pb.upcoming.some(next => next.issueId === item.issueId)" outline color="primary" label="차주 계획" />
+                      <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
+                      <q-badge color="grey-5" :label="ISSUE_STATUS_KO[item.status] ?? item.status" />
+                      <span class="text-caption text-grey-6">{{ fmtDateKst(item.startDate) }} ~ {{ fmtDateKst(item.dueDate) }}</span>
+                    </div>
+                    <div v-if="!projectTimeline(pb).length"
                       class="text-grey-5 text-caption">업무 없음</div>
                   </q-card-section>
                 </q-card>
@@ -200,7 +198,7 @@
 
           </q-tab-panels>
         </q-card-section>
-      </q-card>
+      </AutoWorkPanel>
 
       <!-- 수기 항목 섹션 (주요 안건 / 특이사항 및 리스크 / 결정 필요 사항) -->
       <q-card v-for="sec in MANUAL_SECTIONS" :key="sec.section" flat bordered>
@@ -352,7 +350,9 @@ import {
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 import { fmtDateKst } from 'src/utils/time/kst'
+import { projectTimeline } from 'src/utils/reportProjectOrder'
 import WrItemDialog from './components/WrItemDialog.vue'
+import AutoWorkPanel from './components/AutoWorkPanel.vue'
 import IssueDetailDialog from './components/IssueDetailDialog.vue'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { getLinkedIssue, type Issue } from 'src/services/pm/issue'
