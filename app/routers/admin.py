@@ -275,6 +275,8 @@ async def unblock_user(user_id: str, admin: UserPublic = Depends(require_admin))
     return UserListItem(
         id=str(doc["_id"]), email=doc["email"], full_name=doc.get("full_name"),
         team=doc.get("team"),
+        employee_number=doc.get("employee_number"), host_pc_ip=doc.get("host_pc_ip"),
+        position=doc.get("position"), extension=doc.get("extension"),
         is_admin=bool(doc.get("is_admin", False)), is_blocked=False,
         permissions=doc.get("permissions", []),
         created_at=doc.get("created_at"), last_login_at=doc.get("last_login_at"),
