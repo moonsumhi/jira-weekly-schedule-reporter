@@ -200,18 +200,39 @@ onBeforeUnmount(() => {
   border-radius: 9px;
   background: #f8fafc;
 }
+:global(body.body--dark) .document-inspection-options {
+  border-color: #3c4b5f;
+  background: #1d2837;
+  color: #dbe5f1;
+}
 .is-enabled {
   border-color: #a8c6e5;
+}
+:global(body.body--dark) .document-inspection-options.is-enabled {
+  border-color: #527ba6;
+  background: #202f40;
 }
 .document-inspection-options > .q-checkbox {
   font-size: 13px;
   font-weight: 600;
   color: #365778;
 }
+:global(body.body--dark) .document-inspection-options > .q-checkbox,
+:global(body.body--dark) .document-inspection-options .q-checkbox__label {
+  color: #dbe5f1;
+}
+:global(body.body--dark) .document-inspection-options .q-checkbox__bg {
+  border-color: #a8b9cc;
+}
 .inspection-description {
   margin: 0 0 6px 40px;
   color: #718399;
   font-size: 12px;
+}
+:global(body.body--dark) .document-inspection-options .inspection-description,
+:global(body.body--dark) .document-inspection-options .inspection-feedback,
+:global(body.body--dark) .document-inspection-options .inspection-targets {
+  color: #b8c7d8;
 }
 .inspection-fields {
   display: grid;
@@ -219,6 +240,9 @@ onBeforeUnmount(() => {
   padding: 16px 8px 8px;
   margin-top: 8px;
   border-top: 1px solid #e1e7ef;
+}
+:global(body.body--dark) .document-inspection-options .inspection-fields {
+  border-top-color: #3c4b5f;
 }
 .inspection-dates {
   display: grid;

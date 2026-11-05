@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md" :class="{ 'work-management-dark': theme.appearanceMode === 'dark' }">
     <q-tabs v-if="isJobPage" :model-value="activeJobTab" dense no-caps align="left"
       active-color="primary" indicator-color="primary" class="job-category-tabs q-mb-md"
       @update:model-value="selectJobTab">
@@ -55,12 +55,13 @@
         <q-chip
           v-if="isJobPage && !trashView && deletedCount"
           dense clickable icon="delete_outline"
+          class="job-trash-chip"
           color="grey-3" text-color="grey-8"
           @click="openTrash"
         >휴지통 {{ deletedCount }}</q-chip>
       </div>
 
-      <q-banner v-if="trashView" rounded class="bg-grey-1 q-mb-md">
+      <q-banner v-if="trashView" rounded class="job-trash-guide q-mb-md" :dark="theme.appearanceMode === 'dark'">
         <template #avatar><q-icon name="delete_outline" color="blue-grey-7" /></template>
         <div class="text-weight-medium">휴지통 · 삭제된 문서 {{ deletedCount }}건</div>
         <div class="text-caption text-grey-7">
@@ -77,9 +78,10 @@
         </template>
       </q-banner>
 
-      <q-card bordered>
+      <q-card bordered :dark="theme.appearanceMode === 'dark'">
         <q-card-section class="q-pa-none">
           <q-table
+            :dark="theme.appearanceMode === 'dark'"
             :rows="filteredRows"
             :columns="columns"
             row-key="id"
@@ -117,7 +119,9 @@
 
             <template #body-cell-preview="props">
               <q-td :props="props">
-                <button v-if="!trashView" class="document-row-title" type="button" @click.stop="void openDetail(props.row)">
+                <button v-if="!trashView" class="document-row-title" type="button"
+                  :style="{ color: theme.appearanceMode === 'dark' ? '#e2e8f0' : 'inherit' }"
+                  @click.stop="void openDetail(props.row)">
                   {{ entryPreview(props.row) }}
                 </button>
                 <span v-else class="text-grey-7 text-caption ellipsis" style="max-width: 300px; display: block;">
@@ -478,6 +482,7 @@ import WorkDocumentDetail from 'src/components/WorkDocumentDetail.vue'
 import WorkDocumentEditor from 'src/components/WorkDocumentEditor.vue'
 import WorkDocumentAssets from 'src/components/WorkDocumentAssets.vue'
 import { useAuthStore } from 'src/stores/auth'
+import { useThemeStore } from 'src/stores/theme'
 import { comparisonFormatKey, comparisonMarkdown, workResultFieldGroups } from 'src/utils/workResultFields'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 import { api } from 'src/boot/axios'
@@ -488,6 +493,7 @@ const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 const auth = useAuthStore()
+const theme = useThemeStore()
 
 const completionOptions = [
   { label: '성공', value: true },
@@ -1714,8 +1720,12 @@ watch(() => route.query.entryId, () => { if (!loading.value) void openLinkedEntr
 :global(body.body--dark) .edit-field-label { color: #94a3b8; }
 @media (max-width: 600px) { .edit-fields { grid-template-columns: 1fr; }.edit-row-card { padding: 18px; } }
 .job-category-tabs { border-bottom: 1px solid #e0e0e0; }
-.document-row-title { max-width: 100%; padding: 0; border: 0; background: transparent; color: #000; font: inherit; text-align: left; cursor: pointer; }
+.document-row-title { max-width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 :global(body.body--dark) .document-row-title { color: #fff; }
+.work-management-dark :deep(.q-table__container),
+.work-management-dark :deep(.q-table) { background: #182334; color: #e2e8f0; }
+.work-management-dark :deep(.q-table thead th),
+.work-management-dark :deep(.q-table tbody td) { color: #e2e8f0; }
 .document-row-title:hover { text-decoration: underline; }
 .document-row-title:focus-visible { outline: 2px solid var(--q-primary); outline-offset: 2px; }
 :deep(.work-document-row-clickable) { cursor: pointer; }

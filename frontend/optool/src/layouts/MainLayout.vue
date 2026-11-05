@@ -4,7 +4,7 @@
       <q-toolbar>
         <!-- menu button only when logged in -->
         <q-btn
-          v-if="auth.isLoggedIn"
+          v-if="authIsLoggedIn"
           flat
           dense
           round
@@ -19,11 +19,11 @@
         <div>{{ theme.appName }} v1.1.0</div>
 
         <!-- 알림 벨 -->
-        <NotificationBell v-if="auth.isLoggedIn" class="q-ml-xs" />
+        <NotificationBell v-if="authIsLoggedIn" class="q-ml-xs" />
 
         <!-- AI 채팅 -->
         <q-btn
-          v-if="auth.isLoggedIn && (auth.me?.isAdmin || auth.me?.permissions?.includes('ai_access'))"
+          v-if="authIsLoggedIn && (authMe?.isAdmin || authMe?.permissions?.includes('ai_access'))"
           flat dense round
           icon="smart_toy"
           aria-label="AI 채팅"
@@ -36,7 +36,7 @@
 
         <!-- 링크 사이드바 토글 (내부망만) -->
         <q-btn
-          v-if="auth.isLoggedIn && !isExternal"
+          v-if="authIsLoggedIn && !isExternal"
           flat dense round
           icon="fa-solid fa-link"
           aria-label="Links"
@@ -48,28 +48,35 @@
 
     <!-- drawer only when logged in -->
     <q-drawer
-      v-if="auth.isLoggedIn"
+      v-if="authIsLoggedIn"
+      class="app-sidebar"
       v-model="leftDrawerOpen"
       show-if-above
       bordered
+      :dark="theme.appearanceMode === 'dark'"
+      :style="theme.appearanceMode === 'dark' ? { backgroundColor: '#17212f' } : undefined"
       :width="248"
       :mini="miniDrawer"
       :mini-width="80"
       :breakpoint="767"
     >
       <!-- column layout to pin logout button at bottom -->
-      <div class="column fit">
+      <div
+        class="column fit"
+        :class="{ 'sidebar-dark': theme.appearanceMode === 'dark' }"
+        :style="{ backgroundColor: theme.appearanceMode === 'dark' ? '#17212f' : theme.sidebarBackgroundColor }"
+      >
 
         <!-- MENU AREA -->
         <q-scroll-area class="col">
-          <q-list class="sidebar-menu-list">
-            <q-item v-if="miniDrawer" clickable v-ripple class="sidebar-home-link" @click="goHome">
+          <q-list class="sidebar-menu-list" :dark="theme.appearanceMode === 'dark'">
+            <q-item v-if="miniDrawer" :dark="theme.appearanceMode === 'dark'" clickable v-ripple class="sidebar-home-link" @click="goHome">
               <q-item-section avatar>
                 <q-icon name="home" />
               </q-item-section>
               <q-tooltip anchor="center right" self="center left">대시보드</q-tooltip>
             </q-item>
-            <q-item v-else clickable v-ripple class="sidebar-home-link" @click="goHome">
+            <q-item v-else :dark="theme.appearanceMode === 'dark'" clickable v-ripple class="sidebar-home-link" @click="goHome">
               <q-item-section>
                 <q-item-label>데이터운영팀</q-item-label>
               </q-item-section>
@@ -138,6 +145,7 @@
                 @expand-sidebar="expandSidebar"
               />
             </template>
+
           </q-list>
         </q-scroll-area>
 
@@ -145,18 +153,19 @@
         <q-separator />
 
         <q-item
+          :dark="theme.appearanceMode === 'dark'"
           clickable v-ripple
           class="q-py-sm"
           @click="$router.push('/account/my-page')"
         >
           <q-item-section avatar>
             <q-avatar color="primary" text-color="white" size="36px" class="text-caption">
-              {{ auth.me?.fullName?.[0] ?? auth.me?.email?.[0]?.toUpperCase() ?? '?' }}
+              {{ authMe?.fullName?.[0] ?? authMe?.email?.[0]?.toUpperCase() ?? '?' }}
             </q-avatar>
           </q-item-section>
           <q-item-section>
-            <q-item-label class="text-weight-medium">{{ auth.me?.fullName ?? '-' }}</q-item-label>
-            <q-item-label caption class="text-grey-6">{{ auth.me?.email }}</q-item-label>
+            <q-item-label class="text-weight-medium">{{ authMe?.fullName ?? '-' }}</q-item-label>
+            <q-item-label caption :class="theme.appearanceMode === 'dark' ? 'text-grey-5' : 'text-grey-6'">{{ authMe?.email }}</q-item-label>
           </q-item-section>
           <q-item-section side>
             <q-btn
@@ -172,7 +181,7 @@
     </q-drawer>
     <!-- 오른쪽 링크 사이드바 (내부망만) -->
     <q-drawer
-      v-if="auth.isLoggedIn && !isExternal"
+      v-if="authIsLoggedIn && !isExternal"
       v-model="rightDrawerOpen"
       side="right"
       bordered
@@ -181,9 +190,9 @@
       <div class="column fit">
         <div class="row items-center q-px-md q-py-sm">
           <div class="text-subtitle1 text-weight-bold col">서비스 바로가기</div>
-          <q-btn v-if="auth.me?.isAdmin" flat dense round icon="add" size="sm" @click="openLinkCreate" />
-          <q-btn v-if="auth.me?.isAdmin" flat dense round icon="playlist_add" size="sm" color="grey" title="일괄 등록" @click="openBulkImport" />
-          <q-btn v-if="auth.me?.isAdmin" flat dense round :icon="linkEditMode ? 'close' : 'edit'" size="sm" color="grey" @click="linkEditMode = !linkEditMode" />
+          <q-btn v-if="authMe?.isAdmin" flat dense round icon="add" size="sm" @click="openLinkCreate" />
+          <q-btn v-if="authMe?.isAdmin" flat dense round icon="playlist_add" size="sm" color="grey" title="일괄 등록" @click="openBulkImport" />
+          <q-btn v-if="authMe?.isAdmin" flat dense round :icon="linkEditMode ? 'close' : 'edit'" size="sm" color="grey" @click="linkEditMode = !linkEditMode" />
         </div>
         <q-separator />
 
@@ -218,7 +227,7 @@
               </a>
 
               <!-- 관리자 편집 버튼 -->
-              <div v-if="linkEditMode && auth.me?.isAdmin" class="link-card-actions">
+              <div v-if="linkEditMode && authMe?.isAdmin" class="link-card-actions">
                 <q-btn flat dense round icon="edit" size="xs" color="grey" @click.stop="openLinkEdit(link)" />
                 <q-btn flat dense round icon="delete" size="xs" color="negative" @click.stop="confirmDeleteLink(link)" />
               </div>
@@ -245,7 +254,7 @@
             emit-value map-options
           >
             <template #selected-item="{ opt }">
-              <span class="q-mr-sm" :style="{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '2px', backgroundColor: linkColorMap[opt.value] ?? '#9e9e9e' }"></span>
+              <span class="q-mr-sm" :style="{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '2px', backgroundColor: linkColorFor(opt.value) }"></span>
               {{ opt.label }}
             </template>
           </q-select>
@@ -291,21 +300,21 @@
       </q-card>
     </q-dialog>
 
-    <q-page-container>
+    <q-page-container :class="{ 'pm-theme-container': isScheduleManagementRoute }">
       <router-view />
     </q-page-container>
 
-    <NoticePopup v-if="auth.isLoggedIn" />
+    <NoticePopup v-if="authIsLoggedIn" />
 
     <AiChatPanel :open="aiChatOpen" @close="aiChatOpen = false" />
 
     <IssueDetailDialog
-      v-if="issueDialog.issue"
-      v-model="issueDialog.open"
-      :project-id="issueDialog.issue.projectId"
-      :project-key="issueDialog.issue.projectKey ?? ''"
-      :issue="issueDialog.issue"
-      :initial-comment-id="issueDialog.initialCommentId"
+      v-if="activeIssue"
+      v-model="issueDialogOpen"
+      :project-id="activeIssue.projectId"
+      :project-key="activeIssue.projectKey ?? ''"
+      :issue="activeIssue"
+      :initial-comment-id="initialCommentId"
     />
   </q-layout>
 </template>
@@ -335,10 +344,17 @@ const menuStore = useMenuStore()
 const theme = useThemeStore()
 const notifStore = useNotificationStore()
 const issueDialog = useIssueDialogStore()
+const { isLoggedIn: authIsLoggedIn, me: authMe } = storeToRefs(auth)
+const {
+  issue: activeIssue,
+  open: issueDialogOpen,
+  initialCommentId,
+} = storeToRefs(issueDialog)
 const $q = useQuasar()
 const { sidebarMenus, sidebarBoards, templateItems } = storeToRefs(menuStore)
 const router = useRouter()
 const route = useRoute()
+const isScheduleManagementRoute = computed(() => route.path.startsWith('/pm'))
 
 function recordHomeVisit() {
   void api.get('/auth/home-ping')
@@ -431,6 +447,7 @@ function boardChildrenOf(menuId: string) {
       iconColor: menu?.subIconColors?.[link] ?? menu?.iconColor ?? menu?.subColors?.[link] ?? menu?.color ?? '#000000',
     }
   })
+
 }
 
 const jobMenuItems = computed<EssentialLinkProps[]>(() => {
@@ -510,6 +527,10 @@ const linkColorMap: Record<string, string> = {
   orange: '#ff9800',
   brown: '#795548',
   grey: '#9e9e9e',
+}
+
+function linkColorFor(value: unknown): string {
+  return typeof value === 'string' ? linkColorMap[value] ?? '#9e9e9e' : '#9e9e9e'
 }
 
 const bulkImportDialog = ref(false)
@@ -698,6 +719,7 @@ watch(
       notifStore.stopPolling()
     } else {
       await auth.fetchMe()
+      void theme.loadSidebarTheme()
       void menuStore.refresh()
       if (auth.me?.isAdmin) {
         void auth.fetchPendingCount()
@@ -711,6 +733,7 @@ watch(
 onMounted(async () => {
   if (auth.isLoggedIn) {
     await auth.fetchMe()
+    void theme.loadSidebarTheme()
     void menuStore.refresh()
     if (auth.me?.isAdmin) {
       void auth.fetchPendingCount()

@@ -1,5 +1,5 @@
 <template>
-  <q-page padding>
+  <q-page padding class="menu-manage-page">
     <div class="row q-col-gutter-md">
       <div class="col-12 col-md-9">
         <div class="row items-center q-mb-sm">
@@ -57,7 +57,7 @@
                 <!-- 시스템 고정 하위메뉴 (드래그로 순서 변경 가능) -->
                 <draggable
                   :model-value="sysSubsMap[menu.id] ?? []"
-                  @update:model-value="(v) => updateSysSubsEntry(menu.id, v)"
+                  @update:model-value="(v: SysSub[]) => updateSysSubsEntry(menu.id, v)"
                   item-key="link"
                   handle=".sys-drag-handle"
                   ghost-class="drag-ghost"
@@ -390,7 +390,16 @@ const editMenuTarget = ref<MenuOut | null>(null)
 const menuForm = ref({ title: '', icon: 'fa-solid fa-folder', color: '#000000', iconColor: '#000000', is_visible: true, link: '' })
 
 function menuColorStyle(color: string | null | undefined) {
-  return { color: color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#000000' }
+  const value = color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#000000'
+  if (!$q.dark.isActive) return { color: value }
+
+  const channels = value.slice(1).match(/.{2}/g)?.map((channel) => Number.parseInt(channel, 16)) ?? [0, 0, 0]
+  const [red = 0, green = 0, blue = 0] = channels
+  const luminance = red * 0.2126 + green * 0.7152 + blue * 0.0722
+  if (luminance >= 150) return { color: value }
+
+  const readable = channels.map((channel) => Math.round(channel + (255 - channel) * 0.62))
+  return { color: `#${readable.map((channel) => channel.toString(16).padStart(2, '0')).join('')}` }
 }
 
 function childMenuColor(menu: MenuOut, link: string) {

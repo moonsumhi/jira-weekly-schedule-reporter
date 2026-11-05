@@ -1,5 +1,5 @@
 <template>
-  <q-page padding>
+  <q-page padding class="sr-manage-page">
 
     <!-- ── 헤더 ───────────────────────────────────────────────────────── -->
     <div class="row items-center q-mb-lg">

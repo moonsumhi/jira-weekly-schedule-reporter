@@ -41,6 +41,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import Editor from '@toast-ui/editor'
 import '@toast-ui/editor/dist/toastui-editor.css'
+import '@toast-ui/editor/dist/theme/toastui-editor-dark.css'
 import { useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 import { searchMentionUsers, type MentionUser } from 'src/services/mention'
@@ -512,6 +513,8 @@ onMounted(() => {
       },
     },
   }) as unknown as ToastEditorApi
+  editorEl.value.querySelector<HTMLElement>('.toastui-editor-defaultUI')
+    ?.classList.toggle('toastui-editor-dark', $q.dark.isActive)
   // capture phase so we intercept before ProseMirror embeds image as base64
   editorEl.value.addEventListener('paste', handlePaste, true)
   editorEl.value.addEventListener('keydown', handleSlashKeydown, true)
@@ -520,6 +523,11 @@ onMounted(() => {
   editorEl.value.addEventListener('focusout', handleEditorFocusout, true)
   editorEl.value.addEventListener('compositionstart', handleCompositionStart, true)
   editorEl.value.addEventListener('compositionend', handleCompositionEnd, true)
+})
+
+watch(() => $q.dark.isActive, (isDark) => {
+  const editorUI = editorEl.value?.querySelector<HTMLElement>('.toastui-editor-defaultUI')
+  editorUI?.classList.toggle('toastui-editor-dark', isDark)
 })
 
 function handleCompositionStart() {

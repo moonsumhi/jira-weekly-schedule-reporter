@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md schedule-guide-page">
 
     <!-- 헤더 -->
     <div class="row items-center q-mb-lg">
@@ -245,7 +245,7 @@
             <!-- 2-1: 인라인 편집 -->
             <div v-if="si === 2 && idx === 1" class="mock-screen" style="max-width:480px">
               <div class="text-caption text-grey-5 q-mb-xs">제목을 클릭하면 편집 모드로 전환됩니다</div>
-              <div style="border:2px solid #1976d2;border-radius:4px;padding:6px 10px;font-size:14px;font-weight:600;background:white">
+              <div class="guide-white-surface" style="border:2px solid #1976d2;border-radius:4px;padding:6px 10px;font-size:14px;font-weight:600;background:white">
                 사용자 권한 관리 API 개발
               </div>
               <div class="text-caption text-grey-5 q-mt-xs">제목: Enter 또는 다른 곳 클릭(blur) 시 자동 저장 · 설명: 마크다운 에디터에서 [저장] 버튼 클릭</div>
