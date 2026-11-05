@@ -904,13 +904,14 @@ h1 {
 .page-month-picker :deep(.q-field__label) {
   display: none;
 }
-.page-month-picker :deep(.q-field__control-container) {
+.page-month-picker :deep(.q-field__control .q-field__control-container) {
   padding-top: 0;
 }
 .page-month-picker :deep(.month-trigger) {
   font-size: 21px;
   font-weight: 650;
   letter-spacing: -0.6px;
+  line-height: 1.2;
 }
 .page-month-picker :deep(.month-trigger .q-icon) {
   display: none;

@@ -85,7 +85,7 @@
           </div>
         </div>
         <q-btn
-          v-else-if="canWrite"
+          v-else-if="canWrite && !reports.length && !loading && !error"
           unelevated
           color="primary"
           icon="add"
@@ -185,24 +185,31 @@
           </div>
           <InspectionMonthPicker :model-value="month" @update:model-value="changeMonth" />
         </section>
-        <div v-if="reports.length" class="report-cards">
+        <div v-if="currentReport" class="monthly-document">
           <button
-            v-for="item in reports"
-            :key="item.id"
             class="report-card"
-            @click="goReport(item.id)"
+            @click="goReport(currentReport.id)"
           >
             <div class="report-card-icon"><q-icon name="description" size="26px" /></div>
             <div class="report-card-copy">
-              <div class="card-state" :class="{ final: item.state === 'FINAL' }">
-                {{ item.state === 'FINAL' ? '확정' : '초안' }} <span>{{ item.revision }}차</span>
+              <div class="card-state" :class="{ final: currentReport.state === 'FINAL' }">
+                {{ currentReport.state === 'FINAL' ? '확정' : '초안' }} <span>{{ currentReport.revision }}차</span>
               </div>
-              <h3>{{ item.title }}</h3>
-              <p>점검{{ isPlan ? ' 예정일' : '일' }} {{ item.inspectionDate }}</p>
-              <small>{{ item.createdBy }} · {{ reportTime(item.updatedAt) }}</small>
+              <h3>{{ currentReport.title }}</h3>
+              <p>점검{{ isPlan ? ' 예정일' : '일' }} {{ currentReport.inspectionDate }}</p>
+              <small>{{ currentReport.createdBy }} · {{ reportTime(currentReport.updatedAt) }}</small>
             </div>
-            <q-icon name="description" size="17px" class="report-card-open" />
+            <q-icon name="open_in_new" size="17px" class="report-card-open" />
           </button>
+          <details v-if="reports.length > 1" class="report-history">
+            <summary>이전 확정본 및 기존 기록 ({{ reports.length - 1 }})</summary>
+            <p>이전에 작성한 문서와 수정 전 확정본을 확인할 수 있습니다.</p>
+            <button v-for="item in reports.slice(1)" :key="item.id" type="button" @click="goReport(item.id)">
+              <span>{{ item.title }}</span>
+              <small>{{ item.state === 'FINAL' ? '확정' : '초안' }} · {{ item.revision }}차 · {{ reportTime(item.updatedAt) }}</small>
+              <q-icon name="open_in_new" size="16px" />
+            </button>
+          </details>
         </div>
         <section v-else class="report-empty">
           <div class="empty-document" aria-hidden="true">
@@ -570,6 +577,7 @@ const kind = computed<ReportKind>(
   () => report.value?.kind || (route.query.kind === 'PLAN' ? 'PLAN' : 'RESULT'),
 );
 const isPlan = computed(() => kind.value === 'PLAN');
+const currentReport = computed(() => reports.value[0] || null);
 const documentLabel = computed(() => (isPlan.value ? '계획서' : '결과서'));
 const canWrite = computed(() => auth.me?.isInternal !== false);
 const canViewAssets = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('asset'));
@@ -618,6 +626,7 @@ async function load() {
   loading.value = true;
   error.value = '';
   report.value = null;
+  reports.value = [];
   reviewOpen.value = false;
   sourceOpen.value = false;
   participantsOpen.value = false;
@@ -1121,13 +1130,12 @@ h2 {
   color: #8391a3;
   margin: 0;
 }
-.report-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+.monthly-document {
+  max-width: 760px;
 }
 .report-card {
   display: flex;
+  width: 100%;
   gap: 19px;
   border: 1px solid #e0e7ef;
   border-radius: 12px;
@@ -1186,6 +1194,39 @@ h2 {
 .report-card-open {
   color: #aebac7;
   margin-top: 4px;
+}
+.report-history {
+  margin-top: 18px;
+  color: #546579;
+  font-size: 13px;
+}
+.report-history summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.report-history p {
+  margin: 12px 0;
+  color: #8391a3;
+}
+.report-history button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 4px;
+  border: 0;
+  border-bottom: 1px solid #e5ebf1;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.report-history button span {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.report-history button small {
+  color: #8391a3;
 }
 .report-empty {
   text-align: center;
@@ -1410,9 +1451,6 @@ h2 {
     justify-content: flex-end;
     margin-left: auto;
   }
-  .report-cards {
-    grid-template-columns: 1fr;
-  }
 }
 @media (max-width: 600px) {
   .report-shell {
@@ -1462,6 +1500,12 @@ h2 {
   .report-card {
     padding: 20px;
     gap: 14px;
+  }
+  .report-history button {
+    flex-wrap: wrap;
+  }
+  .report-history button span {
+    flex-basis: 100%;
   }
   .report-card-icon {
     padding: 10px;

@@ -1,7 +1,9 @@
 """Plan/result separation and submitted-plan preservation with isolated MongoDB data."""
 import os
 import unittest
+import asyncio
 from copy import deepcopy
+from uuid import uuid4
 
 from bson import ObjectId
 
@@ -97,6 +99,33 @@ class PlanReportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(read.json()['kind'], 'RESULT')
         retry = await self.make_plan()
         self.assertEqual(retry['id'], plan['id'])
+
+    async def test_one_monthly_document_per_kind_even_when_project_scope_differs(self):
+        other_id = ObjectId()
+        await M.get_pm_projects_collection().insert_one({'_id': other_id, 'key': 'OTHER', 'name': '다른 프로젝트'})
+        for kind in ('PLAN', 'RESULT'):
+            previews = [await self.preview(kind=kind), await self.preview(kind=kind, project_ids=[str(other_id)])]
+            responses = await asyncio.gather(*(self.client.post('/reports', json={
+                'preview_id': preview['id'], 'client_id': uuid4().hex}) for preview in previews))
+            self.assertEqual(sorted(response.status_code for response in responses), [201, 409])
+            docs = (await self.client.get('/reports', params={'month': '2026-09', 'kind': kind})).json()
+            self.assertEqual(len(docs), 1)
+
+    async def test_legacy_result_blocks_new_scope_but_remains_readable_and_revisable(self):
+        doc = await self.create()
+        col = M.get_db()[reports.REPORTS]
+        await col.update_one({'_id': ObjectId(doc['id'])}, {'$unset': {'kind': '', 'monthly_root_key': ''}})
+        other_id = ObjectId()
+        await M.get_pm_projects_collection().insert_one({'_id': other_id, 'key': 'OTHER', 'name': '다른 프로젝트'})
+        preview = await self.preview(project_ids=[str(other_id)])
+        response = await self.client.post('/reports', json={'preview_id': preview['id'], 'client_id': uuid4().hex})
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual((await self.client.get('/reports/' + doc['id'])).status_code, 200)
+        final = await self.finalize(doc)
+        revised = await self.client.post('/reports/' + final['id'] + '/revisions')
+        self.assertEqual(revised.status_code, 201)
+        self.assertEqual(revised.json()['revision'], 2)
+        self.assertEqual(await col.count_documents({}), 2)
 
     async def test_final_plan_and_result_baseline_survive_live_changes_and_plan_revision(self):
         await M.get_db()[M.APP_SETTINGS].insert_one({'_id': 'inspection_resource_targets', 'version': 1, 'asset_ids': [str(self.aid)]})

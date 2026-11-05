@@ -115,6 +115,9 @@ async def indexes():
     col = M.get_db()[REPORTS]
     await col.create_index([('month', 1), ('scope_key', 1), ('revision', 1)], unique=True)
     await col.create_index('create_key', unique=True, sparse=True)
+    # New monthly documents have one root per kind; old reports and revisions
+    # remain untouched and can still be read.
+    await col.create_index('monthly_root_key', unique=True, sparse=True)
     await col.create_index('parent_id', unique=True, partialFilterExpression={'parent_id': {'$type': 'string'}})
     await M.get_db()[PREVIEWS].create_index('expires_at', expireAfterSeconds=0)
 
@@ -535,7 +538,14 @@ async def create_report(user, preview_id, client_id):
     project_ids = sorted(x['id'] for x in p['projects'])
     kind = p.get('kind', 'RESULT')
     scope_key = ('plan:' if kind == 'PLAN' else '') + hashlib.sha256(','.join(project_ids).encode()).hexdigest()
+    monthly_query = {'month': p['month'], 'kind': 'PLAN' if kind == 'PLAN' else {'$ne': 'PLAN'}}
+    existing = await M.get_db()[REPORTS].find_one(monthly_query, sort=[('revision', -1), ('created_at', -1)])
+    if existing:
+        if existing.get('scope_key') != scope_key:
+            raise HTTPException(409, '이 달에 이미 작성된 점검 보고서가 있습니다. 기존 보고서를 확인해 주세요.')
+        return await get_report(str(existing['_id']), user)
     doc = {'month': p['month'], 'kind': kind, 'project_ids': project_ids, 'projects': p['projects'], 'scope_key': scope_key,
+           'monthly_root_key': f"{p['month']}:{kind}",
            'revision': 1, 'state': 'DRAFT', 'version': 1, 'title': f"{p['month'][:4]}년 {int(p['month'][5:])}월 서버 점검 {'계획서' if kind == 'PLAN' else '결과서'}",
            'inspection_date': (p['snapshot']['source'] or {}).get('report_date') or (await tasks.inspection_date(p['month'])).isoformat(),
            'purpose': '서버 자원 사용량과 운영 상태를 확인하고, 월간 작업 결과와 추가 조치 계획을 기록합니다.',
@@ -559,7 +569,9 @@ async def create_report(user, preview_id, client_id):
         if doc and doc.get('creation_preview_id') != preview_id:
             raise HTTPException(409, '이미 작성된 보고서가 있습니다. 보고서 목록을 확인해 주세요.')
         if not doc:
-            doc = await M.get_db()[REPORTS].find_one({'month': p['month'], 'scope_key': scope_key}, sort=[('revision', -1)])
+            doc = await M.get_db()[REPORTS].find_one(monthly_query, sort=[('revision', -1), ('created_at', -1)])
+            if not doc or doc.get('scope_key') != scope_key:
+                raise HTTPException(409, '이 달에 이미 작성된 점검 보고서가 있습니다. 기존 보고서를 확인해 주세요.')
         return await get_report(str(doc['_id']), user)
     return doc
 
@@ -713,7 +725,7 @@ async def revision(doc, user):
     existing = await M.get_db()[REPORTS].find_one({'parent_id': str(doc['_id'])})
     if existing:
         return await get_report(str(existing['_id']), user)
-    new = {k: deepcopy(v) for k, v in doc.items() if k not in ('_id', 'create_key', 'finalized_at', 'finalized_by')}
+    new = {k: deepcopy(v) for k, v in doc.items() if k not in ('_id', 'create_key', 'monthly_root_key', 'finalized_at', 'finalized_by')}
     new.update(parent_id=str(doc['_id']), revision=doc['revision'] + 1, state='DRAFT', version=1,
                created_at=now(), updated_at=now(), created_by=user.full_name or user.email, created_by_id=user.id)
     new['participants'] = sync_participant_assignments(new)
