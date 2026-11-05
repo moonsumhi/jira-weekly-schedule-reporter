@@ -165,7 +165,9 @@ const allAssignees = computed(() => {
     const id = workStatusAssigneeId(i)
     map.set(id, id === NO_ASSIGNEE_KEY ? '담당자없음' : i.assigneeName || '담당자없음')
   }
-  return [...map.entries()].map(([id, name]) => ({ id, name }))
+  return [...map.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => Number(a.id === NO_ASSIGNEE_KEY) - Number(b.id === NO_ASSIGNEE_KEY))
 })
 
 // ── 다중 선택 토글 ────────────────────────────────────────────────────
