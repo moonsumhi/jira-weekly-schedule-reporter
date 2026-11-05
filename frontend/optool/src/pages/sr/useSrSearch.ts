@@ -107,7 +107,7 @@ export function buildSrApiParams(
   const p: Record<string, string | number | boolean> = { ...extra }
 
   if (tab.length) {
-    const includes = tab.filter(s => !s.startsWith('!'))
+    const includes = tab.filter(s => s !== 'all' && !s.startsWith('!'))
     const excludes = tab.filter(s => s.startsWith('!')).map(s => s.slice(1))
     if (includes.length)      p.status = includes.join(',')
     else if (excludes.length) p.status = excludes.map(s => `!${s}`).join(',')
@@ -205,7 +205,7 @@ export function useSrSearch() {
         filter.value.isDelayed = true
         activeTab.value = []
       } else {
-        activeTab.value = st.split(',').filter(Boolean)
+        activeTab.value = st.split(',').filter(value => !!value && value !== 'all')
       }
     }
     const f = filter.value
@@ -281,7 +281,7 @@ export function useSrSearch() {
   }
 
   function loadPreset(p: SrFilterPreset) {
-    activeTab.value = [...(p.tab ?? [])]
+    activeTab.value = (p.tab ?? []).filter(value => value !== 'all')
     filter.value    = normalizeSrFilter(p.filter)
   }
 

@@ -562,12 +562,12 @@ const columns: NonNullable<QTableProps['columns']> = [
 const statCards = computed(() => {
   if (!stats.value) return []
   return [
-    { label: '전체',         value: stats.value.total,                    color: 'primary',  tab: 'all'         },
-    { label: '진행 중',      value: stats.value.inProgress,               color: 'blue-8',   tab: 'IN_PROGRESS' },
-    { label: '완료',         value: stats.value.completed,                color: 'positive', tab: 'COMPLETED'   },
+    { label: '전체',         value: stats.value.total,                    color: 'primary',  tab: [] },
+    { label: '진행 중',      value: stats.value.inProgress,               color: 'blue-8',   tab: ['IN_PROGRESS', 'COMPLETED', 'CONFIRMING'] },
+    { label: '완료',         value: stats.value.completed,                color: 'positive', tab: ['CLOSED'] },
     { label: '지연',         value: stats.value.delayed,                  color: 'negative', tab: null          },
-    { label: '보류',         value: stats.value.onHold,                   color: 'brown',    tab: 'ON_HOLD'     },
-    { label: '반려',         value: stats.value.rejected,                 color: 'red-8',    tab: 'REJECTED'    },
+    { label: '보류',         value: stats.value.onHold,                   color: 'brown',    tab: ['ON_HOLD'] },
+    { label: '반려',         value: stats.value.rejected,                 color: 'red-8',    tab: ['REJECTED'] },
     { label: '긴급',         value: stats.value.urgentCount,              color: 'red',      tab: null          },
     { label: '평균처리(일)', value: stats.value.avgProcessingDays ?? '-', color: 'grey-7',   tab: null          },
   ]
@@ -596,14 +596,8 @@ function formatTitle(row: SRListItem) {
 
 // ── 탭 전환 (통계 카드 클릭) ──────────────────────────────────────────────
 
-function switchStatTab(tab: string) {
-  // 통계 카드의 '지연' 탭 클릭 → isDelayed 토글로 처리
-  if (tab === 'delayed') {
-    srSearch.filter.value = { ...srSearch.filter.value, isDelayed: true }
-    srSearch.activeTab.value = []
-  } else {
-    srSearch.activeTab.value = [tab]
-  }
+function switchStatTab(tab: string[]) {
+  srSearch.activeTab.value = [...tab]
   pagination.value.page = 1
   void fetchList()
   syncToUrl()
@@ -626,6 +620,12 @@ const listQueryParams = computed(() => {
     descending: pagination.value.descending,
     ...(search ? { search } : {}),
   })
+})
+
+// Status cards describe the filtered scope before applying a status selection.
+const statsQueryParams = computed(() => {
+  const search = srSearch.search.value.trim()
+  return buildSrApiParams(srSearch.filter.value, [], search ? { search } : {})
 })
 
 async function fetchUsers() {
@@ -659,7 +659,9 @@ async function fetchSystems() {
   }
 }
 
+let latestListRequest = 0
 async function fetchList() {
+  const requestId = ++latestListRequest
   loading.value = true
   try {
     const skip = (pagination.value.page - 1) * pagination.value.rowsPerPage
@@ -668,15 +670,17 @@ async function fetchList() {
       skip,
       limit: pagination.value.rowsPerPage,
     }
-    const [page, srStats] = await Promise.all([listAllSRs(params), getSRStats()])
+    const [page, srStats] = await Promise.all([listAllSRs(params), getSRStats(statsQueryParams.value)])
+    if (requestId !== latestListRequest) return
     rows.value  = page.items
     stats.value = srStats
     pagination.value.rowsNumber = page.total
   } catch (e) {
+    if (requestId !== latestListRequest) return
     const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
     $q.notify({ type: 'negative', message: msg || 'SR 목록을 불러오는데 실패했습니다.' })
   } finally {
-    loading.value = false
+    if (requestId === latestListRequest) loading.value = false
   }
 }
 

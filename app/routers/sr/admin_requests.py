@@ -794,23 +794,18 @@ async def delete_sr(
 
 @router.get("/stats/summary", response_model=SRStats)
 async def get_stats(
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    q: dict = Depends(_sr_query),
+    is_delayed: Optional[bool] = Query(None),
     current_user: UserPublic = Depends(get_current_user),
 ):
     require_sr_operator(current_user)
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
 
-    q: dict = {"deleted_at": None}
-    if date_from or date_to:
-        df: dict = {}
-        if date_from:
-            df["$gte"] = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
-        if date_to:
-            df["$lte"] = datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc)
-        q["created_at"] = df
-
+    # Keep cards stable while status chips change, but apply every other filter.
+    q["status"] = {"$ne": "DRAFT"}
     docs = await col.find(q).to_list(None)
+    if is_delayed is not None:
+        docs = [doc for doc in docs if compute_is_delayed(doc) == is_delayed]
 
     stats = SRStats(
         total=len(docs),

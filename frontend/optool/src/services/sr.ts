@@ -499,7 +499,7 @@ export async function deleteSR(id: string) {
   await api.delete(`/admin/schedule/service-requests/${id}`)
 }
 
-export async function getSRStats(params?: { date_from?: string; date_to?: string }) {
+export async function getSRStats(params?: Record<string, string | number | boolean>) {
   const { data } = await api.get<SRStats>('/admin/schedule/service-requests/stats/summary', { params })
   return data
 }
