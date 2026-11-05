@@ -489,10 +489,47 @@ async def export_monthly_detail(
             as_of = r.operational_summary.get("as_of")
             text_cell(summary, row, 2, str(as_of) if as_of else "")
             row += 1
+        inspection_month = r.operational_summary.get("inspection_month")
         for inspection in r.operational_summary.get("inspection_reports") or []:
-            summary.cell(row, 1, "서버 점검")
-            text_cell(summary, row, 2, f"{inspection.get('title', '')}: 완료 {inspection.get('done', 0)}/{inspection.get('planned', 0)} · 미완료 {inspection.get('pending', 0)} · 이월 {inspection.get('rolled', 0)} · 위험 {inspection.get('danger', 0)} · 주의 {inspection.get('warning', 0)}")
+            summary.cell(row, 1, f"서버 점검 ({inspection_month or '기준 변경 전'})")
+            text_cell(summary, row, 2, inspection.get('title', ''))
             row += 1
+            if (r.operational_summary.get('inspection_detail_version') or 0) < 1:
+                text_cell(summary, row, 2, '서버 점검 이슈 상세가 집계되지 않았습니다.')
+                row += 1
+                continue
+            if not inspection.get('source_available'):
+                text_cell(summary, row, 2, '점검 측정 데이터가 없어 서버별 이슈를 확인할 수 없습니다.')
+                row += 1
+            for issue in inspection.get('issues') or []:
+                summary.cell(row, 1, '서버 점검 이슈')
+                findings = ' · '.join(f.get('label', '') for f in issue.get('findings') or []) or '조치 내용 확인 필요'
+                action_status = {'resolved': '조치 완료', 'pending': '조치 중', 'unregistered': '조치 미등록'}.get(issue.get('action_status'), '')
+                details = [issue.get('host_name', ''), issue.get('ip', ''), findings, action_status,
+                           issue.get('source_note', ''), issue.get('action_memo', '')]
+                text_cell(summary, row, 2, ' · '.join(str(value) for value in details if value)).alignment = Alignment(wrap_text=True, vertical='top')
+                row += 1
+            if r.operational_summary.get('inspection_detail_version') == 1:
+                summary.cell(row, 1, '미완료 점검 이슈')
+                text_cell(summary, row, 2, '새 기준으로 재집계하면 미완료 이슈가 표시됩니다.')
+                row += 1
+            elif not inspection.get('task_data_available'):
+                summary.cell(row, 1, '미완료 점검 이슈')
+                text_cell(summary, row, 2, '점검 이슈 데이터가 없습니다.')
+                row += 1
+            elif not inspection.get('incomplete_issues'):
+                summary.cell(row, 1, '미완료 점검 이슈')
+                text_cell(summary, row, 2, '완료되지 않은 점검 이슈가 없습니다.')
+                row += 1
+            for item in inspection.get('incomplete_issues') or []:
+                summary.cell(row, 1, '미완료 점검 이슈')
+                text_cell(summary, row, 2, ' · '.join(str(value) for value in
+                    (item.get('status'), item.get('issue_key'), item.get('title'), item.get('result'), item.get('reason'), item.get('detail'), item.get('assignee'), item.get('due_date')) if value)).alignment = Alignment(wrap_text=True, vertical='top')
+                row += 1
+            for note in inspection.get('notes') or []:
+                summary.cell(row, 1, '점검 추가 기재사항')
+                text_cell(summary, row, 2, note).alignment = Alignment(wrap_text=True, vertical='top')
+                row += 1
 
     if r.insights:
         ws_insights = wb.create_sheet("주요 항목")

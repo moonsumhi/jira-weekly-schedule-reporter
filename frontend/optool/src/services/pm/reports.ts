@@ -284,7 +284,20 @@ export interface MonthlyReport {
   operationalSummary: {
     asOf: string; capturedAt: string
     sr: { received: number; completed: number; open: number } | null
-    inspectionReports: { id: string; title: string; planned: number; done: number; pending: number; rolled: number; danger: number; warning: number }[] | null
+    inspectionMonth?: string
+    inspectionDetailVersion?: number
+    inspectionReports: {
+      id: string; title: string; planned: number; done: number; pending: number; rolled: number; danger: number; warning: number
+      sourceAvailable?: boolean
+      issues?: {
+        key: string; hostName: string; ip: string; severity: 'danger' | 'warning' | 'missing' | 'action'
+        findings: { label: string; level: 'danger' | 'warning' | 'missing' }[]
+        actionStatus: 'resolved' | 'pending' | 'unregistered'; sourceNote: string; actionMemo: string
+      }[]
+      taskDataAvailable?: boolean
+      incompleteIssues?: { key: string; title: string; issueKey: string; assignee: string; status: string; result: string; detail: string; reason: string; dueDate: string }[]
+      notes?: string[]
+    }[] | null
   } | null
 }
 

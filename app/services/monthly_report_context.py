@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 
 from app.db.mongo import MongoClientManager as M
+from app.services.monthly_inspection_issues import summarize_inspection
 
 AGGREGATION_VERSION = "monthly-actuals-v1"
 OPEN_SR = {"SUBMITTED", "REVIEWING", "PENDING_INFO", "APPROVED", "ASSIGNED", "IN_PROGRESS", "CONFIRMING", "ON_HOLD"}
@@ -48,9 +49,11 @@ async def capture_context(report_year, report_month, department, start, end):
         if status in OPEN_SR:
             open_count += 1
 
-    # Separate finalized result reports are shown individually because their scopes may overlap.
+    # The meeting reports the preceding month's inspections. Separate finalized
+    # result reports are shown individually because their scopes may overlap.
+    inspection_month = f"{previous_year:04d}-{previous_month:02d}"
     inspections = await db["monthly_inspection_reports"].find({
-        "month": f"{report_year:04d}-{report_month:02d}", "kind": {"$in": ["RESULT", None]}, "state": "FINAL",
+        "month": inspection_month, "kind": {"$in": ["RESULT", None]}, "state": "FINAL",
         "finalized_at": {"$lte": datetime.now(timezone.utc)},
     }).sort([("revision", -1), ("_id", -1)]).to_list(None)
     seen, inspection_reports = set(), []
@@ -63,7 +66,9 @@ async def capture_context(report_year, report_month, department, start, end):
         inspection_reports.append({"id": str(doc["_id"]), "title": doc.get("title", "점검 결과서"),
                                    "planned": stats.get("planned", 0), "done": stats.get("done", 0),
                                    "pending": stats.get("pending", 0), "rolled": stats.get("rolled", 0),
-                                   "danger": stats.get("danger", 0), "warning": stats.get("warning", 0)})
+                                   "danger": stats.get("danger", 0), "warning": stats.get("warning", 0),
+                                   **summarize_inspection(doc)})
     return comparison, {"as_of": cutoff, "captured_at": datetime.now(timezone.utc),
                         "sr": {"received": received, "completed": completed, "open": open_count},
+                        "inspection_month": inspection_month, "inspection_detail_version": 2,
                         "inspection_reports": inspection_reports}

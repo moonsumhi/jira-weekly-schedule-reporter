@@ -171,14 +171,43 @@
               <q-tooltip>업무 현황과 서버 점검을 함께 재집계합니다.</q-tooltip>
             </q-btn>
           </div>
-          <div class="text-caption text-grey-6 q-mb-xs">해당 월의 확정된 서버 점검 결과서를 자동 집계합니다. 부서별로 필터링하지 않습니다.</div>
+          <div class="text-caption text-grey-6 q-mb-xs">{{ previousInspectionLabel }}의 확정된 서버 점검 결과서를 자동 집계합니다. 부서별로 필터링하지 않습니다.</div>
           <template v-if="detailDialog.report.operationalSummary">
             <div v-if="detailDialog.report.operationalSummary.inspectionReports === null" class="text-caption text-grey-6 q-mt-sm">서버 점검 현황은 서버 점검 메뉴 권한이 필요합니다.</div>
-            <div v-else-if="!detailDialog.report.operationalSummary.inspectionReports.length" class="text-caption text-grey-6 q-mt-sm">확정된 해당 월 서버 점검 결과서가 없습니다.</div>
-            <div v-for="inspection in detailDialog.report.operationalSummary.inspectionReports" :key="inspection.id" class="text-body2 q-mt-sm">
-              <router-link :to="{ path: `/inspection/monthly-reports/${inspection.id}`, query: { kind: 'RESULT' } }">{{ inspection.title }}</router-link>: 작업 완료 {{ inspection.done }}/{{ inspection.planned }}건 · 미완료 {{ inspection.pending }}건 · 이월 {{ inspection.rolled }}건 · 위험 {{ inspection.danger }}대 · 주의 {{ inspection.warning }}대
-            </div>
-            <div v-if="detailDialog.report.operationalSummary.inspectionReports?.length" class="text-caption text-grey-6 q-mt-xs">결과서의 점검 범위가 겹칠 수 있어 수치를 합산하지 않습니다.</div>
+            <template v-else>
+              <q-banner v-if="!inspectionMonthMatches || !incompleteInspectionIssuesAvailable" rounded class="bg-orange-1 text-orange-10 q-my-sm">
+                <template v-if="!inspectionMonthMatches">저장된 결과는 {{ detailDialog.report.operationalSummary.inspectionMonth ? `${detailDialog.report.operationalSummary.inspectionMonth} 점검 기준` : '기준 변경 전 집계' }}입니다.</template>
+                <template v-else-if="!inspectionDetailsAvailable">이 보고서에는 서버 점검 이슈 상세가 아직 집계되지 않았습니다.</template>
+                <template v-else>이 보고서에는 미완료 점검 이슈가 새 기준으로 집계되지 않았습니다.</template>
+                <template v-if="detailDialog.report.status === 'CONFIRMED'">최신 기준으로 다시 집계하려면 확정을 해제해 주세요.</template>
+                <template v-else>재집계하면 {{ previousInspectionLabel }} 이슈를 가져옵니다.</template>
+              </q-banner>
+              <div v-if="!detailDialog.report.operationalSummary.inspectionReports.length" class="inspection-empty">{{ inspectionMonthMatches ? `확정된 ${previousInspectionLabel} 서버 점검 결과서가 없습니다.` : '기존 집계에 서버 점검 결과서가 없습니다.' }}</div>
+              <template v-else-if="inspectionDetailsAvailable">
+                <p v-if="detailDialog.report.operationalSummary.inspectionReports.length > 1" class="inspection-legacy-note">
+                  <q-icon name="info_outline" /> 이전에 같은 달에 작성된 점검 결과서가 여러 건 있어, 기존 내용을 함께 표시합니다.
+                </p>
+                <div class="inspection-content">
+                  <h3 class="inspection-subheading">자원 점검</h3>
+                  <p v-if="inspectionMissingSources" class="inspection-notice">{{ inspectionMissingSources === inspectionReports.length ? '점검 측정 데이터가 없어 서버별 이슈를 확인할 수 없습니다.' : '일부 점검 결과에 측정 데이터가 없습니다.' }}</p>
+                  <div v-if="inspectionIssues.length" class="inspection-issues">
+                    <div v-for="issue in inspectionIssues" :key="issue.displayKey" class="inspection-issue">
+                      <div class="inspection-issue-server"><span class="inspection-severity" :class="`inspection-severity--${issue.severity}`">{{ inspectionSeverity[issue.severity] }}</span><strong>{{ issue.hostName }}</strong><small v-if="issue.ip">{{ issue.ip }}</small><small v-if="inspectionReports.length > 1">기존 결과서 {{ issue.sourceIndex }}</small></div>
+                      <div class="inspection-issue-findings"><span class="inspection-caption">확인 사항</span><ul v-if="issue.findings.length"><li v-for="(finding, index) in issue.findings" :key="index">{{ finding.label }}</li></ul><p v-else>조치 내용 확인 필요</p></div>
+                      <div class="inspection-issue-action"><span class="inspection-caption">{{ inspectionActionStatus[issue.actionStatus] }}</span><p v-if="issue.sourceNote">{{ issue.sourceNote }}</p><p v-if="issue.actionMemo">{{ issue.actionMemo }}</p><p v-if="!issue.sourceNote && !issue.actionMemo" class="inspection-muted">등록된 조치 내용이 없습니다.</p></div>
+                    </div>
+                  </div>
+                  <p v-else-if="!inspectionMissingSources" class="inspection-clear"><q-icon name="check_circle_outline" /> 확인이 필요한 서버 이슈가 없습니다.</p>
+                  <div v-if="incompleteInspectionIssuesAvailable" class="inspection-followups">
+                    <h3 class="inspection-subheading">미완료 점검 이슈</h3>
+                    <p v-if="inspectionMissingTasks" class="inspection-muted">{{ inspectionMissingTasks === inspectionReports.length ? '점검 이슈 데이터가 없습니다.' : '일부 점검 결과에 이슈 데이터가 없습니다.' }}</p>
+                    <p v-else-if="!inspectionIncompleteIssues.length" class="inspection-muted">완료되지 않은 점검 이슈가 없습니다.</p>
+                    <div v-for="item in inspectionIncompleteIssues" :key="item.displayKey" class="inspection-followup"><span>{{ item.status }}</span><div><strong>{{ item.issueKey ? `${item.issueKey} · ` : '' }}{{ item.title }}</strong><p v-if="item.result">작업 내용: {{ item.result }}</p><p v-if="item.reason">{{ item.status === '이월' ? '이월 사유' : '사유' }}: {{ item.reason }}</p><p v-if="item.detail">후속 조치: {{ item.detail }}</p><small v-if="item.assignee || item.dueDate">{{ item.assignee ? `담당 ${item.assignee}` : '' }}{{ item.assignee && item.dueDate ? ' · ' : '' }}{{ item.dueDate ? `기한 ${fmtDateKst(item.dueDate)}` : '' }}</small><small v-if="inspectionReports.length > 1">기존 결과서 {{ item.sourceIndex }}</small></div></div>
+                  </div>
+                  <div v-if="inspectionNotes.length" class="inspection-notes"><h3 class="inspection-subheading">점검 추가 기재사항</h3><p v-for="note in inspectionNotes" :key="note.displayKey">{{ note.content }}<small v-if="inspectionReports.length > 1"> · 기존 결과서 {{ note.sourceIndex }}</small></p></div>
+                </div>
+              </template>
+            </template>
           </template>
           <div v-else class="text-caption text-grey-6">집계된 서버 점검 현황이 없습니다. 재집계 후 확인할 수 있습니다.</div>
         </section>
@@ -566,6 +595,40 @@ async function doRefresh(r: MonthlyReport) {
 
 // ── 상세 ──────────────────────────────────────────────────────────────
 const detailDialog = ref<{ report: MonthlyReport | null }>({ report: null })
+const previousInspectionMonth = computed(() => {
+  const report = detailDialog.value.report
+  if (!report) return ''
+  const year = report.reportMonth === 1 ? report.reportYear - 1 : report.reportYear
+  const month = report.reportMonth === 1 ? 12 : report.reportMonth - 1
+  return `${year}-${String(month).padStart(2, '0')}`
+})
+const previousInspectionLabel = computed(() => {
+  const [year, month] = previousInspectionMonth.value.split('-')
+  return `${year}년 ${Number(month)}월`
+})
+const inspectionMonthMatches = computed(() =>
+  detailDialog.value.report?.operationalSummary?.inspectionMonth === previousInspectionMonth.value,
+)
+const inspectionDetailsAvailable = computed(() =>
+  (detailDialog.value.report?.operationalSummary?.inspectionDetailVersion || 0) >= 1,
+)
+const incompleteInspectionIssuesAvailable = computed(() =>
+  detailDialog.value.report?.operationalSummary?.inspectionDetailVersion === 2,
+)
+const inspectionReports = computed(() => detailDialog.value.report?.operationalSummary?.inspectionReports || [])
+const inspectionIssues = computed(() => inspectionReports.value.flatMap((report, index) =>
+  (report.issues || []).map(issue => ({ ...issue, displayKey: `${report.id}:${issue.key}`, sourceIndex: index + 1 })),
+))
+const inspectionIncompleteIssues = computed(() => inspectionReports.value.flatMap((report, index) =>
+  (report.incompleteIssues || []).map(issue => ({ ...issue, displayKey: `${report.id}:${issue.key}`, sourceIndex: index + 1 })),
+))
+const inspectionNotes = computed(() => inspectionReports.value.flatMap((report, index) =>
+  (report.notes || []).map((content, noteIndex) => ({ content, displayKey: `${report.id}:${noteIndex}`, sourceIndex: index + 1 })),
+))
+const inspectionMissingSources = computed(() => inspectionReports.value.filter(report => !report.sourceAvailable).length)
+const inspectionMissingTasks = computed(() => inspectionReports.value.filter(report => !report.taskDataAvailable).length)
+const inspectionSeverity = { danger: '위험', warning: '주의', missing: '측정 확인', action: '조치 확인' } as const
+const inspectionActionStatus = { resolved: '조치 완료', pending: '조치 중', unregistered: '조치 미등록' } as const
 
 function openDetail(r: MonthlyReport) {
   void router.push(`/pm/monthly-report/${r.id}`)
@@ -764,6 +827,30 @@ watch(() => route.params.id, async (id, _previousId, onCleanup) => {
 .monthly-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; color: #9aaeb6; }
 .monthly-section-heading h2 { margin: 3px 0 0; color: #1b3242; font-size: 16px; line-height: 1.4; font-weight: 700; }
 .monthly-section-kicker { color: #75909c; font-size: 10px; font-weight: 700; letter-spacing: .1em; }
+.inspection-content { margin-top: 20px; }
+.inspection-subheading { margin: 0 0 10px; color: #405a68; font-size: 13px; line-height: 1.4; font-weight: 700; }
+.inspection-legacy-note { margin: 12px 0 0; color: #8a7652; font-size: 12px; line-height: 1.5; }
+.inspection-caption { display: block; color: #81929d; font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+.inspection-issue { display: grid; grid-template-columns: minmax(145px, 1fr) minmax(180px, 1.5fr) minmax(180px, 1.5fr); gap: 18px; padding: 16px 0; border-bottom: 1px solid #edf1f3; }
+.inspection-issue:last-child { border-bottom: 0; }
+.inspection-issue-server { display: flex; align-items: flex-start; flex-direction: column; gap: 5px; min-width: 0; }
+.inspection-issue-server strong { color: #233b49; overflow-wrap: anywhere; }
+.inspection-issue-server small, .inspection-muted { color: #8797a1; }
+.inspection-severity { display: inline-flex; padding: 3px 8px; border-radius: 5px; color: #5d7180; background: #eef3f6; font-size: 11px; font-weight: 700; }
+.inspection-severity--danger { color: #b9473e; background: #fff0ee; }
+.inspection-severity--warning { color: #a76d22; background: #fff5e4; }
+.inspection-severity--missing, .inspection-severity--action { color: #516e8b; background: #eef4fa; }
+.inspection-issue-findings, .inspection-issue-action { min-width: 0; color: #425968; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.inspection-issue-findings ul { margin: 7px 0 0; padding-left: 17px; }
+.inspection-issue-findings p, .inspection-issue-action p, .inspection-followup p, .inspection-notes p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.inspection-notice, .inspection-clear, .inspection-empty { margin: 0; padding: 10px 0; color: #708592; font-size: 13px; }
+.inspection-clear { color: #447d70; }
+.inspection-followups, .inspection-notes { margin-top: 18px; padding-top: 18px; border-top: 1px solid #edf1f3; }
+.inspection-followup { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; color: #425968; font-size: 13px; }
+.inspection-followup > span { flex: 0 0 auto; padding: 2px 7px; border-radius: 5px; color: #9a6b28; background: #fff6e9; font-size: 11px; font-weight: 700; }
+.inspection-followup small, .inspection-notes p { color: #6f8290; }
+.inspection-followup small { display: block; }
+.inspection-notes p { font-size: 13px; line-height: 1.6; }
 .issue-row:hover { background: #e8eaf6 !important; }
 .issue-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .issue-row-title > .ellipsis { min-width: 0; }
@@ -783,6 +870,7 @@ watch(() => route.params.id, async (id, _previousId, onCleanup) => {
   .monthly-hero { padding: 20px; }
   .monthly-insight-card, .monthly-admin-note { padding: 18px; }
   .monthly-section-nav { margin-top: 16px; }
+  .inspection-issue { grid-template-columns: 1fr; gap: 12px; }
 }
 @media (max-width: 599px) {
   .issue-row-title { order: -1; flex: 0 0 calc(100% - 4px); }
