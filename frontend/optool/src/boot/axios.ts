@@ -1,4 +1,4 @@
-import { defineBoot } from '#q-app/wrappers'
+import { defineBoot } from '#q-app'
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import camelcaseKeys from 'camelcase-keys'
 import { Notify } from 'quasar'

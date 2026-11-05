@@ -2,7 +2,8 @@
   <q-page class="dashboard-page q-pa-md">
 
     <draggable
-      v-model="cardOrder"
+      :list="cardOrder"
+      tag="div"
       :item-key="(id: string) => id"
       class="dashboard-grid"
       handle=".card-drag-handle"
@@ -938,7 +939,8 @@ async function loadMySrList() {
 }
 
 // ── 대시보드 카드 순서 (드래그로 배치 변경, 계정에 저장) ──────────────────────
-const cardOrder = ref<string[]>([])
+// 기본 카드는 설정을 읽기 전에도 바로 그려 빈 대시보드가 노출되지 않게 한다.
+const cardOrder = ref<string[]>(['watch', 'dday', 'eos', 'resource'])
 let savedAssetColPresets: ColPreset[] = []
 
 const baseCardOrder = computed(() => {

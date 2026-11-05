@@ -23,11 +23,12 @@ declare module '@toast-ui/editor' {
   export default Editor
 }
 
-declare namespace NodeJS {
-  interface ProcessEnv {
-    NODE_ENV: string;
-    VUE_ROUTER_MODE: 'hash' | 'history' | 'abstract' | undefined;
-    VUE_ROUTER_BASE: string | undefined;
+interface ImportMetaEnv {
+  readonly QUASAR_SERVER: boolean
+  readonly QUASAR_VUE_ROUTER_MODE: 'hash' | 'history' | 'abstract' | undefined
+  readonly QUASAR_VUE_ROUTER_BASE: string | undefined
+}
 
-  }
+interface ImportMeta {
+  readonly env: ImportMetaEnv
 }

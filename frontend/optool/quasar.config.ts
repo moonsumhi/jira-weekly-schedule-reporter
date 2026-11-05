@@ -1,7 +1,7 @@
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
-import { defineConfig } from '#q-app/wrappers';
+import { defineConfig } from '#q-app';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig((ctx) => {
@@ -33,6 +33,16 @@ export default defineConfig((ctx) => {
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
+      alias: {
+        src: ctx.appPaths.srcDir,
+        app: ctx.appPaths.appDir,
+        components: ctx.appPaths.resolve.src('components'),
+        layouts: ctx.appPaths.resolve.src('layouts'),
+        pages: ctx.appPaths.resolve.src('pages'),
+        assets: ctx.appPaths.resolve.src('assets'),
+        boot: ctx.appPaths.resolve.src('boot'),
+        stores: ctx.appPaths.resolve.src('stores'),
+      },
       target: {
         browser: ['es2022', 'firefox115', 'chrome115', 'safari14'],
         node: 'node20',
@@ -47,13 +57,15 @@ export default defineConfig((ctx) => {
       vueRouterMode: 'hash', // available values: 'hash', 'history'
       // vueRouterBase,
       // vueDevtools,
-      // vueOptionsAPI: false,
+      // app-vite v3 defaults this to false; enable it for compatibility with
+      // existing Vue 3 ecosystem components that still use the Options API.
+      vueOptionsAPI: true,
 
       // rebuildCache: true, // rebuilds Vite/linter/etc cache on startup
 
       // publicPath: '/',
       // analyze: true,
-      env: {
+      defineEnv: {
         VITE_LIBRECHAT_URL: process.env.VITE_LIBRECHAT_URL ?? '',
       },
       // rawDefine: {}
@@ -128,7 +140,7 @@ export default defineConfig((ctx) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: ['Notify', 'Dialog'],
+      plugins: ['Notify', 'Dialog', 'Dark'],
     },
 
     // animations: 'all', // --- includes all animations

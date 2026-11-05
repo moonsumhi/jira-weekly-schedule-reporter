@@ -5,6 +5,7 @@ from app.core.config import settings
 from app.routers.auth import get_current_user
 
 router = APIRouter()
+MAX_EXTRACT_FILE_SIZE = 50 * 1024 * 1024
 
 
 class AnalyzePdfRequest(BaseModel):
@@ -49,7 +50,9 @@ async def extract_file_text(
     if ext not in ("pdf", "hwp", "docx", "doc"):
         raise HTTPException(status_code=400, detail="PDF, HWP, DOCX 파일만 지원합니다.")
 
-    data = await file.read()
+    data = await file.read(MAX_EXTRACT_FILE_SIZE + 1)
+    if len(data) > MAX_EXTRACT_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="파일 크기가 50MB를 초과합니다.")
 
     try:
         if ext == "pdf":
@@ -58,6 +61,8 @@ async def extract_file_text(
             text = _extract_hwp(data)
         else:
             text = _extract_docx(data)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"텍스트 추출 실패: {str(e)}")
 
@@ -68,6 +73,8 @@ def _extract_pdf(data: bytes) -> str:
     import io
     import pypdf
     reader = pypdf.PdfReader(io.BytesIO(data))
+    if len(reader.pages) > 500:
+        raise HTTPException(status_code=413, detail="PDF 페이지 수가 500페이지를 초과합니다.")
     texts = []
     for page in reader.pages:
         t = page.extract_text()
