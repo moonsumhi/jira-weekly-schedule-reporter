@@ -16,7 +16,20 @@
           <q-spinner size="40px" color="primary" /><br />불러오는 중...
         </div>
         <iframe v-else-if="iframeUrl" :src="iframeUrl" :sandbox="iframeSandbox" class="preview-iframe" />
-        <div v-else-if="excelHtml" class="q-pa-md" v-html="excelHtml" />
+        <div v-else-if="excelSheets.length" class="q-pa-md">
+          <section v-for="sheet in excelSheets" :key="sheet.name" class="q-mb-lg">
+            <div class="text-caption text-weight-bold q-mb-xs">{{ sheet.name }}</div>
+            <div class="excel-sheet-scroll">
+              <table class="excel-preview-table">
+                <tbody>
+                  <tr v-for="(row, rowIndex) in sheet.rows" :key="rowIndex">
+                    <td v-for="(cell, cellIndex) in row" :key="cellIndex">{{ cell }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
         <div v-else class="text-center q-pa-xl text-grey">
           <q-icon name="insert_drive_file" size="48px" class="q-mb-sm" /><br />
           미리보기를 지원하지 않는 형식입니다.
@@ -49,8 +62,67 @@ const emit = defineEmits<{ 'update:modelValue': [boolean] }>()
 const $q = useQuasar()
 const loading = ref(false)
 const iframeUrl = ref<string | null>(null)
-const excelHtml = ref<string | null>(null)
+interface ExcelPreviewSheet {
+  name: string
+  rows: string[][]
+}
+
+const excelSheets = ref<ExcelPreviewSheet[]>([])
+const MAX_EXCEL_PREVIEW_BYTES = 20 * 1024 * 1024
+const MAX_EXCEL_PREVIEW_ROWS = 200
+const MAX_EXCEL_PREVIEW_COLUMNS = 40
+const MAX_EXCEL_PREVIEW_CELL_CHARS = 2000
 let objectUrl: string | null = null
+
+function formatExcelCell(cell: unknown): string {
+  if (cell === null || cell === undefined) return ''
+  const value =
+    typeof cell === 'string' || typeof cell === 'number' || typeof cell === 'boolean'
+      ? String(cell)
+      : (JSON.stringify(cell) ?? '')
+  return value.slice(0, MAX_EXCEL_PREVIEW_CELL_CHARS)
+}
+
+async function readLimitedArrayBuffer(response: Response, maxBytes: number): Promise<ArrayBuffer> {
+  const contentLength = Number(response.headers.get('content-length'))
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error('스프레드시트 미리보기는 20MB 이하 파일만 지원합니다.')
+  }
+
+  if (!response.body) {
+    const buffer = await response.arrayBuffer()
+    if (buffer.byteLength > maxBytes) {
+      throw new Error('스프레드시트 미리보기는 20MB 이하 파일만 지원합니다.')
+    }
+    return buffer
+  }
+
+  const reader = response.body.getReader()
+  const chunks: Uint8Array[] = []
+  let totalBytes = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      totalBytes += value.byteLength
+      if (totalBytes > maxBytes) {
+        await reader.cancel()
+        throw new Error('스프레드시트 미리보기는 20MB 이하 파일만 지원합니다.')
+      }
+      chunks.push(value)
+    }
+  } finally {
+    reader.releaseLock()
+  }
+
+  const result = new Uint8Array(totalBytes)
+  let offset = 0
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return result.buffer
+}
 
 function setIframeObjectUrl(blob: Blob) {
   if (objectUrl) URL.revokeObjectURL(objectUrl)
@@ -92,7 +164,7 @@ async function load() {
     objectUrl = null
   }
   iframeUrl.value = null
-  excelHtml.value = null
+  excelSheets.value = []
   const att = props.attachment
   if (!att) return
 
@@ -133,18 +205,31 @@ async function load() {
     try {
       const resp = await fetch(att.url)
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const buf = await resp.arrayBuffer()
-      const wb = XLSX.read(buf, { type: 'array' })
-      let html = ''
+      const buf = await readLimitedArrayBuffer(resp, MAX_EXCEL_PREVIEW_BYTES)
+      const wb = XLSX.read(buf, { type: 'array', sheetRows: MAX_EXCEL_PREVIEW_ROWS + 1 })
+      const sheets: ExcelPreviewSheet[] = []
       for (const sheetName of wb.SheetNames) {
         const ws = wb.Sheets[sheetName]
         if (!ws) continue
-        html += `<div class="text-caption text-weight-bold q-mb-xs">${sheetName}</div>`
-        html += XLSX.utils.sheet_to_html(ws)
+        const rawRows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
+          header: 1,
+          defval: '',
+          blankrows: false,
+          raw: false,
+        })
+        const rows = rawRows.slice(0, MAX_EXCEL_PREVIEW_ROWS).map((row) =>
+          row
+            .slice(0, MAX_EXCEL_PREVIEW_COLUMNS)
+            .map(formatExcelCell),
+        )
+        sheets.push({ name: sheetName, rows })
       }
-      excelHtml.value = html
-    } catch {
-      $q.notify({ type: 'negative', message: '엑셀 미리보기를 불러오지 못했습니다.' })
+      excelSheets.value = sheets
+    } catch (error) {
+      $q.notify({
+        type: 'negative',
+        message: error instanceof Error ? error.message : '엑셀 미리보기를 불러오지 못했습니다.',
+      })
     } finally {
       loading.value = false
     }
@@ -176,5 +261,25 @@ onUnmounted(() => {
   height: 100%;
   min-height: calc(100vh - 100px);
   border: none;
+}
+
+.excel-sheet-scroll {
+  max-width: 100%;
+  overflow: auto;
+}
+
+.excel-preview-table {
+  border-collapse: collapse;
+  min-width: 100%;
+}
+
+.excel-preview-table td {
+  border: 1px solid #d5dbe3;
+  min-width: 80px;
+  max-width: 360px;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  vertical-align: top;
 }
 </style>

@@ -1,6 +1,27 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="text-h6 q-mb-md">계정 설정</div>
+    <div class="row items-center q-gutter-sm q-mb-md">
+      <q-btn flat dense icon="arrow_back" label="마이페이지" @click="router.push('/account/my-page')" />
+      <div class="text-h6">계정 설정</div>
+    </div>
+
+    <!-- 화면 테마 -->
+    <q-card flat bordered class="q-mb-md">
+      <q-card-section>
+        <div class="text-subtitle2 q-mb-xs">화면 모드</div>
+        <div class="text-body2 text-grey-7 q-mb-md">라이트 모드와 다크 모드 중 원하는 화면을 선택하세요.</div>
+        <q-btn-toggle
+          v-model="appearanceMode"
+          :options="appearanceOptions"
+          color="grey-3"
+          text-color="dark"
+          toggle-color="primary"
+          toggle-text-color="white"
+          unelevated
+        />
+        <div class="text-caption text-grey-6 q-mt-sm">선택한 모드는 이 브라우저에서 계정별로 저장됩니다.</div>
+      </q-card-section>
+    </q-card>
 
     <!-- 내 정보 -->
     <q-card flat bordered class="q-mb-md">
@@ -75,15 +96,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from 'stores/auth'
+import { useThemeStore, type AppearanceMode } from 'stores/theme'
 import { api } from 'boot/axios'
 
 const $q = useQuasar()
 const auth = useAuthStore()
+const theme = useThemeStore()
 const router = useRouter()
+
+const appearanceOptions = [
+  { label: '라이트 모드', value: 'light', icon: 'light_mode' },
+  { label: '다크 모드', value: 'dark', icon: 'dark_mode' },
+]
+const appearanceMode = computed({
+  get: () => theme.appearanceMode,
+  set: (mode: AppearanceMode) => theme.setAppearanceMode(mode, auth.me?.id),
+})
 
 const currentPw = ref('')
 const newPw = ref('')

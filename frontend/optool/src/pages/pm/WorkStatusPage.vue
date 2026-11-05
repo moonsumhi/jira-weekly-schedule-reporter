@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md work-status-page">
     <div class="row q-col-gutter-md">
 
       <!-- 헤더 -->
@@ -139,6 +139,16 @@ function lightenSubTaskColor(color: string): string {
   }).join('')}`
 }
 
+function getContrastingTextColor(color: string): string {
+  const channels = [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16) / 255)
+  const luminance = channels
+    .map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+    .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index]!, 0)
+  const whiteContrast = 1.05 / (luminance + 0.05)
+  const darkContrast = (luminance + 0.05) / 0.05
+  return darkContrast >= whiteContrast ? '#111827' : '#ffffff'
+}
+
 // ── 상태 ─────────────────────────────────────────────────────────────
 const calendarRef = ref<InstanceType<typeof FullCalendarComponent> | null>(null)
 const allIssues   = ref<Issue[]>([])
@@ -165,7 +175,9 @@ const allAssignees = computed(() => {
     const id = workStatusAssigneeId(i)
     map.set(id, id === NO_ASSIGNEE_KEY ? '담당자없음' : i.assigneeName || '담당자없음')
   }
-  return [...map.entries()].map(([id, name]) => ({ id, name }))
+  return [...map.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => Number(a.id === NO_ASSIGNEE_KEY) - Number(b.id === NO_ASSIGNEE_KEY))
 })
 
 // ── 다중 선택 토글 ────────────────────────────────────────────────────
@@ -233,6 +245,7 @@ const filteredEvents = computed<EventInput[]>(() => {
         allDay: true,
         backgroundColor: eventColor,
         borderColor: eventColor,
+        textColor: getContrastingTextColor(eventColor),
         extendedProps: { issue: i },
       }
     })

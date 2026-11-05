@@ -1,4 +1,4 @@
-import { defineBoot } from '#q-app/wrappers'
+import { defineBoot } from '#q-app'
 import { Notify } from 'quasar'
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000

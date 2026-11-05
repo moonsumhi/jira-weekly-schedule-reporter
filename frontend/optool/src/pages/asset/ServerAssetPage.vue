@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md asset-page">
     <!-- 카테고리 탭 (항상 표시, 랙 포함) -->
     <q-tabs
       :model-value="category || '전체'"
@@ -117,6 +117,7 @@
       <q-space />
       <q-chip
         v-if="deletedCount" dense clickable icon="delete_outline"
+        class="asset-trash-chip"
         color="grey-3" text-color="grey-8"
         @click="trashView = true"
       >휴지통 {{ deletedCount }}</q-chip>

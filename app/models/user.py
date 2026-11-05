@@ -19,6 +19,10 @@ class UserCreate(UserBase):
 class UserPublic(UserBase):
     id: str
     is_internal: bool = True  # 내부 IP 접속 여부 (요청마다 동적으로 설정)
+    employee_number: Optional[str] = None
+    host_pc_ip: Optional[str] = None
+    position: Optional[str] = None
+    extension: Optional[str] = None
 
 
 class RegisterPendingResponse(BaseModel):

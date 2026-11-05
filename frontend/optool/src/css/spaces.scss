@@ -214,6 +214,32 @@
   font-size: 14px;
   border-color: var(--space-line);
 }
+.rooms-page .room-plan-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.rooms-page .room-plan-status--published {
+  background: #e8f5ec;
+  color: #17633a;
+  border-color: #a4d4b4;
+}
+.rooms-page .room-plan-status--draft {
+  background: #fff4dc;
+  color: #805400;
+  border-color: #e4c36f;
+}
+.rooms-page .room-plan-status--empty {
+  background: #edf1f6;
+  color: #46556a;
+  border-color: #c3ceda;
+}
 .spaces-page .space-table th:first-child,
 .spaces-page .space-table td:first-child {
   padding-left: 20px;
@@ -388,6 +414,182 @@
   --space-muted: #a4b2c6;
   --space-soft: #233e5c;
 }
+
+// Some Quasar controls in the directory set a light background explicitly
+// (for example, the white search/select fields). Keep their surfaces and text
+// in sync with the page theme instead of leaving isolated white patches.
+body.body--dark .spaces-page {
+  background: var(--space-bg);
+  color: var(--space-text);
+
+  .space-panel,
+  .space-stat,
+  .space-table,
+  .space-table .q-table__container,
+  .space-table .q-table__middle {
+    background: var(--space-surface);
+    color: var(--space-text);
+    border-color: var(--space-line);
+  }
+
+  .space-panel__heading,
+  .space-table thead tr,
+  .space-table .q-table__bottom {
+    background: var(--space-bg);
+    color: var(--space-text);
+    border-color: var(--space-line);
+  }
+
+  .space-table th,
+  .space-table td,
+  .space-table .q-table__bottom,
+  .space-header h1,
+  .space-panel__heading h2,
+  .space-workspace-heading h2,
+  .space-room-stats strong,
+  .space-form-section h3 {
+    color: var(--space-text);
+    border-color: var(--space-line);
+  }
+
+  .q-field__control,
+  .q-field--outlined .q-field__control,
+  .q-field.bg-white .q-field__control,
+  .bg-white {
+    background-color: var(--space-surface) !important;
+    color: var(--space-text) !important;
+  }
+
+  .q-field__native,
+  .q-field__input,
+  .q-field__label,
+  .q-field__marginal,
+  .q-field__prefix,
+  .q-field__suffix,
+  .q-toggle__label,
+  .q-checkbox__label,
+  .q-table__bottom .q-btn,
+  .text-dark,
+  .text-grey-5,
+  .text-grey-6,
+  .text-grey-7,
+  .text-grey-8,
+  .text-grey-9 {
+    color: var(--space-text) !important;
+  }
+
+  .space-muted,
+  .space-eyebrow,
+  .space-header p,
+  .space-stat__label,
+  .space-stat__value span,
+  .space-stat__hint {
+    color: var(--space-muted) !important;
+  }
+
+  .q-badge.bg-blue-1,
+  .q-chip.bg-indigo-1,
+  .q-chip.bg-blue-1,
+  .q-chip.bg-grey-2 {
+    background: var(--space-soft) !important;
+    color: #c7ddf6 !important;
+  }
+
+  .rooms-page .room-plan-status--published {
+    background: #173e2b !important;
+    color: #b9f2cc !important;
+    border-color: #43815a !important;
+  }
+
+  .rooms-page .room-plan-status--draft {
+    background: #493714 !important;
+    color: #ffe29a !important;
+    border-color: #99752c !important;
+  }
+
+  .rooms-page .room-plan-status--empty {
+    background: #344254 !important;
+    color: #e1e9f2 !important;
+    border-color: #71839a !important;
+  }
+
+  .space-team-filter {
+    background: var(--space-surface);
+    color: var(--space-muted);
+    border-color: var(--space-line);
+  }
+
+  .space-team-filter.active {
+    background: var(--space-soft);
+    color: #bfdbfe;
+  }
+}
+
+body.body--dark .space-dialog {
+  background: var(--space-surface);
+  color: var(--space-text);
+
+  .space-dialog__header,
+  .space-dialog__body,
+  .space-dialog__actions,
+  .space-legend {
+    background: var(--space-surface);
+    color: var(--space-text);
+    border-color: var(--space-line);
+  }
+
+  .q-field__control,
+  .q-field--outlined .q-field__control {
+    background: #181e28 !important;
+  }
+
+  .q-banner {
+    background: #3a3020 !important;
+    color: #f4d7a0 !important;
+  }
+}
+
+body.body--dark .rooms-page {
+  .q-btn--outline {
+    background: #24364c !important;
+    color: #dbeafe !important;
+    border-color: #6684a8 !important;
+  }
+
+  .q-btn--outline .q-icon {
+    color: inherit !important;
+  }
+
+  .space-filters .q-btn--flat,
+  .space-table .q-btn--flat.text-primary {
+    background: #1d3553 !important;
+    color: #bfdbfe !important;
+    border: 1px solid #45678f;
+  }
+
+  .space-filters .q-btn--flat:hover,
+  .space-table .q-btn--flat.text-primary:hover,
+  .q-btn--outline:hover {
+    background: #304967 !important;
+    color: #fff !important;
+    border-color: #86a8cf !important;
+  }
+
+  .rooms-tree .q-btn--flat.q-btn--round,
+  .space-table .q-btn--flat.q-btn--round {
+    color: #c6d7ec !important;
+  }
+
+  .rooms-tree .q-btn--flat.q-btn--round:hover,
+  .space-table .q-btn--flat.q-btn--round:hover {
+    background: #344a66 !important;
+  }
+}
+
+body.body--dark .space-dialog .space-dialog__actions .q-btn--flat {
+  color: #bfdbfe !important;
+}
+
 @media (max-width: 1100px) {
   .space-header {
     align-items: flex-start;

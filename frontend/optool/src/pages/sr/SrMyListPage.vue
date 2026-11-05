@@ -1,5 +1,5 @@
 <template>
-  <q-page padding>
+  <q-page padding class="sr-my-page">
 
     <!-- 헤더 -->
     <div class="row items-center q-mb-lg">
@@ -15,6 +15,7 @@
       <span class="text-caption text-grey-6 q-mr-xs">등록자</span>
       <q-chip
         v-for="scope in ownerTabs" :key="scope.key"
+        class="sr-owner-scope-chip"
         :color="ownerScope === scope.key ? 'primary' : 'grey-3'"
         :text-color="ownerScope === scope.key ? 'white' : 'grey-7'"
         clickable dense

@@ -14,8 +14,8 @@
         />
       </article>
     </div>
-    <div v-else :class="['inline-table-scroll', { 'incident-table-scroll': section.multiple && isIncidentTimeline(section) }]">
-      <table v-if="section.multiple">
+    <div v-else :class="['inline-table-scroll', { 'incident-table-scroll': section.multiple && isIncidentTimeline(section), 'test-case-table-scroll': section.multiple && isTestCaseSection(section) }]">
+      <table v-if="section.multiple" :class="{ 'aligned-editor-table': isWorkResultSection(section) }">
         <thead>
           <tr><th v-if="!isTestCaseSection(section)" class="number-cell">No.</th><th v-for="field in visibleFields(section)" :key="field.label">{{ field.label }}</th><th class="action-cell" /></tr>
         </thead>
@@ -119,7 +119,9 @@ function syncEditorHeights() {
   const root = editorRoot.value
   if (!root) return
 
-  const rows = Array.from(root.querySelectorAll<HTMLTableRowElement>('tbody tr'))
+  // Only the before/after comparison needs paired editor heights. Measuring
+  // every test-case editor makes imported rich-text cells repeatedly resize.
+  const rows = Array.from(root.querySelectorAll<HTMLTableRowElement>('.aligned-editor-table tbody tr'))
   for (const row of rows) {
     const cells = Array.from(row.querySelectorAll<HTMLElement>('td'))
       .filter(cell => cell.querySelector('.toastui-editor-defaultUI'))
@@ -208,6 +210,9 @@ function normalized(value: string) { return value.replace(/\s/g, '') }
 function isTestCaseSection(section: FormSection): boolean {
   const title = normalized(section.title)
   return title === '테스트계획' || title.startsWith('테스트케이스') || title.startsWith('테스트결과')
+}
+function isWorkResultSection(section: FormSection): boolean {
+  return normalized(section.title) === '작업결과'
 }
 function isIncidentTimeline(section: FormSection): boolean {
   return normalized(section.title) === '\uBC1C\uC0DD\uACBD\uACFC\uBC0F\uC870\uCE58\uC0AC\uD56D'
@@ -432,6 +437,7 @@ onBeforeUnmount(() => {
 .imported-extra-editor-panel h3 { margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #94a3b8; font-size: 15px; text-align: center; }
 .imported-extra-editor-panel:last-child h3 { border-bottom-color: var(--q-primary); color: var(--q-primary); }
 table { width: 100%; max-width: 100%; min-width: 0; border-collapse: collapse; table-layout: auto; }
+.test-case-table-scroll > table { table-layout: fixed; }
 .incident-table-scroll > table { table-layout: fixed; }
 .incident-table-scroll > table th.number-cell, .incident-table-scroll > table td.number-cell { width: 6%; }
 .incident-table-scroll > table th:nth-child(2), .incident-table-scroll > table td:nth-child(2) { width: 10%; }
@@ -506,6 +512,7 @@ td:focus-visible { outline: 2px solid var(--q-primary); outline-offset: -2px; }
   word-break: break-word;
   overflow-wrap: anywhere;
 }
+.inline-table-scroll :deep(.toastui-editor-contents img) { max-width: 100%; height: auto; }
 .inline-table-scroll td.editor-cell { vertical-align: stretch; }
 .inline-table-scroll td.editor-cell > div {
   height: var(--editor-row-height, auto);

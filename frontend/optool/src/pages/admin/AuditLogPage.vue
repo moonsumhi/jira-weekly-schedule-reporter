@@ -1,5 +1,5 @@
 <template>
-  <q-page padding>
+  <q-page padding class="audit-log-page">
     <div class="text-h6 q-mb-md">Audit Log</div>
 
     <!-- 필터 영역 -->

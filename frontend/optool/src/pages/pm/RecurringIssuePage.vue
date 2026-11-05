@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md recurring-issue-page">
     <div class="row items-center q-gutter-sm q-mb-md">
       <div class="text-h6">반복 업무</div>
       <q-chip dense square color="grey-2" text-color="grey-8" icon="repeat">

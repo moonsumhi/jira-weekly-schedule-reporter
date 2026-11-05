@@ -179,7 +179,7 @@
             group="issues"
             item-key="id"
             class="board-draggable"
-            @change="evt => onDragChange(evt, status)"
+            @change="(evt: Parameters<typeof onDragChange>[0]) => onDragChange(evt, status)"
           >
             <template #item="{ element: el }">
               <q-card

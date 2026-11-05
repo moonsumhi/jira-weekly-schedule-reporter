@@ -1,5 +1,5 @@
 <template>
-  <q-page class="spaces-page">
+  <q-page class="spaces-page rooms-page">
     <SpaceHeader
       title="공간 관리"
       description="사무실의 사용 팀을 지정하고, 배치도를 만들어 좌석을 구성하세요."
@@ -290,19 +290,12 @@
           <template #body-cell-plan="p"
             ><q-td :props="p"
               ><q-badge
-                :color="
-                  data.plans.find((x) => x.roomId === p.row.id)?.published ? 'green-1' : 'grey-2'
-                "
-                :text-color="
-                  data.plans.find((x) => x.roomId === p.row.id)?.published ? 'green-9' : 'grey-8'
-                "
-                :label="
-                  data.plans.find((x) => x.roomId === p.row.id)?.published
-                    ? '게시됨'
-                    : data.plans.find((x) => x.roomId === p.row.id)?.hasDraft
-                      ? '임시저장'
-                      : '미생성'
-                " /></q-td
+                class="room-plan-status"
+                :class="`room-plan-status--${roomPlanStatus(p.row.id).kind}`"
+              >
+                <q-icon :name="roomPlanStatus(p.row.id).icon" size="14px" class="q-mr-xs" />
+                {{ roomPlanStatus(p.row.id).label }}
+              </q-badge></q-td
           ></template>
           <template #body-cell-actions="p"
             ><q-td :props="p"
@@ -656,6 +649,12 @@ function counts(roomId: string) {
 }
 function canDeletePlan(id: string) {
   return data.value.editableRoomIds.includes(id) && data.value.plans.some((p) => p.roomId === id);
+}
+function roomPlanStatus(roomId: string) {
+  const plan = data.value.plans.find((item) => item.roomId === roomId);
+  if (plan?.published) return { kind: 'published', label: '게시됨', icon: 'check_circle' };
+  if (plan?.hasDraft) return { kind: 'draft', label: '임시저장', icon: 'edit_note' };
+  return { kind: 'empty', label: '미생성', icon: 'radio_button_unchecked' };
 }
 async function removePlan(id: string) {
   const plan = data.value.plans.find((p) => p.roomId === id);

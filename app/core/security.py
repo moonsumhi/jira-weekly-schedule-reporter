@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, UTC
 from typing import Optional
 
-from jose import JWTError, jwt
+import jwt
 import bcrypt
 
 from app.core.config import settings
@@ -39,7 +39,7 @@ def decode_token(token: str) -> Optional[str]:
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
         )
-        email: str = payload.get("sub")
-        return email
-    except JWTError:
+        subject = payload.get("sub")
+        return subject if isinstance(subject, str) else None
+    except jwt.InvalidTokenError:
         return None

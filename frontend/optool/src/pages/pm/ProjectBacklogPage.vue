@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md backlog-page">
     <!-- 헤더 -->
     <div class="row items-center q-mb-lg">
       <div>

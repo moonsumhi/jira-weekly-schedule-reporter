@@ -17,7 +17,7 @@
 .sidebar-metadata { margin: 36px 12px 0; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .sidebar-meta-title { margin: 10px 0 16px; font-weight: 600; color: var(--ink); }
 .sidebar-metadata dl { margin: 0; } .sidebar-metadata dt { margin-top: 14px; color: #94a3b8; } .sidebar-metadata dd { margin: 4px 0 0; overflow-wrap: anywhere; line-height: 1.6; }
-.document-scroll { overflow-x: hidden; overflow-y: auto; min-width: 0; padding: 36px 44px 56px; }
+.document-scroll { overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; min-width: 0; padding: 36px 44px 56px; }
 .document-paper { width: 100%; max-width: 1320px; min-width: 0; margin: 0 auto; padding: 44px 56px 28px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 4px 20px #1e293b04; }
 .document-layout.is-editing .document-scroll { padding-left: 32px; padding-right: 32px; }
 .document-layout.is-editing .document-paper { max-width: 1120px; padding: 34px 42px 26px; }
@@ -90,3 +90,22 @@
 :global(body.body--dark) .document-sidebar { background: #131e2e; }
 :global(body.body--dark) .document-nav-item.active, :global(body.body--dark) .document-kind, :global(body.body--dark) .section-number { background: #223652; color: #b0c8ee; }
 :global(body.body--dark) .document-nav-item:hover, :global(body.body--dark) .document-image { background: #223047; }
+.work-document--dark { --ink: #e2e8f0; --muted: #a7b5c8; --line: #334155; background: #101827 !important; color: var(--ink) !important; }
+.work-document--dark .document-topbar, .work-document--dark .document-footer,
+.work-document--dark .document-paper, .work-document--dark .step-rail span { background: #182334 !important; color: var(--ink); }
+.work-document--dark .document-sidebar { background: #131e2e !important; }
+.work-document--dark .document-nav-item { color: #b6c2d2; }
+.work-document--dark .document-nav-item:hover, .work-document--dark .document-image { background: #223047 !important; }
+.work-document--dark .document-nav-item.active,
+.work-document--dark .document-kind, .work-document--dark .section-number { background: #223652 !important; color: #b0c8ee !important; }
+.work-document--dark .document-work-table thead th { background: #223047 !important; color: #cbd5e1; }
+.work-document--dark .document-work-table tbody tr,
+.work-document--dark .document-work-table tbody th,
+.work-document--dark .document-work-table tbody td { background: #182334; color: var(--ink); }
+.work-document--dark .document-work-table tbody tr:hover { background: #223047; }
+.work-document--dark .step-card, .work-document--dark .single-fields,
+.work-document--dark .document-field-group.comparison-side { background: #182334; }
+.work-document--dark :deep(.work-result-content table),
+.work-document--dark :deep(.work-result-content th),
+.work-document--dark :deep(.work-result-content td) { background-color: #182334 !important; color: #e2e8f0 !important; border-color: #475569 !important; }
+.work-document--dark :deep(.work-result-content pre) { background: #0f172a !important; color: #cbd5e1 !important; }

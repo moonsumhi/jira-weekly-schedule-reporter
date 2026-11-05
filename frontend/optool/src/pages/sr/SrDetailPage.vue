@@ -987,6 +987,15 @@
                       </template>
                     </template>
                     <div class="text-caption text-grey-6">{{ h.changedBy }}</div>
+                    <div v-if="h.reason || h.processResult" class="q-mt-xs text-body2" style="white-space:pre-wrap;overflow-wrap:anywhere">
+                      <div v-if="h.reason">
+                        <strong>{{ ['REJECTED', 'ON_HOLD', 'CANCELLED'].includes(h.afterValue ?? '') ? '사유' : '의견' }}:</strong>
+                        {{ h.reason }}
+                      </div>
+                      <div v-if="h.processResult" class="q-mt-xs">
+                        <strong>처리 결과:</strong> {{ h.processResult }}
+                      </div>
+                    </div>
                     <!-- 필드 변경 이전/이후 값 -->
                     <template v-if="h.actionType !== 'STATUS_CHANGE'">
                       <div class="q-mt-xs" style="font-size:0.78rem">

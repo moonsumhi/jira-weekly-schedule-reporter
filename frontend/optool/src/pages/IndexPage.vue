@@ -2,7 +2,8 @@
   <q-page class="dashboard-page q-pa-md">
 
     <draggable
-      v-model="cardOrder"
+      :list="cardOrder"
+      tag="div"
       :item-key="(id: string) => id"
       class="dashboard-grid"
       handle=".card-drag-handle"
@@ -32,74 +33,38 @@
         </div>
 
         <div class="dash-card-body">
-          <!-- 점검일이 지나도 내 미완료 작업이 있으면 계속 표시 -->
-          <div v-if="showInspectionDay || inspectionPending > 0 || inspectionLoadFailed" class="dday-item dday-item--inspection q-mb-sm">
-            <div class="dday-count" style="background: #00897b">
-              <span class="dday-label">{{ calcDDay(inspectionDate) }}</span>
-            </div>
-            <div class="dday-info">
-              <div class="dday-title">
-                서버 점검일
-                <q-badge outline color="teal" label="정기" class="q-ml-xs" style="font-size:10px" />
-              </div>
-              <q-btn v-if="canInspect" flat dense no-caps color="teal" size="sm"
-                :label="inspectionLoadFailed ? '점검 작업 확인' : `내 미완료 작업 ${inspectionPending}건`" :to="{ path: '/inspection/tasks', query: { mine: '1' } }" />
-              <div class="dday-date text-grey-6">{{ inspectionDate }}{{ inspectionOverridden ? ' (수정됨)' : ' (3번째 목요일)' }}</div>
-            </div>
-            <div v-if="auth.me?.isAdmin" class="dday-actions">
-              <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openInspectionEdit" />
-              <q-btn v-if="inspectionOverridden" flat dense round icon="refresh" size="xs" color="grey" title="자동 계산으로 초기화" @click="resetInspection" />
-            </div>
-          </div>
-
-          <!-- 다음 당직일 — 14일 이내로 다가왔을 때만 표시 -->
-          <div v-if="showDutyDDay && nextDutyDay" class="dday-item dday-item--inspection q-mb-sm">
-            <div class="dday-count" style="background: #7b1fa2">
-              <span class="dday-label">{{ calcDDay(nextDutyDay.date) }}</span>
-            </div>
-            <div class="dday-info">
-              <div class="dday-title">
-                당직일
-                <q-badge outline color="purple" label="당직" class="q-ml-xs" style="font-size:10px" />
-              </div>
-              <div class="dday-date text-grey-6">{{ nextDutyDay.date }}</div>
-            </div>
-          </div>
-
           <div v-if="ddaysLoading" class="text-center text-grey q-pa-md">불러오는 중...</div>
-          <div v-if="!ddaysLoading && (visibleDDays.length > 0 || issueDDayItems.length > 0)" class="dday-list">
+          <div v-if="dashboardDDayItems.length > 0" class="dday-list">
             <div
-              v-for="d in visibleDDays"
+              v-for="d in dashboardDDayItems"
               :key="d.id"
               class="dday-item"
+              :class="{ 'cursor-pointer': d.issue !== null }"
+              @click="openDashboardDDayItem(d)"
             >
-              <div class="dday-count" :style="{ background: ddayColorMap[d.color] ?? '#1e88e5' }">
+              <div class="dday-count" :style="{ background: ddayColorMap[d.color] ?? (d.issue ? '#3949ab' : '#1e88e5') }">
                 <span class="dday-label">{{ calcDDay(d.date) }}</span>
               </div>
               <div class="dday-info">
-                <div class="dday-title">{{ d.title }}</div>
-                <div class="dday-date text-grey-6">{{ d.date }}</div>
+                <div class="dday-title">
+                  {{ d.title }}
+                  <q-badge v-if="d.kind === 'inspection'" outline color="teal" label="정기" class="q-ml-xs" style="font-size:10px" />
+                  <q-badge v-else-if="d.kind === 'duty'" outline color="purple" label="당직" class="q-ml-xs" style="font-size:10px" />
+                </div>
+                <q-btn v-if="d.kind === 'inspection' && canInspect" flat dense no-caps color="teal" size="sm"
+                  :label="inspectionLoadFailed ? '점검 작업 확인' : `내 미완료 작업 ${inspectionPending}건`" :to="{ path: '/inspection/tasks', query: { mine: '1' } }" />
+                <div class="dday-date text-grey-6">{{ d.date }}{{ d.dateNote }}</div>
                 <div v-if="d.note" class="dday-note text-grey-5">{{ d.note }}</div>
               </div>
-              <div v-if="auth.me?.isAdmin || isDDayCreator(d)" class="dday-actions">
-                <q-btn flat dense round icon="edit" size="xs" color="grey" @click="openDDayEdit(d)" />
-                <q-btn flat dense round icon="delete" size="xs" color="negative" @click="confirmDeleteDDay(d)" />
+              <div v-if="canEditDashboardDDay(d)" class="dday-actions">
+                <q-btn flat dense round icon="edit" size="xs" color="grey" @click.stop="editDashboardDDay(d)" />
+                <q-btn flat dense round icon="delete" size="xs" color="negative" @click.stop="deleteDashboardDDay(d)" />
               </div>
-            </div>
-            <div
-              v-for="d in issueDDayItems"
-              :key="d.id"
-              class="dday-item cursor-pointer"
-              @click="openPmIssueDetail(d.issue)"
-            >
-              <div class="dday-count" style="background: #3949ab">
-                <span class="dday-label">{{ calcDDay(d.date) }}</span>
+              <div v-else-if="d.kind === 'inspection' && auth.me?.isAdmin" class="dday-actions">
+                <q-btn flat dense round icon="edit" size="xs" color="grey" @click.stop="openInspectionEdit" />
+                <q-btn v-if="inspectionOverridden" flat dense round icon="refresh" size="xs" color="grey" title="자동 계산으로 초기화" @click.stop="resetInspection" />
               </div>
-              <div class="dday-info">
-                <div class="dday-title">{{ d.title }}</div>
-                <div class="dday-date text-grey-6">{{ d.date }}</div>
-              </div>
-              <q-badge outline color="indigo" label="내 이슈" style="font-size:10px" />
+              <q-badge v-if="d.kind === 'issue'" outline color="indigo" label="내 이슈" style="font-size:10px" />
             </div>
           </div>
         </div>
@@ -639,6 +604,104 @@ const issueDDayItems = computed(() =>
     }))
 )
 
+interface DashboardDDayItem {
+  id: string
+  title: string
+  date: string
+  dateNote: string
+  color: string
+  note: string | null
+  kind: 'custom' | 'issue' | 'inspection' | 'duty'
+  dday: DDay | null
+  issue: Issue | null
+}
+
+// 시스템 점검일, 당직일, 개인 D-Day, 이슈 마감일을 모두 D+ → 오늘 → D- 순으로 보여준다.
+const dashboardDDayItems = computed<DashboardDDayItem[]>(() => {
+  const customItems: DashboardDDayItem[] = visibleDDays.value.map((dday) => ({
+    id: dday.id,
+    title: dday.title,
+    date: dday.date,
+    dateNote: '',
+    color: dday.color,
+    note: dday.note ?? null,
+    kind: 'custom',
+    dday,
+    issue: null,
+  }))
+  const issueItems: DashboardDDayItem[] = issueDDayItems.value.map((item) => ({
+    id: item.id,
+    title: item.title,
+    date: item.date,
+    dateNote: '',
+    color: 'indigo',
+    note: null,
+    kind: 'issue',
+    dday: null,
+    issue: item.issue,
+  }))
+  const inspectionItems: DashboardDDayItem[] = showInspectionDay.value || inspectionPending.value > 0 || inspectionLoadFailed.value
+    ? [{
+        id: 'system-inspection-dday',
+        title: '서버 점검일',
+        date: inspectionDate.value,
+        dateNote: inspectionOverridden.value ? ' (수정됨)' : ' (3번째 목요일)',
+        color: 'teal',
+        note: null,
+        kind: 'inspection',
+        dday: null,
+        issue: null,
+      }]
+    : []
+  const dutyItems: DashboardDDayItem[] = showDutyDDay.value && nextDutyDay.value
+    ? [{
+        id: 'system-duty-dday',
+        title: '당직일',
+        date: nextDutyDay.value.date,
+        dateNote: '',
+        color: 'purple',
+        note: null,
+        kind: 'duty',
+        dday: null,
+        issue: null,
+      }]
+    : []
+
+  const sortParts = (date: string) => {
+    const day = dateStringDayKey(date)
+    if (day === null) return { group: 3, day: Number.MAX_SAFE_INTEGER }
+    const difference = Math.trunc((day - todayDayKey.value) / DAY_MS)
+    return {
+      group: difference < 0 ? 0 : difference === 0 ? 1 : 2,
+      day,
+    }
+  }
+
+  return [...inspectionItems, ...dutyItems, ...customItems, ...issueItems].sort((left, right) => {
+    const leftSort = sortParts(left.date)
+    const rightSort = sortParts(right.date)
+    return leftSort.group - rightSort.group
+      || leftSort.day - rightSort.day
+      || left.title.localeCompare(right.title, 'ko')
+  })
+})
+
+function openDashboardDDayItem(item: DashboardDDayItem) {
+  if (item.issue) openPmIssueDetail(item.issue)
+}
+
+function canEditDashboardDDay(item: DashboardDDayItem): boolean {
+  return !!item.dday && (!!auth.me?.isAdmin || isDDayCreator(item.dday))
+}
+
+function editDashboardDDay(item: DashboardDDayItem) {
+  if (item.dday) openDDayEdit(item.dday)
+}
+
+function deleteDashboardDDay(item: DashboardDDayItem) {
+  if (item.dday) confirmDeleteDDay(item.dday)
+}
+
 function calcDDay(dateStr: string): string {
   const targetDay = dateStringDayKey(dateStr)
   if (targetDay === null) return ''
@@ -876,7 +939,8 @@ async function loadMySrList() {
 }
 
 // ── 대시보드 카드 순서 (드래그로 배치 변경, 계정에 저장) ──────────────────────
-const cardOrder = ref<string[]>([])
+// 기본 카드는 설정을 읽기 전에도 바로 그려 빈 대시보드가 노출되지 않게 한다.
+const cardOrder = ref<string[]>(['watch', 'dday', 'eos', 'resource'])
 let savedAssetColPresets: ColPreset[] = []
 
 const baseCardOrder = computed(() => {

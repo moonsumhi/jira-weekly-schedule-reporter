@@ -1,7 +1,7 @@
 <template>
   <q-dialog :model-value="modelValue" maximized transition-show="slide-up" transition-hide="slide-down"
     @update:model-value="handleDialogUpdate">
-    <q-card class="work-document">
+    <q-card :class="['work-document', { 'work-document--dark': theme.appearanceMode === 'dark' }]" :dark="theme.appearanceMode === 'dark'">
       <header class="document-topbar">
         <q-btn flat round dense icon="arrow_back" :aria-label="backLabel || '목록으로 돌아가기'" :disable="saving || editorUploading" @click="close" />
         <div class="document-breadcrumb"><span>작업 관리</span><q-icon name="chevron_right" size="16px" /><strong>{{ title }}</strong></div>
@@ -218,12 +218,12 @@
       </footer>
 
       <q-dialog :model-value="!!previewSource" @update:model-value="previewSource = ''">
-        <q-card class="document-preview"><q-btn flat round icon="close" class="preview-close" aria-label="이미지 닫기" v-close-popup />
+        <q-card class="document-preview" :dark="theme.appearanceMode === 'dark'"><q-btn flat round icon="close" class="preview-close" aria-label="이미지 닫기" v-close-popup />
           <img :src="previewSource" alt="문서 이미지 확대" /></q-card>
       </q-dialog>
 
       <q-dialog v-model="exportReasonDialog">
-        <q-card class="export-history-dialog">
+        <q-card class="export-history-dialog" :dark="theme.appearanceMode === 'dark'">
           <q-card-section class="row items-center no-wrap">
             <div class="col">
               <div class="text-h6">내보내기 사유</div>
@@ -253,7 +253,7 @@
       </q-dialog>
 
       <q-dialog v-model="revisionDialog">
-        <q-card class="revision-dialog">
+        <q-card class="revision-dialog" :dark="theme.appearanceMode === 'dark'">
           <q-card-section class="row items-start no-wrap">
             <div class="col">
               <div class="text-h6">문서 수정 비교 · v{{ revisionDetail?.version ?? selectedRevision?.version }}</div>
@@ -337,6 +337,7 @@ import WorkResultContent from './WorkResultContent.vue'
 import InlineDocumentEditor from './InlineDocumentEditor.vue'
 import { formEntryMarkdown } from 'src/utils/formEntryMarkdown'
 import { useAuthStore } from 'stores/auth'
+import { useThemeStore } from 'src/stores/theme'
 import InspectionLinks from './inspection/InspectionLinks.vue'
 import WorkDocumentInspectionOptions from './inspection/WorkDocumentInspectionOptions.vue'
 import type { WorkDocumentInspection } from 'src/services/workDocumentInspection'
@@ -347,6 +348,7 @@ type EditableData = Record<string, Record<string, unknown> | Record<string, unkn
 type ImportWarning = { summary?: boolean; section?: string; field?: string; row?: number | null; message: string; sourcePreview?: string }
 const props = defineProps<{ modelValue: boolean; loading: boolean; entry: FormEntry | null; title: string; sections: FormSection[]; creating?: boolean; exporting?: boolean; saving?: boolean; linkAssets?: boolean; inspectionLinks?: boolean; resultInspectionLinks?: boolean; saveWarning?: string; error?: string; backLabel?: string; importWarnings?: ImportWarning[] }>()
 const auth = useAuthStore()
+const theme = useThemeStore()
 const canViewInspection = computed(() => auth.me?.isAdmin || auth.me?.permissions?.includes('server_check'))
 const view = ref<'markdown'>('markdown')
 const activeTab = ref<'document' | 'history'>('document')
@@ -868,6 +870,12 @@ watch(() => [props.modelValue, props.entry?.id, props.loading], async () => {
 .document-history-heading p { margin: 0; color: var(--muted); font-size: 13px; }
 .document-history-detail { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); }
 :global(body.body--dark) .document-tabs, :global(body.body--dark) .document-history-content { background: #182334; }
+.work-document--dark .document-tabs, .work-document--dark .document-history-content { background: #182334; color: #e2e8f0; border-color: #334155; }
+.work-document--dark .revision-diff-table th { background: #223047; color: #e2e8f0; }
+.work-document--dark .revision-diff-table td { background: #182334; color: #e2e8f0; }
+.work-document--dark .revision-duplicate-row td { background: #3b321e; color: #f6d98f; }
+.work-document--dark .imported-extra-panel { background: #182334; border-color: #475569; }
+.work-document--dark .document-save-warning { background: #3b321e; color: #f6d98f; }
 @media (max-width: 600px) { .document-tabs { padding: 0 12px; }.document-history { padding: 12px; }.document-history-content { padding: 20px; } }
 .revision-dialog { display: flex; flex-direction: column; width: min(1200px, 94vw); max-width: 94vw; max-height: 90vh; }
 .revision-dialog-body { min-height: 0; overflow: auto; }

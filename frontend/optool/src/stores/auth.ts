@@ -8,6 +8,10 @@ export type UserMe = {
   email: string
   fullName?: string | null
   team?: string | null
+  employeeNumber?: string | null
+  hostPcIp?: string | null
+  position?: string | null
+  extension?: string | null
   isAdmin?: boolean
   isInternal?: boolean
   permissions?: string[]

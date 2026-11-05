@@ -1,1 +1,2034 @@
 // app global css in SCSS form
+
+// Dark mode surfaces for schedule management. These pages combine Quasar
+// components with custom tables and FullCalendar styles.
+body.body--dark .pm-theme-container {
+  color: #e2e8f0;
+
+  .q-card:not(.project-banner) {
+    background-color: #182334;
+    color: #e2e8f0;
+    border-color: #334155;
+  }
+
+  .q-table__container,
+  .q-table {
+    background: #182334;
+    color: #e2e8f0;
+  }
+
+  .q-table thead th,
+  .q-table tbody td {
+    color: #e2e8f0;
+    border-color: #334155;
+  }
+
+  .text-grey-7,
+  .text-grey-8,
+  .text-grey-9 {
+    color: #b6c2d2 !important;
+  }
+
+  .issue-table-header {
+    background: #223047 !important;
+    color: #e2e8f0;
+  }
+
+  .hierarchy-context-row,
+  .hierarchy-level-1,
+  .hierarchy-level-2,
+  .epic-row {
+    background: #1c293b !important;
+    color: #e2e8f0;
+    border-color: #334155;
+  }
+
+  .hierarchy-level-1:hover,
+  .hierarchy-level-2:hover,
+  .issue-table-row:hover,
+  .label-row:hover {
+    background: #26364c !important;
+  }
+
+  .subtask-title {
+    color: #cbd5e1;
+  }
+
+  .tab-panels-bg {
+    background: #101827;
+  }
+
+  .fc {
+    --fc-page-bg-color: #182334;
+    --fc-neutral-bg-color: #223047;
+    --fc-border-color: #334155;
+    --fc-list-event-hover-bg-color: #26364c;
+    --fc-today-bg-color: rgb(59 130 246 / 12%);
+    color: #e2e8f0;
+  }
+
+  .fc .fc-col-header-cell-cushion,
+  .fc .fc-daygrid-day-number,
+  .fc .fc-list-day-text,
+  .fc .fc-list-day-side-text {
+    color: #cbd5e1;
+  }
+
+  .fc .fc-popover,
+  .fc .fc-list,
+  .fc .fc-list-table {
+    background: #182334;
+    color: #e2e8f0;
+  }
+
+  .fc .fc-col-header-cell,
+  .fc .fc-daygrid-day,
+  .fc .fc-timegrid-col,
+  .fc .fc-popover-header {
+    background: #182334;
+  }
+}
+
+body.body--dark .task-row {
+  background: #182334;
+  border-bottom-color: #334155;
+  color: #cbd5e1;
+}
+
+body.body--dark .task-row:hover {
+  background: #223047;
+}
+
+body.body--dark .task-title {
+  color: #e2e8f0;
+}
+
+body.body--dark .task-title:disabled,
+body.body--dark .task-row--closed .task-title {
+  color: #94a3b8;
+}
+
+body.body--dark .task-meta,
+body.body--dark .task-reason,
+body.body--dark .task-assignee,
+body.body--dark .asset-ip {
+  color: #94a3b8;
+}
+
+body.body--dark .result-link {
+  color: #93c5fd;
+}
+
+body.body--dark .assignee-avatar {
+  background: #29384d;
+  color: #cbd5e1;
+}
+
+body.body--dark .is-unassigned {
+  background: #303b4b;
+  color: #aab6c5;
+}
+
+body.body--dark .status-backlog,
+body.body--dark .status-archived {
+  color: #cbd5e1;
+  background: #303b4b;
+}
+
+body.body--dark .status-todo {
+  color: #bfdbfe;
+  background: #1e3a5f;
+}
+
+body.body--dark .status-in_progress {
+  color: #fcd34d;
+  background: #4b3c22;
+}
+
+body.body--dark .status-implemented {
+  color: #ddd6fe;
+  background: #3e315e;
+}
+
+body.body--dark .status-done {
+  color: #a7f3d0;
+  background: #183f36;
+}
+
+body.body--dark .work-status-page {
+  color: #e2e8f0;
+
+  > .row > .col-12 > .q-card,
+  .q-card {
+    background: #182334;
+    color: #e2e8f0;
+    border-color: #3b4b62;
+  }
+
+  .text-grey-5,
+  .text-grey-6,
+  .text-grey-7,
+  .text-grey-8,
+  .text-grey-9 {
+    color: #aebdd0 !important;
+  }
+
+  .q-chip--outline {
+    color: #dbe5f1 !important;
+    border-color: #64748b !important;
+  }
+
+  .fc {
+    --fc-page-bg-color: #111b2a;
+    --fc-neutral-bg-color: #202e43;
+    --fc-neutral-text-color: #e2e8f0;
+    --fc-border-color: #3b4b62;
+    --fc-today-bg-color: rgb(59 130 246 / 19%);
+    --fc-more-link-bg-color: #263a55;
+    --fc-more-link-text-color: #bfdbfe;
+    color: #e2e8f0;
+  }
+
+  .fc .fc-scrollgrid,
+  .fc .fc-scrollgrid-section > *,
+  .fc .fc-col-header-cell,
+  .fc .fc-daygrid-day,
+  .fc .fc-popover,
+  .fc .fc-popover-header {
+    border-color: #3b4b62;
+  }
+
+  .fc .fc-col-header-cell,
+  .fc .fc-daygrid-day,
+  .fc .fc-popover,
+  .fc .fc-popover-header {
+    background: #182334;
+  }
+
+  .fc .fc-day-other {
+    background: #141f30;
+  }
+
+  .fc .fc-day-today {
+    background: #203954;
+    box-shadow: inset 0 0 0 1px #4b8fe8;
+  }
+
+  .fc .fc-col-header-cell-cushion,
+  .fc .fc-daygrid-day-number,
+  .fc .fc-toolbar-title,
+  .fc .fc-list-day-text,
+  .fc .fc-list-day-side-text {
+    color: #dbe7f5;
+  }
+
+  .fc .fc-day-today .fc-daygrid-day-number {
+    color: #93c5fd;
+    font-weight: 700;
+  }
+
+  .fc .fc-button-primary {
+    background: #26364c;
+    border-color: #52657f;
+    color: #e2e8f0;
+  }
+
+  .fc .fc-button-primary:hover,
+  .fc .fc-button-primary:focus-visible {
+    background: #344a66;
+    border-color: #7da9e8;
+  }
+
+  .fc .fc-button-primary:disabled {
+    background: #1d293a;
+    border-color: #3b4b62;
+    color: #8796aa;
+  }
+
+  .fc .fc-button-primary:not(:disabled).fc-button-active,
+  .fc .fc-button-primary:not(:disabled):active {
+    background: #2563a8;
+    border-color: #60a5fa;
+    color: #fff;
+  }
+
+  .fc .fc-daygrid-event {
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 4px;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 24%);
+  }
+
+  .fc .fc-event-main,
+  .fc .fc-event-title,
+  .fc .fc-event-time {
+    font-weight: 600;
+  }
+
+  .fc .fc-daygrid-more-link {
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .fc .fc-popover {
+    border: 1px solid #52657f;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+  }
+}
+
+// Dialogs and menus are teleported to the document body, outside page-level
+// theme containers, so style their surfaces directly when dark mode is active.
+body.body--dark {
+  .q-dialog .q-card,
+  .q-menu {
+    background-color: #182334;
+    color: #e2e8f0;
+  }
+
+  .q-dialog .q-separator {
+    background: #334155;
+  }
+
+  .q-dialog .q-field__control {
+    background: #111b2a;
+  }
+
+  .q-dialog .q-item:hover,
+  .q-menu .q-item:hover {
+    background: #26364c;
+  }
+}
+
+// The issue detail dialog is teleported outside the backlog page, so the
+// page-scoped dark palette cannot reach its tabs, sidebar, and rich content.
+body.body--dark .q-dialog .issue-detail-body {
+  color: #e2e8f0;
+  background: #111b2a;
+
+  .issue-detail-content,
+  .q-tab-panels,
+  .q-tab-panel {
+    background: #111b2a;
+    color: #e2e8f0;
+  }
+
+  .sidebar-panel {
+    background: #182334 !important;
+    color: #dbe5f1;
+    border-color: #334155 !important;
+  }
+
+  .q-card,
+  .q-card__section,
+  .q-item,
+  .q-list {
+    background: #182334;
+    color: #dbe5f1;
+    border-color: #334155;
+  }
+
+  .q-field__control,
+  .q-field--outlined .q-field__control {
+    background: #111b2a !important;
+  }
+
+  .q-field__native,
+  .q-field__input,
+  .q-field__label,
+  .q-field__marginal,
+  .q-field__prefix,
+  .q-field__suffix,
+  .text-dark,
+  .text-grey-4,
+  .text-grey-5,
+  .text-grey-6,
+  .text-grey-7,
+  .text-grey-8,
+  .text-grey-9 {
+    color: #aebbd0 !important;
+  }
+
+  .text-body1,
+  .text-body2,
+  .text-subtitle2,
+  .text-caption,
+  .sidebar-label,
+  .q-tab__label {
+    color: #dbe5f1;
+  }
+
+  .q-separator,
+  .reply-item,
+  .sidebar-panel {
+    border-color: #334155;
+  }
+
+  .sub-task-row:hover,
+  .description-view:hover,
+  .q-item:hover {
+    background: #26364c !important;
+  }
+
+  .comment-file-chip,
+  .preview-file-chip {
+    background: #223047;
+    color: #dbe5f1;
+    border-color: #475569;
+  }
+
+  .preview-remove-btn {
+    background: #26364c;
+  }
+}
+
+// The asset detail drawer has light-mode colors in its component styles.
+// Override those colors here because the drawer is rendered outside page content.
+body.body--dark .asset-detail-drawer {
+  background-color: #182334;
+  color: #e2e8f0;
+
+  .q-tab-panels,
+  .q-tab-panel,
+  .q-card__section {
+    background-color: #182334;
+    color: #e2e8f0;
+  }
+
+  .top-field-label,
+  .field-label,
+  .text-grey-5,
+  .text-grey-6,
+  .text-grey-7,
+  .text-grey-8,
+  .text-grey-9 {
+    color: #aebbd0 !important;
+  }
+
+  .top-field-value,
+  .section-title,
+  .detail-value,
+  .field-disabled,
+  .text-dark {
+    color: #e2e8f0 !important;
+  }
+
+  .top-field-value {
+    border-bottom-color: #475569;
+  }
+
+  .detail-value,
+  .field-input {
+    border-bottom-color: #475569;
+  }
+
+  .field-input .q-field__native,
+  .field-input .q-field__input,
+  .top-field-input .q-field__native,
+  .top-field-input .q-field__input,
+  .q-field__label,
+  .q-field__marginal {
+    color: #dbe5f1 !important;
+  }
+
+  .section-divider {
+    border-top-color: #3b82f6;
+  }
+
+  .doc-table,
+  .doc-table th,
+  .doc-table td {
+    background-color: #182334;
+    color: #dbe5f1;
+    border-color: #475569;
+  }
+
+  .section-title-cell {
+    background-color: #26364c;
+    color: #e2e8f0;
+  }
+
+  .label-cell {
+    background-color: #1d2a42;
+    color: #cbd5e1;
+  }
+
+  .value-cell {
+    background-color: #182334;
+    color: #dbe5f1;
+  }
+}
+
+// Page-specific dark surfaces for screens that use custom light-mode styling.
+body.body--dark {
+  .asset-page {
+    color: #e2e8f0;
+
+    .trash-guide {
+      background: #1e293b !important;
+      border-color: #475569;
+      color: #e2e8f0;
+    }
+
+    .trash-guide .text-grey-6,
+    .trash-guide .text-grey-7 {
+      color: #bdcadb !important;
+    }
+
+    .trash-guide .q-icon {
+      color: #cbd5e1 !important;
+    }
+
+    .asset-trash-chip {
+      background: #26364c !important;
+      color: #dbe5f1 !important;
+    }
+
+    > .q-card,
+    .asset-filter-bar,
+    .asset-advanced-filter {
+      background: #182334;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .asset-advanced-filter .bg-white {
+      background-color: #111b2a !important;
+      color: #e2e8f0;
+    }
+
+    .asset-filter-bar .q-field__control,
+    .asset-advanced-filter .q-field__control {
+      color: #e2e8f0;
+    }
+
+    .asset-filter-bar .q-field__native,
+    .asset-filter-bar .q-field__input,
+    .asset-filter-bar .q-field__label,
+    .asset-advanced-filter .q-field__native,
+    .asset-advanced-filter .q-field__input,
+    .asset-advanced-filter .q-field__label {
+      color: #dbe5f1;
+    }
+
+    .asset-filter-bar .q-field__label,
+    .asset-advanced-filter .q-field__label,
+    .asset-advanced-filter .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+
+    .asset-advanced-filter .q-separator {
+      background: #334155;
+    }
+
+    .sticky-header-table thead tr th {
+      background: #223047 !important;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .sticky-header-table tbody td {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .sticky-header-table tbody tr:hover td {
+      background: #223047;
+    }
+
+    .sticky-header-table thead tr th.sticky-actions-col {
+      background: #223047 !important;
+    }
+
+    .sticky-header-table tbody td.sticky-actions-col {
+      background: #182334;
+    }
+
+    // Deleted rows have light-mode !important backgrounds in the page styles.
+    // Override those explicitly so every cell stays readable in the trash.
+    .sticky-header-table tbody td.cell-deleted,
+    .sticky-header-table tbody td.cell-deleted-actions {
+      background: #202c3d !important;
+      color: #aebbd0 !important;
+      border-color: #3b4b62;
+    }
+
+    .sticky-header-table tbody td.cell-deleted-actions {
+      background: #202c3d !important;
+    }
+
+    .sticky-header-table thead th.bulk-select-col,
+    .sticky-header-table tbody td.bulk-select-col {
+      background: #26364c !important;
+      color: #dbe5f1;
+      border-color: #3b4b62;
+    }
+
+    .sticky-header-table .q-table__middle,
+    .sticky-header-table .q-table__bottom,
+    .sticky-header-table .q-table__bottom .q-field__control {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+  }
+
+  .watch-timetable-page {
+    color: #e2e8f0;
+
+    > .row > .col-12 > .q-card,
+    .q-card {
+      background: #182334;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #b6c2d2 !important;
+    }
+
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal {
+      color: #dbe5f1;
+    }
+
+    .fc {
+      --fc-page-bg-color: #182334;
+      --fc-neutral-bg-color: #223047;
+      --fc-border-color: #334155;
+      --fc-list-event-hover-bg-color: #26364c;
+      --fc-today-bg-color: rgb(59 130 246 / 12%);
+      color: #e2e8f0;
+    }
+
+    .fc .fc-col-header-cell,
+    .fc .fc-daygrid-day,
+    .fc .fc-timegrid-col,
+    .fc .fc-timegrid-slot,
+    .fc .fc-list,
+    .fc .fc-list-table,
+    .fc .fc-popover,
+    .fc .fc-popover-header {
+      background: #182334;
+      color: #e2e8f0;
+    }
+
+    .fc .fc-col-header-cell-cushion,
+    .fc .fc-daygrid-day-number,
+    .fc .fc-timegrid-axis-cushion,
+    .fc .fc-timegrid-slot-label-cushion,
+    .fc .fc-list-day-text,
+    .fc .fc-list-day-side-text,
+    .fc .fc-toolbar-title {
+      color: #cbd5e1;
+    }
+
+    .fc .fc-button-primary {
+      background: #26364c;
+      border-color: #475569;
+      color: #e2e8f0;
+    }
+
+    .fc .fc-event-title,
+    .fc .fc-event-time {
+      color: #fff;
+    }
+  }
+
+  .schedule-guide-page {
+    color: #e2e8f0;
+
+    .q-card,
+    .mock-screen,
+    .guide-white-surface {
+      background: #182334 !important;
+      color: #e2e8f0;
+      border-color: #475569;
+    }
+
+    .scenario-header {
+      background: #1d2a42 !important;
+    }
+
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #b6c2d2 !important;
+    }
+  }
+
+  .inspection-page {
+    background: #0f1724;
+    color: #e2e8f0;
+
+    .context-banner,
+    .period-card,
+    .work-panel,
+    .task-search .q-field__control {
+      background: #182334;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .page-heading p,
+    .inspection-date,
+    .inspection-date strong,
+    .this-month,
+    .progress-caption,
+    .progress-note,
+    .list-columns,
+    .list-footer,
+    .group-hint,
+    .overdue-reminder {
+      color: #aebbd0;
+    }
+
+    .view-tabs button {
+      color: #b6c2d2;
+    }
+
+    .view-tabs button span,
+    .mine-button {
+      background: #26364c;
+      color: #cbd5e1;
+    }
+
+    .view-tabs button.active,
+    .view-tabs button.active span {
+      color: #93c5fd;
+    }
+
+    .group-heading {
+      background: #1c293b;
+      border-color: #334155;
+      color: #cbd5e1;
+    }
+
+    .group-heading--overdue {
+      background: #332b20;
+      border-color: #51422b;
+      color: #e7c98d;
+    }
+
+    .empty-icon {
+      background: #223047;
+    }
+
+    .empty-state h2 {
+      color: #dbe5f1;
+    }
+
+    .empty-state p {
+      color: #aebbd0;
+    }
+
+    .error-banner {
+      background: #3a2528;
+      color: #f2aaa3;
+    }
+
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal {
+      color: #dbe5f1;
+    }
+  }
+
+  .monthly-report-page {
+    background: #0f1724;
+    color: #e2e8f0;
+
+    .report-toolbar,
+    .report-card,
+    .report-empty {
+      background: #182334;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .toolbar-eyebrow,
+    .save-status,
+    .report-list-header p,
+    .report-card-copy p,
+    .report-card-copy small,
+    .report-list-note,
+    .report-loading,
+    .outline-note,
+    .outline-status small,
+    .report-secondary-actions,
+    .report-outline nav button {
+      color: #aebbd0;
+    }
+
+    .outline-status,
+    .outline-editor,
+    .server-record-row {
+      border-color: #334155;
+    }
+
+    .report-outline nav button:hover,
+    .report-card:hover {
+      background: #223047;
+      border-color: #475569;
+    }
+
+    .report-card-icon,
+    .server-record-stats {
+      background: #223047;
+      color: #cbd5e1;
+    }
+
+    .empty-document {
+      background: linear-gradient(160deg, #223047, #182334);
+      border-color: #475569;
+      box-shadow: 8px 7px 0 #111b2a;
+    }
+
+    .mock-line,
+    .mock-stats i {
+      background: #475569;
+    }
+
+    .mock-title {
+      background: #64748b;
+    }
+
+    .finalize-warnings {
+      background: #332b20;
+      color: #e7c98d;
+    }
+
+    .record-prose,
+    .dialog-help,
+    .server-record-row,
+    .server-record-stats span,
+    .server-record-stats small {
+      color: #b6c2d2;
+    }
+
+    .server-record-stats b {
+      color: #e2e8f0;
+    }
+
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal {
+      color: #dbe5f1;
+    }
+  }
+
+  .resource-page {
+    background: #0f1724;
+    color: #e2e8f0;
+
+    h1,
+    h2,
+    .stat-value {
+      color: #e2e8f0;
+    }
+
+    p,
+    .target-coverage,
+    .resource-loading,
+    .results-heading h2 span,
+    .results-heading p,
+    .stat-value small {
+      color: #aebbd0;
+    }
+
+    .resource-empty,
+    .stat-card,
+    .results-panel {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .resource-empty .empty-icon,
+    .stat-card.active {
+      background: #223047;
+    }
+
+    .stat-card:hover {
+      background: #26364c;
+      border-color: #475569;
+    }
+
+    .stat-label .q-icon,
+    .coverage-divider {
+      color: #94a3b8;
+    }
+
+    .q-table,
+    .q-table__container,
+    .q-markup-table {
+      background: #182334;
+      color: #dbe5f1;
+    }
+
+    .q-table thead th,
+    .q-table tbody td,
+    .q-markup-table th,
+    .q-markup-table td {
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal {
+      color: #dbe5f1;
+    }
+  }
+
+  .menu-manage-page {
+    color: #e2e8f0;
+
+    .q-list,
+    .q-item,
+    .q-expansion-item__container,
+    .q-expansion-item__content > div {
+      background: #182334;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .bg-grey-1,
+    .bg-grey-2,
+    .bg-blue-1 {
+      background: #223047 !important;
+    }
+
+    .text-grey,
+    .text-grey-5,
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+
+    .board-dialog__label {
+      color: #dbe5f1;
+    }
+
+    .board-dialog__icon-box {
+      background: #111b2a;
+      border-color: #334155;
+    }
+  }
+
+  .audit-log-page {
+    color: #e2e8f0;
+
+    > .q-card,
+    .diff-item {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .q-markup-table,
+    .q-markup-table tbody,
+    .q-markup-table tr {
+      background: #182334;
+      color: #dbe5f1;
+    }
+
+    .q-markup-table th,
+    .q-markup-table td {
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .bg-grey-2 {
+      background: #223047 !important;
+    }
+
+    .text-grey-5,
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+
+    .diff-item {
+      background: #26364c;
+    }
+
+    .text-strike {
+      color: #f0a38d;
+    }
+
+    .row-hover:hover {
+      background: #223047;
+    }
+  }
+
+  .q-dialog .board-dialog__label {
+    color: #dbe5f1;
+  }
+}
+
+@media print {
+  body.body--dark .monthly-report-page {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+body.body--dark {
+  .dashboard-page {
+    background: #0f1724;
+    color: #e2e8f0;
+
+    .dash-card {
+      background: #182334;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .card-title,
+    .dday-title,
+    .eos-item-name,
+    .resource-name,
+    .pm-issue-title,
+    .watch-card-name {
+      color: #e2e8f0;
+    }
+
+    .dday-item,
+    .eos-item,
+    .pm-issue-item {
+      background: #223047;
+      color: #dbe5f1;
+    }
+
+    .pm-issue-item:hover {
+      background: #2b3b52;
+    }
+
+    .eos-count--danger {
+      background: #3a2528;
+      border-color: #6b3438;
+    }
+
+    .eos-count--warn {
+      background: #382d20;
+      border-color: #66502e;
+    }
+
+    .eos-count--danger .eos-count-num { color: #ffaaa5; }
+    .eos-count--warn .eos-count-num { color: #ffd08a; }
+
+    .eos-count-label,
+    .pm-subheader,
+    .dday-date,
+    .dday-note,
+    .eos-item-os,
+    .watch-card-time {
+      color: #aebbd0 !important;
+    }
+
+    .resource-item {
+      background: #38282a;
+      border-color: #603238;
+    }
+
+    .watch-card-item {
+      border-color: #475569;
+    }
+
+    .watch-card-body {
+      color: #e2e8f0;
+    }
+
+    .text-grey-5,
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+  }
+
+  .backlog-page {
+    color: #e2e8f0;
+
+    .filter-card,
+    .backlog-tree,
+    .q-card {
+      background: #182334;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .bg-grey-2 {
+      background: #26364c !important;
+      border-bottom-color: #475569 !important;
+    }
+
+    .epic-row {
+      background: #2b2640;
+    }
+
+    .epic-row:hover {
+      background: #3a3153;
+    }
+
+    .tree-item {
+      border-bottom-color: #334155;
+    }
+
+    .filter-chip {
+      color: #cbd5e1;
+    }
+
+    .q-table,
+    .q-table__container,
+    .q-markup-table {
+      background: #182334;
+      color: #dbe5f1;
+    }
+
+    .q-table thead th,
+    .q-table tbody td {
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal {
+      color: #dbe5f1;
+    }
+
+    .text-grey-5,
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+  }
+
+  .recurring-issue-page {
+    color: #e2e8f0;
+
+    > .row .q-chip.bg-grey-2 {
+      background: #26364c !important;
+      color: #cbd5e1 !important;
+    }
+
+    > .q-card,
+    .q-table__container,
+    .q-table {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .q-table thead th,
+    .q-table tbody td {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .q-table thead th {
+      background: #223047;
+    }
+
+    .text-grey-5,
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal {
+      color: #dbe5f1;
+    }
+  }
+
+  .sr-request-page {
+    color: #e2e8f0;
+
+    .sr-stepper,
+    .sr-stepper .q-stepper__header,
+    .sr-stepper .q-stepper__step-inner {
+      background: #182334;
+      color: #e2e8f0;
+    }
+
+    .sr-stepper .q-stepper__header {
+      border-color: #334155;
+    }
+
+    .section-label,
+    .field-label,
+    .type-card__name,
+    .summary-val {
+      color: #dbe5f1;
+    }
+
+    .type-card,
+    .summary-item,
+    .table-field {
+      background: #1c293b;
+      color: #dbe5f1;
+      border-color: #475569;
+    }
+
+    .type-card:hover {
+      background: #26364c;
+    }
+
+    .type-card--selected,
+    .selected-type-badge {
+      background: #1e3552;
+      color: #bfdbfe;
+    }
+
+    .type-card__desc,
+    .editor-tip,
+    .section-label.text-grey-6,
+    .text-grey-5,
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+
+    .table-field-row,
+    .summary-item:nth-child(odd) {
+      border-color: #334155;
+    }
+
+    .sr-editor {
+      border-color: #475569;
+      background: #111b2a;
+    }
+
+    .sr-editor .q-editor__toolbar,
+    .sr-editor .q-editor__content {
+      background: #182334;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .urgent-input .q-field__control {
+      background: #38282a;
+    }
+
+    input[type='date'] {
+      color-scheme: dark;
+    }
+
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal,
+    .q-field__control-container > div {
+      color: #dbe5f1;
+    }
+
+    .bg-blue-1,
+    .draft-banner {
+      background: #1d2c43 !important;
+      color: #dbeafe !important;
+    }
+
+    .bg-amber-1 {
+      background: #382d20 !important;
+    }
+  }
+
+  .sr-my-page {
+    color: #e2e8f0;
+
+    .sr-owner-scope-chip {
+      background: #26364c !important;
+      color: #dbe5f1 !important;
+      border: 1px solid #475569;
+      font-weight: 600;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .sr-owner-scope-chip:not(.bg-primary) {
+      background: #26364c !important;
+      color: #dbe5f1 !important;
+    }
+
+    .sr-owner-scope-chip:not(.bg-primary) .text-grey-5 {
+      color: #b8c7da !important;
+    }
+
+    .sr-owner-scope-chip.bg-primary {
+      background: #2563eb !important;
+      color: #fff !important;
+      border-color: #60a5fa;
+    }
+
+    .sr-owner-scope-chip:not(.bg-primary):hover {
+      background: #344a66 !important;
+      border-color: #6684a8;
+    }
+
+    .sr-list-card,
+    .sr-pagination {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .sr-list-card__header {
+      background: #223047;
+      border-color: #334155;
+    }
+
+    .sr-row {
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .sr-row:hover {
+      background: #223047;
+    }
+
+    .sr-row--delayed {
+      background: #38282a;
+    }
+
+    .sr-row--delayed:hover {
+      background: #493034;
+    }
+
+    .sr-title {
+      color: #e2e8f0;
+    }
+
+    .text-dark {
+      color: #e2e8f0 !important;
+    }
+
+    .text-grey-5,
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal {
+      color: #dbe5f1;
+    }
+  }
+
+  .sr-manage-page {
+    color: #e2e8f0;
+
+    > .q-card,
+    .q-card,
+    .q-table__container,
+    .q-table {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .stat-card {
+      background: #1d2a42;
+      border-color: #334155;
+      color: #e2e8f0;
+    }
+
+    .stat-card:hover {
+      background: #223047;
+      border-color: #475569;
+    }
+
+    .sr-filter-bar {
+      color: #dbe5f1;
+    }
+
+    .sr-filter-bar .bg-white,
+    .sr-filter-bar .q-field__control,
+    .sr-filter-bar .q-field--outlined .q-field__control {
+      background: #111b2a !important;
+    }
+
+    .sr-filter-bar .q-field__control:before,
+    .sr-filter-bar .q-field__control:after {
+      border-color: #475569;
+    }
+
+    .sr-filter-bar .q-field__native,
+    .sr-filter-bar .q-field__input,
+    .sr-filter-bar .q-field__label,
+    .sr-filter-bar .q-field__marginal,
+    .sr-filter-bar .q-field__prefix,
+    .sr-filter-bar .q-field__suffix {
+      color: #dbe5f1 !important;
+    }
+
+    .sr-filter-bar .q-chip.bg-grey-2 {
+      background: #334155 !important;
+      color: #dbe5f1 !important;
+    }
+
+    .sr-filter-bar .q-chip.bg-indigo-1 {
+      background: #273657 !important;
+      color: #c7d2fe !important;
+    }
+
+    .sr-filter-bar .q-chip .text-indigo-9 {
+      color: #c7d2fe !important;
+    }
+
+    .q-table__top,
+    .q-table__bottom {
+      background: #182334;
+      color: #cbd5e1;
+      border-color: #334155;
+    }
+
+    .q-table__bottom .q-btn,
+    .q-table__bottom .q-icon {
+      color: #cbd5e1;
+    }
+
+    .q-table thead th {
+      background: #223047;
+      color: #e2e8f0;
+      border-color: #334155;
+    }
+
+    .q-table tbody td {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #334155;
+    }
+
+    .q-table tbody tr:hover td {
+      background: #223047;
+    }
+
+    .bulk-bar {
+      background: #1d3553;
+      color: #e2e8f0;
+    }
+
+    .text-dark {
+      color: #e2e8f0 !important;
+    }
+
+    .text-grey-5,
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal {
+      color: #dbe5f1;
+    }
+  }
+
+  .q-menu .q-item.bg-blue-1 {
+    background: #1d3553 !important;
+    color: #e2e8f0;
+  }
+
+  .sr-guide-page {
+    color: #e2e8f0;
+
+    .q-card,
+    .mock-screen,
+    .type-mock-card,
+    .sr-mock-row {
+      background: #182334;
+      color: #dbe5f1;
+      border-color: #475569;
+    }
+
+    .scenario-header {
+      background: #1d2a42;
+    }
+
+    .text-grey-5,
+    .text-grey-6,
+    .text-grey-7,
+    .text-grey-8,
+    .text-grey-9 {
+      color: #aebbd0 !important;
+    }
+  }
+
+  .q-dialog input[type='date'] {
+    color-scheme: dark;
+  }
+}
+
+// Rack management is embedded in the asset page and uses component-level
+// light colors for its list, elevation diagram, and detail panels.
+body.body--dark .asset-page .rack-mgmt {
+  color: #e2e8f0;
+
+  .q-card,
+  .rk-list-card,
+  .rk-elev-card,
+  .rk-detail-card,
+  .rk-unplaced-card {
+    background: #182334;
+    color: #dbe5f1;
+    border-color: #334155;
+  }
+
+  .rk-head-title,
+  .rk-list-name,
+  .rk-detail-name,
+  .rk-kv-row b,
+  .rk-dev-name,
+  .q-item,
+  .rk-title {
+    color: #e2e8f0 !important;
+  }
+
+  .rk-head-sub,
+  .rk-panel-label,
+  .rk-list-room,
+  .rk-list-meta,
+  .rk-detail-cat,
+  .rk-kv-row span,
+  .rk-edit-label,
+  .rk-empty,
+  .rk-dev-sub,
+  .rk-legend-item,
+  .rk-legend-hint,
+  .rk-lane-title,
+  .rk-unum,
+  .rk-usage-cap,
+  .rk-stat-den,
+  .rk-stat-label,
+  .text-grey,
+  .text-grey-5,
+  .text-grey-6,
+  .text-grey-7,
+  .text-grey-8,
+  .text-grey-9 {
+    color: #aebbd0 !important;
+  }
+
+  .rk-list-item {
+    background: #182334;
+    border-bottom-color: #334155;
+  }
+
+  .rk-list-item:hover,
+  .q-item:hover {
+    background: #26364c;
+  }
+
+  .rk-list-item.is-active,
+  .rk-pending-active {
+    background: #1e3552;
+  }
+
+  .rk-detail-head {
+    background: linear-gradient(180deg, #223047, #1c293b);
+  }
+
+  .rk-cage {
+    background: #111b2a;
+    border-color: #475569;
+  }
+
+  .rk-unum {
+    background: #26364c;
+  }
+
+  .rk-slot {
+    border-color: #475569;
+  }
+
+  .rk-slot:hover,
+  .rk-slot.is-drop {
+    background: #1d3553;
+    border-color: #60a5fa;
+  }
+
+  .rk-dev {
+    background: #1c293b;
+    border-color: #475569;
+  }
+
+  .rk-dev:hover {
+    background: #26364c;
+  }
+
+  .rk-dev.is-sel {
+    background: #1e3552;
+  }
+
+  .rk-pending {
+    background: #1d3553;
+    color: #bfdbfe;
+    border-bottom-color: #334155;
+  }
+
+  .bg-white,
+  .bg-grey-1,
+  .bg-blue-grey-1 {
+    background-color: #111b2a !important;
+  }
+
+  .q-field__control,
+  .q-field__native,
+  .q-field__input,
+  .q-field__label,
+  .q-field__marginal {
+    color: #dbe5f1;
+  }
+
+  .q-separator {
+    background: #334155;
+  }
+}
+
+body.body--dark .sr-detail-page {
+  color: #e2e8f0;
+
+  > .row > [class*='col-'] > .q-card,
+  .q-card,
+  .q-tab-panels,
+  .q-tab-panel {
+    background: #182334;
+    color: #dbe5f1;
+    border-color: #334155;
+  }
+
+  .q-tabs.bg-grey-1,
+  .q-tabs .q-tab--active,
+  .bg-grey-1,
+  .bg-white {
+    background-color: #223047 !important;
+    color: #e2e8f0;
+  }
+
+  .q-tab__label,
+  .q-tab__icon,
+  .text-dark,
+  .text-grey-4,
+  .text-grey-5,
+  .text-grey-6,
+  .text-grey-7,
+  .text-grey-8,
+  .text-grey-9 {
+    color: #dbe5f1 !important;
+  }
+
+  .text-grey-4,
+  .text-grey-5,
+  .text-grey-6,
+  .info-row__label,
+  .side-label,
+  .content-label {
+    color: #aebbd0 !important;
+  }
+
+  .tab-section-title,
+  .content-text,
+  .content-date,
+  .content-html,
+  .info-row__value {
+    color: #e2e8f0 !important;
+  }
+
+  .section-header {
+    background: #223047;
+    color: #e2e8f0;
+  }
+
+  .tab-section-title,
+  .section-divider {
+    border-color: #475569;
+  }
+
+  .compare-box--expected {
+    background: #173329;
+    color: #bbf7d0;
+  }
+
+  .compare-box--actual {
+    background: #3a2027;
+    color: #fecdd3;
+  }
+
+  .compare-box--before {
+    background: #3a2a18;
+    color: #fed7aa;
+  }
+
+  .compare-box--after {
+    background: #1d2c43;
+    color: #bfdbfe;
+  }
+
+  .comment-bubble--user {
+    background: #1d2c43;
+    color: #dbeafe;
+  }
+
+  .comment-bubble--internal {
+    background: #26364c;
+    color: #dbe5f1;
+  }
+
+  .comment-file-link {
+    background: #26364c;
+    color: #dbe5f1;
+  }
+
+  .firewall-table-wrap {
+    border-color: #475569;
+  }
+
+  .firewall-table th,
+  .firewall-table td {
+    background: #182334;
+    color: #dbe5f1;
+    border-bottom-color: #334155;
+  }
+
+  .firewall-table th {
+    background: #223047;
+    color: #cbd5e1;
+  }
+
+  .q-separator {
+    background: #334155;
+  }
+}
+
+body.body--dark .q-dialog {
+  .rack-asset-dialog,
+  .rack-work-history,
+  .dialog-card {
+    background: #182334;
+    color: #e2e8f0;
+  }
+
+  .rack-asset-title,
+  .rack-asset-field-value,
+  .rack-asset-fixed-value,
+  .rack-asset-fields,
+  .dialog-body {
+    color: #dbe5f1;
+  }
+
+  .rack-asset-field-label,
+  .field-label {
+    color: #aebbd0;
+  }
+
+  .rack-asset-fixed-value {
+    background: #111b2a;
+    border-color: #475569;
+  }
+
+  .rack-asset-field-value .q-field__native,
+  .q-field__native,
+  .q-field__input,
+  .q-field__label,
+  .q-field__marginal {
+    color: #dbe5f1 !important;
+  }
+}
+
+// Toast UI's bundled dark theme leaves the WYSIWYG document canvas light, and
+// MarkdownEditor has local light-mode toolbar colors. Override both surfaces.
+body.body--dark .markdown-editor-shell .toastui-editor-dark.toastui-editor-defaultUI {
+  border-color: #494c56 !important;
+  background: #121212 !important;
+  color: #eee;
+}
+
+body.body--dark .markdown-editor-shell .toastui-editor-dark .toastui-editor-defaultUI-toolbar,
+body.body--dark .markdown-editor-shell .toastui-editor-dark .toastui-editor-toolbar {
+  background: #232428 !important;
+  border-bottom-color: #303238 !important;
+}
+
+body.body--dark .markdown-editor-shell .toastui-editor-dark .toastui-editor-ww-container,
+body.body--dark .markdown-editor-shell .toastui-editor-dark .toastui-editor-contents {
+  background: #121212 !important;
+  border-color: #303238 !important;
+  color: #eee;
+}
+
+body.body--dark .markdown-editor-shell .toastui-editor-dark .toastui-editor-mode-switch {
+  background: #121212 !important;
+  border-top-color: #393b42 !important;
+}
+
+body.body--dark .markdown-editor-shell .toastui-editor-dark .toastui-editor-mode-switch .tab-item {
+  background: #232428 !important;
+  border-color: #393b42 !important;
+  color: #aeb4c0 !important;
+}
+
+body.body--dark .markdown-editor-shell .toastui-editor-dark .toastui-editor-mode-switch .tab-item.active {
+  background: #121212 !important;
+  border-top-color: #121212 !important;
+  color: #eee !important;
+}
+
+// Quasar's drawer scroll area paints its own surface, which can remain white
+// even when the drawer itself is set to dark mode. Keep every left-sidebar
+// surface on the same dark background.
+body.body--dark .app-sidebar,
+body.body--dark .app-sidebar .q-drawer__content,
+body.body--dark .app-sidebar .q-scrollarea,
+body.body--dark .app-sidebar .q-scrollarea__container,
+body.body--dark .app-sidebar .q-scrollarea__content,
+body.body--dark .app-sidebar .sidebar-menu-list {
+  background-color: #17212f !important;
+  color: #e2e8f0;
+}
+
+body.body--dark .work-management-dark .job-trash-guide {
+  background: #1e293b !important;
+  border: 1px solid #475569;
+  color: #e2e8f0;
+}
+
+body.body--dark .work-management-dark .job-trash-guide .text-grey-6,
+body.body--dark .work-management-dark .job-trash-guide .text-grey-7 {
+  color: #bdcadb !important;
+}
+
+body.body--dark .work-management-dark .job-trash-guide .q-icon {
+  color: #cbd5e1 !important;
+}
+
+body.body--dark .work-management-dark .job-trash-chip {
+  background: #26364c !important;
+  color: #dbe5f1 !important;
+}
+
+// Inspection dialogs are teleported to the document body and their local
+// styles include light surfaces, so theme the dialog content directly.
+body.body--dark .q-dialog {
+  .inspection-dialog,
+  .inspection-plan-dialog,
+  .result-dialog {
+    background: #182334 !important;
+    color: #e2e8f0 !important;
+  }
+
+  .inspection-dialog {
+    .dialog-header,
+    .dialog-footer {
+      border-color: #334155;
+    }
+
+    .dialog-eyebrow,
+    .dialog-header p,
+    .section-label > span,
+    .section-label b,
+    .field-help,
+    .save-summary {
+      color: #aebbd0;
+    }
+
+    .target-section {
+      background: #111b2a;
+      border-color: #334155;
+    }
+
+    .entry-modes button {
+      background: #111b2a;
+      border-color: #475569;
+      color: #bdcadb;
+    }
+
+    .entry-modes button.selected {
+      background: #1d3552;
+      border-color: #4b83bd;
+      color: #bfdbfe;
+    }
+
+    .entry-modes button small,
+    .pinned-issue span,
+    .selected-issue span {
+      color: #aebbd0;
+    }
+
+    .pinned-issue,
+    .selected-issue {
+      background: #1d2c43;
+      border-color: #334155;
+    }
+
+    .form-error {
+      background: #3a2027;
+      color: #fecaca;
+    }
+
+    .created-notice {
+      background: #1d2c43;
+      color: #bfdbfe;
+    }
+
+    .q-field__control,
+    .q-field__native,
+    .q-field__input,
+    .q-field__label,
+    .q-field__marginal,
+    .q-field__prefix,
+    .q-field__suffix {
+      color: #dbe5f1 !important;
+    }
+
+    .q-field__control {
+      background: #111b2a !important;
+    }
+
+    .q-field__control:before {
+      border-color: #475569 !important;
+    }
+  }
+
+  .inspection-plan-dialog {
+    header,
+    footer {
+      border-color: #334155;
+    }
+
+    header p,
+    .plan-task-context,
+    footer > span {
+      color: #aebbd0;
+    }
+
+    .plan-save-error {
+      background: #3a2027;
+      color: #fecaca;
+    }
+  }
+
+  .result-dialog {
+    & > .q-card__actions {
+      border-color: #334155;
+    }
+
+    .result-eyebrow,
+    .result-hint,
+    .result-documents-heading small,
+    .result-documents-empty,
+    .text-grey-7 {
+      color: #aebbd0 !important;
+    }
+
+    .result-documents {
+      background: #111b2a;
+      border-color: #475569;
+    }
+  }
+
+  .inspection-target-picker {
+    .common-choice > span,
+    .asset-option .q-item__label--caption,
+    .selection-heading,
+    .selection-heading .q-btn,
+    .selected-targets p,
+    .common-empty,
+    .common-empty strong,
+    .common-empty p {
+      color: #aebbd0 !important;
+    }
+
+    .asset-results {
+      background: #111b2a;
+      border-color: #475569;
+    }
+
+    .asset-option {
+      border-color: #334155;
+    }
+
+    .asset-option.selected,
+    .asset-option:hover {
+      background: #1d3552;
+    }
+
+    .asset-name {
+      color: #dbe5f1;
+    }
+
+    .asset-state {
+      background: #26364c;
+      color: #cbd5e1;
+    }
+  }
+
+  .inspection-plan-picker {
+    .plan-options {
+      border-color: #475569;
+    }
+
+    .plan-options li + li {
+      border-color: #334155;
+    }
+
+    .plan-options button {
+      color: #dbe5f1;
+    }
+
+    .plan-options button:hover:not(:disabled) {
+      background: #26364c;
+    }
+
+    .plan-options span,
+    .plan-options small,
+    .plan-empty,
+    .plan-more,
+    .selected-heading,
+    .selected-plan-meta {
+      color: #aebbd0;
+    }
+
+    .selected-plan {
+      background: #1d2c43;
+      border-color: #475569;
+    }
+
+    .selected-plan-title {
+      color: #bfdbfe;
+    }
+  }
+}

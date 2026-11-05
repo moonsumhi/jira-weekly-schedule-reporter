@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md watch-timetable-page">
     <div class="row q-col-gutter-md">
 
       <div class="col-12">
