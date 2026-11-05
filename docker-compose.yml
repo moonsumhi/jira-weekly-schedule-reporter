@@ -99,6 +99,7 @@ services:
       - "8002:8002"
     environment:
       - MCP_PORT=8002
+      - MCP_HOST=0.0.0.0
       - MONGO_URI=mongodb://${APP_DB_USER}:${APP_DB_PASS}@mongo:27017/?authSource=${APP_DB_NAME}
       - APP_DB_NAME=${APP_DB_NAME}
       - BACKEND_API_URL=http://backend:8000

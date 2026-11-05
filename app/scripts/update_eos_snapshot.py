@@ -17,7 +17,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.request import Request, urlopen
+
+import httpx
 
 # 직접 실행과 모듈 실행에서 동일한 순수 매핑 함수를 사용한다.
 if __package__ in {None, ''}:
@@ -68,12 +69,17 @@ def parse_eol(value: Any) -> str | None:
 
 
 def fetch_product(slug: str) -> list[dict[str, Any]]:
-    request = Request(
+    if not re.fullmatch(r"[a-z0-9-]+", slug):
+        raise ValueError(f"invalid product slug: {slug!r}")
+
+    response = httpx.get(
         f"https://endoflife.date/api/{slug}.json",
         headers={"User-Agent": "jira-reporter-eos-snapshot/1.0"},
+        timeout=15,
+        verify=SSL_CONTEXT,
     )
-    with urlopen(request, timeout=15, context=SSL_CONTEXT) as response:  # noqa: S310 - 고정된 신뢰 URL만 사용
-        data = json.load(response)
+    response.raise_for_status()
+    data = response.json()
     if not isinstance(data, list):
         raise ValueError(f"unexpected response for {slug}")
     return [entry for entry in data if isinstance(entry, dict)]

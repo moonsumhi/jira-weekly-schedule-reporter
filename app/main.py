@@ -199,4 +199,6 @@ os.makedirs(_UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=_UPLOAD_DIR), name="uploads")
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run(
+        "app.main:app", host=os.getenv("APP_HOST", "127.0.0.1"), port=8000, reload=False
+    )

@@ -253,28 +253,40 @@ def _parse_hwp_xml(xml_content: str) -> str:
     구조: TableBody → TableRow → TableCell
     TableRow 경계에 ===ROW_END=== 마커를 삽입해 행 구분.
     """
-    import xml.etree.ElementTree as ET
-    root = None
+    from lxml import etree as lxml_etree
+
+    xml_bytes = xml_content.encode("utf-8")
+    parser_options = {
+        "resolve_entities": False,
+        "no_network": True,
+        "load_dtd": False,
+        "huge_tree": False,
+    }
     try:
-        root = ET.fromstring(xml_content)
-    except ET.ParseError as e:
+        root = lxml_etree.fromstring(
+            xml_bytes,
+            lxml_etree.XMLParser(**parser_options),
+        )
+    except lxml_etree.XMLSyntaxError as e:
         logger.warning("HWP XML parse error: %s — trying lxml recover", e)
         try:
-            from lxml import etree as lxml_etree
-            parser = lxml_etree.XMLParser(recover=True, encoding='utf-8')
-            lxml_root = lxml_etree.fromstring(xml_content.encode('utf-8'), parser)
-            # lxml → stdlib ET 변환
-            xml_bytes = lxml_etree.tostring(lxml_root)
-            root = ET.fromstring(xml_bytes)
+            root = lxml_etree.fromstring(
+                xml_bytes,
+                lxml_etree.XMLParser(recover=True, **parser_options),
+            )
         except Exception as e2:
             logger.warning("lxml recover also failed: %s", e2)
             return ""
-    if root is None:
+
+    # HWP XML에는 DTD가 필요하지 않습니다. 외부 엔티티는 위 parser 설정으로
+    # 네트워크에서 불러오거나 해석하지 않으며, DTD 선언이 있으면 문서 전체를 거부합니다.
+    if root.getroottree().docinfo.doctype:
+        logger.warning("HWP XML containing a DTD was rejected")
         return ""
 
     def local_tag(elem) -> str:
         t = elem.tag
-        return t.split('}', 1)[1] if '}' in t else t
+        return t.split("}", 1)[1] if "}" in t else t
 
     def collect_cell_text(elem) -> str:
         """셀 내 텍스트 추출. Paragraph 단위로 줄바꿈 보존.
@@ -377,7 +389,7 @@ async def _extract_hwp_text(content: bytes) -> str:
     fake_xmllint = os.path.join(fake_dir, 'xmllint')
     with open(fake_xmllint, 'w') as _f:
         _f.write('#!/bin/sh\ncat\n')
-    os.chmod(fake_xmllint, 0o755)
+    os.chmod(fake_xmllint, 0o700)
     import stat as _stat
     _env = os.environ.copy()
     _env['PATH'] = fake_dir + ':' + _env.get('PATH', '')
