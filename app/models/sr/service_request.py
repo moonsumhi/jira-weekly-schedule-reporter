@@ -343,6 +343,8 @@ class SRHistoryOut(BaseModel):
     action_type: str
     before_value: Optional[str] = None
     after_value: Optional[str] = None
+    reason: Optional[str] = None
+    process_result: Optional[str] = None
     changed_by: str
     changed_at: datetime
 

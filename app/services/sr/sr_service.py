@@ -119,6 +119,7 @@ async def record_status_history(
     new_status: str,
     reason: Optional[str],
     changed_by: str,
+    process_result: Optional[str] = None,
 ):
     col = MongoClientManager.get_db()[MongoClientManager.SR_STATUS_HISTORIES]
     await col.insert_one({
@@ -126,6 +127,7 @@ async def record_status_history(
         "previous_status": previous_status,
         "new_status": new_status,
         "reason": reason,
+        "process_result": process_result,
         "changed_by": changed_by,
         "changed_at": datetime.now(timezone.utc),
     })

@@ -491,6 +491,8 @@ async def list_history(
             action_type="STATUS_CHANGE",
             before_value=d.get("previous_status"),
             after_value=d.get("new_status"),
+            reason=d.get("reason"),
+            process_result=d.get("process_result"),
             changed_by=d.get("changed_by", ""),
             changed_at=d["changed_at"],
         ))

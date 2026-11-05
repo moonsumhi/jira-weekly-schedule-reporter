@@ -10,9 +10,10 @@ from starlette.responses import Response
 
 from app.middleware import activity_logger as activity
 from app.db.mongo import MongoClientManager
-from app.models.sr.service_request import SRPatch
+from app.models.sr.service_request import SRPatch, SRStatusChange
 from app.models.user import UserPublic
 from app.routers.sr import requests, admin_requests
+from app.services.sr.sr_service import record_status_history
 
 
 class ActivityTests(unittest.IsolatedAsyncioTestCase):
@@ -127,6 +128,67 @@ class ActivityTests(unittest.IsolatedAsyncioTestCase):
 
 
 class SrHistoryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_admin_status_change_records_process_result(self):
+        sr_id = str(ObjectId())
+        requester_id = ObjectId()
+        user = UserPublic(id=str(ObjectId()), email="operator@example.com", full_name="처리자", is_admin=True, permissions=[])
+        before = {"_id": ObjectId(sr_id), "status": "IN_PROGRESS", "title": "요청", "requester_id": requester_id}
+        after = {**before, "status": "COMPLETED"}
+        service_col = SimpleNamespace(update_one=AsyncMock(), find_one=AsyncMock(return_value=after))
+
+        with (
+            patch.object(admin_requests, "get_sr_or_404", AsyncMock(return_value=before)),
+            patch.object(MongoClientManager, "get_db", return_value={MongoClientManager.SERVICE_REQUESTS: service_col}),
+            patch.object(admin_requests, "record_status_history", new_callable=AsyncMock) as history,
+            patch.object(admin_requests, "create_notification", new_callable=AsyncMock),
+            patch("app.utils.mail_notify.send_sr_notification", new_callable=AsyncMock),
+            patch.object(admin_requests, "sr_to_out", return_value={}),
+            patch.object(admin_requests, "SROut", side_effect=lambda **values: values),
+        ):
+            await admin_requests.change_status(
+                sr_id,
+                SRStatusChange(status="COMPLETED", process_result="수정 완료"),
+                user,
+            )
+
+        history.assert_awaited_once_with(
+            sr_id, "IN_PROGRESS", "COMPLETED", None, "처리자", process_result="수정 완료"
+        )
+
+    async def test_status_history_persists_reason_and_process_result(self):
+        status_history = SimpleNamespace(insert_one=AsyncMock())
+        with patch.object(MongoClientManager, "get_db", return_value={MongoClientManager.SR_STATUS_HISTORIES: status_history}):
+            await record_status_history(
+                "sr-id", "IN_PROGRESS", "COMPLETED", "변경 사유", "처리자", process_result="처리 결과"
+            )
+
+        saved = status_history.insert_one.await_args.args[0]
+        self.assertEqual(saved["reason"], "변경 사유")
+        self.assertEqual(saved["process_result"], "처리 결과")
+
+    async def test_status_history_api_returns_reason_and_process_result(self):
+        sr_id = str(ObjectId())
+        now = datetime.now(timezone.utc)
+        status_doc = {
+            "_id": ObjectId(), "previous_status": "IN_PROGRESS", "new_status": "COMPLETED",
+            "reason": "변경 사유", "process_result": "처리 결과", "changed_by": "처리자", "changed_at": now,
+        }
+
+        async def cursor(docs):
+            for doc in docs:
+                yield doc
+
+        db = {
+            MongoClientManager.SR_STATUS_HISTORIES: SimpleNamespace(find=lambda _: cursor([status_doc])),
+            MongoClientManager.SR_HISTORIES: SimpleNamespace(find=lambda _: cursor([])),
+            MongoClientManager.SR_DUE_DATE_HISTORIES: SimpleNamespace(find=lambda _: cursor([])),
+        }
+        with patch.object(requests, "get_sr_or_404", AsyncMock()), patch.object(MongoClientManager, "get_db", return_value=db):
+            result = await requests.list_history(sr_id, None)
+
+        self.assertEqual(result[0].reason, "변경 사유")
+        self.assertEqual(result[0].process_result, "처리 결과")
+
     async def test_requester_and_admin_record_previously_omitted_fields(self):
         user = UserPublic(id=str(ObjectId()), email="admin@example.com", is_admin=True, permissions=[])
         before = dict(requester_id=user.id, status="SUBMITTED", title="same", attachments=[{"name": "old"}],

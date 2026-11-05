@@ -660,7 +660,14 @@ async def change_status(
 
     col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
     await col.update_one({"_id": ObjectId(sr_id)}, {"$set": updates})
-    await record_status_history(sr_id, old_status, new_status, body.reason, _user_label(current_user))
+    await record_status_history(
+        sr_id,
+        old_status,
+        new_status,
+        body.reason,
+        _user_label(current_user),
+        process_result=body.process_result,
+    )
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
 

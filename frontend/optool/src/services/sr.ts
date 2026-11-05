@@ -297,6 +297,8 @@ export type SRHistory = {
   actionType: string
   beforeValue: string | null
   afterValue: string | null
+  reason: string | null
+  processResult: string | null
   changedBy: string
   changedAt: string
 }
