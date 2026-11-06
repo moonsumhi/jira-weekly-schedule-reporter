@@ -1,5 +1,5 @@
 <template>
-  <q-card id="monthly-feedback" flat class="feedback-workspace" :class="`feedback-workspace--${view}`">
+  <q-card id="monthly-feedback" flat class="feedback-workspace" :class="[`feedback-workspace--${view}`, { 'feedback-workspace--dark': $q.dark.isActive }]">
     <header class="feedback-header">
       <div>
         <div class="feedback-eyebrow">{{ currentMonth }} 보고서 · 데이터운영팀</div>
@@ -146,7 +146,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Dialog, Notify } from 'quasar'
+import { Dialog, Notify, useQuasar } from 'quasar'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 import WorkResultContent from 'src/components/WorkResultContent.vue'
 import { useAuthStore } from 'src/stores/auth'
@@ -155,6 +155,7 @@ import type { MonthlyReport } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 
 const props = defineProps<{ report: MonthlyReport }>()
+const $q = useQuasar()
 const emit = defineEmits<{ changed: []; close: []; report: [id: string] }>()
 const auth = useAuthStore()
 const route = useRoute()
@@ -408,6 +409,55 @@ async function openReport(item: MonthlyFeedback) {
 .feedback-empty p { font-size: 13px; line-height: 1.9; margin: 0 0 10px; }
 .feedback-list-empty { color: #7e929f; text-align: center; padding: 30px 16px; font-size: 12px; }
 .feedback-mobile-back { display: none; }
+.feedback-workspace--dark { background: #182334; color: #e2e8f0; color-scheme: dark; }
+.feedback-workspace--dark .feedback-eyebrow,
+.feedback-workspace--dark .feedback-header p,
+.feedback-workspace--dark .feedback-detail-heading p,
+.feedback-workspace--dark .feedback-list-heading > span,
+.feedback-workspace--dark .feedback-filters button,
+.feedback-workspace--dark .feedback-item-meta,
+.feedback-workspace--dark .feedback-help,
+.feedback-workspace--dark .feedback-save-hint,
+.feedback-workspace--dark .feedback-empty,
+.feedback-workspace--dark .feedback-loading,
+.feedback-workspace--dark .feedback-list-empty,
+.feedback-workspace--dark .feedback-mobile-back { color: #aebbd0; }
+.feedback-workspace--dark .feedback-periods { background: #111b2a; border-color: #334155; }
+.feedback-workspace--dark .feedback-periods button { background: #182334; border-color: #475569; color: #b6c2d2; }
+.feedback-workspace--dark .feedback-periods button.active { background: #213a50; border-color: #75b6d8; color: #bae6fd; box-shadow: inset 0 0 0 1px #75b6d8; }
+.feedback-workspace--dark .feedback-period-title > span { background: #2b4056; color: #cbd5e1; }
+.feedback-workspace--dark .feedback-origin,
+.feedback-workspace--dark .feedback-item-target,
+.feedback-workspace--dark .feedback-mine { color: #93c5fd; }
+.feedback-workspace--dark .feedback-sidebar { background: #131e2e; border-color: #334155; }
+.feedback-workspace--dark .feedback-filters { border-color: #334155; }
+.feedback-workspace--dark .feedback-filters button.active { background: #213a50; color: #bae6fd; }
+.feedback-workspace--dark .feedback-list-item:hover { background: #223047; }
+.feedback-workspace--dark .feedback-list-item.selected { background: #21364e; border-color: #75b6d8; box-shadow: 0 2px 6px #0003; }
+.feedback-workspace--dark .feedback-status { background: #29374a; color: #cbd5e1; }
+.feedback-workspace--dark .feedback-status--writing,
+.feedback-workspace--dark .feedback-status--submitted { background: #213a58; color: #bfdbfe; }
+.feedback-workspace--dark .feedback-status--applying { background: #3b3021; color: #f4cf8b; }
+.feedback-workspace--dark .feedback-status--applied { background: #17372f; color: #86d7b2; }
+.feedback-workspace--dark .feedback-status--cancelled { background: #29313e; color: #aebbd0; }
+.feedback-workspace--dark .feedback-destination { background: #21364e; color: #bfdbfe; }
+.feedback-workspace--dark .feedback-destination--done { background: #17372f; color: #86d7b2; }
+.feedback-workspace--dark .feedback-memo { background: #302c23; border-color: #514633; }
+.feedback-workspace--dark .feedback-section-label > .q-icon { color: #aebbd0; }
+.feedback-workspace--dark .feedback-section-label > span,
+.feedback-workspace--dark .feedback-private-note { color: #e7c98d; }
+.feedback-workspace--dark .feedback-awaiting { background: #223047; color: #b6c2d2; }
+.feedback-workspace--dark .feedback-footer { background: #182334; border-color: #334155; }
+.feedback-workspace--dark .feedback-field-error { color: #fca5a5; }
+.feedback-workspace--dark .feedback-notice { background: #3b3021; color: #f4cf8b; }
+.feedback-workspace--dark .feedback-empty-icon { background: #21364e; color: #93c5fd; }
+.feedback-workspace--dark .feedback-empty h3 { color: #e2e8f0; }
+.feedback-workspace--dark :deep(.work-result-content a) { color: #93c5fd; }
+.feedback-workspace--dark :deep(.work-result-content pre) { background: #111b2a; color: #e2e8f0; }
+.feedback-workspace--dark :deep(.work-result-content .work-table-scroll),
+.feedback-workspace--dark :deep(.work-result-content td),
+.feedback-workspace--dark :deep(.work-result-content th) { border-color: #475569; }
+.feedback-workspace--dark :deep(.work-result-content th) { background: #223047; }
 @media (max-width: 800px) {
   .feedback-workspace { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
   .feedback-header { padding: 18px 16px 14px; gap: 10px; flex-wrap: wrap; position: relative; }

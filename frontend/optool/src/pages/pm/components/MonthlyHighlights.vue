@@ -1,5 +1,5 @@
 <template>
-  <div class="monthly-highlights">
+  <div class="monthly-highlights" :class="{ 'monthly-highlights--dark': $q.dark.isActive }">
     <q-card v-for="section in visibleSections" :id="section.id" :key="section.kind" flat bordered class="highlight-card">
       <q-card-section class="row items-center q-py-sm q-px-md">
         <q-icon :name="section.icon" :color="section.color" size="sm" class="q-mr-sm" />
@@ -30,7 +30,7 @@
       </q-list>
     </q-card>
 
-    <q-dialog v-model="insightOpen" persistent><q-card style="width:700px;max-width:95vw">
+    <q-dialog v-model="insightOpen" persistent><q-card :class="{ 'highlight-dialog--dark': $q.dark.isActive }" style="width:700px;max-width:95vw">
       <q-card-section class="text-h6">{{ kindLabels[draft.kind] }} {{ editing ? '수정' : '추가' }}</q-card-section>
       <q-card-section class="q-gutter-sm" style="max-height:70vh;overflow:auto">
         <q-input v-model="draft.title" outlined dense label="제목 *" maxlength="300" />
@@ -48,13 +48,14 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Dialog, Notify } from 'quasar'
+import { Dialog, Notify, useQuasar } from 'quasar'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 import WorkResultContent from 'src/components/WorkResultContent.vue'
 import { updateMonthlyReport, type MonthlyReport, type MonthlyInsight, type MonthlyReportPatch } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 
 const props = defineProps<{ report: MonthlyReport }>()
+const $q = useQuasar()
 const emit = defineEmits<{ saved: [report: MonthlyReport] }>()
 const editable = computed(() => props.report.status !== 'CONFIRMED')
 const kindLabels: Record<string, string> = { MAIN_AGENDA: '주요 안건', ISSUE_RISK: '특이사항 및 리스크', DECISION_REQUIRED: '결정 필요 사항', MILESTONE: '주요 일정' }
@@ -100,4 +101,15 @@ function removeInsight(item: MonthlyInsight) {
 .monthly-highlights { display: grid; gap: 16px; margin-bottom: 16px; }
 .highlight-card { scroll-margin-top: 20px; background: #fff; }
 .highlight-item { overflow-wrap: anywhere; }
+.monthly-highlights--dark .highlight-card,
+.highlight-dialog--dark { background: #182334; color: #e2e8f0; border-color: #334155; color-scheme: dark; }
+.monthly-highlights--dark :deep(.text-grey-5),
+.monthly-highlights--dark :deep(.text-grey-7) { color: #aebbd0 !important; }
+.monthly-highlights--dark .highlight-item a,
+.monthly-highlights--dark :deep(.work-result-content a) { color: #93c5fd; }
+.monthly-highlights--dark :deep(.work-result-content pre) { background: #111b2a; color: #e2e8f0; }
+.monthly-highlights--dark :deep(.work-result-content .work-table-scroll),
+.monthly-highlights--dark :deep(.work-result-content td),
+.monthly-highlights--dark :deep(.work-result-content th) { border-color: #475569; }
+.monthly-highlights--dark :deep(.work-result-content th) { background: #223047; }
 </style>

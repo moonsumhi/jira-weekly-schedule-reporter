@@ -1,5 +1,5 @@
 <template>
-  <q-page class="monthly-page">
+  <q-page class="monthly-page" :class="{ 'monthly-page--dark': $q.dark.isActive }">
     <div class="monthly-shell">
 
     <template v-if="!isDetail">
@@ -95,7 +95,7 @@
 
     <!-- 생성 다이얼로그 -->
     <q-dialog v-model="createDialog.open" no-backdrop-dismiss no-route-dismiss>
-      <q-card style="width:480px; max-width:96vw">
+      <q-card class="monthly-report-dialog" :class="{ 'monthly-report-dialog--dark': $q.dark.isActive }" style="width:480px; max-width:96vw">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">월간 보고 생성</div>
           <q-space /><q-btn flat round dense icon="close" @click="createDialog.open = false" />
@@ -377,7 +377,7 @@
     </template>
 
     <q-dialog v-model="editDialog.open" no-backdrop-dismiss no-route-dismiss>
-      <q-card style="width:480px; max-width:96vw">
+      <q-card class="monthly-report-dialog" :class="{ 'monthly-report-dialog--dark': $q.dark.isActive }" style="width:480px; max-width:96vw">
         <q-card-section class="row items-center q-pb-none"><div class="text-h6">보고서 수정</div><q-space /><q-btn flat round dense icon="close" aria-label="닫기" @click="editDialog.open = false" /></q-card-section>
         <q-separator class="q-mt-sm" />
         <q-card-section class="q-gutter-sm">
@@ -397,7 +397,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Notify, Dialog } from 'quasar'
+import { Notify, Dialog, useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 import {
   listMonthlyReports, getMonthlyReport, createMonthlyReport, updateMonthlyReport,
@@ -428,8 +428,9 @@ const PRIORITY_COLOR: Record<string, string> = {
   LOWEST: 'grey', LOW: 'blue-grey', MEDIUM: 'orange', HIGH: 'deep-orange', HIGHEST: 'red',
 }
 const PALETTE = ['blue', 'teal', 'purple', 'orange', 'green', 'deep-orange', 'indigo', 'cyan', 'pink', 'amber']
-function headerBg(i: number) { return `bg-${PALETTE[i % PALETTE.length]}-1` }
-function headerText(i: number) { return `text-${PALETTE[i % PALETTE.length]}-9` }
+const $q = useQuasar()
+function headerBg(i: number) { return `bg-${PALETTE[i % PALETTE.length]}-${$q.dark.isActive ? 10 : 1}` }
+function headerText(i: number) { return `text-${PALETTE[i % PALETTE.length]}-${$q.dark.isActive ? 2 : 9}` }
 
 // ── 상태 ──────────────────────────────────────────────────────────────
 const now = new Date()
@@ -858,6 +859,79 @@ watch(() => route.params.id, async (id, _previousId, onCleanup) => {
 .monthly-data-note { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 14px; color: #8998a5; font-size: 11px; line-height: 1.55; }
 .monthly-data-note .q-icon { flex: 0 0 auto; }
 .monthly-unavailable { margin: 30px 0; padding: 60px 20px; text-align: center; color: #7c8f9d; background: #fff; border: 1px solid #e1e8ef; border-radius: 14px; }
+.monthly-page--dark { background: #101827; color: #e2e8f0; color-scheme: dark; }
+.monthly-page--dark .monthly-filter,
+.monthly-page--dark .monthly-list-card,
+.monthly-page--dark .monthly-surface,
+.monthly-page--dark .monthly-unavailable { background: #182334; border-color: #334155; color: #e2e8f0; }
+.monthly-page--dark .monthly-list-header h1,
+.monthly-page--dark .monthly-hero h1,
+.monthly-page--dark .monthly-list-title,
+.monthly-page--dark .monthly-section-heading h2,
+.monthly-page--dark .inspection-issue-server strong { color: #e2e8f0; }
+.monthly-page--dark .monthly-list-header p,
+.monthly-page--dark .monthly-eyebrow,
+.monthly-page--dark .monthly-filter-label,
+.monthly-page--dark .monthly-list-title span,
+.monthly-page--dark .monthly-report-department,
+.monthly-page--dark .monthly-list-stats,
+.monthly-page--dark .monthly-back,
+.monthly-page--dark .monthly-meta,
+.monthly-page--dark .monthly-section-kicker,
+.monthly-page--dark .inspection-caption,
+.monthly-page--dark .inspection-issue-server small,
+.monthly-page--dark .inspection-muted,
+.monthly-page--dark .inspection-notice,
+.monthly-page--dark .inspection-empty,
+.monthly-page--dark .inspection-followup small,
+.monthly-page--dark .inspection-notes p,
+.monthly-page--dark .monthly-data-note { color: #aebbd0; }
+.monthly-page--dark .monthly-eyebrow span { color: #64748b; }
+.monthly-page--dark .monthly-period,
+.monthly-page--dark .monthly-list-stats b,
+.monthly-page--dark .inspection-subheading,
+.monthly-page--dark .inspection-issue-findings,
+.monthly-page--dark .inspection-issue-action,
+.monthly-page--dark .inspection-followup { color: #cbd5e1; }
+.monthly-page--dark .monthly-report-link { color: #93c5fd; }
+.monthly-page--dark .monthly-report-link:hover { color: #99f6e4; }
+.monthly-page--dark .monthly-list-stats .monthly-list-delay,
+.monthly-page--dark .monthly-list-stats .monthly-list-delay b { color: #fca5a5; }
+.monthly-page--dark .monthly-status { background: #29374a; color: #cbd5e1; }
+.monthly-page--dark .monthly-status--reviewing,
+.monthly-page--dark .inspection-severity--warning,
+.monthly-page--dark .inspection-followup > span { background: #3b3021; color: #f4cf8b; }
+.monthly-page--dark .monthly-status--confirmed { background: #17372f; color: #86d7b2; }
+.monthly-page--dark .monthly-hero { background: linear-gradient(112deg, #182334 0%, #19333b 100%); border-color: #334155; }
+.monthly-page--dark .monthly-hero-kicker,
+.monthly-page--dark .inspection-clear { color: #86d7c6; }
+.monthly-page--dark .monthly-meta .q-icon { color: #aebbd0; }
+.monthly-page--dark .monthly-section-nav,
+.monthly-page--dark .inspection-issue,
+.monthly-page--dark .inspection-followups,
+.monthly-page--dark .inspection-notes { border-color: #334155; }
+.monthly-page--dark .monthly-section-nav button { color: #b6c2d2; }
+.monthly-page--dark .monthly-section-nav button:hover,
+.monthly-page--dark .monthly-section-nav button:focus-visible { background: #1d3c40; color: #99f6e4; }
+.monthly-page--dark .inspection-legacy-note { color: #e7c98d; }
+.monthly-page--dark .inspection-severity { background: #29374a; color: #cbd5e1; }
+.monthly-page--dark .inspection-severity--danger { background: #44272b; color: #fca5a5; }
+.monthly-page--dark .inspection-severity--warning { background: #3b3021; color: #f4cf8b; }
+.monthly-page--dark .inspection-severity--missing,
+.monthly-page--dark .inspection-severity--action { background: #21364e; color: #bfdbfe; }
+.monthly-page--dark :deep(.monthly-table thead tr),
+.monthly-page--dark :deep(.monthly-table tbody tr:hover) { background: #223047; }
+.monthly-page--dark :deep(.monthly-table th),
+.monthly-page--dark :deep(.monthly-table tbody td) { border-color: #334155; }
+.monthly-page--dark :deep(.monthly-table th) { color: #b6c2d2; }
+.monthly-page--dark :deep(.text-blue-grey-8) { color: #cbd5e1 !important; }
+.monthly-page--dark :deep(.text-grey-6),
+.monthly-page--dark :deep(.text-grey-7) { color: #aebbd0 !important; }
+.monthly-page--dark :deep(.bg-grey-1) { background: #223047 !important; }
+.monthly-page--dark :deep(.bg-orange-1) { background: #3b3021 !important; }
+.monthly-page--dark :deep(.text-orange-10) { color: #f4cf8b !important; }
+.monthly-report-dialog--dark { background: #182334; color: #e2e8f0; border: 1px solid #334155; color-scheme: dark; }
+.monthly-report-dialog--dark :deep(.text-grey-7) { color: #aebbd0 !important; }
 @media (max-width: 1000px) {
   .monthly-hero { align-items: flex-start; flex-direction: column; }
   .monthly-hero-actions { justify-content: flex-start; max-width: none; }
