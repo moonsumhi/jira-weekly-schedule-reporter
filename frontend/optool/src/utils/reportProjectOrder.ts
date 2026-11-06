@@ -8,9 +8,9 @@ function timestamp(value: string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY
 }
 
-/** A single timeline across status groups, with a due-date fallback for undated starts. */
-export function projectTimeline(project: ProjectBreakdown): WorkItem[] {
-  return [...project.completed, ...project.inProgress, ...project.upcoming].sort((a, b) => {
+/** Sort a copy by start date, falling back to due date when no valid start exists. */
+export function sortWorkItemsByDate(items: WorkItem[]): WorkItem[] {
+  return [...items].sort((a, b) => {
     const aStart = timestamp(a.startDate), bStart = timestamp(b.startDate)
     const aDue = timestamp(a.dueDate), bDue = timestamp(b.dueDate)
     const primary = (Number.isFinite(aStart) ? aStart : aDue) - (Number.isFinite(bStart) ? bStart : bDue)
@@ -19,4 +19,9 @@ export function projectTimeline(project: ProjectBreakdown): WorkItem[] {
     if (due) return due
     return a.issueNumber - b.issueNumber || a.issueId.localeCompare(b.issueId)
   })
+}
+
+/** A single timeline across status groups, used by the monthly report. */
+export function projectTimeline(project: ProjectBreakdown): WorkItem[] {
+  return sortWorkItemsByDate([...project.completed, ...project.inProgress, ...project.upcoming])
 }
