@@ -1,5 +1,5 @@
 <template>
-  <q-page padding>
+  <q-page padding class="env-manage-page" :class="{ 'env-manage-page--dark': $q.dark.isActive }">
     <div class="row items-center q-mb-md">
       <div class="text-h6 col">환경설정 관리</div>
     </div>
@@ -7,7 +7,7 @@
     <div class="row q-col-gutter-md">
       <!-- 좌측: 카테고리 목록 -->
       <div class="col-12 col-md-4">
-        <q-card flat bordered>
+        <q-card flat bordered class="env-panel">
           <q-card-section class="row items-center q-py-sm">
             <div class="text-subtitle2 col">카테고리</div>
             <q-btn flat dense round icon="add" size="sm" @click="openCreateCategory" />
@@ -18,7 +18,7 @@
               v-for="c in categories" :key="c.id"
               clickable
               :active="selected?.id === c.id"
-              active-class="bg-blue-1"
+              active-class="env-category--active"
               @click="selected = c"
             >
               <q-item-section>
@@ -32,7 +32,7 @@
               </q-item-section>
             </q-item>
             <q-item v-if="!loading && categories.length === 0">
-              <q-item-section class="text-grey">등록된 카테고리가 없습니다.</q-item-section>
+              <q-item-section class="env-empty">등록된 카테고리가 없습니다.</q-item-section>
             </q-item>
           </q-list>
         </q-card>
@@ -40,7 +40,7 @@
 
       <!-- 우측: 선택된 카테고리의 항목 관리 -->
       <div class="col-12 col-md-8">
-        <q-card v-if="selected" flat bordered>
+        <q-card v-if="selected" flat bordered class="env-panel">
           <q-card-section class="row items-center q-py-sm">
             <div class="text-subtitle2 col">{{ selected.label }} 항목</div>
             <q-btn
@@ -70,7 +70,7 @@
                     <q-icon name="drag_indicator" class="item-drag-handle cursor-grab" color="grey-5" size="sm" />
                   </q-item-section>
                   <q-item-section>
-                    <q-item-label :class="{ 'text-grey-5': !item.isActive }">{{ item.label }}</q-item-label>
+                    <q-item-label :class="{ 'env-item-label--inactive': !item.isActive }">{{ item.label }}</q-item-label>
                     <q-item-label v-if="item.value && item.value !== item.label" caption>{{ item.value }}</q-item-label>
                   </q-item-section>
                   <q-item-section side>
@@ -84,11 +84,11 @@
               </template>
             </draggable>
             <q-item v-if="selected.items.length === 0">
-              <q-item-section class="text-grey">등록된 항목이 없습니다.</q-item-section>
+              <q-item-section class="env-empty">등록된 항목이 없습니다.</q-item-section>
             </q-item>
           </q-list>
         </q-card>
-        <q-card v-else flat bordered class="q-pa-xl text-center text-grey">
+        <q-card v-else flat bordered class="env-panel env-empty q-pa-xl text-center">
           왼쪽에서 카테고리를 선택하세요.
         </q-card>
       </div>
@@ -432,11 +432,55 @@ onMounted(() => { void load() })
 </script>
 
 <style scoped>
+.env-category--active {
+  background: #e3f2fd;
+}
+.env-empty {
+  color: #9e9e9e;
+}
+.env-item-label--inactive {
+  color: #bdbdbd;
+}
 .item-drag-handle {
   cursor: grab;
 }
 .drag-ghost {
   opacity: 0.4;
   background: #c8ebfb;
+}
+.env-manage-page--dark {
+  color: #e2e8f0;
+}
+.env-manage-page--dark .env-panel {
+  background: #182334;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+.env-manage-page--dark :deep(.q-item) {
+  color: #e2e8f0;
+}
+.env-manage-page--dark :deep(.q-item__label--caption),
+.env-manage-page--dark .env-empty {
+  color: #aebbd0;
+}
+.env-manage-page--dark :deep(.q-separator) {
+  background: #334155;
+}
+.env-manage-page--dark :deep(.q-list--separator > .q-item-type + .q-item-type) {
+  border-color: #334155;
+}
+.env-manage-page--dark .env-category--active {
+  background: #1d3552;
+  color: #bfdbfe;
+}
+.env-manage-page--dark .env-category--active :deep(.q-item__label--caption) {
+  color: #bfdbfe;
+}
+.env-manage-page--dark .env-item-label--inactive {
+  color: #94a3b8;
+}
+.env-manage-page--dark .drag-ghost {
+  background: #1d3552;
+  opacity: 0.6;
 }
 </style>

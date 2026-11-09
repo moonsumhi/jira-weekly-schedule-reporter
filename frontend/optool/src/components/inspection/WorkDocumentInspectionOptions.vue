@@ -1,7 +1,7 @@
 <template>
   <section
     class="document-inspection-options"
-    :class="{ 'is-enabled': enabled }"
+    :class="{ 'is-enabled': enabled, 'is-dark': dark }"
     aria-label="서버 점검 등록"
   >
     <q-checkbox
@@ -108,6 +108,7 @@ const props = defineProps<{
   assets: WorkDocumentAsset[];
   data: Record<string, unknown>;
   disable: boolean;
+  dark?: boolean;
 }>();
 const model = defineModel<WorkDocumentInspection | null>({ required: true });
 const enabled = ref(false);
@@ -200,7 +201,7 @@ onBeforeUnmount(() => {
   border-radius: 9px;
   background: #f8fafc;
 }
-:global(body.body--dark) .document-inspection-options {
+.document-inspection-options.is-dark {
   border-color: #3c4b5f;
   background: #1d2837;
   color: #dbe5f1;
@@ -208,7 +209,7 @@ onBeforeUnmount(() => {
 .is-enabled {
   border-color: #a8c6e5;
 }
-:global(body.body--dark) .document-inspection-options.is-enabled {
+.document-inspection-options.is-dark.is-enabled {
   border-color: #527ba6;
   background: #202f40;
 }
@@ -217,11 +218,11 @@ onBeforeUnmount(() => {
   font-weight: 600;
   color: #365778;
 }
-:global(body.body--dark) .document-inspection-options > .q-checkbox,
-:global(body.body--dark) .document-inspection-options .q-checkbox__label {
+.document-inspection-options.is-dark > .q-checkbox,
+.document-inspection-options.is-dark .q-checkbox__label {
   color: #dbe5f1;
 }
-:global(body.body--dark) .document-inspection-options .q-checkbox__bg {
+.document-inspection-options.is-dark .q-checkbox__bg {
   border-color: #a8b9cc;
 }
 .inspection-description {
@@ -229,9 +230,9 @@ onBeforeUnmount(() => {
   color: #718399;
   font-size: 12px;
 }
-:global(body.body--dark) .document-inspection-options .inspection-description,
-:global(body.body--dark) .document-inspection-options .inspection-feedback,
-:global(body.body--dark) .document-inspection-options .inspection-targets {
+.document-inspection-options.is-dark .inspection-description,
+.document-inspection-options.is-dark .inspection-feedback,
+.document-inspection-options.is-dark .inspection-targets {
   color: #b8c7d8;
 }
 .inspection-fields {
@@ -241,7 +242,7 @@ onBeforeUnmount(() => {
   margin-top: 8px;
   border-top: 1px solid #e1e7ef;
 }
-:global(body.body--dark) .document-inspection-options .inspection-fields {
+.document-inspection-options.is-dark .inspection-fields {
   border-top-color: #3c4b5f;
 }
 .inspection-dates {

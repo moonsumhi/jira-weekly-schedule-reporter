@@ -1,6 +1,9 @@
 <template>
   <q-dialog v-model="open" aria-labelledby="report-review-title" class="screen-only">
-    <q-card class="report-review-dialog">
+    <q-card
+      class="report-review-dialog"
+      :class="{ 'report-review-dialog--dark': $q.dark.isActive }"
+    >
       <header class="review-heading">
         <div>
           <span class="review-eyebrow"><q-icon name="info_outline" size="18px" /> 확인 안내</span>
@@ -145,6 +148,29 @@ footer {
   padding: 16px 24px;
   border-top: 1px solid #e9edf2;
   flex-shrink: 0;
+}
+.report-review-dialog--dark {
+  background: #182334;
+  color: #e2e8f0;
+}
+.report-review-dialog--dark .review-eyebrow,
+.report-review-dialog--dark .review-items strong {
+  color: #e7c98d;
+}
+.report-review-dialog--dark .review-heading p,
+.report-review-dialog--dark .review-plan li {
+  color: #aebbd0;
+}
+.report-review-dialog--dark .review-items {
+  background: #332b20;
+  border-color: #51422b;
+  color: #e7c98d;
+}
+.report-review-dialog--dark .review-items li + li {
+  border-color: #51422b;
+}
+.report-review-dialog--dark footer {
+  border-color: #334155;
 }
 @media (max-width: 599px) {
   .review-heading {

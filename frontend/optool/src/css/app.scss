@@ -280,6 +280,10 @@ body.body--dark .work-status-page {
 // Dialogs and menus are teleported to the document body, outside page-level
 // theme containers, so style their surfaces directly when dark mode is active.
 body.body--dark {
+  // Keep native scrollbars and controls in dark mode too; Chromium otherwise
+  // renders the page scrollbar with a bright track next to dark work screens.
+  color-scheme: dark;
+
   .q-dialog .q-card,
   .q-menu {
     background-color: #182334;
@@ -298,6 +302,41 @@ body.body--dark {
   .q-menu .q-item:hover {
     background: #26364c;
   }
+}
+
+body.body--dark .work-management-dark,
+body.body--dark .work-document--dark {
+  scrollbar-color: #52657f #17212f;
+  scrollbar-width: thin;
+}
+
+body.body--dark .work-management-dark *,
+body.body--dark .work-document--dark * {
+  scrollbar-color: #52657f #17212f;
+  scrollbar-width: thin;
+}
+
+body.body--dark .work-management-dark *::-webkit-scrollbar,
+body.body--dark .work-document--dark *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body.body--dark .work-management-dark *::-webkit-scrollbar-track,
+body.body--dark .work-document--dark *::-webkit-scrollbar-track {
+  background: #17212f;
+}
+
+body.body--dark .work-management-dark *::-webkit-scrollbar-thumb,
+body.body--dark .work-document--dark *::-webkit-scrollbar-thumb {
+  border: 2px solid #17212f;
+  border-radius: 8px;
+  background: #52657f;
+}
+
+body.body--dark .work-management-dark *::-webkit-scrollbar-thumb:hover,
+body.body--dark .work-document--dark *::-webkit-scrollbar-thumb:hover {
+  background: #7185a1;
 }
 
 // The issue detail dialog is teleported outside the backlog page, so the
@@ -2030,5 +2069,258 @@ body.body--dark .q-dialog {
     .selected-plan-title {
       color: #bfdbfe;
     }
+  }
+}
+
+// Monthly inspection plan/result pages contain printable document surfaces and
+// a source-data dialog. Keep those readable on screen in dark mode while the
+// print stylesheet continues to render the report on white paper.
+body.body--dark .inspection-page .report-link {
+  color: #cbd5e1 !important;
+  border-radius: 6px;
+}
+
+body.body--dark .inspection-page .report-link:hover {
+  background: #26364c !important;
+}
+
+@media screen {
+  body.body--dark .monthly-report-page {
+    .document-kind-tabs {
+      border-bottom-color: #334155;
+    }
+
+    .document-kind-tabs .q-tab {
+      color: #aebbd0;
+    }
+
+    .document-kind-tabs .q-tab--active {
+      color: #93c5fd;
+    }
+
+    .report-history {
+      color: #cbd5e1;
+    }
+
+    .report-history p,
+    .report-history button small {
+      color: #aebbd0;
+    }
+
+    .report-history button {
+      border-bottom-color: #334155;
+    }
+
+    .report-paper {
+      background: #182334;
+      border-color: #334155;
+      box-shadow: 0 4px 20px #00000026;
+      color: #e2e8f0;
+    }
+
+    .report-paper .paper-section,
+    .report-paper .unmatched-actions,
+    .report-paper .report-task {
+      border-color: #334155;
+    }
+
+    .report-paper .document-state {
+      background: #332b20;
+      color: #e7c98d;
+    }
+
+    .report-paper .document-state.final,
+    .report-paper .task-label.done {
+      background: #17372f;
+      color: #86d7b2;
+    }
+
+    .report-paper .opinion-box,
+    .report-paper .document-empty {
+      background: #223047;
+      color: #cbd5e1;
+    }
+
+    .report-paper .participant-avatar {
+      background: #223047;
+      color: #bfdbfe;
+    }
+
+    .report-paper .document-footer {
+      background: #111b2a;
+      border-color: #334155;
+      color: #aebbd0;
+    }
+
+    .report-paper .resource-table th,
+    .report-paper .resource-review-table th {
+      background: #223047;
+      color: #cbd5e1;
+    }
+
+    .report-paper .resource-table td,
+    .report-paper .resource-review-table td {
+      border-color: #334155;
+    }
+
+    .report-paper .resource-summary,
+    .report-paper .resource-summary strong,
+    .report-paper .cover-meta dd,
+    .report-paper .summary-grid span,
+    .report-paper .summary-grid small,
+    .report-paper .summary-grid em,
+    .report-paper .section-number,
+    .report-paper .section-count,
+    .report-paper .section-description,
+    .report-paper .cell-sub,
+    .report-paper .metric-delta,
+    .report-paper .table-footnote,
+    .report-paper .quiet-empty,
+    .report-paper .prose,
+    .report-paper .task-result-copy,
+    .report-paper .participant-task-list {
+      color: #aebbd0;
+    }
+
+    .report-paper .participant-roles {
+      color: #bfdbfe;
+    }
+
+    .report-paper .task-followup,
+    .report-paper .task-reason,
+    .report-paper .reconstruction-note,
+    .report-paper .resource-other-findings p,
+    .report-paper .resource-pending-note {
+      color: #e7c98d;
+    }
+
+    .report-paper .server-name,
+    .report-paper .issue-link,
+    .report-paper .issue-key-print {
+      color: #93c5fd;
+    }
+
+    .report-paper .missing-resources,
+    .report-paper .task-label {
+      background: #332b20;
+      color: #e7c98d;
+    }
+
+    .report-paper .metric-track {
+      background: #334155;
+    }
+
+    .report-paper .ready-label {
+      color: #86d7b2;
+    }
+  }
+}
+
+body.body--dark .q-dialog .source-dialog {
+  background: #182334 !important;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+}
+
+body.body--dark .q-dialog .source-dialog {
+  .source-header,
+  .source-config,
+  .source-footer {
+    border-color: #334155;
+  }
+
+  .eyebrow,
+  .source-header p,
+  .source-loading,
+  .source-period,
+  .source-record small,
+  .source-record p,
+  .field-help,
+  .preview-counts span,
+  .mapping-host span,
+  .source-footer > span {
+    color: #aebbd0;
+  }
+
+  .source-record {
+    border-color: #334155;
+  }
+
+  .source-preview {
+    background: #111b2a;
+  }
+
+  .preview-counts,
+  .mapping-box {
+    background: #1d2c43;
+    border-color: #475569;
+  }
+
+  .preview-counts div {
+    border-color: #334155;
+  }
+
+  .review-notes {
+    background: #332b20;
+    border-color: #51422b;
+  }
+
+  .review-notes > div,
+  .review-notes p {
+    color: #e7c98d;
+  }
+
+  .preview-notice {
+    background: #1d3552;
+    color: #bfdbfe;
+  }
+
+  .mapping-row {
+    border-color: #334155;
+  }
+
+  .preview-empty {
+    color: #aebbd0;
+  }
+}
+
+@media print {
+  body.body--dark .monthly-report-page .report-paper {
+    background: white !important;
+    color: #243449 !important;
+    box-shadow: none !important;
+  }
+
+  body.body--dark .monthly-report-page .report-paper .opinion-box {
+    background: #f6f8fa !important;
+  }
+
+  body.body--dark .monthly-report-page .report-paper .document-empty {
+    background: #f8fafb !important;
+  }
+
+  body.body--dark .monthly-report-page .report-paper .document-footer {
+    background: #fafbfd !important;
+  }
+
+  body.body--dark .monthly-report-page .report-paper .resource-table th,
+  body.body--dark .monthly-report-page .report-paper .resource-review-table th {
+    background: #f5f7fa !important;
+    color: #718195 !important;
+  }
+
+  body.body--dark .monthly-report-page .report-paper .participant-avatar {
+    background: #f0f5f8 !important;
+    color: #608196 !important;
+  }
+
+  body.body--dark .monthly-report-page .report-paper .task-label {
+    background: #f6f3ed !important;
+    color: #8a7d65 !important;
+  }
+
+  body.body--dark .monthly-report-page .report-paper .task-label.done {
+    background: #edf5f1 !important;
+    color: #578570 !important;
   }
 }

@@ -2,6 +2,7 @@
   <q-table
     flat
     class="resource-results"
+    :class="{ 'resource-results--dark': $q.dark.isActive }"
     row-key="key"
     :rows="rows"
     :columns="columns"
@@ -171,6 +172,10 @@ watch(
 }
 .resource-results :deep(tbody tr:hover) {
   background: #fbfdff;
+}
+.resource-results--dark :deep(th),
+.resource-results--dark :deep(tbody tr:hover) {
+  background: #223047;
 }
 .identity-cell {
   min-width: 210px;

@@ -1,5 +1,9 @@
 <template>
-  <section id="report-resources" class="plan-section">
+  <section
+    id="report-resources"
+    class="plan-section"
+    :class="{ 'plan-section--dark': $q.dark.isActive }"
+  >
     <header class="plan-heading">
       <div>
         <span>01</span>
@@ -53,7 +57,11 @@
     </table>
     <p v-else class="muted">등록된 정기 자원 점검 대상이 없습니다.</p>
   </section>
-  <section id="report-tasks" class="plan-section">
+  <section
+    id="report-tasks"
+    class="plan-section"
+    :class="{ 'plan-section--dark': $q.dark.isActive }"
+  >
     <header class="plan-heading">
       <div>
         <span>02</span>
@@ -277,6 +285,45 @@ dd {
 }
 .print-only {
   display: none;
+}
+@media screen {
+  .plan-section--dark {
+    border-color: #334155;
+    color: #e2e8f0;
+  }
+  .plan-section--dark .check-list {
+    background: #223047;
+  }
+  .plan-section--dark .target-table th {
+    background: #223047;
+    color: #cbd5e1;
+  }
+  .plan-section--dark .target-table td,
+  .plan-section--dark .target-table th,
+  .plan-section--dark .planned-task {
+    border-color: #334155;
+  }
+  .plan-section--dark .plan-heading span,
+  .plan-section--dark .plan-heading > b,
+  .plan-section--dark .task-heading small,
+  .plan-section--dark dt,
+  .plan-section--dark .muted,
+  .plan-section--dark :deep(.plan-link-label),
+  .plan-section--dark :deep(.plan-link-unavailable) {
+    color: #aebbd0;
+  }
+  .plan-section--dark .target-table a,
+  .plan-section--dark .task-title,
+  .plan-section--dark :deep(.plan-link) {
+    color: #93c5fd;
+  }
+  .plan-section--dark .target-table small {
+    color: #e7c98d;
+  }
+  .plan-section--dark .task-number {
+    background: #223047;
+    color: #cbd5e1;
+  }
 }
 @media (max-width: 700px) {
   .plan-section {

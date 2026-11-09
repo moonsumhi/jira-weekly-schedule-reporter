@@ -90,7 +90,8 @@
               <div v-if="saveWarning" class="document-save-warning" role="alert"><q-icon name="info" size="19px" /><span>{{ saveWarning }}</span></div>
               <div v-if="hasImportedExtraContent" class="document-save-warning" role="alert"><q-icon name="warning" size="19px" /><span>가져온 내용 중 양식에 반영되지 않은 항목이 남아 있습니다. 필요한 내용은 해당 항목에 옮겨 작성한 뒤, 남은 미반영 내용만 정리하면 저장할 수 있습니다.</span></div>
               <WorkDocumentInspectionOptions v-if="inspectionLinks && canViewInspection" v-model="inspection"
-                :entry-id="creating ? undefined : entry.id" :assets="editableAssets" :data="editableData" :disable="!!saving" />
+                :entry-id="creating ? undefined : entry.id" :assets="editableAssets" :data="editableData" :disable="!!saving"
+                :dark="theme.appearanceMode === 'dark'" />
               <InlineDocumentEditor v-model="editableData" :sections="sections" @uploading="editorUploading = $event" />
             </template>
             <template v-else-if="view === 'markdown'">

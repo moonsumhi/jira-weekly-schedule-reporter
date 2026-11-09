@@ -190,7 +190,10 @@
           :search-assets="searchAssets"
           hint="자산을 선택하면 해당 자산의 운영 이력에도 이슈가 표시됩니다." />
 
-        <section v-if="canInspect" class="issue-inspection" :class="{ 'issue-inspection--enabled': inspectionEnabled }" aria-label="서버 점검 연결">
+        <section v-if="canInspect" class="issue-inspection" :class="{
+          'issue-inspection--enabled': inspectionEnabled,
+          'issue-inspection--dark': theme.appearanceMode === 'dark',
+        }" aria-label="서버 점검 연결">
           <q-checkbox
             v-model="inspectionEnabled"
             label="서버 점검에 추가"
@@ -347,6 +350,7 @@ import {
 import { listSprints, type Sprint } from 'src/services/pm/sprint'
 import { listProjectMembers, type ProjectMember } from 'src/services/pm/project'
 import { useAuthStore } from 'src/stores/auth'
+import { useThemeStore } from 'src/stores/theme'
 import { getErrorMessage } from 'src/utils/http/error'
 import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
 import IssueStatusInfo from './IssueStatusInfo.vue'
@@ -373,6 +377,7 @@ const ATTACHMENT_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx
 const ATTACHMENT_HINT = '지원 형식: 이미지, PDF, 워드/엑셀/파워포인트, 한글(HWP), TXT, CSV, ZIP, MP4, HTML, LOG, JSON, XML, YAML (최대 100MB)'
 
 const auth = useAuthStore()
+const theme = useThemeStore()
 const router = useRouter()
 const loading = ref(false)
 const createdIssue = ref<Issue | null>(null)
@@ -751,6 +756,16 @@ async function submit() {
 .inspection-schedule { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #526a84; margin-top: 15px; }
 .inspection-month-info p { margin: 10px 0 0; font-size: 12px; color: #718399; line-height: 1.7; }
 .inspection-selected-servers { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; line-height: 1.8; color: #526a84; overflow-wrap: anywhere; }
+.issue-inspection--dark { background: #1d2837; border-color: #3c4b5f; color: #dbe5f1; }
+.issue-inspection--dark.issue-inspection--enabled { background: #202f40; border-color: #527ba6; }
+.issue-inspection--dark > .q-checkbox,
+.issue-inspection--dark .q-checkbox__label { color: #dbe5f1; }
+.issue-inspection--dark .q-checkbox__bg { border-color: #a8b9cc; }
+.issue-inspection--dark .inspection-hint,
+.issue-inspection--dark .inspection-schedule,
+.issue-inspection--dark .inspection-month-info p,
+.issue-inspection--dark .inspection-selected-servers { color: #b8c7d8; }
+.issue-inspection--dark .issue-inspection-options { border-top-color: #3c4b5f; }
 .issue-work-assets { max-width: none; }
 @media (max-width: 700px) {
   .issue-inspection-options { grid-template-columns: minmax(0, 1fr); gap: 18px; }
