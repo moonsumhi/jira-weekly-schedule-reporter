@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
+from app.utils.time import kst_calendar_date
 
 # ── SR 역할 상수 ──────────────────────────────────────────────────────
 
@@ -153,18 +154,17 @@ async def record_due_date_history(
 
 # ── 지연 여부 계산 ────────────────────────────────────────────────────
 
-def compute_is_delayed(doc: dict) -> bool:
+def compute_is_delayed(doc: dict, now: Optional[datetime] = None) -> bool:
     non_delayed = {"DRAFT", "COMPLETED", "CONFIRMING", "CLOSED", "CANCELLED", "REJECTED", "ON_HOLD"}
     if doc.get("status") in non_delayed:
         return False
-    # 완료목표일(planned_due_date) 우선, 없으면 희망완료일(desired_due_date) 기준.
+    # Completion targets are calendar dates, so an item is late starting the
+    # following KST day, not as soon as UTC midnight passes on the due date.
     check_date = doc.get("planned_due_date") or doc.get("desired_due_date")
     if not check_date:
         return False
-    now = datetime.now(timezone.utc)
-    if check_date.tzinfo is None:
-        check_date = check_date.replace(tzinfo=timezone.utc)
-    return now > check_date
+    now = now or datetime.now(timezone.utc)
+    return kst_calendar_date(now) > kst_calendar_date(check_date)
 
 
 # ── SR 문서 → 출력 변환 ───────────────────────────────────────────────

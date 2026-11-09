@@ -1,10 +1,21 @@
 from __future__ import annotations
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from dataclasses import dataclass
 import pytz
 from dateutil import parser as dtparser
 
 KST = pytz.timezone("Asia/Seoul")
+
+
+def kst_calendar_date(value: datetime) -> date:
+    """Return a stored timestamp's calendar date in KST.
+
+    MongoDB can return naive datetimes when tz-aware reads are disabled; those
+    values are stored as UTC by PyMongo, so treat them as UTC before converting.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(KST).date()
 
 
 def next_9am_kst(now_utc: datetime) -> datetime:

@@ -14,7 +14,7 @@ from app.db.mongo import MongoClientManager
 from app.models.pm.issue import canonical_issue_status
 from app.services.sr.sr_service import compute_is_delayed
 from app.utils.mail_notify import send_delayed_digest
-from app.utils.time import KST, next_9am_kst
+from app.utils.time import KST, kst_calendar_date, next_9am_kst
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,7 @@ class DelayedDigestService:
         await self._mark_ran(now)
 
     async def _collect_delayed(self, now: datetime) -> tuple[dict, dict]:
+        today_kst = kst_calendar_date(now)
         sr_col = MongoClientManager.get_db()[MongoClientManager.SERVICE_REQUESTS]
         sr_by_assignee: dict[str, list[dict]] = defaultdict(list)
         async for doc in sr_col.find({
@@ -109,19 +110,17 @@ class DelayedDigestService:
                 {"desired_due_date": {"$exists": True, "$ne": None}},
             ]
         }):
-            if not compute_is_delayed(doc):
+            if not compute_is_delayed(doc, now):
                 continue
             assignee_id = doc.get("assignee_id")
             if not assignee_id:
                 continue
             # 완료목표일 우선, 없으면 희망완료일 (compute_is_delayed와 동일 기준)
             due_date = doc.get("planned_due_date") or doc.get("desired_due_date")
-            if due_date.tzinfo is None:
-                due_date = due_date.replace(tzinfo=timezone.utc)
             sr_by_assignee[str(assignee_id)].append({
                 "sr_no": doc.get("sr_no") or "-",
                 "title": doc.get("title") or "-",
-                "days_late": (now.date() - due_date.date()).days,
+                "days_late": (today_kst - kst_calendar_date(due_date)).days,
             })
 
         issues_col = MongoClientManager.get_pm_issues_collection()
@@ -135,9 +134,7 @@ class DelayedDigestService:
             if canonical_issue_status(doc.get("status", "BACKLOG")) == "DONE":
                 continue
             due_date = doc["due_date"]
-            if due_date.tzinfo is None:
-                due_date = due_date.replace(tzinfo=timezone.utc)
-            if due_date >= now:
+            if kst_calendar_date(due_date) >= today_kst:
                 continue
             raw_issues.append((doc, due_date))
 
@@ -157,7 +154,7 @@ class DelayedDigestService:
             issue_by_assignee[str(assignee_id)].append({
                 "key": f"{project_key}-{doc.get('number')}",
                 "title": doc.get("title") or "-",
-                "days_late": (now.date() - due_date.date()).days,
+                "days_late": (today_kst - kst_calendar_date(due_date)).days,
             })
 
         return dict(sr_by_assignee), dict(issue_by_assignee)
