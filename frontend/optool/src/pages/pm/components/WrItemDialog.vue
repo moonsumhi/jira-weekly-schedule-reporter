@@ -1,6 +1,6 @@
 <template>
   <q-dialog :model-value="modelValue" no-backdrop-dismiss @update:model-value="$emit('update:modelValue', $event)" @show="onDialogShow">
-    <q-card class="wr-dialog">
+    <q-card class="wr-dialog" :class="{ 'wr-dialog--dark': $q.dark.isActive }">
       <!-- 헤더 -->
       <div class="wr-header row items-center no-wrap q-px-lg q-py-md">
         <div class="row items-center q-gutter-sm">
@@ -337,11 +337,13 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, nextTick } from 'vue'
-import { Notify, type QInput } from 'quasar'
+import { Notify, useQuasar, type QInput } from 'quasar'
 import { addManualItem, updateManualItem, type ManualItem, type ManualItemCreate, type ManualItemSection } from 'src/services/pm/reports'
 import { listPmUsers } from 'src/services/pm/users'
 import { getErrorMessage } from 'src/utils/http/error'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
+
+const $q = useQuasar()
 
 const props = defineProps<{
   modelValue: boolean
@@ -566,5 +568,24 @@ async function save() {
   font-weight: 600;
   color: #555;
   margin-bottom: 6px;
+}
+
+.wr-dialog--dark {
+  background: #182334;
+  color: #e2e8f0;
+  color-scheme: dark;
+}
+
+.wr-dialog--dark .wr-header {
+  background: linear-gradient(135deg, #223047 0%, #182334 100%);
+}
+
+.wr-dialog--dark .field-label {
+  color: #cbd5e1;
+}
+
+.wr-dialog--dark :deep(.text-grey-6),
+.wr-dialog--dark :deep(.text-grey-7) {
+  color: #aebbd0 !important;
 }
 </style>

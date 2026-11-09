@@ -88,7 +88,7 @@
 
     <!-- 생성/수정 다이얼로그 -->
     <q-dialog v-model="editDialog">
-      <q-card class="ri-dialog">
+      <q-card class="ri-dialog" :class="{ 'ri-dialog--dark': $q.dark.isActive }">
         <q-card-section class="q-px-lg q-pt-md q-pb-none">
           <div class="text-h6 text-weight-bold">{{ editingId ? '반복 업무 수정' : '반복 업무 추가' }}</div>
           <div class="text-caption text-grey-6">
@@ -150,7 +150,9 @@
               v-model="form.mode"
               :options="MODE_OPTIONS"
               spread no-caps unelevated
-              toggle-color="primary" color="grey-3" text-color="grey-8"
+              toggle-color="primary"
+              :color="$q.dark.isActive ? 'blue-grey-9' : 'grey-3'"
+              :text-color="$q.dark.isActive ? 'blue-grey-1' : 'grey-8'"
             />
 
             <!-- 날짜 지정 -->
@@ -218,7 +220,7 @@
 
     <!-- 회차 생성 다이얼로그 -->
     <q-dialog v-model="genDialog">
-      <q-card class="ri-dialog">
+      <q-card class="ri-dialog" :class="{ 'ri-dialog--dark': $q.dark.isActive }">
         <q-card-section class="q-px-lg q-pt-md q-pb-none">
           <div class="text-h6 text-weight-bold">회차 생성</div>
           <div class="text-caption text-grey-6">{{ genTarget?.name }} · 선택한 월의 회차를 만듭니다</div>
@@ -682,5 +684,12 @@ onMounted(async () => {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #9e9e9e;
+}
+.ri-dialog--dark .section-label,
+.ri-dialog--dark :deep(.text-grey-6) {
+  color: #aebbd0 !important;
+}
+.ri-dialog--dark .ri-check {
+  border-top-color: #334155;
 }
 </style>

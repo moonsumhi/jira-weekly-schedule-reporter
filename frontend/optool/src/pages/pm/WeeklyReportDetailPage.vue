@@ -227,7 +227,7 @@
         <template v-else-if="sec.section === 'ATTENDANCE'">
           <q-markup-table flat dense separator="cell" class="q-ma-sm">
             <thead>
-              <tr class="bg-grey-2">
+              <tr :class="$q.dark.isActive ? 'bg-blue-grey-9 text-blue-grey-1' : 'bg-grey-2'">
                 <th class="text-left">이름</th>
                 <th class="text-center">발생일수</th>
                 <th class="text-center">총사용일수</th>
@@ -344,7 +344,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Notify } from 'quasar'
+import { Notify, useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 import {
   getWeeklyReport, refreshWeeklyReport, changeWeeklyReportStatus, deleteManualItem,
@@ -362,6 +362,7 @@ import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { getLinkedIssue, type Issue } from 'src/services/pm/issue'
 
 
+const $q = useQuasar()
 const route  = useRoute()
 const router = useRouter()
 
@@ -397,8 +398,8 @@ const PRIORITY_KO: Record<string, string>    = { LOWEST: '최하', LOW: '낮음'
 const PRIORITY_COLOR: Record<string, string> = { LOWEST: 'grey', LOW: 'blue-grey', MEDIUM: 'orange', HIGH: 'deep-orange', HIGHEST: 'red' }
 
 const PALETTE = ['blue', 'teal', 'purple', 'orange', 'green', 'deep-orange', 'indigo', 'cyan', 'pink', 'amber']
-function headerBg(i: number)   { return `bg-${PALETTE[i % PALETTE.length]}-1` }
-function headerText(i: number) { return `text-${PALETTE[i % PALETTE.length]}-9` }
+function headerBg(i: number)   { return $q.dark.isActive ? 'bg-blue-grey-9' : `bg-${PALETTE[i % PALETTE.length]}-1` }
+function headerText(i: number) { return `text-${PALETTE[i % PALETTE.length]}-${$q.dark.isActive ? 2 : 9}` }
 
 const MANUAL_SECTIONS = [
   { section: 'MAIN_AGENDA'      as ManualItemSection, label: '주요 안건',           icon: 'task_alt',       color: 'blue'   },
