@@ -484,7 +484,7 @@
             :label="`연결 자산 · ${selectedServer.asset.name}`"
             :to="{
               path: '/asset/list',
-              query: { category: '서버', assetId: selectedServer.asset.id },
+              query: { category: selectedServer.asset.category || '서버', assetId: selectedServer.asset.id },
             }"
             target="_blank"
             class="q-mt-md"
