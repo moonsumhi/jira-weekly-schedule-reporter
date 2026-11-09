@@ -103,12 +103,14 @@
     <div v-if="!trashView" class="asset-summary row items-center q-gutter-xs q-mb-md">
       <q-chip
         dense clickable
+        class="asset-status-chip"
         color="blue-grey-1" text-color="blue-grey-9"
         @click="clearStatusFilters"
       >전체 {{ visibleTotal }}</q-chip>
       <q-chip
         v-for="s in ['운영', '점검', '미사용', '폐기예정', '폐기']" :key="s"
         dense clickable
+        :class="['asset-status-chip', { 'asset-status-chip--unused': s === '미사용' }]"
         :icon="excludedStatusFilters.includes(s) ? 'remove_circle_outline' : undefined"
         :color="includedStatusFilters.includes(s) ? statusColor(s) : excludedStatusFilters.includes(s) ? 'red-1' : 'grey-2'"
         :text-color="includedStatusFilters.includes(s) ? 'white' : excludedStatusFilters.includes(s) ? 'red-9' : 'grey-8'"

@@ -290,7 +290,7 @@
                     {{ epic.title }}
                   </q-item-label>
                   <q-item-label caption class="q-mt-xs">
-                    <q-badge :color="_statusClr(epic.status)" :label="_statusLbl(epic.status)" class="q-mr-xs" />
+                    <q-badge :color="_statusClr(epic.status)" :label="_statusLbl(epic.status)" class="q-mr-xs pm-issue-status-badge" />
                     <q-icon :name="_prioIcon(epic.priority)" :color="_prioClr(epic.priority)" size="xs" />
                   </q-item-label>
                 </q-item-section>
@@ -348,7 +348,7 @@
                             {{ main.title }}
                           </q-item-label>
                           <q-item-label caption class="q-mt-xs">
-                            <q-badge :color="_statusClr(main.status)" :label="_statusLbl(main.status)" class="q-mr-xs" />
+                            <q-badge :color="_statusClr(main.status)" :label="_statusLbl(main.status)" class="q-mr-xs pm-issue-status-badge" />
                             <q-icon :name="_prioIcon(main.priority)" :color="_prioClr(main.priority)" size="xs" />
                             <span v-if="main.epicTitle" class="text-grey-5 q-ml-sm text-caption">{{ main.epicTitle }}</span>
                           </q-item-label>
@@ -401,7 +401,7 @@
                                     {{ sub.title }}
                                   </q-item-label>
                                   <q-item-label caption class="q-mt-xs">
-                                    <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs" />
+                                    <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs pm-issue-status-badge" />
                                     <q-icon :name="_prioIcon(sub.priority)" :color="_prioClr(sub.priority)" size="xs" />
                                   </q-item-label>
                                 </q-item-section>
@@ -477,7 +477,7 @@
                       {{ main.title }}
                     </q-item-label>
                     <q-item-label caption class="q-mt-xs">
-                      <q-badge :color="_statusClr(main.status)" :label="_statusLbl(main.status)" class="q-mr-xs" />
+                      <q-badge :color="_statusClr(main.status)" :label="_statusLbl(main.status)" class="q-mr-xs pm-issue-status-badge" />
                       <q-icon :name="_prioIcon(main.priority)" :color="_prioClr(main.priority)" size="xs" />
                     </q-item-label>
                   </q-item-section>
@@ -529,7 +529,7 @@
                               {{ sub.title }}
                             </q-item-label>
                             <q-item-label caption class="q-mt-xs">
-                              <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs" />
+                            <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs pm-issue-status-badge" />
                               <q-icon :name="_prioIcon(sub.priority)" :color="_prioClr(sub.priority)" size="xs" />
                             </q-item-label>
                           </q-item-section>
@@ -565,7 +565,7 @@
                   {{ sub.title }}
                 </q-item-label>
                 <q-item-label caption class="q-mt-xs">
-                  <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs" />
+                  <q-badge :color="_statusClr(sub.status)" :label="_statusLbl(sub.status)" class="q-mr-xs pm-issue-status-badge" />
                   <q-icon :name="_prioIcon(sub.priority)" :color="_prioClr(sub.priority)" size="xs" />
                 </q-item-label>
               </q-item-section>

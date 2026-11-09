@@ -103,7 +103,7 @@
                 </div>
               </div>
               <div class="ic-status">
-                <q-badge :color="STATUS_COLOR[row.issue.status]" :label="STATUS_LABEL[row.issue.status]" />
+                <q-badge :color="STATUS_COLOR[row.issue.status]" :label="STATUS_LABEL[row.issue.status]" class="pm-issue-status-badge" />
               </div>
               <div class="ic-assignee">
                 <span class="text-caption text-grey-7">{{ row.issue.assigneeName ?? '미배정' }}</span>
@@ -169,7 +169,7 @@
                 </div>
               </div>
               <div class="ic-status">
-                <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+                <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" class="pm-issue-status-badge" />
               </div>
               <div class="ic-assignee">
                 <span class="text-caption text-grey-7">{{ issue.assigneeName ?? '미배정' }}</span>
@@ -211,6 +211,7 @@
                         :key="status"
                         :color="STATUS_COLOR[status as IssueStatus]"
                         :label="`${STATUS_LABEL[status as IssueStatus]} ${count}`"
+                        class="pm-issue-status-badge"
                       />
                     </div>
                   </q-card-section>

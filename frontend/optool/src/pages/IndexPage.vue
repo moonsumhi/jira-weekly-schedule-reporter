@@ -200,7 +200,7 @@
               >
                 <span class="pm-issue-key">{{ issue.projectKey }}-{{ issue.number }}</span>
                 <span class="pm-issue-title">{{ issue.title }}</span>
-                <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" />
+                <q-badge :color="STATUS_COLOR[issue.status]" :label="STATUS_LABEL[issue.status]" class="pm-issue-status-badge" />
               </div>
             </div>
           </div>

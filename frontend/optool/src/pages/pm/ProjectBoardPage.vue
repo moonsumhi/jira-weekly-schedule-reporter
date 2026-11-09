@@ -168,7 +168,7 @@
         <q-card flat bordered class="board-column-card">
           <q-card-section class="q-py-sm column-header">
             <div class="row items-center q-gutter-xs">
-              <q-badge :color="STATUS_COLOR[status]" :label="STATUS_LABEL[status]" />
+              <q-badge :color="STATUS_COLOR[status]" :label="STATUS_LABEL[status]" class="pm-issue-status-badge" />
               <q-badge outline :label="(filteredBoard[status] ?? []).length" />
             </div>
           </q-card-section>

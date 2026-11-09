@@ -81,9 +81,10 @@
               color="primary"
               size="22px"
             /><strong>{{ editing ? '배치도 편집' : '게시 배치도' }}</strong>
-            <q-badge v-if="dirty" color="orange-1" text-color="orange-10" label="미저장 변경사항" />
+            <q-badge v-if="dirty" class="plan-status-badge" color="orange-1" text-color="orange-10" label="미저장 변경사항" />
             <q-badge
               v-else
+              class="plan-status-badge"
               :color="editing && plan.hasDraft ? 'orange-1' : plan.published ? 'green-1' : 'grey-2'"
               :text-color="
                 editing && plan.hasDraft ? 'orange-10' : plan.published ? 'green-9' : 'grey-8'

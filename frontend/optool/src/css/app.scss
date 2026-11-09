@@ -1,5 +1,31 @@
 // app global css in SCSS form
 
+// Keep Jira issue status badges readable when Quasar's standard status colors
+// are shown against the dark application background.
+body.body--dark .pm-issue-status-badge.bg-grey-5 {
+  background: #344154 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #63738b;
+}
+
+body.body--dark .pm-issue-status-badge.bg-blue-4 {
+  background: #183b5e !important;
+  color: #c4e3ff !important;
+  border: 1px solid #3676ac;
+}
+
+body.body--dark .pm-issue-status-badge.bg-orange-6 {
+  background: #4c3519 !important;
+  color: #ffe2ad !important;
+  border: 1px solid #ab772e;
+}
+
+body.body--dark .pm-issue-status-badge.bg-green-6 {
+  background: #19412f !important;
+  color: #c0f0d0 !important;
+  border: 1px solid #3e8e5c;
+}
+
 // Dark mode surfaces for schedule management. These pages combine Quasar
 // components with custom tables and FullCalendar styles.
 body.body--dark .pm-theme-container {
@@ -521,6 +547,66 @@ body.body--dark {
     .asset-trash-chip {
       background: #26364c !important;
       color: #dbe5f1 !important;
+    }
+
+    .asset-summary .asset-status-chip {
+      border: 1px solid #53647b;
+      font-weight: 600;
+    }
+
+    .asset-summary .asset-status-chip.bg-blue-grey-1 {
+      background: #26364c !important;
+      color: #e0e9f4 !important;
+      border-color: #62758e;
+    }
+
+    .asset-summary .asset-status-chip.bg-grey-2 {
+      background: #303b4b !important;
+      color: #d5deea !important;
+      border-color: #59687e;
+    }
+
+    .asset-summary .asset-status-chip.bg-positive {
+      background: #17452c !important;
+      color: #b9f6ca !important;
+      border-color: #3a8755;
+    }
+
+    .asset-summary .asset-status-chip.bg-orange {
+      background: #4b3517 !important;
+      color: #ffe0a3 !important;
+      border-color: #b27628;
+    }
+
+    .asset-summary .asset-status-chip.bg-grey {
+      background: #48556a !important;
+      color: #f1f5f9 !important;
+      border-color: #91a0b4;
+    }
+
+    .asset-summary .asset-status-chip--unused.bg-grey {
+      background: #382c54 !important;
+      color: #eee4ff !important;
+      border-color: #a18bd1;
+      box-shadow: inset 0 0 0 1px rgb(205 185 255 / 12%);
+    }
+
+    .asset-summary .asset-status-chip.bg-red-1 {
+      background: #4b2026 !important;
+      color: #ffd3d7 !important;
+      border-color: #a34853;
+    }
+
+    .asset-summary .asset-status-chip.bg-negative {
+      background: #4f2027 !important;
+      color: #ffd6db !important;
+      border-color: #a94d59;
+    }
+
+    .asset-summary .asset-status-chip.bg-blue-grey-8 {
+      background: #37465a !important;
+      color: #e1ecf6 !important;
+      border-color: #7488a1;
     }
 
     > .q-card,

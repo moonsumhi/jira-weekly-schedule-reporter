@@ -141,7 +141,7 @@
                       <q-badge
                         :color="STATUS_COLOR[(sub as Issue).status]"
                         :label="STATUS_LABEL[(sub as Issue).status]"
-                        class="q-mr-xs"
+                        class="q-mr-xs pm-issue-status-badge"
                       />
                       <span
                         class="text-body2 col ellipsis cursor-pointer"

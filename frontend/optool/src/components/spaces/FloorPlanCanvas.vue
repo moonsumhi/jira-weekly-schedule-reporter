@@ -2,7 +2,7 @@
   <div
     ref="root"
     class="floor-plan"
-    :class="{ 'plan-expanded': expanded, 'plan-active': active }"
+    :class="{ 'plan-expanded': expanded, 'plan-active': active, 'floor-plan--dark': $q.dark.isActive }"
     tabindex="0"
     @focusin="active = true"
     @focusout="focusOut"
@@ -168,7 +168,7 @@
         >
           <defs>
             <pattern :id="gridId" width="20" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#dbe3eb" stroke-width="1" />
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--plan-grid)" stroke-width="1" />
             </pattern>
           </defs>
           <rect
@@ -176,15 +176,15 @@
             :y="view.y - 20000"
             width="60000"
             height="60000"
-            fill="#edf1f5"
+            fill="var(--plan-outside)"
           />
           <rect
             x="0"
             y="0"
             :width="modelValue.width"
             :height="modelValue.height"
-            fill="white"
-            stroke="#b0bec5"
+            fill="var(--plan-surface)"
+            stroke="var(--plan-border)"
           />
           <rect
             v-if="grid && editable"
@@ -224,9 +224,9 @@
               v-if="obj.kind === 'wall'"
               :width="obj.width"
               :height="obj.height"
-              fill="#455a64"
+              fill="var(--plan-wall)"
             />
-            <g v-else-if="obj.kind === 'door'" fill="none" stroke="#607d8b" stroke-width="3">
+            <g v-else-if="obj.kind === 'door'" fill="none" stroke="var(--plan-door)" stroke-width="3">
               <path :d="`M 0 ${obj.height} L 0 0 L ${obj.width} 0`" />
               <path
                 :d="`M 0 ${obj.height} A ${obj.width} ${obj.height} 0 0 0 ${obj.width} 0`"
@@ -260,7 +260,7 @@
                   :x="obj.width / 2"
                   :y="(personExtension(obj.seatId) ? obj.height * 0.45 : obj.height * 0.55) - deskLabelSize(obj) * 1.15"
                   text-anchor="middle"
-                  fill="#455a64"
+                  fill="var(--plan-muted)"
                   :font-size="Math.min(11, deskLabelSize(obj) * 0.55)"
                 >
                   {{ shortLabel(seatFor(obj)?.number || '', obj.width, Math.min(11, deskLabelSize(obj) * 0.55)) }}
@@ -269,7 +269,7 @@
                   :x="obj.width / 2"
                   :y="personExtension(obj.seatId) ? obj.height * 0.45 : obj.height * 0.55"
                   text-anchor="middle"
-                  fill="#000000"
+                  fill="var(--plan-seat-text)"
                   :font-size="deskLabelSize(obj)"
                   font-weight="600"
                 >
@@ -280,7 +280,7 @@
                   :x="obj.width / 2"
                   :y="obj.height * 0.68"
                   text-anchor="middle"
-                  fill="#000000"
+                  fill="var(--plan-seat-text)"
                   :font-size="deskLabelSize(obj) * 0.82"
                 >
                   {{ shortLabel(personExtension(obj.seatId), obj.width, deskLabelSize(obj) * 0.82) }}
@@ -292,17 +292,17 @@
                 :width="obj.width"
                 :height="obj.height"
                 rx="2"
-                fill="#e4e8ed"
-                stroke="#78909c"
+                fill="var(--plan-cabinet-fill)"
+                stroke="var(--plan-cabinet-stroke)"
                 stroke-width="2"
               />
-              <path :d="`M ${obj.width / 2} 0 V ${obj.height}`" stroke="#78909c" />
+              <path :d="`M ${obj.width / 2} 0 V ${obj.height}`" stroke="var(--plan-cabinet-stroke)" />
               <text
                 :x="obj.width / 2"
                 :y="obj.height / 2 + 4"
                 text-anchor="middle"
                 font-size="12"
-                fill="#455a64"
+                fill="var(--plan-muted)"
               >
                 {{ obj.name || '캐비닛' }}
               </text>
@@ -329,7 +329,7 @@
                 :y="Math.min(obj.height - 2, (obj.fontSize ?? 18) + 4)"
                 :font-size="obj.fontSize ?? 18"
                 :font-weight="obj.bold ? 700 : 400"
-                fill="#263238"
+                fill="var(--plan-text)"
               >
                 {{ obj.name || '텍스트' }}
               </text>
@@ -341,7 +341,7 @@
               :width="obj.width + 8"
               :height="obj.height + 8"
               fill="none"
-              :stroke="focusSeatId && obj.seatId === focusSeatId ? '#ef6c00' : '#1565c0'"
+              :stroke="focusSeatId && obj.seatId === focusSeatId ? 'var(--plan-focus)' : 'var(--plan-selection)'"
               :stroke-width="focusSeatId && obj.seatId === focusSeatId ? 4 : 2"
               :stroke-dasharray="focusSeatId && obj.seatId === focusSeatId ? undefined : '6 3'"
               pointer-events="none"
@@ -352,17 +352,17 @@
                 :y="obj.height - 6"
                 width="12"
                 height="12"
-                fill="#1976d2"
+                fill="var(--plan-handle)"
                 stroke="white"
                 class="resize-handle"
                 @pointerdown.stop="(e) => startTransform(e, obj, 'resize')"
               />
-              <path :d="`M ${obj.width / 2} 0 V -25`" stroke="#1976d2" />
+              <path :d="`M ${obj.width / 2} 0 V -25`" stroke="var(--plan-handle)" />
               <circle
                 :cx="obj.width / 2"
                 cy="-25"
                 r="7"
-                fill="#1976d2"
+                fill="var(--plan-handle)"
                 stroke="white"
                 class="rotate-handle"
                 @pointerdown.stop="(e) => startTransform(e, obj, 'rotate')"
@@ -375,9 +375,9 @@
             :y="marquee.y"
             :width="marquee.width"
             :height="marquee.height"
-            fill="#1976d2"
+            fill="var(--plan-handle)"
             fill-opacity="0.08"
-            stroke="#1976d2"
+            stroke="var(--plan-handle)"
             stroke-dasharray="5 3"
             pointer-events="none"
           />
@@ -1155,11 +1155,42 @@ function keyboard(e: KeyboardEvent) {
 
 <style scoped>
 .floor-plan {
+  --plan-outside: #edf1f5;
+  --plan-surface: #fff;
+  --plan-border: #b0bec5;
+  --plan-grid: #dbe3eb;
+  --plan-wall: #455a64;
+  --plan-door: #607d8b;
+  --plan-muted: #455a64;
+  --plan-seat-text: #000;
+  --plan-cabinet-fill: #e4e8ed;
+  --plan-cabinet-stroke: #78909c;
+  --plan-text: #263238;
+  --plan-selection: #1565c0;
+  --plan-focus: #ef6c00;
+  --plan-handle: #1976d2;
   border: 1px solid var(--space-line, #e2e7ee);
   border-radius: 10px;
   overflow: hidden;
   background: var(--space-surface, white);
   outline: none;
+}
+.floor-plan--dark {
+  --plan-outside: #101827;
+  --plan-surface: #182334;
+  --plan-border: #64748b;
+  --plan-grid: #334155;
+  --plan-wall: #94a3b8;
+  --plan-door: #94a3b8;
+  --plan-muted: #cbd5e1;
+  --plan-seat-text: #f8fafc;
+  --plan-cabinet-fill: #2c3b50;
+  --plan-cabinet-stroke: #94a3b8;
+  --plan-text: #e2e8f0;
+  --plan-selection: #60a5fa;
+  --plan-focus: #fb923c;
+  --plan-handle: #60a5fa;
+  color-scheme: dark;
 }
 .floor-plan:focus-visible {
   outline: 2px solid var(--q-primary);
@@ -1323,7 +1354,7 @@ function keyboard(e: KeyboardEvent) {
   gap: 12px;
   padding: 24px;
   text-align: center;
-  color: #64748b;
+  color: var(--space-muted, #64748b);
   pointer-events: none;
 }
 .canvas-empty strong {
