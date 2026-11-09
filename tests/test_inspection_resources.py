@@ -143,6 +143,28 @@ class ResourceTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(response.status_code, 422, response.text)
         self.assertEqual((await self.client.put(f'/resources/{self.sid}/mappings', json=body)).status_code, 410)
 
+    async def test_preview_can_connect_each_non_server_category(self):
+        await M.get_assets_servers_collection().update_one({'_id': self.aid}, {'$set': {'name': 'old-host'}})
+        row = (await self.month())['records'][0]
+        for category in M.CATEGORY_COLLECTIONS:
+            if category == '서버':
+                continue
+            with self.subTest(category=category):
+                identifier = ObjectId()
+                collection = M.get_asset_collection(category)
+                await collection.insert_one({'_id': identifier, 'name': f'{category}-01', 'ip': '192.0.2.30'})
+                body = {'month': '2026-09', 'source_id': str(self.sid),
+                        'mappings': [{'row_key': row['key'], 'asset_id': str(identifier)}]}
+                response = await self.client.post('/resources/preview', json=body)
+                self.assertEqual(response.status_code, 200, response.text)
+                mapped = response.json()['records'][0]
+                self.assertEqual(mapped['mapping_state'], 'manual')
+                self.assertEqual(mapped['asset']['id'], str(identifier))
+                self.assertEqual(mapped['asset']['category'], category)
+                await collection.update_one({'_id': identifier}, {'$set': {'is_deleted': True}})
+                self.assertEqual((await self.client.post('/resources/preview', json=body)).status_code, 422)
+        self.assertIsNone((await self.month())['records'][0]['asset'])
+
     async def test_ip_match_without_hostname_only_suggests_asset_to_review(self):
         await self.save()
         await M.get_assets_servers_collection().update_one({'_id': self.aid}, {'$set': {'name': 'old-host'}})

@@ -3,6 +3,19 @@
     <ResourceAssetNotice :record="record" />
     <q-select
       v-if="canWrite"
+      v-model="category"
+      :options="categoryOptions"
+      outlined
+      dense
+      emit-value
+      map-options
+      label="자산 유형"
+      :disable="disable"
+      class="q-mb-sm"
+      @update:model-value="refreshOptions"
+    />
+    <q-select
+      v-if="canWrite"
       :model-value="record.mappingState === 'manual' ? record.asset : null"
       :options="options"
       :option-label="assetLabel"
@@ -13,6 +26,7 @@
       use-input
       input-debounce="200"
       label="연결할 자산"
+      :loading="loading"
       :disable="disable"
       @filter="search"
       @update:model-value="(asset) => emit('select', asset)"
@@ -21,7 +35,7 @@
         ><q-item v-bind="scope.itemProps"
           ><q-item-section
             ><q-item-label>{{ scope.opt.name || scope.opt.assetName }}</q-item-label
-            ><q-item-label caption>{{ scope.opt.ip || 'IP 미등록' }}</q-item-label></q-item-section
+            ><q-item-label caption>{{ assetDetails(scope.opt) }}</q-item-label></q-item-section
           ></q-item
         ></template
       >
@@ -45,6 +59,8 @@ import { useAuthStore } from 'src/stores/auth';
 import {
   inspectionError,
   searchInspectionAssets,
+  inspectionAssetCategories,
+  type InspectionAssetCategory,
   type InspectionAsset,
 } from 'src/services/inspection';
 import type { ResourceServer } from 'src/services/inspectionReports';
@@ -54,25 +70,40 @@ const emit = defineEmits<{ select: [asset: InspectionAsset | null] }>();
 const auth = useAuthStore();
 const canWrite = computed(() => auth.me?.isInternal !== false);
 const options = ref<InspectionAsset[]>([]),
-  error = ref('');
+  error = ref(''),
+  loading = ref(false),
+  category = ref<InspectionAssetCategory | ''>('');
+const categoryOptions = [
+  { label: '전체 자산', value: '' },
+  ...inspectionAssetCategories.map((value) => ({ label: value, value })),
+];
 let generation = 0;
-const assetLabel = (a: InspectionAsset) => `${a.name || a.assetName} · ${a.ip || 'IP 미등록'}`;
+let searchText = '';
+const assetDetails = (a: InspectionAsset) =>
+  [a.category || '서버', a.assetName && a.assetName !== a.name ? a.assetName : '', a.ip || 'IP 미등록']
+    .filter(Boolean).join(' · ');
+const assetLabel = (a: InspectionAsset) => `${a.name || a.assetName} · ${assetDetails(a)}`;
 async function search(value: string, update: (fn: () => void) => void) {
+  searchText = value;
+  await loadOptions((data) => update(() => { options.value = data; }));
+}
+async function refreshOptions() {
+  await loadOptions((data) => { options.value = data; });
+}
+async function loadOptions(setOptions: (data: InspectionAsset[]) => void) {
   const request = ++generation;
   error.value = '';
+  loading.value = true;
   try {
-    const data = await searchInspectionAssets(value, [], '서버');
-    if (request === generation)
-      update(() => {
-        options.value = data;
-      });
+    const data = await searchInspectionAssets(searchText, [], category.value || undefined);
+    if (request === generation) setOptions(data);
   } catch (e) {
     if (request === generation) {
-      update(() => {
-        options.value = [];
-      });
+      setOptions([]);
       error.value = inspectionError(e);
     }
+  } finally {
+    if (request === generation) loading.value = false;
   }
 }
 onBeforeUnmount(() => {

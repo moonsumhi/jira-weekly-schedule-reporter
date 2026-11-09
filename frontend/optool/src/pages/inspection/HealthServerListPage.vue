@@ -253,8 +253,8 @@
         /></q-card-section>
         <q-card-section class="q-pt-none"
           ><p v-if="canWrite" class="mapping-help">
-            점검한 서버를 자산 목록에서 찾아 선택해 주세요.<br />
-            여기서 선택한 자산은 이번 점검 데이터에만 연결됩니다.
+            점검 대상을 자산 목록에서 찾아 선택해 주세요.<br />
+            연결은 현재 사용 중에 유지되며, 보고서를 저장하면 해당 보고서에 반영됩니다.
           </p>
           <p v-else class="mapping-help">이 서버와 연결된 자산을 확인할 수 있습니다.</p>
           <p

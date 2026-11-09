@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from pymongo.errors import DuplicateKeyError
 
 from app.db.mongo import MongoClientManager as M
+from app.services import asset_catalog
 from app.services import inspection_service as tasks
 from app.utils.mongo import oid
 
@@ -389,10 +390,9 @@ async def resource_snapshot(source, comparison=None, include_images=True, mappin
     connect_resource_assets(rows, assets)
     # Exceptions belong only to this request or this report's existing source snapshot.
     # Never read or write reusable aliases, and never transfer an exception to another source.
-    asset_by = {str(a['_id']): tasks.asset_snapshot(a) for a in assets}
     if fallback_snapshot and (fallback_snapshot.get('source') or {}).get('id') == str((source or {}).get('_id')):
         saved = {r['key']: r['asset']['id'] for r in fallback_snapshot.get('servers', [])
-                 if r.get('mapping_state') == 'manual' and r.get('asset') and r['asset']['id'] in asset_by}
+                 if r.get('mapping_state') == 'manual' and r.get('asset')}
     else:
         saved = {}
     keys = {row['key'] for row in rows}
@@ -401,6 +401,10 @@ async def resource_snapshot(source, comparison=None, include_images=True, mappin
         raise HTTPException(422, '같은 점검 항목을 중복 연결할 수 없습니다.')
     if explicit.keys() - keys:
         raise HTTPException(422, '점검 데이터가 변경되었습니다. 다시 불러와 주세요.')
+    # Automatic matching remains server-only; explicit exceptions can refer to any asset type.
+    selected_ids = {value for value in (*saved.values(), *explicit.values()) if value}
+    asset_by = await asset_catalog.asset_map(selected_ids, include_deleted=False)
+    saved = {key: value for key, value in saved.items() if value in asset_by}
     for row in rows:
         if row['mapping_state'] == 'automatic':
             continue
