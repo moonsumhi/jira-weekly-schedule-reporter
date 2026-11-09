@@ -298,8 +298,8 @@
               </q-badge></q-td
           ></template>
           <template #body-cell-actions="p"
-            ><q-td :props="p"
-              ><q-btn
+            ><q-td :props="p" auto-width class="room-actions-cell"
+              ><div class="room-actions"><q-btn
                 flat
                 dense
                 color="primary"
@@ -357,7 +357,7 @@
                     ></q-list
                   ></q-menu
                 ></q-btn
-              ></q-td
+              ></div></q-td
             ></template
           >
           <template #no-data
@@ -740,6 +740,20 @@ async function remove(k: Kind, id: string) {
   display: flex;
   flex-direction: column;
   gap: 7px;
+}
+.room-actions-cell {
+  padding-right: 20px;
+}
+.room-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: max-content;
+  margin-left: auto;
+}
+.room-actions > .q-btn {
+  flex-shrink: 0;
 }
 @media (max-width: 1100px) {
   .rooms-layout {

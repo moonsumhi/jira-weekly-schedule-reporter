@@ -1,7 +1,7 @@
 <template>
   <q-page padding>
-    <div class="row items-center q-mb-md q-gutter-sm no-wrap">
-      <div class="text-h6" style="flex-shrink: 0;">{{ boardTitle }}</div>
+    <div class="board-toolbar row items-center q-mb-md">
+      <div class="board-toolbar-title text-h6">{{ boardTitle }}</div>
       <q-btn icon="note_add" label="새 문서" color="primary" style="flex-shrink: 0; margin-left: 15px;" @click="openWrite" />
       <q-space />
       <q-checkbox
@@ -13,12 +13,12 @@
       <q-select
         v-model="categoryFilter" dense outlined clearable
         :options="categoryOptions" emit-value map-options
-        label="카테고리" style="flex: 0 0 160px"
+        label="카테고리" class="board-category-filter"
       />
       <q-input
         v-model="filterText" dense outlined clearable
         placeholder="문서 제목 / 내용 / 작성자 검색"
-        style="flex: 0 1 500px; min-width: 150px"
+        class="board-search"
       >
         <template #prepend><q-icon name="search" /></template>
       </q-input>
@@ -328,6 +328,26 @@ onMounted(() => { void load() })
 </script>
 
 <style scoped>
+.board-toolbar {
+  gap: 8px;
+  min-width: 0;
+}
+.board-toolbar-title {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.board-category-filter,
+.board-search {
+  min-width: 0;
+  max-width: 100%;
+}
+.board-category-filter {
+  flex: 0 1 160px;
+}
+.board-search {
+  flex: 0 1 500px;
+}
 :deep(.q-table thead th) {
   font-size: 13px;
 }
