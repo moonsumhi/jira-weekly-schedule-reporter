@@ -393,6 +393,7 @@ const isPort9001 = window.location.port === '9001'
 const sortedVisibleMenus = computed(() =>
   sidebarMenus.value
     .filter((m) => m.isVisible)
+    .filter((m) => m.slug !== 'my-page')
     .filter((m) => m.slug !== 'admin' || !!auth.me?.isAdmin)
     .filter((m) => {
       const perm = SLUG_PERM[m.slug ?? '']

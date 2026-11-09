@@ -134,6 +134,8 @@ async def seed_system_menus() -> None:
 
     # account 메뉴는 하단 유저 카드로 대체 — DB에서 제거
     await menus_col.delete_one({"slug": "account"})
+    # 마이페이지는 하단 사용자 카드로 진입하므로 사이드바 메뉴에서 제거
+    await menus_col.delete_one({"slug": "my-page"})
 
     # 구 SR 개별 메뉴 제거 (sr 상위 메뉴로 통합)
     for old_slug in ("sr-new", "sr-my", "sr-manage"):
