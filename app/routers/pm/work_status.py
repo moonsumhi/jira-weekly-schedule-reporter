@@ -51,6 +51,19 @@ async def get_work_status(
 
     docs = await issues_col.find(query).sort([("assignee_id", 1), ("status", 1), ("order", 1)]).to_list(None)
 
+    # 조회 기간 밖의 TASK도 확인하여 실제로 하위 TASK가 없는 EPIC만 표시한다.
+    epic_projects = {d["_id"]: d["project_id"] for d in docs if d.get("type") == "EPIC"}
+    epics_with_tasks: set = set()
+    if epic_projects:
+        epic_tasks = await issues_col.find(
+            {**project_filter, "type": "TASK", "epic_id": {"$in": list(epic_projects)}},
+            {"epic_id": 1, "project_id": 1},
+        ).to_list(None)
+        epics_with_tasks = {
+            task["epic_id"] for task in epic_tasks
+            if task["project_id"] == epic_projects[task["epic_id"]]
+        }
+
     # 하위작업이 있는 TASK는 TASK 대신 하위작업들을 반환
     task_oids = [d["_id"] for d in docs if d.get("type") == "TASK"]
     all_subtask_docs: list = []
@@ -65,6 +78,8 @@ async def get_work_status(
     subtask_ids_from_fetch = {str(d["_id"]) for d in all_subtask_docs}
     result_docs = []
     for d in docs:
+        if d.get("type") == "EPIC" and d["_id"] in epics_with_tasks:
+            continue  # 하위 TASK가 있는 EPIC 제외
         if d.get("type") == "TASK" and str(d["_id"]) in tasks_with_subtasks:
             continue  # 하위작업이 있는 TASK 제외
         if d.get("type") == "SUB_TASK" and str(d["_id"]) in subtask_ids_from_fetch:

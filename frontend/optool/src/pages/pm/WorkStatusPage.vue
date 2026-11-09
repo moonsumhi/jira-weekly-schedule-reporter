@@ -158,7 +158,8 @@ const detailOpen  = ref(false)
 const detailIssue = ref<Issue | null>(null)
 
 function isWorkStatusIssue(issue: Issue): boolean {
-  return issue.type === 'TASK' || issue.type === 'SUB_TASK'
+  // API에서 하위 Task가 없는 Epic만 반환한다.
+  return issue.type === 'EPIC' || issue.type === 'TASK' || issue.type === 'SUB_TASK'
 }
 
 function workStatusAssigneeId(issue: Issue): string {
@@ -199,7 +200,7 @@ function calendarIssueTitle(issue: Issue): string {
   return issue.title
 }
 
-const ISSUE_TYPE_LABEL: Partial<Record<Issue['type'], string>> = { TASK: 'Task', SUB_TASK: 'Sub-task' }
+const ISSUE_TYPE_LABEL: Partial<Record<Issue['type'], string>> = { EPIC: 'Epic', TASK: 'Task', SUB_TASK: 'Sub-task' }
 
 function calendarEventContent(arg: EventContentArg): { domNodes: Node[] } {
   const issue = (arg.event.extendedProps as { issue?: Issue }).issue
