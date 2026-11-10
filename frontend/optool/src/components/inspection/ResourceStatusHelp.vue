@@ -82,11 +82,21 @@ const tooltipId = `resource-status-${uid()}`;
   font-size: 12px;
   line-height: 1.65;
 }
+:global(body.body--dark .q-tooltip.resource-status-tooltip) {
+  background: #182334;
+  color: #dbe5f1;
+  border-color: #475569;
+  box-shadow: 0 8px 24px #0008;
+}
 .resource-status-tooltip strong { display: block; color: #2f435b; font-size: 13px; }
+:global(body.body--dark .q-tooltip.resource-status-tooltip strong) { color: #f1f5f9; }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: 10px 12px; margin: 12px 0; }
 dt { font-weight: 600; }
 dd { margin: 0; }
 .status-danger { color: #b42318; }
 .status-warning { color: #9a6014; }
 p { margin: 8px 0 0; font-size: 11px; color: #718096; }
+:global(body.body--dark .q-tooltip.resource-status-tooltip .status-danger) { color: #ffc7c0; }
+:global(body.body--dark .q-tooltip.resource-status-tooltip .status-warning) { color: #ffe0a3; }
+:global(body.body--dark .q-tooltip.resource-status-tooltip p) { color: #aebbd0; }
 </style>

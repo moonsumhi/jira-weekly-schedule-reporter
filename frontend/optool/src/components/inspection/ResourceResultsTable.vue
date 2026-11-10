@@ -177,6 +177,53 @@ watch(
 .resource-results--dark :deep(tbody tr:hover) {
   background: #223047;
 }
+.resource-results--dark :deep(tbody tr) {
+  background: #182334;
+  color: #dbe5f1;
+}
+.resource-results--dark :deep(tbody td) {
+  color: #dbe5f1;
+  border-color: #334155;
+}
+.resource-results--dark .result-status.danger {
+  color: #ffc7c0;
+  background: #4a292b;
+  border: 1px solid #824246;
+}
+.resource-results--dark .result-status.warning {
+  color: #ffe0a3;
+  background: #45351f;
+  border: 1px solid #755c30;
+}
+.resource-results--dark .result-status.normal {
+  color: #bcebd2;
+  background: #1e3d32;
+  border: 1px solid #356d54;
+}
+.resource-results--dark .result-status.muted {
+  color: #d1dbea;
+  background: #344154;
+  border: 1px solid #52637b;
+}
+.resource-results--dark .result-notes {
+  color: #cbd5e1;
+}
+.resource-results--dark .result-notes small {
+  color: #aebbd0;
+}
+.resource-results--dark .result-card {
+  color: #dbe5f1;
+  border-color: #334155;
+}
+.resource-results--dark .result-card-notes {
+  background: #223047;
+}
+.resource-results--dark .result-card-metrics {
+  border-color: #334155;
+}
+.resource-results--dark .result-card-metrics label {
+  color: #aebbd0;
+}
 .identity-cell {
   min-width: 210px;
   max-width: 300px;

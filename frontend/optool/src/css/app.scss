@@ -26,6 +26,50 @@ body.body--dark .pm-issue-status-badge.bg-green-6 {
   border: 1px solid #3e8e5c;
 }
 
+// The project board uses chips as interactive status filters, so give their
+// selected and unselected states explicit dark-mode surfaces and contrast.
+body.body--dark .project-board-page .pm-board-status-filter {
+  border: 1px solid #52637b !important;
+  color: #d5dfec !important;
+}
+
+body.body--dark .project-board-page .pm-board-status-filter.q-chip--outline {
+  background: #202d40 !important;
+}
+
+body.body--dark .project-board-page .pm-board-status-filter:not(.q-chip--outline),
+body.body--dark .project-board-page .pm-board-status-badge {
+  border: 1px solid transparent;
+}
+
+body.body--dark .project-board-page .pm-board-status--backlog:not(.q-chip--outline),
+body.body--dark .project-board-page .pm-board-status-badge.pm-board-status--backlog {
+  background: #344154 !important;
+  color: #e2e8f0 !important;
+  border-color: #63738b !important;
+}
+
+body.body--dark .project-board-page .pm-board-status--todo:not(.q-chip--outline),
+body.body--dark .project-board-page .pm-board-status-badge.pm-board-status--todo {
+  background: #183b5e !important;
+  color: #c4e3ff !important;
+  border-color: #3676ac !important;
+}
+
+body.body--dark .project-board-page .pm-board-status--in_progress:not(.q-chip--outline),
+body.body--dark .project-board-page .pm-board-status-badge.pm-board-status--in_progress {
+  background: #4c3519 !important;
+  color: #ffe2ad !important;
+  border-color: #ab772e !important;
+}
+
+body.body--dark .project-board-page .pm-board-status--done:not(.q-chip--outline),
+body.body--dark .project-board-page .pm-board-status-badge.pm-board-status--done {
+  background: #19412f !important;
+  color: #c0f0d0 !important;
+  border-color: #3e8e5c !important;
+}
+
 // Dark mode surfaces for schedule management. These pages combine Quasar
 // components with custom tables and FullCalendar styles.
 body.body--dark .pm-theme-container {
@@ -776,6 +820,84 @@ body.body--dark {
       border-color: #475569;
     }
 
+    .schedule-guide-tip {
+      background: #3a2f1d !important;
+      color: #f8e7bd;
+      border: 1px solid #725a2b;
+    }
+
+    .schedule-guide-tip-text {
+      color: #f8e7bd !important;
+    }
+
+    .guide-subtask-row,
+    .report-inclusion-row {
+      min-width: 0;
+      color: #e2e8f0;
+    }
+
+    .guide-subtask-row {
+      background: #26364c !important;
+      border: 1px solid #3b4d65;
+    }
+
+    .guide-subtask-completed {
+      color: #a8b3c2 !important;
+      text-decoration: line-through;
+    }
+
+    .subtask-preview .q-field__control,
+    .subtask-preview .q-field__native,
+    .subtask-preview .q-field__label {
+      background: #182334 !important;
+      color: #cbd5e1 !important;
+    }
+
+    .report-inclusion-row {
+      border-radius: 4px;
+
+      &.included {
+        background: #26364c !important;
+      }
+
+      &.excluded {
+        background: #202d40 !important;
+        opacity: 0.72;
+      }
+
+      .q-badge {
+        background: #1e3a5f !important;
+        color: #bfdbfe !important;
+      }
+    }
+
+    .q-badge.bg-grey-4,
+    .q-badge.bg-grey-5,
+    .q-badge.bg-grey-6,
+    .q-chip.bg-grey-4 {
+      background: #344154 !important;
+      color: #e2e8f0 !important;
+      border: 1px solid #63738b;
+    }
+
+    .q-badge.bg-primary,
+    .q-badge.bg-blue-4,
+    .q-badge.bg-blue,
+    .q-chip.bg-primary,
+    .q-chip.bg-blue-grey {
+      background: #1d4d7a !important;
+      color: #e5f2ff !important;
+      border: 1px solid #4b8fc7;
+    }
+
+    .q-badge.bg-positive,
+    .q-badge.bg-green-6,
+    .q-chip.bg-positive {
+      background: #19412f !important;
+      color: #c0f0d0 !important;
+      border: 1px solid #3e8e5c;
+    }
+
     .scenario-header {
       background: #1d2a42 !important;
     }
@@ -990,6 +1112,12 @@ body.body--dark {
     .stat-label .q-icon,
     .coverage-divider {
       color: #94a3b8;
+    }
+
+    .active-filters > span {
+      background: #26364c !important;
+      color: #cbdcf2 !important;
+      border: 1px solid #475569;
     }
 
     .q-table,
@@ -1604,12 +1732,118 @@ body.body--dark {
       background: #1d2a42;
     }
 
+    .guide-cancel-reason-banner {
+      background: #26364c !important;
+      border: 1px solid #475569;
+      color: #dbe5f1 !important;
+    }
+
+    .guide-cancel-reason-banner .text-grey-8 {
+      color: #dbe5f1 !important;
+    }
+
+    .guide-sr-project-banner {
+      background: #1d3552 !important;
+      border: 1px solid #36577c;
+      color: #c7ddff !important;
+    }
+
+    .guide-sr-project-banner .text-indigo-9 {
+      color: #c7ddff !important;
+    }
+
+    .guide-expected-effort .q-field__control {
+      background: #223047 !important;
+    }
+
+    .guide-expected-effort .q-field__native,
+    .guide-expected-effort .q-field__input,
+    .guide-expected-effort .q-field__label,
+    .guide-expected-effort .q-field__marginal {
+      color: #dbe5f1 !important;
+    }
+
+    .guide-internal-memo-example {
+      background: #263449 !important;
+      border: 1px solid #475569;
+      color: #dbe5f1 !important;
+    }
+
+    .guide-internal-memo-example.text-grey-8 {
+      color: #dbe5f1 !important;
+    }
+
     .text-grey-5,
     .text-grey-6,
     .text-grey-7,
     .text-grey-8,
     .text-grey-9 {
       color: #aebbd0 !important;
+    }
+
+    .q-chip.bg-grey-3 {
+      background: #303d50 !important;
+      color: #dbe5f1 !important;
+      border: 1px solid #52637b;
+    }
+
+    .q-chip.bg-primary {
+      background: #1d4d7a !important;
+      color: #e5f2ff !important;
+      border: 1px solid #4b8fc7;
+    }
+
+    .q-badge.bg-blue-2,
+    .q-badge.bg-teal-2 {
+      background: #203d5d !important;
+      color: #c9e2ff !important;
+      border: 1px solid #42668b;
+    }
+
+    .q-badge.bg-grey-5 {
+      background: #344154 !important;
+      color: #e2e8f0 !important;
+      border: 1px solid #63738b;
+    }
+
+    .q-banner.bg-orange-1 {
+      background: #3a2d1d !important;
+      color: #f9d89e !important;
+      border: 1px solid #785a2c;
+    }
+
+    .q-banner.bg-orange-1 .text-orange-9,
+    .q-banner.bg-orange-1 .text-orange-8 {
+      color: #f9d89e !important;
+    }
+
+    .q-banner.bg-blue-1 {
+      background: #1d3552 !important;
+      color: #c7ddff !important;
+      border: 1px solid #36577c;
+    }
+
+    .q-banner.bg-blue-1 .text-blue-9,
+    .q-banner.bg-blue-1 .text-blue-7,
+    .q-banner.bg-blue-1 .text-blue-6 {
+      color: #c7ddff !important;
+    }
+
+    .q-chip.bg-blue-2 {
+      background: #203d5d !important;
+      color: #c9e2ff !important;
+      border: 1px solid #42668b;
+    }
+
+    .q-banner.bg-amber-1 {
+      background: #3c321d !important;
+      color: #f7e3af !important;
+      border: 1px solid #74602e;
+    }
+
+    .q-banner.bg-amber-1 .text-amber-9,
+    .q-banner.bg-amber-1 .text-amber-8 {
+      color: #f7e3af !important;
     }
   }
 
@@ -2118,6 +2352,16 @@ body.body--dark .q-dialog {
     .asset-state {
       background: #26364c;
       color: #cbd5e1;
+    }
+
+    .selected-chips .q-chip.bg-blue-1 {
+      background: #1d3552 !important;
+      color: #bfdbfe !important;
+    }
+
+    .selected-chips .q-chip.bg-red-1 {
+      background: #3a2027 !important;
+      color: #fecaca !important;
     }
   }
 

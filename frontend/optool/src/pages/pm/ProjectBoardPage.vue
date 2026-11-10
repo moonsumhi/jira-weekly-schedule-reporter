@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md project-board-page">
     <div class="row items-center q-mb-sm q-gutter-sm">
       <div class="text-h6">{{ project?.name }} — 보드</div>
       <q-badge v-if="project" color="primary" :label="project.key" />
@@ -45,6 +45,7 @@
         :color="visibleStatuses.has(status) ? STATUS_COLOR[status] : undefined"
         :text-color="visibleStatuses.has(status) ? 'white' : 'grey-7'"
         :outline="!visibleStatuses.has(status)"
+        :class="['pm-board-status-filter', `pm-board-status--${status.toLowerCase()}`]"
         @click="toggleStatus(status)"
       >{{ STATUS_LABEL[status] }}</q-chip>
 
@@ -168,7 +169,11 @@
         <q-card flat bordered class="board-column-card">
           <q-card-section class="q-py-sm column-header">
             <div class="row items-center q-gutter-xs">
-              <q-badge :color="STATUS_COLOR[status]" :label="STATUS_LABEL[status]" class="pm-issue-status-badge" />
+              <q-badge
+                :color="STATUS_COLOR[status]"
+                :label="STATUS_LABEL[status]"
+                :class="['pm-issue-status-badge', 'pm-board-status-badge', `pm-board-status--${status.toLowerCase()}`]"
+              />
               <q-badge outline :label="(filteredBoard[status] ?? []).length" />
             </div>
           </q-card-section>

@@ -297,18 +297,18 @@
             </div>
 
             <!-- 2-3: 하위 작업 -->
-            <div v-if="si === 2 && idx === 3" class="mock-screen" style="max-width:420px">
+            <div v-if="si === 2 && idx === 3" class="mock-screen subtask-preview" style="max-width:420px">
               <div class="mock-section-label q-mb-xs">하위 작업</div>
-              <div class="column q-gutter-xs q-mb-sm">
-                <div class="row items-center q-gutter-sm bg-grey-1 q-pa-xs rounded-borders">
+              <div class="guide-subtask-list column q-gutter-xs q-mb-sm">
+                <div class="guide-subtask-row row items-center q-pa-xs rounded-borders">
                   <q-badge color="positive" label="완료" />
-                  <span class="text-body2" style="text-decoration:line-through;color:#9e9e9e">DB 스키마 설계</span>
+                  <span class="text-body2 guide-subtask-completed">DB 스키마 설계</span>
                 </div>
-                <div class="row items-center q-gutter-sm bg-grey-1 q-pa-xs rounded-borders">
+                <div class="guide-subtask-row row items-center q-pa-xs rounded-borders">
                   <q-badge color="blue-4" label="할 일" />
                   <span class="text-body2">API 엔드포인트 구현</span>
                 </div>
-                <div class="row items-center q-gutter-sm bg-grey-1 q-pa-xs rounded-borders">
+                <div class="guide-subtask-row row items-center q-pa-xs rounded-borders">
                   <q-badge color="blue-4" label="할 일" />
                   <span class="text-body2">Swagger 문서 작성</span>
                 </div>
@@ -664,15 +664,15 @@
             </div>
 
             <!-- 6-5: 포함/제외 토글 -->
-            <div v-if="si === 6 && idx === 5" class="mock-screen" style="max-width:420px">
+            <div v-if="si === 6 && idx === 5" class="mock-screen report-inclusion-preview" style="max-width:420px">
               <div class="column q-gutter-xs">
-                <div class="row items-center q-gutter-sm q-pa-xs" style="background:#f5f5f5;border-radius:4px">
+                <div class="report-inclusion-row included row items-center q-gutter-sm q-pa-xs">
                   <q-icon name="check_circle" color="positive" size="16px" />
                   <span class="text-body2">서버 증설 검토 안건</span>
                   <q-badge color="blue-2" text-color="blue-9" label="일정" size="xs" />
                   <span class="text-caption text-grey-5 q-ml-auto">보고서 포함</span>
                 </div>
-                <div class="row items-center q-gutter-sm q-pa-xs" style="border-radius:4px;opacity:0.4">
+                <div class="report-inclusion-row excluded row items-center q-gutter-sm q-pa-xs">
                   <q-icon name="radio_button_unchecked" color="grey-4" size="16px" />
                   <span class="text-body2">내부 팀 회의록</span>
                   <span class="text-caption text-grey-5 q-ml-auto">보고서 제외</span>
@@ -718,9 +718,9 @@
       </div>
 
       <!-- 팁 배너 -->
-      <q-banner v-if="sc.tip" rounded class="bg-amber-1 q-mt-sm">
+      <q-banner v-if="sc.tip" rounded class="schedule-guide-tip q-mt-sm">
         <template #avatar><q-icon name="lightbulb" color="amber-8" /></template>
-        <span class="text-amber-9 text-body2">{{ sc.tip }}</span>
+        <span class="schedule-guide-tip-text text-body2">{{ sc.tip }}</span>
       </q-banner>
     </div>
 
@@ -1129,6 +1129,26 @@ function scrollTo(id: string) {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  color: #9e9e9e;
+}
+.guide-subtask-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
+}
+.guide-subtask-row .q-badge {
+  flex: 0 0 46px;
+  justify-content: center;
+}
+.guide-subtask-row .text-body2 {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.guide-subtask-completed {
+  text-decoration: line-through;
   color: #9e9e9e;
 }
 .mock-screen {

@@ -454,7 +454,7 @@
               목록에서 행 우측의 <strong>취소 아이콘</strong>을 클릭하거나, 상세 화면 상단의 [취소] 버튼을 누르면 됩니다.
               최종 완료·반려·이미 취소된 SR은 취소할 수 없습니다.
             </div>
-            <q-banner rounded class="bg-grey-2" style="pointer-events:none">
+            <q-banner rounded class="bg-grey-2 guide-cancel-reason-banner" style="pointer-events:none">
               <template #avatar><q-icon name="info" color="grey-6" /></template>
               <span class="text-grey-8">취소 다이얼로그가 열리면 <strong>취소 사유</strong>를 입력해야 확인 버튼이 활성화됩니다.</span>
             </q-banner>
@@ -646,7 +646,7 @@
                 <q-input model-value="" outlined dense label="처리 예정 시작일" type="date" class="col" />
                 <q-input model-value="" outlined dense label="처리 예정 완료일" type="date" class="col" />
               </div>
-              <q-input model-value="5일" outlined dense label="예상 공수 (자동 계산, 주말 제외)" readonly bg-color="grey-1" class="q-mb-sm" />
+            <q-input model-value="5일" outlined dense label="예상 공수 (자동 계산, 주말 제외)" readonly bg-color="grey-1" class="q-mb-sm guide-expected-effort" />
               <div class="row q-gutter-xl">
                 <div class="row items-center q-gutter-xs">
                   <q-toggle model-value="false" color="orange-7" dense size="sm" />
@@ -658,7 +658,7 @@
                 </div>
               </div>
             </div>
-            <q-banner rounded class="bg-indigo-1 q-mt-sm" style="pointer-events:none">
+            <q-banner rounded class="bg-indigo-1 q-mt-sm guide-sr-project-banner" style="pointer-events:none">
               <template #avatar><q-icon name="link" color="indigo-7" /></template>
               <span class="text-indigo-9 text-body2">SR 기본 프로젝트가 설정되어 있으면, 담당자 배정 시 스케줄 관리 시스템에 이슈가 자동으로 등록됩니다.</span>
             </q-banner>
@@ -716,7 +716,7 @@
                   <q-badge color="grey-5" label="내부 메모" size="xs" />
                   <span class="text-caption text-grey-5 q-ml-auto">2026-07-13 14:32</span>
                 </div>
-                <div class="q-mt-xs q-ml-lg q-pa-sm bg-grey-2 rounded-borders text-caption text-grey-8">
+                <div class="q-mt-xs q-ml-lg q-pa-sm bg-grey-2 rounded-borders text-caption text-grey-8 guide-internal-memo-example">
                   DB 팀 확인 필요. 별도 채널로 공유 예정.
                 </div>
               </div>

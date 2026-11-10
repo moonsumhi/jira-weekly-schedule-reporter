@@ -1,5 +1,5 @@
 <template>
-  <q-page padding class="board-post-detail-page">
+  <q-page padding class="board-post-detail-page" :class="{ 'document-detail-dark': $q.dark.isActive }">
     <div class="document-detail-layout" :class="{ 'document-nav-open': docNavOpen }">
       <aside v-if="docNavOpen" class="document-nav-panel">
         <q-card flat bordered class="document-outline-card">
@@ -588,6 +588,36 @@ watch(postId, () => { void load() })
   font-weight: 600;
 }
 .document-tree-empty { padding: 18px 16px; color: #8290a2; font-size: 13px; }
+.board-post-detail-page.document-detail-dark .document-tree-row:not(.is-current) {
+  color: #e2e8f0;
+}
+.board-post-detail-page.document-detail-dark .document-tree-row:not(.is-current) .document-tree-folder {
+  color: #bfdbfe;
+}
+.board-post-detail-page.document-detail-dark .document-tree-row:not(.is-current) .document-tree-page-icon {
+  color: #bfdbfe;
+}
+.board-post-detail-page.document-detail-dark .document-tree-row.is-current {
+  background: #203a5a;
+  box-shadow: inset 3px 0 #60a5fa;
+  color: #eff6ff;
+}
+.board-post-detail-page.document-detail-dark .document-tree-row.is-current .document-tree-folder,
+.board-post-detail-page.document-detail-dark .document-tree-row.is-current .document-tree-page-icon {
+  color: #bfdbfe;
+}
+.board-post-detail-page.document-detail-dark .document-tree-current-label {
+  background: #31577f;
+  color: #dbeafe;
+}
+.board-post-detail-page.document-detail-dark .document-tree-row:not(.is-current):hover {
+  background: #29384d;
+  color: #f1f5f9;
+}
+.board-post-detail-page.document-detail-dark .document-tree-row:not(.is-current):hover .document-tree-folder,
+.board-post-detail-page.document-detail-dark .document-tree-row:not(.is-current):hover .document-tree-page-icon {
+  color: #bfdbfe;
+}
 @media (max-width: 700px) {
   .document-detail-layout.document-nav-open { grid-template-columns: minmax(0, 1fr); }
 }

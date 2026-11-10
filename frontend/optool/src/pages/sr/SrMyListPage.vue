@@ -85,7 +85,7 @@
             <q-icon v-if="statusTabState(tab.key) === 'exclude'" name="block" size="11px" class="q-mr-xs" />
             {{ tab.label }}
             <span v-if="tab.count > 0" class="q-ml-xs"
-              :class="statusTabState(tab.key) === 'include' ? 'text-white' : 'text-grey-5'"
+              :class="statusTabState(tab.key) === 'include' ? 'text-white' : $q.dark.isActive ? 'text-blue-grey-2' : 'text-grey-5'"
               style="font-size:0.72rem">{{ tab.count }}</span>
             <q-tooltip v-if="tab.key !== 'all'">
               {{ statusTabTooltip(tab.key) }}
@@ -419,10 +419,11 @@ function handleStatusChipClick(key: string) {
 }
 function statusChipColor(tab: { key: string; color: string }) {
   const state = statusTabState(tab.key)
-  return state === 'include' || state === 'exclude' ? tab.color : 'grey-3'
+  return state === 'include' || state === 'exclude' ? tab.color : $q.dark.isActive ? 'blue-grey-8' : 'grey-3'
 }
 function statusChipTextColor(tab: { key: string; color: string }) {
-  return statusTabState(tab.key) === 'exclude' ? tab.color : statusTabState(tab.key) === 'include' ? 'white' : 'grey-7'
+  const state = statusTabState(tab.key)
+  return state === 'exclude' ? tab.color : state === 'include' ? 'white' : $q.dark.isActive ? 'blue-grey-1' : 'grey-7'
 }
 
 const filteredRows = computed(() => {
