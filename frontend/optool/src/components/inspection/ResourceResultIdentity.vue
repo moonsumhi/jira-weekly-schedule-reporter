@@ -3,13 +3,14 @@
     <router-link
       v-if="row.asset && !row.asset.isDeleted && canViewAsset"
       class="server-name asset-name"
-      :to="{ path: '/asset/list', query: { category: '서버', assetId: row.asset.id } }"
+      :to="{ path: '/asset/list', query: { category: row.asset.category || '서버', assetId: row.asset.id } }"
       >{{ row.name }}</router-link
     >
     <span v-else class="server-name">{{ row.name }}</span>
     <div class="server-ip">{{ row.ip || 'IP 미등록' }}</div>
     <div class="server-context">
       <span v-if="row.regular" class="regular-label">정기 점검</span>
+      <span v-if="row.asset && row.asset.category && row.asset.category !== '서버'">{{ row.asset.category }}</span>
       <span v-if="row.asset && row.asset.name !== row.name">등록 자산 · {{ row.asset.name }}</span>
       <span v-if="row.record && !row.asset" class="unlinked-label">자산 미연결</span>
       <button

@@ -599,6 +599,24 @@ class ReportTests(unittest.IsolatedAsyncioTestCase):
         p = await self.preview(report_id=doc['id'], version=doc['version'])
         self.assertIsNone(p['snapshot']['servers'][0]['asset'])
 
+    async def test_non_server_exception_survives_report_refresh_and_rejects_deleted_asset(self):
+        await M.get_assets_servers_collection().update_one({'_id': self.aid}, {'$set': {'name': 'old-host'}})
+        identifier = ObjectId()
+        collection = M.get_asset_collection('정보보호시스템')
+        await collection.insert_one({'_id': identifier, 'name': '방화벽', 'ip': '192.0.2.10'})
+        row = (await self.preview())['snapshot']['servers'][0]
+        mapping = {'row_key': row['key'], 'asset_id': str(identifier)}
+        doc = await self.create(await self.preview(mappings=[mapping]))
+        self.assertEqual(doc['snapshot']['servers'][0]['asset']['category'], '정보보호시스템')
+        refreshed = await self.preview(report_id=doc['id'], version=doc['version'])
+        self.assertEqual(refreshed['snapshot']['servers'][0]['asset']['id'], str(identifier))
+        await collection.update_one({'_id': identifier}, {'$set': {'is_deleted': True}})
+        refreshed = await self.preview(report_id=doc['id'], version=doc['version'])
+        self.assertIsNone(refreshed['snapshot']['servers'][0]['asset'])
+        response = await self.client.post('/reports/preview', json={
+            'month': '2026-09', 'source_id': str(self.sid), 'mappings': [mapping]})
+        self.assertEqual(response.status_code, 422)
+
     async def test_exception_connection_validates_source_rows_and_active_assets(self):
         await M.get_assets_servers_collection().update_one({'_id': self.aid}, {'$set': {'name': 'exception-target'}})
         row = (await self.preview())['snapshot']['servers'][0]
