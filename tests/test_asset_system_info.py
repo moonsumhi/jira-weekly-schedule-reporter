@@ -53,15 +53,20 @@ class AssetSystemInfoTests(unittest.IsolatedAsyncioTestCase):
 
     def info(self):
         return {
-            'cpu': {'model': 'Example CPU', 'sockets': 1, 'coreCount': 6, 'logicalCpus': 12},
+            'cpu': {'model': 'Example CPU', 'sockets': 1, 'coreCount': 6, 'logicalCpus': 12,
+                    'coresPerSocket': 6, 'frequencyMhz': 3200, 'threadList': '0-11', 'numaNodes': 1},
             'memory': {'totalGb': 32, 'totalSlots': 4},
             'memoryModules': [{'slot': 'A1', 'capacityGb': 16, 'status': '장착'}, {'slot': 'A2', 'status': '미장착'}],
             'disks': [{'name': 'sda', 'type': '디스크', 'capacity': '1 TB'},
                       {'name': 'sda1', 'type': '파티션', 'parent': 'sda', 'mountPoint': '/data', 'capacity': '500 GB'}],
-            'hardware': {'boardModel': 'Example Board', 'biosDate': '2026-01-02'},
-            'networkInterfaces': [{'name': 'bond0', 'type': '본딩', 'state': '활성', 'ipv4': '192.0.2.10/24\n192.0.2.11/24'},
+            'hardware': {'boardModel': 'Example Board', 'biosDate': '2026-01-02', 'boardVersion': '2', 'biosRevision': '1.2'},
+            'partitions': [{'mountPoint': '/', 'source': '/dev/sda1', 'sizeBytes': 1073741824,
+                            'usedBytes': 536870912, 'availableBytes': 536870912, 'usedPercent': 50}],
+            'networkInterfaces': [{'name': 'bond0', 'type': '본딩', 'state': '활성', 'ipv4': '192.0.2.10/24\n192.0.2.11/24',
+                                   'netmask': '255.255.255.0', 'gateway': '192.0.2.1', 'bondingOptions': 'mode=active-backup'},
                                   {'name': 'eth0', 'parent': 'bond0', 'mac': '02:00:00:00:00:01', 'mtu': 1500}],
             'notes': '직접 입력한 정보',
+            'gpus': [{'manufacturer': 'Vendor', 'productName': 'GPU-1', 'coreCodename': 'Core-1'}],
         }
 
     async def save(self, **kwargs):
@@ -79,6 +84,11 @@ class AssetSystemInfoTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(doc['system_info']['cpu']['coreCount'], 6)
         self.assertEqual(doc['system_info']['disks'][1]['parent'], 'sda')
         self.assertEqual(doc['system_info']['hardware']['biosDate'], '2026-01-02')
+        self.assertEqual(doc['system_info']['hardware']['biosRevision'], '1.2')
+        self.assertEqual(doc['system_info']['cpu']['coresPerSocket'], 6)
+        self.assertEqual(doc['system_info']['partitions'][0]['sizeBytes'], 1073741824)
+        self.assertEqual(doc['system_info']['networkInterfaces'][0]['bondingOptions'], 'mode=active-backup')
+        self.assertEqual(doc['system_info']['gpus'][0]['productName'], 'GPU-1')
         self.assertEqual(doc['system_info']['networkInterfaces'][0]['ipv4'], '192.0.2.10/24\n192.0.2.11/24')
         stored = await M.get_assets_servers_collection().find_one({'_id': self.aid})
         self.assertEqual(stored['system_info']['cpu']['core_count'], 6)
@@ -102,6 +112,7 @@ class AssetSystemInfoTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(info['memory']['totalGb'], 0)
         self.assertEqual(info['disks'], [])
         self.assertEqual(info['memoryModules'], [])
+        self.assertEqual(info['partitions'], [])
         cleared = await self.save(version=3, system_info=None)
         self.assertEqual(cleared['system_info']['cpu']['model'], '')
 

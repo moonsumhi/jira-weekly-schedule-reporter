@@ -1671,7 +1671,7 @@
         >
           <q-tab name="basic" label="기본정보" />
           <q-tab name="config" label="구성정보" />
-          <q-tab v-if="canViewSystemInfo" name="system-info" label="시스템 정보" />
+          <q-tab v-if="canViewSystemInfo" name="system-info" label="하드웨어 정보" />
           <q-tab name="location" label="위치·연결" />
           <q-tab v-if="inspectionAuth.me?.isAdmin || inspectionAuth.me?.permissions?.includes('asset')" name="work-documents" label="운영 이력" />
           <q-tab name="history" label="변경이력" @click="loadDetailHistory" />

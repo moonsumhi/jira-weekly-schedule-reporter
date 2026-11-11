@@ -8,6 +8,7 @@ from pydantic.alias_generators import to_camel
 Text = Annotated[str, Field(max_length=256)]
 Count = Annotated[int, Field(ge=1, le=1048576)]
 Capacity = Annotated[float, Field(ge=0, le=1073741824, allow_inf_nan=False)]
+ByteSize = Annotated[int, Field(ge=0, le=9007199254740991)]
 
 
 class InfoModel(BaseModel):
@@ -26,6 +27,10 @@ class CpuInfo(InfoModel):
     frequency: Text = ''
     virtualization: Text = ''
     cache: Text = ''
+    cores_per_socket: Count | None = None
+    frequency_mhz: Capacity | None = None
+    thread_list: Annotated[str, Field(max_length=4000)] = ''
+    numa_nodes: Count | None = None
 
 
 class MemoryInfo(InfoModel):
@@ -33,17 +38,22 @@ class MemoryInfo(InfoModel):
     total_slots: Annotated[int, Field(ge=0, le=65536)] | None = None
     max_capacity_gb: Capacity | None = None
     ecc: Text = ''
+    installed_slots: Annotated[int, Field(ge=0, le=65536)] | None = None
 
 
 class MemoryModule(InfoModel):
     slot: Text = ''
     status: Literal['', '장착', '미장착', '확인 필요'] = ''
     capacity_gb: Capacity | None = None
+    size_bytes: ByteSize | None = None
     type: Text = ''
     speed: Text = ''
     manufacturer: Text = ''
     model: Text = ''
     serial: Text = ''
+    part_number: Text = ''
+    specification: Text = ''
+    form_factor: Text = ''
 
 
 class DiskInfo(InfoModel):
@@ -55,6 +65,23 @@ class DiskInfo(InfoModel):
     parent: Text = ''
     model: Text = ''
     serial: Text = ''
+    manufacturer: Text = ''
+    kernel_name: Text = ''
+    partition_label: Text = ''
+    filesystem_label: Text = ''
+    size_bytes: ByteSize | None = None
+    uuid: Text = ''
+    revision: Text = ''
+
+
+class PartitionInfo(InfoModel):
+    mount_point: Text = ''
+    source: Text = ''
+    size_bytes: ByteSize | None = None
+    used_bytes: ByteSize | None = None
+    available_bytes: ByteSize | None = None
+    used_percent: Annotated[float, Field(ge=0, le=100, allow_inf_nan=False)] | None = None
+    filesystem: Text = ''
 
 
 class HardwareInfo(InfoModel):
@@ -65,6 +92,10 @@ class HardwareInfo(InfoModel):
     bios_manufacturer: Text = ''
     bios_version: Text = ''
     bios_date: date | None = None
+    board_version: Text = ''
+    board_features: Annotated[str, Field(max_length=4000)] = ''
+    bios_revision: Text = ''
+    bios_features: Annotated[str, Field(max_length=4000)] = ''
 
 
 class NetworkInterface(InfoModel):
@@ -78,6 +109,15 @@ class NetworkInterface(InfoModel):
     permanent_mac: Text = ''
     parent: Text = ''
     speed: Text = ''
+    netmask: Text = ''
+    gateway: Text = ''
+    bonding_options: Annotated[str, Field(max_length=4000)] = ''
+
+
+class GpuInfo(InfoModel):
+    manufacturer: Text = ''
+    product_name: Text = ''
+    core_codename: Text = ''
 
 
 class SystemInformation(InfoModel):
@@ -85,6 +125,8 @@ class SystemInformation(InfoModel):
     memory: MemoryInfo = Field(default_factory=MemoryInfo)
     memory_modules: list[MemoryModule] = Field(default_factory=list, max_length=128)
     disks: list[DiskInfo] = Field(default_factory=list, max_length=256)
+    partitions: list[PartitionInfo] = Field(default_factory=list, max_length=512)
     hardware: HardwareInfo = Field(default_factory=HardwareInfo)
     network_interfaces: list[NetworkInterface] = Field(default_factory=list, max_length=128)
+    gpus: list[GpuInfo] = Field(default_factory=list, max_length=128)
     notes: Annotated[str, Field(max_length=4000)] = ''

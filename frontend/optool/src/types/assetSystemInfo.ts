@@ -5,8 +5,10 @@ export type SystemInformation = {
   memory: SystemInfoValues
   memoryModules: SystemInfoValues[]
   disks: SystemInfoValues[]
+  partitions: SystemInfoValues[]
   hardware: SystemInfoValues
   networkInterfaces: SystemInfoValues[]
+  gpus: SystemInfoValues[]
   notes: string
 }
 
@@ -21,68 +23,119 @@ export type SystemInfoField = {
   decimal?: boolean
   maxLength?: number
   wide?: boolean
+  stacked?: boolean
+  bytes?: boolean
 }
-type SingleKey = 'cpu' | 'memory' | 'hardware'
-type ListKey = 'memoryModules' | 'disks' | 'networkInterfaces'
-export type SystemInfoSection = { title: string; fields: SystemInfoField[] } & (
-  { key: SingleKey; multiple?: false } |
-  { key: ListKey; multiple: true; itemLabel: string; limit: number }
+export type SystemInfoSingleKey = 'cpu' | 'memory' | 'hardware'
+export type SystemInfoListKey = 'memoryModules' | 'disks' | 'partitions' | 'networkInterfaces' | 'gpus'
+export type SystemInfoSection = { title: string; fields: SystemInfoField[]; rows: string[][] } & (
+  { key: SystemInfoSingleKey; multiple?: false } |
+  { key: SystemInfoListKey; multiple: true; itemLabel: string; limit: number; columns: string[] }
 )
 const count = (key: string, label: string, min = 1): SystemInfoField => ({ key, label, type: 'number', min, max: 1048576 })
 const gb = (key: string, label: string): SystemInfoField => ({ key, label, type: 'number', min: 0, max: 1073741824, decimal: true })
+const bytes = (key: string, label: string): SystemInfoField => ({ key, label, type: 'number', min: 0, max: Number.MAX_SAFE_INTEGER, bytes: true })
 
 export const systemInfoSections: SystemInfoSection[] = [
-  { key: 'cpu', title: 'CPU', fields: [
+  { key: 'hardware', title: '메인보드 상세', rows: [['boardManufacturer', 'boardModel'], ['boardVersion', 'boardSerial'], ['boardFeatures']], fields: [
+    { key: 'boardManufacturer', label: '제조사' }, { key: 'boardModel', label: '제품명' },
+    { key: 'boardVersion', label: '버전' }, { key: 'boardSerial', label: '시리얼' },
+    { key: 'boardFeatures', label: '특징', type: 'textarea', wide: true, stacked: true, maxLength: 4000 },
+  ] },
+  { key: 'hardware', title: 'BIOS 상세', rows: [['biosManufacturer', 'biosRevision'], ['biosVersion', 'biosDate'], ['biosFeatures']], fields: [
+    { key: 'biosManufacturer', label: '제조사' }, { key: 'biosRevision', label: 'BIOS 리비전' },
+    { key: 'biosVersion', label: '버전' }, { key: 'biosDate', label: '릴리즈 일자', type: 'date' },
+    { key: 'biosFeatures', label: '특징', type: 'textarea', wide: true, stacked: true, maxLength: 4000 },
+  ] },
+  { key: 'cpu', title: 'CPU 상세', rows: [
+    ['manufacturer', 'model'], ['architecture', 'frequencyMhz', 'virtualization'],
+    ['sockets', 'coresPerSocket', 'threadsPerCore'], ['logicalCpus', 'threadList', 'numaNodes'],
+  ], fields: [
     { key: 'manufacturer', label: '제조사' }, { key: 'model', label: '모델명' },
-    { key: 'architecture', label: '아키텍처', placeholder: '예: x86_64' }, count('sockets', '소켓 수'),
-    count('coreCount', '전체 코어 수'), count('logicalCpus', '논리 CPU 수'),
-    count('threadsPerCore', '코어당 스레드 수'), { key: 'frequency', label: '동작 주파수', placeholder: '예: 3.60 GHz' },
-    { key: 'virtualization', label: '가상화 지원', placeholder: '예: VT-x' }, { key: 'cache', label: '캐시', placeholder: '예: L3 12 MB' },
+    { key: 'architecture', label: '아키텍처', placeholder: '예: x86_64' },
+    gb('frequencyMhz', '동작 주파수 (MHz)'),
+    { key: 'virtualization', label: '가상화 기술 지원', placeholder: '예: VT-x, AMD-V, 미지원' },
+    count('sockets', '소켓 수'), count('coresPerSocket', '소켓당 코어 수'),
+    count('threadsPerCore', '코어당 스레드 수'), count('logicalCpus', '논리 CPU 수'),
+    { key: 'threadList', label: '스레드 목록', type: 'textarea', maxLength: 4000, placeholder: '예: 0-31' },
+    count('numaNodes', 'NUMA 노드 수'),
   ] },
-  { key: 'memory', title: '메모리', fields: [
-    gb('totalGb', '총 용량 (GB)'), { ...count('totalSlots', '전체 슬롯 수', 0), max: 65536 },
-    gb('maxCapacityGb', '최대 지원 용량 (GB)'), { key: 'ecc', label: '오류 정정 방식', placeholder: '예: ECC' },
+  { key: 'memory', title: '메모리 정보', rows: [['totalGb', 'maxCapacityGb', 'installedSlots', 'totalSlots']], fields: [
+    gb('totalGb', '총 용량 (GB)'), gb('maxCapacityGb', '최대 지원 용량 (GB)'),
+    { ...count('installedSlots', '장착 슬롯 수', 0), max: 65536 },
+    { ...count('totalSlots', '전체 슬롯 수', 0), max: 65536 },
   ] },
-  { key: 'memoryModules', title: '메모리 슬롯', multiple: true, itemLabel: '슬롯', limit: 128, fields: [
-    { key: 'slot', label: '슬롯명', placeholder: '예: DIMM A1' }, { key: 'status', label: '장착 상태', options: ['장착', '미장착', '확인 필요'] },
-    gb('capacityGb', '용량 (GB)'), { key: 'type', label: '메모리 종류', placeholder: '예: DDR4' },
-    { key: 'speed', label: '동작 속도', placeholder: '예: 2667 MT/s' }, { key: 'manufacturer', label: '제조사' },
-    { key: 'model', label: '모델명' }, { key: 'serial', label: '일련번호' },
+  { key: 'memoryModules', title: '메모리 슬롯 목록', multiple: true, itemLabel: '메모리 슬롯', limit: 128,
+    rows: [['slot', 'status'], ['manufacturer', 'partNumber'], ['model', 'specification'],
+      ['type', 'formFactor', 'speed'], ['sizeBytes', 'capacityGb', 'serial']],
+    columns: ['slot', 'manufacturer', 'capacityGb', 'specification', 'serial'], fields: [
+    { key: 'slot', label: '메모리 슬롯', placeholder: '예: DIMM A1' }, { key: 'manufacturer', label: '제조사' },
+    { key: 'model', label: '모델명' }, { key: 'type', label: '메모리 타입', placeholder: '예: DDR4' },
+    bytes('sizeBytes', 'Size (byte)'),
+    { key: 'status', label: '장착 상태', options: ['장착', '미장착', '확인 필요'] },
+    { key: 'partNumber', label: 'Part Number' }, { key: 'specification', label: '사양' },
+    { key: 'formFactor', label: 'Form Factor', placeholder: '예: DIMM, SODIMM' },
+    gb('capacityGb', 'Size (GB)'), { key: 'speed', label: 'Speed', placeholder: '예: 3200 MT/s' },
+    { key: 'serial', label: 'Serial' },
   ] },
-  { key: 'disks', title: '디스크', multiple: true, itemLabel: '디스크', limit: 256, fields: [
-    { key: 'name', label: '장치명', placeholder: '예: sda, vg-root' }, { key: 'type', label: '종류', options: ['디스크', '파티션', '논리 볼륨', '광학 장치', '기타'] },
-    { key: 'capacity', label: '용량', placeholder: '예: 500 GB' }, { key: 'filesystem', label: '파일시스템', placeholder: '예: ext4, xfs' },
-    { key: 'mountPoint', label: '마운트 경로', placeholder: '예: /data' }, { key: 'parent', label: '상위 장치', placeholder: '예: sda2' },
-    { key: 'model', label: '모델명' }, { key: 'serial', label: '일련번호' },
+  { key: 'disks', title: '디스크 목록', multiple: true, itemLabel: '디스크', limit: 256,
+    rows: [['name', 'kernelName', 'parent'], ['type', 'filesystem', 'uuid'], ['mountPoint', 'sizeBytes'],
+      ['partitionLabel', 'filesystemLabel', 'revision'], ['manufacturer', 'model', 'serial']],
+    columns: ['name', 'mountPoint', 'type', 'parent', 'filesystem', 'sizeBytes', 'manufacturer', 'model'], fields: [
+    { key: 'name', label: '장치명', placeholder: '예: sda, nvme0n1' },
+    { key: 'type', label: '장치 종류', options: ['디스크', '파티션', '논리 볼륨', '광학 장치', '기타'] },
+    { key: 'mountPoint', label: '마운트 경로' }, { key: 'partitionLabel', label: '파티션 라벨' },
+    { key: 'manufacturer', label: '제조사' }, { key: 'kernelName', label: '커널명' },
+    { key: 'filesystem', label: '파일시스템 종류' }, bytes('sizeBytes', 'Size (byte)'),
+    { key: 'filesystemLabel', label: '파일시스템 라벨' }, { key: 'model', label: '모델명' },
+    { key: 'parent', label: '부모 커널명' }, { key: 'uuid', label: 'UUID' },
+    { key: 'revision', label: 'REV' }, { key: 'serial', label: 'Serial' },
   ] },
-  { key: 'hardware', title: '하드웨어', fields: [
-    { key: 'boardManufacturer', label: '메인보드 제조사' }, { key: 'boardModel', label: '메인보드 모델' },
-    { key: 'boardSerial', label: '메인보드 일련번호' }, { key: 'chassis', label: '장비 형태', placeholder: '예: 랙마운트' },
-    { key: 'biosManufacturer', label: 'BIOS 제조사' }, { key: 'biosVersion', label: 'BIOS 버전' },
-    { key: 'biosDate', label: 'BIOS 날짜', type: 'date' },
+  { key: 'partitions', title: '파티션 목록', multiple: true, itemLabel: '파티션', limit: 512,
+    rows: [['mountPoint', 'source'], ['sizeBytes', 'usedBytes', 'availableBytes'], ['usedPercent', 'filesystem']],
+    columns: ['mountPoint', 'source', 'sizeBytes', 'usedBytes', 'availableBytes', 'usedPercent', 'filesystem'], fields: [
+    { key: 'mountPoint', label: '마운트 경로' }, bytes('sizeBytes', 'Size (byte)'),
+    { key: 'usedPercent', label: 'Used (%)', type: 'number', min: 0, max: 100, decimal: true },
+    { key: 'source', label: '마운트 소스' }, bytes('usedBytes', 'Used (byte)'),
+    { key: 'filesystem', label: '파일시스템 타입' }, bytes('availableBytes', 'Avail (byte)'),
   ] },
-  { key: 'networkInterfaces', title: '네트워크', multiple: true, itemLabel: '인터페이스', limit: 128, fields: [
-    { key: 'name', label: '인터페이스명', placeholder: '예: eth0, bond0' }, { key: 'type', label: '종류', options: ['물리', '본딩', '브리지', 'VLAN', '가상', '루프백', '기타'] },
-    { key: 'state', label: '동작 상태', options: ['활성', '비활성', '확인 필요'] }, count('mtu', 'MTU'),
-    { key: 'ipv4', label: 'IPv4 주소', type: 'textarea', placeholder: '예: 192.0.2.10/24', maxLength: 1024 },
-    { key: 'ipv6', label: 'IPv6 주소', type: 'textarea', placeholder: '예: fe80::1/64', maxLength: 1024 },
-    { key: 'mac', label: 'MAC 주소' }, { key: 'permanentMac', label: '원래 MAC 주소' },
-    { key: 'parent', label: '상위 인터페이스', placeholder: '예: bond0' }, { key: 'speed', label: '링크 속도', placeholder: '예: 1 Gbps' },
+  { key: 'networkInterfaces', title: '네트워크 목록', multiple: true, itemLabel: '네트워크', limit: 128,
+    rows: [['name', 'bondingOptions'], ['ipv4', 'netmask', 'gateway']],
+    columns: ['name', 'ipv4', 'netmask', 'gateway', 'bondingOptions'], fields: [
+    { key: 'name', label: '네트워크\n인터페이스' },
+    { key: 'ipv4', label: 'IP', type: 'textarea', maxLength: 1024 },
+    { key: 'bondingOptions', label: 'bonding 옵션', type: 'textarea', wide: true, maxLength: 4000 },
+    { key: 'netmask', label: 'netmask' }, { key: 'gateway', label: 'gateway' },
+  ] },
+  { key: 'gpus', title: 'GPU 목록', multiple: true, itemLabel: 'GPU', limit: 128,
+    rows: [['manufacturer', 'productName', 'coreCodename']],
+    columns: ['manufacturer', 'productName', 'coreCodename'], fields: [
+    { key: 'manufacturer', label: 'GPU 제조사' }, { key: 'productName', label: 'GPU 제품명' },
+    { key: 'coreCodename', label: 'GPU 코어\n코드네임' },
   ] },
 ]
 
+export function formatHardwareBytes(value: SystemInfoValue | undefined): string {
+  if (value === null || value === undefined || value === '') return '-'
+  const size = Number(value)
+  if (!Number.isFinite(size) || size < 0) return '-'
+  if (size < 1024) return `${size} B`
+  const units = ['KB', 'MB', 'GB', 'TB', 'PB']
+  const index = Math.min(Math.floor(Math.log(size) / Math.log(1024)) - 1, units.length - 1)
+  return `${Number((size / 1024 ** (index + 1)).toFixed(2))} ${units[index]}`
+}
 export function emptySystemInfoEntry(fields: SystemInfoField[]): SystemInfoValues {
   return Object.fromEntries(fields.map(field => [field.key, field.type === 'number' || field.type === 'date' ? null : '']))
 }
 
 /** A fresh editable copy; absent data stays empty rather than being guessed. */
 export function copySystemInformation(value?: SystemInformation | null): SystemInformation {
-  const data: SystemInformation = { cpu: {}, memory: {}, memoryModules: [], disks: [], hardware: {}, networkInterfaces: [], notes: value?.notes || '' }
+  const data: SystemInformation = { cpu: {}, memory: {}, memoryModules: [], disks: [], partitions: [], hardware: {}, networkInterfaces: [], gpus: [], notes: value?.notes || '' }
   for (const section of systemInfoSections) {
     if (section.multiple) {
       data[section.key] = (value?.[section.key] || []).map(row => ({ ...emptySystemInfoEntry(section.fields), ...row }))
     } else {
-      data[section.key] = { ...emptySystemInfoEntry(section.fields), ...value?.[section.key] }
+      data[section.key] = { ...data[section.key], ...emptySystemInfoEntry(section.fields), ...value?.[section.key] }
     }
   }
   return data
