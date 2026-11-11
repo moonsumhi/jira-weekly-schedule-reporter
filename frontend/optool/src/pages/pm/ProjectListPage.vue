@@ -45,7 +45,7 @@
         <template #action><q-btn flat dense label="다시 시도" @click="void fetchIssueMatches(issueMatches.length > 0)" /></template>
       </q-banner>
       <q-list v-if="issueMatches.length" bordered separator class="rounded-borders">
-        <q-item v-for="issue in issueMatches" :key="issue.id" clickable @click="goToIssue(issue)">
+        <q-item v-for="issue in issueMatches" :key="issue.id" clickable @click="void openSearchIssue(issue)">
           <q-item-section avatar class="issue-search-icon">
             <q-icon :name="TYPE_ICON[issue.type]" :color="TYPE_COLOR[issue.type]" size="18px" />
           </q-item-section>
@@ -54,6 +54,7 @@
             <q-item-label class="issue-search-title"><span class="issue-search-key">{{ issue.key }}</span>{{ issue.title }}</q-item-label>
           </q-item-section>
           <q-item-section side>
+            <q-spinner v-if="loadingIssueId === issue.id" color="primary" size="18px" class="q-mb-xs" />
             <q-badge outline :color="STATUS_COLOR[issue.status]">{{ STATUS_LABEL[issue.status] }}</q-badge>
           </q-item-section>
         </q-item>
@@ -172,6 +173,17 @@
       </div>
     </div>
 
+    <IssueDetailDialog
+      v-if="detailIssue"
+      :key="detailIssue.id"
+      v-model="detailDialogOpen"
+      :project-id="detailIssue.projectId"
+      :project-key="detailIssue.projectKey ?? ''"
+      :issue="detailIssue"
+      @updated="issueSearchDirty = true"
+      @deleted="issueSearchDirty = true"
+    />
+
     <!-- 프로젝트 생성 다이얼로그 -->
     <q-dialog v-model="dialog.open" no-backdrop-dismiss no-route-dismiss>
       <q-card style="min-width: 400px">
@@ -208,7 +220,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { Notify, Dialog } from 'quasar'
 import draggable from 'vuedraggable'
@@ -216,13 +228,14 @@ import {
   listProjects, createProject, toggleProjectFavorite, reorderFavoriteProjects, clearFavoriteProjects,
   searchProjectIssues, type Project, type ProjectIssueSearchItem,
 } from 'src/services/pm/project'
-import { STATUS_COLOR, STATUS_LABEL, TYPE_COLOR, TYPE_ICON } from 'src/services/pm/issue'
+import { getIssue, STATUS_COLOR, STATUS_LABEL, TYPE_COLOR, TYPE_ICON, type Issue } from 'src/services/pm/issue'
 import { listOrganizations, type Organization } from 'src/services/pm/organization'
 import { usePmStore } from 'src/stores/pm'
 import { getErrorMessage } from 'src/utils/http/error'
 
 const router = useRouter()
 const pmStore = usePmStore()
+const IssueDetailDialog = defineAsyncComponent(() => import('./components/IssueDetailDialog.vue'))
 
 const projects = ref<Project[]>([])
 const orgs = ref<Organization[]>([])
@@ -235,9 +248,16 @@ const issueHasMore = ref(false)
 let issueSearchTimer: ReturnType<typeof setTimeout> | undefined
 let issueSearchController: AbortController | undefined
 let issueSearchRequest = 0
+const detailIssue = ref<Issue | null>(null)
+const detailDialogOpen = ref(false)
+const loadingIssueId = ref('')
+const issueSearchDirty = ref(false)
+let issueDetailRequest = 0
 const sortKey = ref<string>('createdAt_desc')
 
 watch(() => search.value.trim(), query => {
+  ++issueDetailRequest
+  loadingIssueId.value = ''
   clearTimeout(issueSearchTimer)
   issueSearchController?.abort()
   ++issueSearchRequest
@@ -272,16 +292,35 @@ async function fetchIssueMatches(append = false) {
 }
 
 onBeforeUnmount(() => {
+  ++issueDetailRequest
   clearTimeout(issueSearchTimer)
   ++issueSearchRequest
   issueSearchController?.abort()
 })
 
-function goToIssue(issue: ProjectIssueSearchItem) {
-  const project = projects.value.find(item => item.id === issue.projectId)
-  if (project) pmStore.setProject(project)
-  void router.push({ path: `/pm/projects/${issue.projectId}/board`, query: { issueId: issue.id } })
+async function openSearchIssue(issue: ProjectIssueSearchItem) {
+  const request = ++issueDetailRequest
+  loadingIssueId.value = issue.id
+  try {
+    const loadedIssue = await getIssue(issue.projectId, issue.id)
+    if (request !== issueDetailRequest) return
+    detailIssue.value = loadedIssue
+    detailDialogOpen.value = true
+  } catch (error) {
+    if (request === issueDetailRequest) {
+      Notify.create({ type: 'negative', message: getErrorMessage(error, '일감 상세를 불러오지 못했습니다.') })
+    }
+  } finally {
+    if (request === issueDetailRequest) loadingIssueId.value = ''
+  }
 }
+
+watch(detailDialogOpen, open => {
+  if (!open && issueSearchDirty.value) {
+    issueSearchDirty.value = false
+    if (search.value.trim()) void fetchIssueMatches()
+  }
+})
 
 const sortOptions = [
   { label: '최신순',     value: 'createdAt_desc' },
