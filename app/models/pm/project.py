@@ -5,6 +5,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.pm.issue import IssueStatus, IssueType
+
 
 ProjectRole = Literal["ADMIN", "PROJECT_MANAGER", "DEVELOPER", "VIEWER"]
 
@@ -35,6 +37,23 @@ class ProjectOut(BaseModel):
     favorite_order: Optional[float] = None
     created_at: datetime
     updated_at: datetime
+
+
+class ProjectIssueSearchItem(BaseModel):
+    id: str
+    key: str
+    number: int
+    title: str
+    type: IssueType
+    status: IssueStatus
+    project_id: str = Field(serialization_alias="projectId")
+    project_key: str = Field(serialization_alias="projectKey")
+    project_name: str = Field(serialization_alias="projectName")
+
+
+class ProjectIssueSearchOut(BaseModel):
+    items: list[ProjectIssueSearchItem]
+    has_more: bool = Field(serialization_alias="hasMore")
 
 
 class ProjectMemberOut(BaseModel):

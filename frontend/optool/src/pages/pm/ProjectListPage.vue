@@ -12,7 +12,8 @@
       <q-input
         v-model="search"
         dense outlined
-        placeholder="프로젝트명 · 키 · 설명 검색"
+        placeholder="프로젝트명 · 키 · 설명 · 일감 제목 검색"
+        :maxlength="200"
         style="flex: 1; min-width: 0"
       >
         <template #prepend><q-icon name="search" color="grey-5" /></template>
@@ -32,13 +33,45 @@
 
     <q-inner-loading :showing="loading" />
 
+    <section v-if="search.trim()" class="issue-search q-mb-lg" aria-label="일감 검색 결과" aria-live="polite" :aria-busy="issueSearchLoading">
+      <div class="text-subtitle1 text-weight-medium q-mb-sm row items-center q-gutter-x-sm">
+        <q-icon name="manage_search" color="primary" />
+        <span>일감 검색 결과</span>
+        <q-badge v-if="issueMatches.length" outline color="primary">{{ issueMatches.length }}건{{ issueHasMore ? '+' : '' }}</q-badge>
+        <q-spinner v-if="issueSearchLoading" color="primary" size="20px" />
+      </div>
+      <q-banner v-if="issueSearchError" dense rounded class="issue-search-error q-mb-sm">
+        {{ issueSearchError }}
+        <template #action><q-btn flat dense label="다시 시도" @click="void fetchIssueMatches(issueMatches.length > 0)" /></template>
+      </q-banner>
+      <q-list v-if="issueMatches.length" bordered separator class="rounded-borders">
+        <q-item v-for="issue in issueMatches" :key="issue.id" clickable @click="goToIssue(issue)">
+          <q-item-section avatar class="issue-search-icon">
+            <q-icon :name="TYPE_ICON[issue.type]" :color="TYPE_COLOR[issue.type]" size="18px" />
+          </q-item-section>
+          <q-item-section class="issue-search-content">
+            <q-item-label caption class="issue-search-project">{{ issue.projectName }} ({{ issue.projectKey }})</q-item-label>
+            <q-item-label class="issue-search-title"><span class="issue-search-key">{{ issue.key }}</span>{{ issue.title }}</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-badge outline :color="STATUS_COLOR[issue.status]">{{ STATUS_LABEL[issue.status] }}</q-badge>
+          </q-item-section>
+        </q-item>
+      </q-list>
+      <div v-else-if="!issueSearchLoading && !issueSearchError" class="text-grey-6 text-caption q-py-sm">제목이 일치하는 일감이 없습니다.</div>
+      <q-btn v-if="issueHasMore && !issueSearchError" flat color="primary" label="일감 더 보기" class="q-mt-sm"
+        :loading="issueSearchLoading" @click="void fetchIssueMatches(true)" />
+    </section>
+
+    <div v-if="search.trim() && totalCount" class="text-subtitle1 text-weight-medium q-mb-sm">프로젝트 검색 결과</div>
+
     <!-- 빈 상태 -->
     <div v-if="!loading && projects.length === 0" class="column items-center q-mt-xl text-grey-6">
       <q-icon name="fa-solid fa-diagram-project" size="4rem" class="q-mb-md" />
       <div class="text-h6">프로젝트가 없습니다</div>
       <div class="text-caption">새 프로젝트를 만들어보세요.</div>
     </div>
-    <div v-else-if="!loading && totalCount === 0" class="column items-center q-mt-xl text-grey-6">
+    <div v-else-if="!loading && totalCount === 0 && !issueSearchLoading && !issueSearchError && issueMatches.length === 0" class="column items-center q-mt-xl text-grey-6">
       <q-icon name="search_off" size="4rem" class="q-mb-md" />
       <div class="text-h6">검색 결과가 없습니다</div>
       <div class="text-caption">다른 검색어를 입력하거나 검색을 초기화하세요.</div>
@@ -175,14 +208,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Notify, Dialog } from 'quasar'
 import draggable from 'vuedraggable'
 import {
   listProjects, createProject, toggleProjectFavorite, reorderFavoriteProjects, clearFavoriteProjects,
-  type Project,
+  searchProjectIssues, type Project, type ProjectIssueSearchItem,
 } from 'src/services/pm/project'
+import { STATUS_COLOR, STATUS_LABEL, TYPE_COLOR, TYPE_ICON } from 'src/services/pm/issue'
 import { listOrganizations, type Organization } from 'src/services/pm/organization'
 import { usePmStore } from 'src/stores/pm'
 import { getErrorMessage } from 'src/utils/http/error'
@@ -194,7 +228,60 @@ const projects = ref<Project[]>([])
 const orgs = ref<Organization[]>([])
 const loading = ref(false)
 const search = ref('')
+const issueMatches = ref<ProjectIssueSearchItem[]>([])
+const issueSearchLoading = ref(false)
+const issueSearchError = ref('')
+const issueHasMore = ref(false)
+let issueSearchTimer: ReturnType<typeof setTimeout> | undefined
+let issueSearchController: AbortController | undefined
+let issueSearchRequest = 0
 const sortKey = ref<string>('createdAt_desc')
+
+watch(() => search.value.trim(), query => {
+  clearTimeout(issueSearchTimer)
+  issueSearchController?.abort()
+  ++issueSearchRequest
+  issueMatches.value = []
+  issueHasMore.value = false
+  issueSearchError.value = ''
+  issueSearchLoading.value = !!query
+  if (query) issueSearchTimer = setTimeout(() => { void fetchIssueMatches() }, 300)
+})
+
+async function fetchIssueMatches(append = false) {
+  const query = search.value.trim()
+  if (!query) return
+  issueSearchController?.abort()
+  const controller = new AbortController()
+  issueSearchController = controller
+  const request = ++issueSearchRequest
+  issueSearchLoading.value = true
+  issueSearchError.value = ''
+  try {
+    const result = await searchProjectIssues(query, append ? issueMatches.value.length : 0, controller.signal)
+    if (request !== issueSearchRequest) return
+    issueMatches.value = append ? [...issueMatches.value, ...result.items] : result.items
+    issueHasMore.value = result.hasMore
+  } catch (error) {
+    if (request === issueSearchRequest && !controller.signal.aborted) {
+      issueSearchError.value = getErrorMessage(error, '일감 검색에 실패했습니다.')
+    }
+  } finally {
+    if (request === issueSearchRequest) issueSearchLoading.value = false
+  }
+}
+
+onBeforeUnmount(() => {
+  clearTimeout(issueSearchTimer)
+  ++issueSearchRequest
+  issueSearchController?.abort()
+})
+
+function goToIssue(issue: ProjectIssueSearchItem) {
+  const project = projects.value.find(item => item.id === issue.projectId)
+  if (project) pmStore.setProject(project)
+  void router.push({ path: `/pm/projects/${issue.projectId}/board`, query: { issueId: issue.id } })
+}
 
 const sortOptions = [
   { label: '최신순',     value: 'createdAt_desc' },
@@ -349,6 +436,15 @@ function goToBacklog(project: Project) {
 </script>
 
 <style scoped>
+.issue-search-content { min-width: 0; }
+.issue-search-icon { min-width: 36px; padding-right: 12px; }
+.issue-search-title { overflow-wrap: anywhere; line-height: 1.6 !important; }
+.issue-search-key { margin-right: 10px; color: var(--q-primary); font-weight: 600; white-space: nowrap; }
+.issue-search-project { overflow-wrap: anywhere; }
+.issue-search-error { background: #fff1e8; color: #8c4213; }
+:global(body.body--dark .issue-search-error) { background: #382d24; color: #ffd4ab; }
+:global(body.body--dark .issue-search-key) { color: #93c5fd; }
+:global(body.body--dark .issue-search-project) { color: #a9bdd6; }
 .project-card:hover {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
 }

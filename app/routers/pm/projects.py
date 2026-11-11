@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from typing import List
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
@@ -12,7 +13,9 @@ from app.models.pm.project import (
     ProjectCreate, ProjectPatch, ProjectOut,
     ProjectMemberAdd, ProjectMemberOut, ProjectMemberRolePatch,
     FavoriteOrderPatch,
+    ProjectIssueSearchItem, ProjectIssueSearchOut,
 )
+from app.models.pm.issue import canonical_issue_status
 from app.routers.auth import get_current_user
 from app.services.pm.permission import require_pm_admin
 
@@ -59,6 +62,59 @@ async def list_projects(current_user: UserPublic = Depends(get_current_user)):
         docs = await projects_col.find({"_id": {"$in": project_ids}}).sort("created_at", -1).to_list(None)
     favorite_orders = await _favorite_orders(current_user.id)
     return [_proj_to_out(d, favorite_orders) for d in docs]
+
+
+@router.get("/search/issues", response_model=ProjectIssueSearchOut)
+async def search_project_issues(
+    q: str = Query(..., min_length=1, max_length=200),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=1_000_000),
+    current_user: UserPublic = Depends(get_current_user),
+):
+    """접근 가능한 프로젝트의 일감 제목을 검색하고 소속 프로젝트를 함께 반환한다."""
+    term = q.strip()
+    if not term:
+        return ProjectIssueSearchOut(items=[], has_more=False)
+
+    project_query: dict = {"deleted_at": None, "is_deleted": {"$ne": True}}
+    if not current_user.is_admin:
+        memberships = await MongoClientManager.get_pm_project_members_collection().find(
+            {"user_id": ObjectId(current_user.id)}, {"project_id": 1}
+        ).to_list(None)
+        project_query["_id"] = {"$in": [m["project_id"] for m in memberships]}
+
+    projects = await MongoClientManager.get_pm_projects_collection().find(
+        project_query, {"name": 1, "key": 1}
+    ).to_list(None)
+    if not projects:
+        return ProjectIssueSearchOut(items=[], has_more=False)
+
+    projects_by_id = {p["_id"]: p for p in projects}
+    query = {
+        "project_id": {"$in": list(projects_by_id)},
+        "title": {"$regex": re.escape(term), "$options": "i"},
+        "deleted_at": None,
+        "is_deleted": {"$ne": True},
+    }
+    # Fetch just one extra row to keep pagination bounded without counting all hits.
+    docs = await MongoClientManager.get_pm_issues_collection().find(
+        query, {"project_id": 1, "number": 1, "title": 1, "type": 1, "status": 1}
+    ).sort([("updated_at", -1), ("_id", -1)]).skip(offset).limit(limit + 1).max_time_ms(5000).to_list(limit + 1)
+    items = []
+    for doc in docs[:limit]:
+        project = projects_by_id[doc["project_id"]]
+        items.append(ProjectIssueSearchItem(
+            id=str(doc["_id"]),
+            key=f"{project['key']}-{doc['number']}",
+            number=doc["number"],
+            title=doc["title"],
+            type=doc.get("type", "TASK"),
+            status=canonical_issue_status(doc.get("status", "BACKLOG")),
+            project_id=str(project["_id"]),
+            project_key=project["key"],
+            project_name=project["name"],
+        ))
+    return ProjectIssueSearchOut(items=items, has_more=len(docs) > limit)
 
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)

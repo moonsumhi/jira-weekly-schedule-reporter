@@ -1,4 +1,5 @@
 import { api } from 'src/boot/axios'
+import type { IssueStatus, IssueType } from './issue'
 
 export type ProjectRole = 'ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER' | 'VIEWER'
 
@@ -27,6 +28,30 @@ export type ProjectMember = {
 
 export async function listProjects() {
   const { data } = await api.get<Project[]>('/pm/projects')
+  return data
+}
+
+export type ProjectIssueSearchItem = {
+  id: string
+  key: string
+  title: string
+  type: IssueType
+  status: IssueStatus
+  projectId: string
+  projectName: string
+  projectKey: string
+}
+
+export type ProjectIssueSearchResult = {
+  items: ProjectIssueSearchItem[]
+  hasMore: boolean
+}
+
+export async function searchProjectIssues(q: string, offset = 0, signal?: AbortSignal) {
+  const { data } = await api.get<ProjectIssueSearchResult>('/pm/projects/search/issues', {
+    params: { q, offset, limit: 50 },
+    ...(signal ? { signal } : {}),
+  })
   return data
 }
 
