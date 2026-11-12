@@ -55,11 +55,44 @@ class AssetHardwareSchemaTests(unittest.TestCase):
         self.assertEqual(info.gpus, [])
         self.assertIsNone(info.cpu.frequency_mhz)
 
+    def test_disk_device_types_preserve_raw_and_legacy_values(self):
+        for device_type in ['disk', 'part', 'lvm', 'raid1', 'crypt',
+                            '디스크', '파티션', '논리 볼륨', '광학 장치', '기타', '']:
+            with self.subTest(device_type=device_type):
+                info = SystemInformation.model_validate({'disks': [{'type': device_type}]})
+                stored = info.model_dump(mode='json')
+                restored = SystemInformation.model_validate(stored)
+                self.assertEqual(restored.disks[0].type, device_type)
+                self.assertEqual(restored.model_dump(mode='json', by_alias=True)['disks'][0]['type'],
+                                 device_type)
+
+    def test_disk_capacity_text_and_exact_bytes_remain_independent(self):
+        payload = {'disks': [
+            {'name': 'sda', 'capacity': '446.1G'},
+            {'name': 'sdb', 'capacity': '446.1G', 'sizeBytes': 479119736832},
+            {'name': 'sdc', 'sizeBytes': 0},
+            {'name': 'sdd', 'sizeBytes': 9007199254740991},
+        ]}
+        info = SystemInformation.model_validate(payload)
+        restored = SystemInformation.model_validate(info.model_dump(mode='json'))
+        self.assertEqual(restored.disks[0].capacity, '446.1G')
+        self.assertIsNone(restored.disks[0].size_bytes)
+        self.assertEqual(restored.disks[1].capacity, '446.1G')
+        self.assertEqual(restored.disks[1].size_bytes, 479119736832)
+        self.assertEqual(restored.disks[2].size_bytes, 0)
+        self.assertEqual(restored.disks[3].size_bytes, 9007199254740991)
+        self.assertEqual(restored.disks[3].capacity, '')
+
     def test_invalid_capacity_percentage_and_entry_counts_are_rejected(self):
         for payload in [
             {'partitions': [{'sizeBytes': -1}]},
             {'partitions': [{'sizeBytes': 1.5}]},
             {'partitions': [{'sizeBytes': 9007199254740992}]},
+            {'disks': [{'type': 'x' * 257}]},
+            {'disks': [{'sizeBytes': -1}]},
+            {'disks': [{'sizeBytes': 1.5}]},
+            {'disks': [{'sizeBytes': '446.1G'}]},
+            {'disks': [{'sizeBytes': 9007199254740992}]},
             {'partitions': [{'usedPercent': 100.1}]},
             {'partitions': [{}] * 513},
             {'cpu': {'frequencyMhz': -1}},

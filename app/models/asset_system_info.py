@@ -58,7 +58,7 @@ class MemoryModule(InfoModel):
 
 class DiskInfo(InfoModel):
     name: Text = ''
-    type: Literal['', '디스크', '파티션', '논리 볼륨', '광학 장치', '기타'] = ''
+    type: Text = ''
     capacity: Text = ''
     filesystem: Text = ''
     mount_point: Text = ''

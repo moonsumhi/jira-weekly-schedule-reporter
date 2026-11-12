@@ -37,22 +37,29 @@
               :editing="editing" :disabled="disabled" @change="value => updateEntry(section.key, index, value)" />
           </div>
         </template>
-        <q-markup-table v-else-if="model[section.key].length" flat bordered wrap-cells class="hardware-table q-my-sm">
+        <q-markup-table v-else-if="model[section.key].length" flat bordered wrap-cells class="hardware-table q-my-sm"
+          :style="{ '--hardware-table-width': `${tableWidth(section)}px` }">
+          <colgroup>
+            <col v-for="column in section.columns" :key="column" :style="{ width: `${columnWidth(section, column)}px` }">
+            <col style="width: 64px">
+          </colgroup>
           <thead><tr>
-            <th v-for="column in section.columns" :key="column" class="text-left">{{ columnLabel(section, column) }}</th>
+            <th v-for="column in section.columns" :key="column" class="text-left"
+              :class="{ 'hardware-numeric': isNumericColumn(section, column) }">{{ columnLabel(section, column) }}</th>
             <th class="text-center">상세</th>
           </tr></thead>
           <tbody>
             <template v-for="(entry, index) in model[section.key]" :key="`${section.key}-${index}`">
               <tr class="hardware-list-row" @click="toggleEntry(section.key, index)">
-                <td v-for="column in section.columns" :key="column" :title="String(entry[column] ?? '')">{{ columnValue(section, entry, column) }}</td>
+                <td v-for="column in section.columns" :key="column" :title="String(columnValue(section, entry, column))"
+                  :class="{ 'hardware-numeric': isNumericColumn(section, column) }">{{ columnValue(section, entry, column) }}</td>
                 <td class="text-center"><q-btn flat round dense size="sm" :icon="isExpanded(section.key, index) ? 'expand_less' : 'expand_more'"
                   :aria-expanded="isExpanded(section.key, index)" :aria-label="`${section.itemLabel} ${index + 1} 상세 ${isExpanded(section.key, index) ? '접기' : '펼치기'}`"
                   @click.stop="toggleEntry(section.key, index)" /></td>
               </tr>
               <tr v-if="isExpanded(section.key, index)">
                 <td :colspan="section.columns.length + 1" class="hardware-detail-cell">
-                  <div class="system-entry q-pa-sm" :data-system-entry="`${section.key}.${index}`">
+                  <div class="system-entry hardware-detail-content q-pa-sm" :data-system-entry="`${section.key}.${index}`">
                     <div class="row items-center q-mb-md">
                       <strong>{{ section.itemLabel }} 상세 · {{ entry.slot || entry.name || entry.mountPoint || index + 1 }}</strong>
                       <q-space />
@@ -94,7 +101,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import AssetSystemInfoFields from './AssetSystemInfoFields.vue'
-import { emptySystemInfoEntry, formatHardwareBytes, systemInfoSections, type SystemInformation, type SystemInfoSection, type SystemInfoValues, type SystemInfoListKey, type SystemInfoSingleKey } from 'src/types/assetSystemInfo'
+import { emptySystemInfoEntry, formatHardwareBytes, systemInfoFieldValue, systemInfoSections, type SystemInformation, type SystemInfoSection, type SystemInfoValues, type SystemInfoListKey, type SystemInfoSingleKey } from 'src/types/assetSystemInfo'
 const model = defineModel<SystemInformation>({ required: true })
 defineProps<{ editing: boolean; disabled: boolean }>()
 const expanded = ref(new Set<string>())
@@ -203,10 +210,20 @@ function columnLabel(section: SystemInfoSection, key: string) {
   if (section.key === 'disks' && key === 'sizeBytes') return 'SIZE'
   return (field?.label || key).replace(/\n/g, ' ')
 }
+function columnWidth(section: SystemInfoSection, key: string) {
+  return section.fields.find(field => field.key === key)?.columnWidth ?? 140
+}
+function tableWidth(section: SystemInfoSection) {
+  return section.multiple ? section.columns.reduce((total, key) => total + columnWidth(section, key), 64) : 0
+}
+function isNumericColumn(section: SystemInfoSection, key: string) {
+  return section.fields.find(field => field.key === key)?.type === 'number'
+}
 function columnValue(section: SystemInfoSection, entry: SystemInfoValues, key: string) {
-  const value = entry[key]
-  if (value === null || value === undefined || value === '') return key === 'sizeBytes' && section.key === 'disks' ? entry.capacity || '-' : '-'
-  return section.key === 'disks' && key === 'sizeBytes' ? formatHardwareBytes(value) : value
+  const field = section.fields.find(field => field.key === key)
+  const value = field ? systemInfoFieldValue(field, entry) : entry[key]
+  if (value === null || value === undefined || value === '') return '-'
+  return section.key === 'disks' && key === 'sizeBytes' && typeof value === 'number' ? formatHardwareBytes(value) : value
 }
 async function addEntry(section: SystemInfoSection) {
   if (!section.multiple || model.value[section.key].length >= section.limit) return
@@ -229,15 +246,18 @@ async function addEntry(section: SystemInfoSection) {
 :global(body.body--dark .hardware-toc-link) { color: #cbd5e1; }
 :global(body.body--dark .hardware-toc-link:hover) { background: #26364c; }
 :global(body.body--dark .hardware-toc-link--active) { background: #234c76; color: #e5f2ff; border-color: #6b9dd1; }
-.hardware-table { max-width: 100%; }
+.hardware-table { width: 100%; max-width: 100%; overflow-x: auto; container-type: inline-size; }
+.hardware-table :deep(table) { width: 100%; min-width: var(--hardware-table-width); table-layout: fixed; }
 .hardware-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .hardware-summary-item { display: flex; align-items: baseline; gap: 10px; padding: 10px 12px; border: 1px solid #9aa9bc55; border-radius: 8px; overflow-wrap: anywhere; }
 .hardware-summary-item > span { flex: 0 0 auto; }
 .hardware-summary-item strong { flex: 1 1 0; min-width: 0; font-size: 13px; }
 .hardware-edit-entry + .hardware-edit-entry { border-top: 1px solid #9aa9bc55; }
-.hardware-table th { min-width: 100px; font-size: 11px; white-space: normal; }
-.hardware-table td { max-width: 240px; overflow-wrap: anywhere; white-space: normal; }
+.hardware-table th { font-size: 11px; white-space: normal; overflow-wrap: anywhere; }
+.hardware-table td { overflow-wrap: anywhere; white-space: pre-line; }
+.hardware-table .hardware-numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .hardware-list-row { cursor: pointer; }
 .hardware-detail-cell { padding: 12px !important; }
+.hardware-detail-content { position: sticky; left: 12px; width: calc(100cqw - 26px); max-width: 100%; }
 .detail-value { white-space: pre-line; }
 </style>

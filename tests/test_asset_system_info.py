@@ -104,6 +104,32 @@ class AssetSystemInfoTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(history), 2)
         self.assertTrue(any(d['path'].startswith('system_info') for d in history[0]['diff']))
 
+    async def test_raw_disk_capacity_and_exact_bytes_round_trip_without_conversion(self):
+        saved = await self.save(system_info={
+            'disks': [{'name': 'sda', 'type': 'disk', 'capacity': '446.1G', 'sizeBytes': None}],
+        })
+        disk = saved['system_info']['disks'][0]
+        self.assertEqual(disk['type'], 'disk')
+        self.assertEqual(disk['capacity'], '446.1G')
+        self.assertIsNone(disk['sizeBytes'])
+        doc = (await self.client.get(self.url)).json()
+        self.assertEqual(doc['system_info']['disks'][0], disk)
+        stored = await M.get_assets_servers_collection().find_one({'_id': self.aid})
+        self.assertEqual(stored['system_info']['disks'][0]['capacity'], '446.1G')
+        self.assertIsNone(stored['system_info']['disks'][0]['size_bytes'])
+
+        replaced = await self.save(version=2, system_info={
+            'disks': [{'name': 'sda', 'type': 'disk', 'capacity': '', 'sizeBytes': 479119736832}],
+        })
+        self.assertEqual(replaced['system_info']['disks'][0]['sizeBytes'], 479119736832)
+        self.assertEqual(replaced['system_info']['disks'][0]['capacity'], '')
+        cleared = await self.save(version=3, system_info={
+            'disks': [{'name': 'sda', 'type': 'disk', 'capacity': '', 'sizeBytes': None}],
+        })
+        self.assertIsNone(cleared['system_info']['disks'][0]['sizeBytes'])
+        self.assertEqual(cleared['system_info']['disks'][0]['capacity'], '')
+        self.assertEqual((await self.client.get(self.url)).json()['system_info'], cleared['system_info'])
+
     async def test_unknown_values_remain_empty_and_entries_can_be_removed(self):
         await self.save()
         saved = await self.save(version=2, system_info={'cpu': {'model': '일부 정보만 입력'}, 'memory': {'totalGb': 0}})
