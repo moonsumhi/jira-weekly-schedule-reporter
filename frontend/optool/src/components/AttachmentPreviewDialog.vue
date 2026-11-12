@@ -183,13 +183,23 @@ async function load() {
   if (ext.value === 'pptx' || ext.value === 'ppt') {
     loading.value = true
     try {
-      const resp = await fetch(`${apiBase()}/attachments/pptx-preview?path=${encodeURIComponent(attachmentRelPath(att.url))}`)
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => null)
-        throw new Error(body?.detail || `HTTP ${resp.status}`)
-      }
-      setIframeObjectUrl(await resp.blob())
+      // Use the shared API client so the current JWT is sent with the request.
+      // Raw fetch bypasses the Axios auth interceptor.
+      const resp = await api.get('/attachments/pptx-preview', {
+        params: { path: attachmentRelPath(att.url) },
+        responseType: 'blob',
+      })
+      setIframeObjectUrl(resp.data as Blob)
     } catch (e) {
+      if (e && typeof e === 'object' && 'response' in e) {
+        const response = (e as { response?: { data?: unknown } }).response
+        if (response?.data instanceof Blob) {
+          try {
+            const body = JSON.parse(await response.data.text()) as { detail?: string }
+            if (body.detail && e instanceof Error) e.message = body.detail
+          } catch { /* Keep the original request error if the response isn't JSON. */ }
+        }
+      }
       $q.notify({ type: 'negative', message: e instanceof Error ? e.message : '프레젠테이션 미리보기를 불러오지 못했습니다.' })
     } finally {
       loading.value = false

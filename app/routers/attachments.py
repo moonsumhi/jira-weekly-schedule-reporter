@@ -85,9 +85,11 @@ async def pptx_preview(path: str = Query(...)):
 
     out_dir = tempfile.mkdtemp()
     lo_home = tempfile.mkdtemp(prefix="lo_home_")
+    lo_profile = tempfile.mkdtemp(prefix="lo_profile_")
     try:
         result = subprocess.run(
-            ["libreoffice", "--headless", "--convert-to", "pdf",
+            ["libreoffice", "--headless", f"-env:UserInstallation={Path(lo_profile).as_uri()}",
+             "--convert-to", "pdf",
              "--outdir", out_dir, str(file_path)],
             capture_output=True, text=True, timeout=120,
             env={**os.environ, "HOME": lo_home},
@@ -102,3 +104,4 @@ async def pptx_preview(path: str = Query(...)):
     finally:
         shutil.rmtree(out_dir, ignore_errors=True)
         shutil.rmtree(lo_home, ignore_errors=True)
+        shutil.rmtree(lo_profile, ignore_errors=True)
