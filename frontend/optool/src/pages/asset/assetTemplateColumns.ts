@@ -1,7 +1,7 @@
 // 자산 Import/Export 템플릿 컬럼 정의 (카테고리별). 순수 데이터.
 import { EOS_STATUS_KEY, EOS_DATE_KEY } from 'src/types/assets'
 import {
-  ANTIVIRUS_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
+  ANTIVIRUS_KEY, ELASTIC_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
 } from './assetKeys'
 
 export type TemplateCol = { key: string; label: string; sample?: string }
@@ -32,6 +32,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'ISMS-P비고',   label: 'ISMS-P비고',                                                      sample: '' },
     { key: VADA_KEY,        label: 'VADA설치여부',                                                    sample: 'O' },
     { key: 'VADA비고',      label: 'VADA비고',                                                        sample: '' },
+    { key: ELASTIC_KEY,     label: 'Elastic설치여부',                                                 sample: 'O' },
     { key: ANTIVIRUS_KEY,   label: '백신여부',                                                        sample: 'O' },
     { key: '백신비고',       label: '백신비고',                                                        sample: '' },
     { key: '폐기일정',      label: '폐기일정',                                                        sample: '' },

@@ -930,6 +930,14 @@
                 <div class="field-label">VADA 비고</div>
                 <q-input v-model="createFields['VADA비고']" borderless dense class="field-input" />
               </div>
+              <div class="col-12">
+                <div class="row">
+                  <div class="col-4 form-field">
+                    <div class="field-label">Elastic 설치여부</div>
+                    <q-select v-model="createFields[ELASTIC_KEY]" :options="elasticOptions" borderless dense emit-value map-options clearable class="field-input" />
+                  </div>
+                </div>
+              </div>
               <div class="col-4 form-field">
                 <div class="field-label">백신 여부</div>
                 <q-select
@@ -1082,13 +1090,13 @@
             />
           </template>
 
-          <!-- VADA 설치 여부 -->
-          <template v-else-if="editFieldKey === VADA_KEY">
+          <!-- 설치 여부 -->
+          <template v-else-if="editFieldKey === VADA_KEY || editFieldKey === ELASTIC_KEY">
             <q-select
               v-model="editFieldText"
               :options="vadaOptions"
               outlined dense emit-value map-options
-              label="VADA 설치 여부"
+              :label="fieldLabel(editFieldKey)"
               class="q-mt-md"
             />
           </template>
@@ -1543,6 +1551,14 @@
               <div class="col form-field">
                 <div class="field-label">VADA 비고</div>
                 <q-input v-model="rowEditValues['VADA비고']" borderless dense class="field-input" />
+              </div>
+              <div class="col-12">
+                <div class="row">
+                  <div class="col-4 form-field">
+                    <div class="field-label">Elastic 설치여부</div>
+                    <q-select v-model="rowEditValues[ELASTIC_KEY]" :options="elasticOptions" borderless dense emit-value map-options clearable class="field-input" />
+                  </div>
+                </div>
               </div>
               <div class="col-4 form-field">
                 <div class="field-label">백신 여부</div>
@@ -2095,6 +2111,13 @@
                   <div class="field-label">VADA 비고</div>
                   <q-input v-if="detailEditing" v-model="rowEditValues['VADA비고']" borderless dense class="field-input" />
                   <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['VADA비고']) }}</div>
+                </div>
+              </div>
+              <div class="row q-col-gutter-x-md q-mt-sm">
+                <div class="col-4 form-field">
+                  <div class="field-label">Elastic 설치여부</div>
+                  <q-select v-if="detailEditing" v-model="rowEditValues[ELASTIC_KEY]" :options="elasticOptions" emit-value map-options clearable borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.[ELASTIC_KEY]) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
@@ -2796,7 +2819,7 @@ import { envCategoryService } from 'src/services/envCategory'
 import { eolStatusColor, eolStatusLabel, getAutoEol } from 'src/services/eolData'
 import { useMenuStore } from 'src/stores/menus'
 import {
-  ANTIVIRUS_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
+  ANTIVIRUS_KEY, ELASTIC_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
 } from './assetKeys'
 import { CATEGORY_TEMPLATE_COLS, type TemplateCol } from './assetTemplateColumns'
 
@@ -2804,6 +2827,7 @@ const vadaOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
 ]
+const elasticOptions = vadaOptions
 const antivirusOptions = [
   { label: 'O', value: 'O' },
   { label: 'X', value: 'X' },
@@ -2907,6 +2931,7 @@ const PREFERRED_FIELD_KEYS = [
   'ISMS-P비고',
   VADA_KEY,
   'VADA비고',
+  ELASTIC_KEY,
   ANTIVIRUS_KEY,
   '백신비고',
   '폐기일정',
@@ -2964,6 +2989,7 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   'ISMS-P비고': 'ISMS-P 비고',
   [VADA_KEY]: 'VADA 설치여부',
   'VADA비고': 'VADA 비고',
+  [ELASTIC_KEY]: 'Elastic 설치여부',
   [ANTIVIRUS_KEY]: '백신 여부',
   '백신비고': '백신 비고',
   '폐기일정': '폐기 일정',
@@ -3356,7 +3382,7 @@ function colKey(col: unknown): string {
 // 컬럼 표시 순서 — '__ip__'/'__name__'은 IP/HostName 고정 컬럼 위치 마커
 const COLUMN_DISPLAY_ORDER = [
   '상태', 'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
-  EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', '폐기일정', '폐기비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항', TAGS_KEY, '비고',
+  EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ELASTIC_KEY, ANTIVIRUS_KEY, '백신비고', '폐기일정', '폐기비고', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항', '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항', TAGS_KEY, '비고',
 ] as const
 
 // 컬럼 선택 다이얼로그
@@ -4344,7 +4370,7 @@ const rowEditFields = computed(() => {
 const EDIT_DIALOG_COVERED_KEYS = new Set([
   'Cisco 소프트웨어', 'Cisco 소프트웨어 버전',
   '자산유형', '상태', '서버명', '구분', '자산번호', 'rack_no', 'rack_unit_no', '자산관리번호', 'SN', '위치', '설명',
-  '운영체제', 'version', '제조사', '수량', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ANTIVIRUS_KEY, '백신비고', '폐기일정', '폐기비고',
+  '운영체제', 'version', '제조사', '수량', EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY, ISMS_P_KEY, 'ISMS-P비고', VADA_KEY, 'VADA비고', ELASTIC_KEY, ANTIVIRUS_KEY, '백신비고', '폐기일정', '폐기비고',
   '용도', '소속부서', '제품명', '사양', '도입사업', '납품회사', '담당자', '도입가격', '도입일자', '수령일', '변경일', '변경사항',
   '유지보수계약구분', '유지보수종료일자', '유지보수업체', '유지보수연락처', '유지보수특이사항',
   '비고', TAGS_KEY,
@@ -5038,6 +5064,8 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       '배포판': '운영체제',
       'DB종류': '운영체제',
       'VADA설치여부': VADA_KEY,
+      'Elastic설치여부': ELASTIC_KEY,
+      'Elastic 설치 여부': ELASTIC_KEY,
       '백신여부': ANTIVIRUS_KEY,
       '백신 여부': ANTIVIRUS_KEY,
       'ISMS-P대상여부': ISMS_P_KEY,
