@@ -11,7 +11,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'SRV-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'web-server-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / 스토리지 / 소프트웨어 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
     { key: '구분',          label: '구분',                                                            sample: '물리' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'SV-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -59,7 +59,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'NW-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'sw-core-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / 스토리지 / 소프트웨어 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
     { key: '구분',          label: '구분',                                                            sample: 'Switch' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'NW-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -99,7 +99,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'DB-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'db-server-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / 스토리지 / 소프트웨어 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
     { key: '구분',          label: '구분',                                                            sample: 'DB' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'DB-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -140,7 +140,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'SEC-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'sec-device-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / 스토리지 / 소프트웨어 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
     { key: '구분',          label: '구분',                                                            sample: 'F/W' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'SEC-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -181,7 +181,7 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: 'asset_id',      label: 'Asset ID (고유키, 재import 시 매칭용)',                            sample: 'VM-0001' },
     { key: 'ip',            label: 'IP',                                                              sample: '192.168.1.1' },
     { key: 'name',          label: 'HostName',                                                        sample: 'vm-host-01' },
-    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
+    { key: '자산유형',      label: '자산유형(서버 / 네트워크 / 스토리지 / 소프트웨어 / DBMS / 정보보호시스템 / VMware)',     sample: '' },
     { key: '구분',          label: '구분',                                                            sample: 'ESXi' },
     { key: '자산번호',      label: '자산번호',                                                        sample: 'VM-001' },
     { key: '자산관리번호',  label: '자산관리번호',                                                    sample: '' },
@@ -218,4 +218,26 @@ export const CATEGORY_TEMPLATE_COLS: Record<string, TemplateCol[]> = {
     { key: TAGS_KEY,        label: '태그',                                                            sample: '' },
     { key: '비고',          label: '비고',                                                            sample: '' },
   ],
+}
+
+// 공통 도입·유지보수 필드를 유지하면서 제품 입력만 유형에 맞춘다.
+for (const category of ['스토리지', '소프트웨어']) {
+  const storage = category === '스토리지'
+  const samples: Record<string, string> = {
+    asset_id: storage ? 'ST-0001' : 'SW-0001',
+    ip: storage ? '192.168.1.10' : '',
+    name: storage ? 'storage-01' : 'software-01',
+    자산유형: category,
+    구분: storage ? 'SAN' : '업무용 소프트웨어',
+    자산번호: storage ? 'ST-001' : 'SW-001',
+    서버명: storage ? '공용 스토리지' : '운영 관리 소프트웨어',
+    운영체제: storage ? '스토리지 모델명' : '소프트웨어 제품명',
+    version: '1.0',
+  }
+  CATEGORY_TEMPLATE_COLS[category] = CATEGORY_TEMPLATE_COLS['VMware']!.map(column => ({
+    ...column,
+    label: column.key === '운영체제' ? (storage ? '운영체제 / 기종' : '운영체제 / 제품명')
+      : column.key === 'version' && storage ? '펌웨어 버전' : column.label,
+    sample: samples[column.key] ?? column.sample ?? '',
+  }))
 }

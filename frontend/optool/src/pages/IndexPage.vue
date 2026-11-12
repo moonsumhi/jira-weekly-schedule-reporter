@@ -25,30 +25,48 @@
         </template>
       </FavoriteProjectBacklogs>
 
-      <section v-else-if="cardId === 'weeklyReport'" class="dash-card weekly-report-card" :class="cardSizeClasses(cardId)" aria-labelledby="weekly-report-title">
+      <section v-else-if="cardId === 'weeklyReport'" class="dash-card shortcuts-card" :class="cardSizeClasses(cardId)" aria-labelledby="shortcuts-title">
         <div class="card-header">
           <q-icon name="drag_indicator" class="card-drag-handle cursor-grab" color="grey-4" size="16px" />
-          <q-icon name="description" size="18px" color="primary" aria-hidden="true" />
-          <h2 id="weekly-report-title" class="card-title">이번 주 주간보고</h2>
+          <q-icon name="shortcut" size="18px" color="primary" aria-hidden="true" />
+          <h2 id="shortcuts-title" class="card-title">업무 바로가기</h2>
           <q-space />
-          <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn" aria-label="이번 주 주간보고 크기 조절">
+          <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn" aria-label="업무 바로가기 크기 조절">
             <q-tooltip>카드 크기 조절</q-tooltip>
             <q-menu anchor="bottom right" self="top right">
               <CardSizePicker :w="sizeOf(cardId).w" :h="sizeOf(cardId).h" @select="(w, h) => setCardSize(cardId, w, h)" />
             </q-menu>
           </q-btn>
         </div>
-        <div class="dash-card-body weekly-report-body">
-          <p class="weekly-report-period">{{ thisWeekReportPeriod.year }}년 {{ thisWeekReportPeriod.week }}주차</p>
-          <div class="weekly-report-dates">
-            <time :datetime="thisWeekReportPeriod.startDate">{{ thisWeekReportPeriod.startDate.slice(5).replace('-', '.') }}</time>
-            <span>~</span>
-            <time :datetime="thisWeekReportPeriod.endDate">{{ thisWeekReportPeriod.endDate.slice(5).replace('-', '.') }}</time>
-          </div>
-          <q-btn unelevated no-caps color="primary" icon-right="arrow_forward"
-            class="weekly-report-open" :label="sizeOf(cardId).h === 1 ? '열기' : '주간보고 열기'" aria-label="이번 주 주간보고 열기"
-            :loading="openingWeeklyReport" @click="openThisWeekReport" />
-        </div>
+        <nav class="dash-card-body shortcuts-body" aria-label="이번 주·이번 달 업무">
+          <q-btn v-if="hasPmPerm" flat no-caps class="shortcut-row" aria-label="이번 주 주간보고 열기"
+            :loading="openingReport === 'weekly'" :disable="openingReport !== null && openingReport !== 'weekly'" @click="openCurrentReport('weekly')">
+            <q-icon name="view_week" size="20px" class="shortcut-icon" aria-hidden="true" />
+            <span class="shortcut-copy">
+              <span class="shortcut-title">주간보고</span>
+              <span class="shortcut-period">이번 주<span class="shortcut-dates"> · {{ thisWeekReportPeriod.startDate.slice(5).replace('-', '.') }} ~ {{ thisWeekReportPeriod.endDate.slice(5).replace('-', '.') }}</span></span>
+            </span>
+            <q-icon name="arrow_forward" size="18px" class="shortcut-arrow" aria-hidden="true" />
+          </q-btn>
+          <q-btn v-if="hasPmPerm" flat no-caps class="shortcut-row" aria-label="이번 달 월간보고 열기"
+            :loading="openingReport === 'monthly'" :disable="openingReport !== null && openingReport !== 'monthly'" @click="openCurrentReport('monthly')">
+            <q-icon name="calendar_month" size="20px" class="shortcut-icon" aria-hidden="true" />
+            <span class="shortcut-copy">
+              <span class="shortcut-title">월간보고</span>
+              <span class="shortcut-period">이번 달<span class="shortcut-dates"> · {{ thisMonthReportPeriod.year }}년 {{ thisMonthReportPeriod.month }}월</span></span>
+            </span>
+            <q-icon name="arrow_forward" size="18px" class="shortcut-arrow" aria-hidden="true" />
+          </q-btn>
+          <q-btn v-if="canInspect" flat no-caps class="shortcut-row" aria-label="이번 달 서버점검 작업 목록 열기"
+            :disable="openingReport !== null" @click="openCurrentInspection">
+            <q-icon name="fact_check" size="20px" class="shortcut-icon" aria-hidden="true" />
+            <span class="shortcut-copy">
+              <span class="shortcut-title">서버점검</span>
+              <span class="shortcut-period">이번 달<span class="shortcut-dates"> · {{ thisMonthReportPeriod.year }}년 {{ thisMonthReportPeriod.month }}월 점검 작업</span></span>
+            </span>
+            <q-icon name="arrow_forward" size="18px" class="shortcut-arrow" aria-hidden="true" />
+          </q-btn>
+        </nav>
       </section>
 
       <div v-else-if="cardId === 'calendar'" class="dash-card calendar-card" :class="cardSizeClasses(cardId)">
@@ -57,7 +75,7 @@
           <q-icon name="calendar_month" size="18px" color="primary" />
           <span class="card-title">달력</span>
           <q-space />
-          <q-btn flat dense no-caps color="primary" icon="add" label="D-Day 추가" aria-label="D-Day 추가" @click="openDDayCreate" />
+          <q-btn flat dense no-caps color="primary" icon="add" label="D-Day 추가" aria-label="D-Day 추가" @click="openDDayCreate()" />
           <q-btn flat round dense size="sm" icon="open_in_full" color="grey-5" class="card-resize-btn" aria-label="달력 크기 조절">
             <q-tooltip>카드 크기 조절</q-tooltip>
             <q-menu anchor="bottom right" self="top right">
@@ -67,7 +85,7 @@
         </div>
         <div class="dash-card-body">
           <DDayCalendar :events="calendarDDays" :today="todayISO" :loading="ddaysLoading || pmLoading || watchLoading"
-            :load-failed="ddaysLoadFailed || watchLoadFailed" :error-message="calendarLoadError" @retry="retryCalendar">
+            :load-failed="ddaysLoadFailed || watchLoadFailed" :error-message="calendarLoadError" @retry="retryCalendar" @create="openDDayCreate">
             <template #actions="{ event }">
               <template v-if="editableCalendarDDay(event.id)">
                 <q-btn v-close-popup flat dense no-caps color="primary" icon="edit" label="수정" @click="editCalendarDDay(event.id)" />
@@ -192,8 +210,8 @@ import { type Issue } from 'src/services/pm/issue'
 import { listAllSRs, type SRListItem } from 'src/services/sr'
 import { getPrefs, savePrefs, type ColPreset, type CardSize } from 'src/services/prefs'
 import { getInspectionTasks, thisMonth } from 'src/services/inspection'
-import { listWeeklyReports } from 'src/services/pm/reports'
-import { getIsoWeekKst, getIsoWeekPeriodKst, fmtDateKst, fmtDatetimeKst } from 'src/utils/time/kst'
+import { listWeeklyReports, listMonthlyReports } from 'src/services/pm/reports'
+import { getIsoWeekKst, getIsoWeekPeriodKst, getCalendarMonthKst, fmtDateKst, fmtDatetimeKst } from 'src/utils/time/kst'
 import { getErrorMessage } from 'src/utils/http/error'
 import CardSizePicker from 'src/components/CardSizePicker.vue'
 import FavoriteProjectBacklogs from 'src/components/dashboard/FavoriteProjectBacklogs.vue'
@@ -207,28 +225,36 @@ import IssueDetailDialog from 'src/pages/pm/components/IssueDetailDialog.vue'
 const auth = useAuthStore()
 const $q = useQuasar()
 const router = useRouter()
-const openingWeeklyReport = ref(false)
-const thisWeekReportPeriod = ref(getIsoWeekPeriodKst())
+const openingReport = ref<'weekly' | 'monthly' | null>(null)
+const thisWeekReportPeriod = computed(() => getIsoWeekPeriodKst(new Date(clockNow.value)))
+const thisMonthReportPeriod = computed(() => getCalendarMonthKst(new Date(clockNow.value)))
 let disposed = false
 
-async function openThisWeekReport() {
-  if (openingWeeklyReport.value || !hasPmPerm.value) return
-  openingWeeklyReport.value = true
+async function openCurrentReport(kind: 'weekly' | 'monthly') {
+  if (openingReport.value || !hasPmPerm.value) return
+  openingReport.value = kind
+  const label = kind === 'weekly' ? '이번 주 주간보고' : '이번 달 월간보고'
   try {
-    // Calculate on each click so a dashboard left open across weeks stays current.
-    const period = getIsoWeekKst()
-    const reports = await listWeeklyReports(period)
+    // Calculate on click as well as on the clock tick, including month/year rollover.
+    const period = kind === 'weekly' ? getIsoWeekKst() : getCalendarMonthKst()
+    const reports = kind === 'weekly' ? await listWeeklyReports(period) : await listMonthlyReports(period)
     if (disposed) return
     const report = reports.length === 1 ? reports[0] : undefined
     await router.push(report
-      ? { path: `/pm/weekly-report/${report.id}` }
-      : { path: '/pm/weekly-report', query: period })
-    if (!reports.length) $q.notify({ type: 'info', message: '이번 주에 생성된 주간보고가 없습니다.' })
+      ? { path: `/pm/${kind}-report/${report.id}` }
+      : { path: `/pm/${kind}-report`, query: period })
+    if (!reports.length) $q.notify({ type: 'info', message: `${label}가 아직 없습니다.` })
   } catch (e) {
-    if (!disposed) $q.notify({ type: 'negative', message: getErrorMessage(e, '이번 주 주간보고를 불러오지 못했습니다. 다시 시도해 주세요.') })
+    if (!disposed) $q.notify({ type: 'negative', message: getErrorMessage(e, `${label}를 불러오지 못했습니다. 다시 시도해 주세요.`) })
   } finally {
-    openingWeeklyReport.value = false
+    openingReport.value = null
   }
+}
+
+function openCurrentInspection() {
+  if (!canInspect.value || openingReport.value) return
+  const { year, month } = getCalendarMonthKst()
+  void router.push({ path: '/inspection/tasks', query: { month: `${year}-${String(month).padStart(2, '0')}` } })
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -531,8 +557,8 @@ async function loadDDays() {
   }
 }
 
-function openDDayCreate() {
-  ddayForm.value = { id: '', title: '', date: '', color: 'blue', note: '', visibleUserIds: [], visibleTeams: [], visibleToAll: false }
+function openDDayCreate(date = '') {
+  ddayForm.value = { id: '', title: '', date, color: 'blue', note: '', visibleUserIds: [], visibleTeams: [], visibleToAll: false }
   void loadDDayUsers()
   ddayDialog.value = true
 }
@@ -734,7 +760,8 @@ let savedAssetColPresets: ColPreset[] = []
 const baseCardOrder = computed(() => {
   const order: string[] = []
   if (hasPmPerm.value || hasSrPerm.value) order.push('pm')
-  if (hasPmPerm.value) order.push('weeklyReport')
+  // Keep the saved weeklyReport key so the expanded card retains its position and size.
+  if (hasPmPerm.value || canInspect.value) order.push('weeklyReport')
   order.push('calendar')
   if (hasPmPerm.value) order.push('favorites')
   return order
@@ -765,7 +792,7 @@ async function saveCardOrder() {
 const DEFAULT_CARD_SIZE: Record<string, CardSize> = {
   calendar: { w: 2, h: 3 },
   favorites: { w: 1, h: 3 },
-  weeklyReport: { w: 1, h: 1 },
+  weeklyReport: { w: 1, h: 2 },
   pm: { w: 2, h: 2 },
 }
 const cardSizes = ref<Record<string, CardSize>>({})
@@ -793,8 +820,6 @@ onMounted(() => {
       todayDayKey.value = currentDay
       void loadWatch()
     } else if (previousDutyId !== upcomingDutyPeriod.value?.id) void loadWatch()
-    const period = getIsoWeekPeriodKst()
-    if (period.startDate !== thisWeekReportPeriod.value.startDate) thisWeekReportPeriod.value = period
   }, 30_000)
   void loadDDays()
   void loadInspectionPending()
@@ -814,16 +839,27 @@ onUnmounted(() => {
 .dashboard-page {
   background: var(--bo-canvas);
 }
-.weekly-report-card .card-title { margin: 0; }
-.weekly-report-body { display: flex; flex-direction: column; }
-.weekly-report-body > * { flex-shrink: 0; }
-.weekly-report-period { margin: 0; color: var(--bo-text); font-size: 20px; line-height: 1.5; font-weight: 650; }
-.weekly-report-dates { display: flex; align-items: center; gap: 8px; margin: 4px 0 20px; color: var(--bo-muted); font-size: 14px; font-variant-numeric: tabular-nums; }
-.weekly-report-open { margin-top: auto; width: 100%; }
-.weekly-report-card.card-h-1 .weekly-report-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center; column-gap: 8px; }
-.weekly-report-card.card-h-1 .weekly-report-period { font-size: 16px; }
-.weekly-report-card.card-h-1 .weekly-report-dates { margin: 0; font-size: 12px; }
-.weekly-report-card.card-h-1 .weekly-report-open { grid-column: 2; grid-row: 1 / 3; align-self: center; margin: 0; width: auto; }
+.shortcuts-card .card-title { margin: 0; }
+.shortcuts-body { display: flex; flex-direction: column; }
+.shortcut-row { width: 100%; min-height: 64px; flex-shrink: 0; padding: 10px 8px; color: var(--bo-text); border-radius: 0; }
+.shortcut-row + .shortcut-row { border-top: 1px solid var(--bo-border); }
+.shortcut-row :deep(.q-btn__content) { width: 100%; display: flex; flex-wrap: nowrap; gap: 12px; text-align: left; }
+.shortcut-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.shortcut-title { font-size: 14px; line-height: 1.5; font-weight: 600; }
+.shortcut-period { color: var(--bo-muted); font-size: 12px; line-height: 1.5; font-weight: 400; font-variant-numeric: tabular-nums; }
+.shortcut-icon { flex-shrink: 0; color: var(--bo-accent-ink); }
+.shortcut-arrow { flex-shrink: 0; color: var(--bo-muted); }
+.shortcut-row:focus-visible { outline: 2px solid var(--bo-accent-ink) !important; outline-offset: -2px; }
+/* The smallest saved size keeps all destinations visible as three compact links. */
+.shortcuts-card.card-h-1 .card-header { margin-bottom: 8px; }
+.shortcuts-card.card-h-1 .shortcuts-body { flex-direction: row; }
+.shortcuts-card.card-h-1 .shortcut-row { flex: 1; min-width: 0; width: auto; min-height: 44px; padding: 4px; }
+.shortcuts-card.card-h-1 .shortcut-row + .shortcut-row { border-top: 0; border-left: 1px solid var(--bo-border); }
+.shortcuts-card.card-h-1 .shortcut-row :deep(.q-btn__content) { text-align: center; }
+.shortcuts-card.card-h-1 .shortcut-icon,
+.shortcuts-card.card-h-1 .shortcut-arrow,
+.shortcuts-card.card-h-1 .shortcut-dates { display: none; }
+.shortcuts-card.card-h-1 .shortcut-copy { gap: 2px; }
 .dday-edit-card { width: min(420px, calc(100vw - 32px)); }
 
 .dashboard-grid {

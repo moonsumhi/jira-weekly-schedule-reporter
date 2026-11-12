@@ -34,6 +34,8 @@ const equivalents: Record<string, string> = {
   'fa-diagram-project': symOutlinedAccountTree,
   'fa-paper-plane': symOutlinedSend,
   'fa-server': symOutlinedDns,
+  'fa-hard-drive': symOutlinedDns,
+  'fa-cubes': symOutlinedInventory2,
   'fa-user-shield': symOutlinedAdminPanelSettings,
   'fa-building-user': symOutlinedApartment,
   'fa-building': symOutlinedApartment,

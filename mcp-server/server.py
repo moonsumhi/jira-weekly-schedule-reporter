@@ -74,6 +74,8 @@ mcp = FastMCP(
 ASSET_COLLECTIONS = {
     "서버": "assets_servers",
     "네트워크": "assets_network",
+    "스토리지": "assets_storage",
+    "소프트웨어": "assets_software",
     "정보보호시스템": "assets_security",
     "DBMS": "assets_dbms",
     "VMware": "assets_vmware",
@@ -106,7 +108,7 @@ def _dump(docs) -> str:
 def list_assets(category: str = "서버", limit: int = 100, skip: int = 0) -> str:
     """
     자산 목록을 조회합니다.
-    category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware
+    category: 서버 | 네트워크 | 스토리지 | 소프트웨어 | 정보보호시스템 | DBMS | VMware
 
     total(전체 개수)과 items(이번 페이지)를 함께 반환합니다. has_more 가 true면
     아직 더 있는 것이므로 skip 을 늘려(예: skip=100) 다음 페이지를 이어서 조회하세요.
@@ -133,7 +135,7 @@ def list_assets(category: str = "서버", limit: int = 100, skip: int = 0) -> st
 def get_asset_schema(category: str = "서버") -> str:
     """자산 등록에 필요한 실제 백오피스 입력 스키마와 유형별 필수값을 조회합니다.
 
-    category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware.
+    category: 서버 | 네트워크 | 스토리지 | 소프트웨어 | 정보보호시스템 | DBMS | VMware.
     응답의 schema는 system_info의 CPU·메모리·디스크·하드웨어·네트워크 필드,
     타입, 범위와 허용값을 포함합니다. system_info는 서버 유형에서만 입력합니다.
     요청하기 전 확인해 누락된 필수 항목을 사용자에게 물어보세요.
@@ -163,9 +165,9 @@ def create_asset(
     """자산을 등록하고 관리자 전용 롤백 이력을 남깁니다.
 
     먼저 get_asset_schema(category)로 필수 항목과 system_info 스키마를 확인하세요.
-    category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware. 랙 배치는 지원하지 않습니다.
-    name: 호스트명, ip: IP, asset_no: 자산번호 (모두 필수). asset_id는 고유 식별자(선택).
-    fields: 구분, 서버명(자산명), 설명, 운영체제(배포판/기종/DB 종류)가 필수인 JSON 객체.
+    category: 서버 | 네트워크 | 스토리지 | 소프트웨어 | 정보보호시스템 | DBMS | VMware. 랙 배치는 지원하지 않습니다.
+    name: 호스트명/관리명, ip: IP, asset_no: 자산번호 (소프트웨어의 IP만 선택). asset_id는 고유 식별자(선택).
+    fields: 구분, 서버명(자산명), 설명, 운영체제(배포판/기종/DB 종류/소프트웨어 제품명)가 필수인 JSON 객체.
     DBMS는 fields.version 또는 db_series가 필요하며 정보보호시스템은 fields.제조사가 필요합니다.
     system_info: 서버에만 사용하는 JSON 객체. 스키마의 camelCase와 snake_case 모두 허용합니다.
       cpu, memory, memory_modules, disks,
@@ -218,7 +220,7 @@ def create_asset(
 def search_assets(query: str, category: str = "서버", limit: int = 100, skip: int = 0) -> str:
     """
     자산을 이름·IP·자산ID로 검색합니다.
-    category: 서버 | 네트워크 | 정보보호시스템 | DBMS | VMware
+    category: 서버 | 네트워크 | 스토리지 | 소프트웨어 | 정보보호시스템 | DBMS | VMware
 
     total(조건에 맞는 전체 개수)과 items(이번 페이지)를 함께 반환합니다.
     has_more 가 true면 skip 을 늘려 다음 페이지를 이어서 조회하세요.

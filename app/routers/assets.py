@@ -11,6 +11,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response, Up
 from pymongo.errors import DuplicateKeyError
 
 from app.core.config import settings
+from app.db.mongo import MongoClientManager
 
 from app.models.assets import (
     AssetHistoryOut,
@@ -32,7 +33,7 @@ from app.services.eos_service import EosService
 from app.lifecycle_audit import asset_eos
 from app.utils.mongo import oid
 
-VALID_CATEGORIES = {"서버", "네트워크", "정보보호시스템", "DBMS", "VMware", "랙"}
+VALID_CATEGORIES = set(MongoClientManager.CATEGORY_COLLECTIONS)
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +121,8 @@ async def mcp_asset_schema(current_user: UserPublic = Depends(require_asset_acce
             '서버': '운영체제/배포판 필수, system_info 선택',
             'VMware': '운영체제/배포판 필수',
             '네트워크': '운영체제에 장비 기종 입력',
+            '스토리지': '운영체제에 스토리지 기종 입력, version에 펌웨어 버전 입력 가능',
+            '소프트웨어': '운영체제에 제품명, version에 버전 입력 가능. IP는 선택',
             '정보보호시스템': '운영체제에 장비 기종, 제조사 필수',
             'DBMS': '운영체제에 DB 종류, version 또는 db_series 필수',
         },
@@ -140,7 +143,7 @@ async def create_mcp_asset(body: McpAssetCreate, current_user: UserPublic = Depe
             raise HTTPException(409, detail={'code': 'DUPLICATE_ASSET_ID', 'message': '같은 자산 ID가 이미 있습니다.', 'asset_id': str(duplicate_id['_id']), 'is_deleted': duplicate_id.get('is_deleted', False)})
     candidates = await col.find({'ip': body.ip.strip(), 'is_deleted': {'$ne': True}},
                                 {'_id': 1, 'name': 1, 'ip': 1, 'asset_id': 1}).limit(10).to_list(None)
-    if candidates and not body.confirm_duplicate_ip:
+    if body.ip.strip() and candidates and not body.confirm_duplicate_ip:
         raise HTTPException(409, detail={
             'code': 'DUPLICATE_IP', 'message': '같은 유형에 동일 IP가 있습니다. 사용자에게 확인받은 후 다시 요청하세요.',
             'candidates': [{'id': str(d['_id']), 'name': d.get('name', ''), 'ip': d.get('ip', ''), 'asset_id': d.get('asset_id')} for d in candidates],
