@@ -1,11 +1,11 @@
 <template>
-  <q-page class="resource-page">
-    <header class="resource-header">
+  <q-page class="resource-page bo-page">
+    <header class="resource-header bo-page-heading">
       <div>
-        <h1>자원 점검</h1>
-        <p>CPU·메모리·디스크 사용량과 점검 결과를 확인합니다.</p>
+        <h1 class="bo-page-title">자원 점검</h1>
+        <p class="bo-page-description">CPU·메모리·디스크 사용량과 점검 결과를 확인합니다.</p>
       </div>
-      <div class="resource-actions">
+      <div class="resource-actions bo-page-actions">
         <q-btn
           v-if="auth.me?.isAdmin && canWrite"
           flat no-caps color="grey-8" icon="drive_file_rename_outline"

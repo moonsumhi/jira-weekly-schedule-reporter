@@ -1,11 +1,11 @@
 <template>
-  <q-page class="flex flex-center bg-grey-2">
-    <q-card class="q-pa-lg" style="width: 420px; max-width: 95vw;">
-      <q-card-section>
-        <div class="text-h6 text-center">데이터운영팀 {{ theme.appName }}</div>
-        <div class="text-subtitle2 text-center text-grey-7">
+  <q-page class="auth-page">
+    <q-card flat bordered class="auth-card">
+      <q-card-section class="auth-intro">
+        <h1>{{ theme.appName }}</h1>
+        <p>
           로그인하거나 새 계정을 만들어 주세요.
-        </div>
+        </p>
       </q-card-section>
 
       <q-separator />
@@ -56,6 +56,7 @@
                   type="submit"
                   color="primary"
                   label="로그인"
+                  class="full-width"
                 />
               </div>
             </q-form>
@@ -109,6 +110,7 @@
                   type="submit"
                   color="primary"
                   label="회원가입"
+                  class="full-width"
                 />
               </div>
             </q-form>
@@ -300,3 +302,26 @@ function onLogout() {
   void router.replace({ name: 'auth' })
 }
 </script>
+
+<style scoped>
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px;
+  background: var(--bo-canvas);
+}
+.auth-card { width: 460px; max-width: 100%; padding: 24px; }
+.auth-intro { padding: 12px 16px 28px; text-align: center; }
+.auth-intro h1 { margin: 0; font-size: 24px; line-height: 1.4; font-weight: 700; letter-spacing: -0.6px; overflow-wrap: anywhere; }
+.auth-intro p { margin: 10px 0 0; color: var(--bo-muted); font-size: 14px; }
+.auth-card :deep(.q-tab-panels) { background: transparent; }
+.auth-card :deep(.q-tab-panel) { padding: 28px 0 8px; }
+.auth-card :deep(.q-field--dense .q-field__control) { min-height: 44px; }
+@media (max-width: 599px) {
+  .auth-page { padding: 24px 16px; align-items: flex-start; }
+  .auth-card { padding: 16px; }
+  .auth-intro { padding: 12px 8px 24px; }
+  .auth-intro h1 { font-size: 22px; }
+}
+</style>

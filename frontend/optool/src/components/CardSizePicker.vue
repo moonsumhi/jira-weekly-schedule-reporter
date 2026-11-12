@@ -1,10 +1,13 @@
 <template>
   <div class="size-grid-picker">
     <div class="size-grid" @mouseleave="hoverCell = null">
-      <div
+      <button
         v-for="cell in cells"
         :key="`${cell.r}-${cell.c}`"
         class="size-grid-cell"
+        type="button"
+        :aria-label="`너비 ${cell.c}, 높이 ${cell.r}`"
+        :aria-pressed="w === cell.c && h === cell.r"
         :class="{ 'size-grid-cell--active': isActive(cell.r, cell.c) }"
         v-close-popup
         @mouseenter="hoverCell = cell"
@@ -54,11 +57,17 @@ const previewLabel = computed(() => {
 .size-grid-cell {
   width: 20px;
   height: 20px;
+  padding: 0;
   border-radius: 3px;
   background: #f5f7fa;
   border: 1px solid #cfd8dc;
   cursor: pointer;
   transition: background 0.1s, border-color 0.1s;
+}
+
+.size-grid-cell:focus-visible {
+  outline: 2px solid var(--bo-accent-ink);
+  outline-offset: 2px;
 }
 
 .size-grid-cell--active {

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="spaces-page rooms-page">
+  <q-page class="spaces-page bo-page rooms-page">
     <SpaceHeader
       title="공간 관리"
       description="사무실의 사용 팀을 지정하고, 배치도를 만들어 좌석을 구성하세요."

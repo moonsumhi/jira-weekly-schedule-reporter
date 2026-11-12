@@ -1,4 +1,4 @@
-import type { ProjectBreakdown, WorkItem } from 'src/services/pm/reports'
+import type { WorkItem } from 'src/services/pm/reports'
 
 function timestamp(value: string | null | undefined): number {
   if (!value) return Number.POSITIVE_INFINITY
@@ -19,9 +19,4 @@ export function sortWorkItemsByDate(items: WorkItem[]): WorkItem[] {
     if (due) return due
     return a.issueNumber - b.issueNumber || a.issueId.localeCompare(b.issueId)
   })
-}
-
-/** A single timeline across status groups, used by the monthly report. */
-export function projectTimeline(project: ProjectBreakdown): WorkItem[] {
-  return sortWorkItemsByDate([...project.completed, ...project.inProgress, ...project.upcoming])
 }

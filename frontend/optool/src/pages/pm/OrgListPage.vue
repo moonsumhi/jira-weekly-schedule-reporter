@@ -1,7 +1,7 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="row items-center q-mb-lg">
-      <div class="text-h5">조직 관리</div>
+  <q-page class="q-pa-md bo-page">
+    <div class="row items-center q-mb-lg bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h5 bo-page-title">조직 관리</div>
       <q-space />
       <q-btn color="primary" icon="add" label="조직 만들기" @click="openCreate" />
     </div>
@@ -178,6 +178,6 @@ function fmtDate(iso: string) {
 
 <style scoped>
 .org-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--q-primary);
 }
 </style>

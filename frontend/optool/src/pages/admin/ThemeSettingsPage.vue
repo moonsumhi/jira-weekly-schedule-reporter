@@ -1,6 +1,6 @@
 <template>
-  <q-page padding class="theme-settings-page">
-    <div class="text-subtitle1 text-weight-bold q-mb-md">스킨 설정</div>
+  <q-page class="bo-page theme-settings-page" padding>
+    <div role="heading" aria-level="1" class="text-subtitle1 text-weight-bold q-mb-md bo-page-title bo-page-title--standalone">스킨 설정</div>
 
     <q-card flat bordered class="settings-card q-mb-md">
       <q-card-section class="q-gutter-md">
@@ -88,11 +88,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { settingsService } from 'src/services/settings'
-import { useThemeStore, THEME_COLORS, type ThemeColorKey } from 'stores/theme'
+import { useThemeStore, THEME_COLORS, DEFAULT_APP_NAME, type ThemeColorKey } from 'stores/theme'
 
 const $q = useQuasar()
 const themeStore = useThemeStore()
-const appName = ref('OPTOOL')
+
+const appName = ref(DEFAULT_APP_NAME)
 const tabTitle = ref('')
 const selectedColor = ref<string>('blue')
 const sidebarBackgroundColor = ref('#ffffff')
@@ -117,7 +118,7 @@ async function load() {
       settingsService.get('app_theme_color'),
       settingsService.get('app_sidebar_background_color'),
     ])
-    appName.value = nameRes.value || 'OPTOOL'
+    appName.value = nameRes.value || DEFAULT_APP_NAME
     tabTitle.value = tabTitleRes.value || ''
     const color = colorRes.value || 'blue'
     selectedColor.value = THEME_COLORS[color as ThemeColorKey] || /^#[\da-f]{6}$/i.test(color)

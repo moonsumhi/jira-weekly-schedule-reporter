@@ -1,9 +1,9 @@
 <template>
-  <q-page padding class="menu-manage-page">
+  <q-page class="bo-page menu-manage-page" padding>
     <div class="row q-col-gutter-md">
       <div class="col-12 col-md-9">
-        <div class="row items-center q-mb-sm">
-          <div class="text-subtitle1 text-weight-bold col">메뉴</div>
+        <div class="row items-center q-mb-sm bo-page-heading">
+          <div role="heading" aria-level="1" class="text-subtitle1 text-weight-bold col bo-page-title">메뉴</div>
         </div>
 
         <q-list bordered>

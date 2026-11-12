@@ -1,17 +1,17 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md bo-page">
     <q-inner-loading :showing="loading" />
 
     <template v-if="org">
       <!-- 헤더 -->
-      <div class="row items-center q-mb-lg q-gutter-sm">
+      <div class="row items-center q-mb-lg q-gutter-sm bo-page-heading">
         <q-btn flat dense round icon="arrow_back" @click="$router.push('/pm/organizations')" />
         <q-avatar color="primary" text-color="white" size="40px">
           {{ org.name[0]?.toUpperCase() ?? '' }}
         </q-avatar>
         <div>
-          <div class="text-h5">{{ org.name }}</div>
-          <div class="text-caption text-grey-6">{{ org.slug }}</div>
+          <div role="heading" aria-level="1" class="text-h5 bo-page-title">{{ org.name }}</div>
+          <div class="text-caption text-grey-6 bo-page-description">{{ org.slug }}</div>
         </div>
         <q-space />
         <q-btn
@@ -393,7 +393,7 @@ function confirmRemove(m: OrgMember) {
 
 <style scoped>
 .project-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--q-primary);
 }
 .ellipsis-2-lines {
   display: -webkit-box;

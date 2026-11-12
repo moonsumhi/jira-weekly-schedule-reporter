@@ -1,13 +1,13 @@
 <template>
-  <q-page class="q-pa-md backlog-page">
+  <q-page class="q-pa-md bo-page backlog-page">
     <!-- 헤더 -->
-    <div class="row items-center q-mb-lg">
+    <div class="row items-center q-mb-lg bo-page-heading">
       <div>
         <div class="row items-center q-gutter-x-sm">
-          <span class="text-h6 text-weight-bold">{{ project?.name ?? '...' }}</span>
+          <span role="heading" aria-level="1" class="text-h6 text-weight-bold bo-page-title">{{ project?.name ?? '...' }}</span>
           <q-badge v-if="project" color="primary" :label="project.key" />
         </div>
-        <div class="text-caption text-grey-5 q-mt-xs">백로그</div>
+        <div class="text-caption text-grey-5 q-mt-xs bo-page-description">백로그</div>
       </div>
       <q-space />
       <q-btn color="primary" unelevated icon="add" label="이슈 추가" @click="createDialog.open = true" />

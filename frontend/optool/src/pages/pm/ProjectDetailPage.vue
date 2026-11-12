@@ -1,28 +1,28 @@
 <template>
-  <q-page class="q-pa-none">
+  <q-page class="q-pa-md bo-page project-detail-page">
     <q-inner-loading :showing="loading" />
 
     <template v-if="project">
       <!-- ── 프로젝트 배너 헤더 ── -->
-      <div class="project-banner q-pa-lg">
-        <div class="row items-start no-wrap q-gutter-md">
+      <div class="project-banner">
+        <div class="project-header-layout bo-page-heading">
           <!-- 뒤로 -->
           <q-btn
             flat dense round
             icon="arrow_back"
-            color="white"
+            color="grey-7"
             class="q-mt-xs"
             @click="$router.push('/pm/projects')"
           />
 
           <!-- 아바타 + 정보 -->
           <div class="col row items-start q-gutter-md">
-            <q-avatar color="white" text-color="primary" size="56px" class="text-h5 text-weight-bold shadow-2">
+            <q-avatar color="white" text-color="primary" size="48px" class="project-avatar text-weight-bold">
               {{ project.name[0]?.toUpperCase() ?? '' }}
             </q-avatar>
             <div class="col">
               <div class="row items-center q-gutter-sm q-mb-xs">
-                <span class="text-h4 text-white text-weight-bold">{{ project.name }}</span>
+                <span role="heading" aria-level="1" class="text-weight-bold bo-page-title">{{ project.name }}</span>
                 <q-chip dense color="white" text-color="primary" class="text-weight-bold">
                   {{ project.key }}
                 </q-chip>
@@ -30,7 +30,7 @@
               <div class="text-body2 banner-desc q-mb-sm">
                 {{ project.description || '설명 없음' }}
               </div>
-              <div class="row items-center q-gutter-md banner-meta text-caption">
+              <div class="row items-center q-gutter-md banner-meta text-caption bo-page-description">
                 <span><q-icon name="group" size="xs" class="q-mr-xs" />멤버 {{ members.length }}명</span>
                 <span><q-icon name="calendar_today" size="xs" class="q-mr-xs" />{{ fmtDate(project.createdAt) }} 생성</span>
               </div>
@@ -38,22 +38,22 @@
           </div>
 
           <!-- 바로가기 버튼 -->
-          <div class="column q-gutter-xs" style="flex-shrink:0">
+          <div class="project-header-actions bo-page-actions">
             <q-btn
-              outline color="white" dense no-caps
-              icon="fa-solid fa-table-columns" label="보드"
+              outline color="primary" dense no-caps
+              icon="view_kanban" label="보드"
               style="min-width:90px"
               @click="goTo('board')"
             />
             <q-btn
-              outline color="white" dense no-caps
-              icon="fa-solid fa-list" label="백로그"
+              outline color="primary" dense no-caps
+              icon="format_list_bulleted" label="백로그"
               style="min-width:90px"
               @click="goTo('backlog')"
             />
             <q-btn
-              outline color="white" dense no-caps
-              icon="fa-solid fa-rotate" label="스프린트"
+              outline color="primary" dense no-caps
+              icon="sync" label="스프린트"
               style="min-width:90px"
               @click="goTo('sprints')"
             />
@@ -62,7 +62,7 @@
       </div>
 
       <!-- ── 탭 ── -->
-      <div class="row q-px-lg" style="border-bottom: 1px solid rgba(0,0,0,0.1)">
+      <div class="project-tabs">
         <q-tabs v-model="tab" dense align="left" indicator-color="primary" active-color="primary">
           <q-tab name="overview" label="개요" icon="info" />
           <q-tab name="members" label="멤버" icon="group" />
@@ -71,7 +71,7 @@
       </div>
 
       <!-- ── 탭 패널 ── -->
-      <q-tab-panels v-model="tab" animated class="q-pa-lg tab-panels-bg">
+      <q-tab-panels v-model="tab" animated class="q-pt-lg q-px-none tab-panels-bg">
 
         <!-- 개요 탭 -->
         <q-tab-panel name="overview" class="q-pa-none">
@@ -747,21 +747,30 @@ function confirmRemove(member: ProjectMember) {
 </script>
 
 <style scoped>
-/* ── 배너 ── */
+/* Shared page rhythm, with project identity retained. */
+.project-header-layout { gap: 16px; }
+.project-avatar { background: var(--bo-accent-soft) !important; color: var(--bo-accent-ink) !important; border-radius: 12px; }
+.project-header-actions { flex-shrink: 0; }
+.project-tabs { border-bottom: 1px solid var(--bo-border); }
+.project-tabs :deep(.q-tabs) { border-bottom: 0; }
+@media (max-width: 599px) {
+  .project-header-layout > .col { flex-basis: calc(100% - 56px); }
+  .project-header-actions { width: 100%; }
+  .stat-card { padding: 16px; }
+}
 .project-banner {
-  background: linear-gradient(135deg, #1565c0 0%, #0288d1 100%);
-  min-height: 140px;
+  color: var(--bo-text);
 }
 .banner-desc {
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--bo-muted);
 }
 .banner-meta {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--bo-muted);
 }
 
 /* ── 탭 패널 ── */
 .tab-panels-bg {
-  background: #f8f9fa;
+  background: var(--bo-canvas);
 }
 :deep(.q-tab-panels) {
   background: transparent;
@@ -773,13 +782,10 @@ function confirmRemove(member: ProjectMember) {
 /* ── 이슈 현황 카드 ── */
 .stat-card {
   background: #fff;
-  transition: box-shadow 0.15s;
-}
-.stat-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--bo-border);
 }
 .stat-count {
-  font-size: 2rem;
+  font-size: 24px;
   line-height: 1.1;
 }
 .stat-badge {

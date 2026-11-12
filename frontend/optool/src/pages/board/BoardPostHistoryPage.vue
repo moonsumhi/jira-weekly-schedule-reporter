@@ -1,10 +1,10 @@
 <template>
-  <q-page padding class="board-post-history-page">
-    <div class="history-page-header row items-center q-mb-md">
+  <q-page padding class="board-post-history-page bo-page">
+    <div class="history-page-header row items-center q-mb-md bo-page-heading">
       <q-btn flat round dense icon="arrow_back" aria-label="문서로 돌아가기" @click="goToDocument" />
       <div class="q-ml-sm">
-        <div class="text-h6">수정 이력</div>
-        <div v-if="post" class="text-caption text-grey-6">{{ post.title }}</div>
+        <div role="heading" aria-level="1" class="text-h6 bo-page-title">수정 이력</div>
+        <div v-if="post" class="text-caption text-grey-6 bo-page-description">{{ post.title }}</div>
       </div>
       <q-space />
       <q-btn v-if="post" outline dense icon="description" label="문서 보기" @click="goToDocument" />

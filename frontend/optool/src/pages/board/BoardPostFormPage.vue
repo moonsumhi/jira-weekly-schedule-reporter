@@ -1,10 +1,10 @@
 <template>
-  <q-page padding class="board-post-form-page">
-    <div class="row items-center q-mb-md">
+  <q-page padding class="board-post-form-page bo-page">
+    <div class="row items-center q-mb-md bo-page-heading">
       <q-btn flat dense round icon="arrow_back" class="q-mr-xs" @click="goBack" />
       <div class="col">
-        <div class="text-h6 text-weight-bold">{{ isEdit ? '문서 수정' : '새 문서' }}</div>
-        <div class="text-caption text-grey-5">{{ boardTitle }}</div>
+        <div role="heading" aria-level="1" class="text-h6 text-weight-bold bo-page-title">{{ isEdit ? '문서 수정' : '새 문서' }}</div>
+        <div class="text-caption text-grey-5 bo-page-description">{{ boardTitle }}</div>
       </div>
     </div>
 

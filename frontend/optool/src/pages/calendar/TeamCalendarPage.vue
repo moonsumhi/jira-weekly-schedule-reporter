@@ -1,6 +1,6 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="text-h6 q-mb-md">팀 캘린더</div>
+  <q-page class="q-pa-md bo-page">
+    <div role="heading" aria-level="1" class="text-h6 q-mb-md bo-page-title bo-page-title--standalone">팀 캘린더</div>
 
     <div v-if="loading" class="flex flex-center q-pa-xl">
       <q-spinner color="primary" size="40px" />

@@ -1,7 +1,7 @@
 <template>
-  <q-page padding class="env-manage-page" :class="{ 'env-manage-page--dark': $q.dark.isActive }">
-    <div class="row items-center q-mb-md">
-      <div class="text-h6 col">환경설정 관리</div>
+  <q-page class="bo-page env-manage-page" padding :class="{ 'env-manage-page--dark': $q.dark.isActive }">
+    <div class="row items-center q-mb-md bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h6 col bo-page-title">환경설정 관리</div>
     </div>
 
     <div class="row q-col-gutter-md">

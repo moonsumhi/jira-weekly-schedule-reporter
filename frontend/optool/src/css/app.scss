@@ -1,3 +1,152 @@
+@use './workspace';
+
+// Locally served so every screen uses the same typography on the internal network.
+@font-face {
+  font-family: 'Pretendard Variable';
+  src: url('/fonts/pretendard/PretendardVariable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 45 920;
+  font-display: swap;
+}
+
+// Shared workspace foundations. Screen-only rules leave document printing intact.
+:root {
+  --bo-canvas: #f6f8fb;
+  --bo-surface: #ffffff;
+  --bo-surface-subtle: #f9fafb;
+  --bo-text: #182230;
+  --bo-secondary: #344054;
+  --bo-muted: #667085;
+  --bo-border: #e4e7ec;
+  --bo-border-strong: #cdd3dd;
+  --bo-accent-soft: #eef4ff;
+  --bo-accent-ink: #1d3f86;
+  --bo-radius: 12px;
+  --bo-control-radius: 8px;
+  --bo-floating-shadow: 0 12px 32px rgb(16 24 40 / 14%);
+  --bo-font: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif;
+}
+
+@supports (color: color-mix(in srgb, blue, white)) {
+  :root {
+    --bo-accent-soft: color-mix(in srgb, var(--q-primary) 8%, white);
+    --bo-accent-ink: color-mix(in srgb, var(--q-primary) 46%, #182230);
+  }
+}
+
+@media print {
+  .asset-page-heading { display: none; }
+}
+
+@media screen {
+  body {
+    font-family: 'Pretendard Variable', var(--bo-font);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--bo-text);
+    background: var(--bo-canvas);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: var(--bo-accent-soft); color: var(--bo-accent-ink); }
+  input, textarea { caret-color: var(--q-primary); }
+  a { text-underline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--bo-accent-ink); outline-offset: 3px; }
+  .q-field__native:focus-visible { outline: none; }
+  .q-field:has(:focus-visible) .q-field__control { outline: 2px solid var(--bo-accent-ink); outline-offset: 2px; }
+
+  .backoffice-layout .q-page-container { background: var(--bo-canvas); }
+  .backoffice-layout .q-page.q-pa-md,
+  .backoffice-layout .q-page.q-layout-padding { padding: 28px 32px; }
+  .backoffice-layout .q-drawer { background: var(--bo-surface); }
+  .backoffice-layout .q-drawer--bordered { border-color: var(--bo-border); }
+
+  .q-page .text-h5 { font-size: 24px; line-height: 1.35; letter-spacing: -0.6px; color: var(--bo-text); }
+  .q-page .text-h6 { font-size: 18px; line-height: 1.45; letter-spacing: -0.3px; }
+  .q-page .text-subtitle1 { font-size: 16px; }
+  .q-page .text-grey, .q-page .text-grey-5, .q-page .text-grey-6,
+  .q-dialog .text-grey, .q-dialog .text-grey-5, .q-dialog .text-grey-6 { color: var(--bo-muted) !important; }
+  .q-page p { text-wrap: pretty; }
+  .asset-page-heading { margin-bottom: 24px; }
+  .asset-page-heading h1 { margin: 0; font-size: 24px; line-height: 1.35; font-weight: 700; letter-spacing: -0.6px; }
+  .asset-page-heading p { margin: 8px 0 0; color: var(--bo-muted); font-size: 14px; }
+
+  .q-btn { border-radius: var(--bo-control-radius); font-weight: 600; letter-spacing: 0; text-transform: none; }
+  .q-btn:not(.q-btn--round):not(.q-btn--dense) { min-height: 38px; padding: 7px 14px; }
+  .q-btn--rectangle::before { box-shadow: none; }
+  .q-btn--outline::before { border-color: currentColor; opacity: 0.32; }
+  .q-btn--round { border-radius: 50%; }
+  .q-btn--dense:not(.q-btn--round) { min-height: 30px; padding: 4px 8px; }
+  .q-btn__content { gap: 4px; }
+  .q-btn__content .q-icon.on-left { margin-right: 3px; }
+  .q-btn__content .q-icon.on-right { margin-left: 3px; }
+  .q-btn .q-focus-helper { transition: background-color 160ms ease-out, opacity 160ms ease-out; }
+
+  .q-field { font-size: 14px; }
+  .q-field--outlined .q-field__control { border-radius: var(--bo-control-radius); background: var(--bo-surface); }
+  .q-field--outlined .q-field__control::before { border-color: var(--bo-border-strong); }
+  .q-field__label { color: var(--bo-muted); }
+  .q-field__native, .q-field__input { color: var(--bo-text); }
+  .q-field__native::placeholder, .q-field__input::placeholder { color: var(--bo-muted); opacity: 1; }
+  .q-field--error .q-field__control::before { border-color: var(--q-negative); }
+  .q-field--disabled .q-field__control { background: var(--bo-surface-subtle); }
+
+  .q-card { border-radius: var(--bo-radius); }
+  .q-card--bordered { border-color: var(--bo-border); }
+  .q-page > .q-card:not(.q-card--flat),
+  .q-page > div > .q-card:not(.q-card--flat) { box-shadow: none; border: 1px solid var(--bo-border); }
+  .q-separator { background: var(--bo-border); }
+  .q-tabs { color: var(--bo-muted); }
+  .q-tab { text-transform: none; min-height: 42px; }
+  .q-tab__label { font-size: 14px; font-weight: 550; }
+  .q-tab--active { color: var(--bo-accent-ink); }
+  .q-tab__indicator { height: 2px; }
+  .q-chip { font-weight: 500; }
+  .q-badge { font-weight: 550; line-height: 1.4; letter-spacing: 0; }
+
+  .q-table__container {
+    border-radius: var(--bo-radius);
+    box-shadow: none;
+    border: 1px solid var(--bo-border);
+    color: var(--bo-text);
+    background: var(--bo-surface);
+  }
+  .q-table thead tr, .q-table thead th { background: var(--bo-surface-subtle); }
+  .q-table thead th { height: 44px; color: var(--bo-secondary); font-size: 12px; font-weight: 650; }
+  .q-table tbody td { height: 48px; font-size: 13px; }
+  .q-table th, .q-table td { border-color: var(--bo-border); }
+  .q-table { font-variant-numeric: tabular-nums; }
+  .q-table__bottom { min-height: 52px; color: var(--bo-muted); border-color: var(--bo-border); }
+  .q-table__top { padding: 16px 20px; }
+  .q-table tbody tr:hover > td::before { background: rgb(24 34 48 / 3%); }
+  .q-table--dense .q-table tbody td { height: 40px; }
+  .q-table--dense .q-table thead th { height: 38px; }
+
+  .q-menu { border-radius: var(--bo-control-radius); box-shadow: var(--bo-floating-shadow); padding: 4px; }
+  .q-menu .q-item { border-radius: 6px; font-size: 13px; }
+  .q-dialog__inner > .q-card { box-shadow: var(--bo-floating-shadow); }
+  .q-dialog__backdrop { background: rgb(16 24 40 / 38%); }
+  .q-dialog .q-card__section > .text-h6 { font-size: 20px; font-weight: 650; letter-spacing: -0.4px; }
+  .q-dialog .q-card__actions { padding: 16px 20px; gap: 6px; }
+  .q-tooltip { font-size: 12px; line-height: 1.5; border-radius: 6px; }
+  .q-notification { border-radius: 10px; }
+
+  @media (max-width: 1023px) {
+    .backoffice-layout .q-page.q-pa-md,
+    .backoffice-layout .q-page.q-layout-padding { padding: 24px; }
+  }
+  @media (max-width: 599px) {
+    .backoffice-layout .q-page.q-pa-md,
+    .backoffice-layout .q-page.q-layout-padding { padding: 20px 16px; }
+    .q-page .text-h5 { font-size: 22px; }
+    .q-dialog__inner { padding: 16px; }
+    .q-dialog__inner--maximized { padding: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .q-btn .q-focus-helper { transition: none; }
+  }
+}
+
 // app global css in SCSS form
 
 // Keep Jira issue status badges readable when Quasar's standard status colors
@@ -2728,5 +2877,28 @@ body.body--dark .q-dialog .source-dialog {
   body.body--dark .monthly-report-page .report-paper .task-label.done {
     background: #edf5f1 !important;
     color: #578570 !important;
+  }
+}
+
+@media screen {
+  body.body--dark {
+    --bo-canvas: #101827;
+    --bo-surface: #182334;
+    --bo-surface-subtle: #223047;
+    --bo-text: #e2e8f0;
+    --bo-secondary: #cbd5e1;
+    --bo-muted: #aebbd0;
+    --bo-border: #334155;
+    --bo-border-strong: #52637b;
+    --bo-accent-soft: #21364e;
+    --bo-accent-ink: #bfdbfe;
+
+    .my-work-row--overdue { background: #3a2528; }
+    .my-work-overdue-count,
+    .my-work-row--overdue .my-work-deadline-label,
+    .dday-calendar .fc-day-sun .fc-col-header-cell-cushion,
+    .dday-calendar .fc-day-sun .fc-daygrid-day-number { color: #ffaaa5; }
+    .my-work-today-count,
+    .my-work-row--today .my-work-deadline-label { color: #ffd08a; }
   }
 }

@@ -1,5 +1,5 @@
 <template>
-  <q-page padding class="sr-detail-page">
+  <q-page padding class="sr-detail-page bo-page">
 
     <div v-if="loading" class="flex flex-center q-pa-xl">
       <q-spinner size="3rem" color="primary" />
@@ -29,7 +29,7 @@
           </template>
           <HelpButton feature="sr-detail" guide-path="/pm/sr/guide" />
         </div>
-        <div class="text-h5 text-weight-bold q-mb-sm">{{ sr.title }}</div>
+        <div role="heading" aria-level="1" class="text-h5 text-weight-bold q-mb-sm bo-page-title">{{ sr.title }}</div>
         <div class="row items-center q-gutter-xs flex-wrap">
           <q-chip dense size="sm" :color="typeChipColor(sr.requestType)" text-color="white" class="q-ml-none">
             <q-icon :name="typeIcon(sr.requestType)" size="12px" class="q-mr-xs" />
@@ -2298,15 +2298,13 @@ watch(() => route.params.id, (newId) => {
 
 .dialog-header {
   padding: 20px 24px 16px;
-  color: white;
+  color: var(--bo-text);
+  background: var(--bo-surface);
+  border-bottom: 1px solid var(--bo-border);
 }
-.dialog-header--negative { background: var(--q-negative); }
-.dialog-header--primary  { background: var(--q-primary); }
-.dialog-header--teal     { background: #00897b; }
-.dialog-header--cyan     { background: #00838f; }
-.dialog-header--blue     { background: #1565c0; }
-.dialog-header__title    { font-size: 1.1rem; font-weight: 700; line-height: 1.3; }
-.dialog-header__sub      { font-size: 0.78rem; opacity: 0.75; margin-top: 2px; }
+.dialog-header--negative { background: #fef3f2; color: var(--q-negative); }
+.dialog-header__title    { font-size: 20px; font-weight: 650; line-height: 1.3; }
+.dialog-header__sub      { font-size: 13px; color: var(--bo-muted); margin-top: 6px; }
 
 .dialog-body { padding: 20px 24px 4px; overflow-y: auto; flex: 1; }
 

@@ -530,7 +530,7 @@ async function save() {
 }
 
 .wr-header {
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  background: var(--bo-surface);
 }
 
 .wr-body {

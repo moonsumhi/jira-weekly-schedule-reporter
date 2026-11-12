@@ -18,7 +18,7 @@ export type ThemeColorKey =
   | 'gray'
 
 export const THEME_COLORS: Record<ThemeColorKey, { label: string; primary: string; textColor: string }> = {
-  blue:   { label: '파란색', primary: '#1976d2', textColor: 'white' },
+  blue:   { label: '파란색', primary: '#2563eb', textColor: 'white' },
   indigo: { label: '남색', primary: '#3949ab', textColor: 'white' },
   purple: { label: '보라색', primary: '#7b1fa2', textColor: 'white' },
   red:    { label: '빨간색', primary: '#c62828', textColor: 'white' },
@@ -31,7 +31,7 @@ export const THEME_COLORS: Record<ThemeColorKey, { label: string; primary: strin
   gray:   { label: '회색',   primary: '#616161', textColor: 'white' },
 }
 
-const DEFAULT_APP_NAME = 'OPTOOL'
+export const DEFAULT_APP_NAME = 'ATOM'
 const DEFAULT_COLOR_KEY: ThemeColorKey = 'blue'
 const APPEARANCE_MODE_STORAGE_PREFIX = 'user-appearance-mode:'
 const HEX_COLOR_PATTERN = /^#[\da-f]{6}$/i

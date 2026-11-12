@@ -5,7 +5,8 @@ import type { IssueType, IssuePriority } from 'src/services/pm/issue'
 export type WeekdayOccurrence = { week: number; weekday: number }
 
 export type RecurrenceRule = {
-  freq: 'monthly'
+  freq: 'monthly' | 'yearly'
+  month?: number | null
   mode: 'day_of_month' | 'weekday'
   daysOfMonth: number[]
   weekdays: WeekdayOccurrence[]
@@ -69,7 +70,8 @@ export type TemplatePayload = {
     show_on_dashboard?: boolean
   }
   rule: {
-    freq: 'monthly'
+    freq: 'monthly' | 'yearly'
+    month?: number | null
     mode: 'day_of_month' | 'weekday'
     days_of_month: number[]
     weekdays: WeekdayOccurrence[]

@@ -1,8 +1,8 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="row items-center q-gutter-sm q-mb-md">
+  <q-page class="q-pa-md bo-page">
+    <div class="row items-center q-gutter-sm q-mb-md bo-page-heading">
       <q-btn flat dense icon="arrow_back" label="마이페이지" @click="router.push('/account/my-page')" />
-      <div class="text-h6">계정 설정</div>
+      <div role="heading" aria-level="1" class="text-h6 bo-page-title">계정 설정</div>
     </div>
 
     <!-- 화면 테마 -->

@@ -1,16 +1,15 @@
 <template>
-  <q-page class="monthly-page" :class="{ 'monthly-page--dark': $q.dark.isActive }">
+  <q-page class="monthly-page bo-page" :class="{ 'monthly-page--dark': $q.dark.isActive }">
     <div class="monthly-shell">
 
     <template v-if="!isDetail">
     <!-- 헤더 -->
-    <div class="monthly-list-header">
+    <div class="monthly-list-header bo-page-heading">
       <div>
-        <div class="monthly-eyebrow">스케줄 관리 <span> / </span> 보고서</div>
-        <h1>월간 보고</h1>
-        <p>한 달의 업무 실적과 주요 현황을 확인합니다.</p>
+        <h1 class="bo-page-title">월간 보고</h1>
+        <p class="bo-page-description">한 달의 업무 실적과 주요 현황을 확인합니다.</p>
       </div>
-      <div class="monthly-header-actions">
+      <div class="monthly-header-actions bo-page-actions">
         <q-btn outline icon="download" label="목록 Excel" color="blue-grey-8" no-caps @click="downloadList" />
         <q-btn unelevated color="primary" icon="add" label="새 보고서 생성" no-caps @click="openCreate" />
       </div>
@@ -84,7 +83,7 @@
           <q-td :props="props" class="q-gutter-xs">
             <q-btn flat dense icon="open_in_new" size="sm" color="primary" title="상세 보기" aria-label="상세 보기" @click="openDetail(props.row)" />
             <q-btn v-if="props.row.status !== 'CONFIRMED'" flat dense icon="edit" size="sm" color="grey-7" aria-label="보고서 수정" @click="openEdit(props.row)" />
-            <q-btn v-if="props.row.status !== 'CONFIRMED'" flat dense icon="refresh" size="sm" color="teal" title="이슈 재집계"
+            <q-btn v-if="props.row.status !== 'CONFIRMED'" flat dense icon="refresh" size="sm" color="teal" title="보고서 새로고침" aria-label="보고서 새로고침"
               :loading="refreshingId === props.row.id" @click="doRefresh(props.row)" />
             <q-btn flat dense icon="download" size="sm" color="positive" aria-label="보고서 Excel 다운로드" @click="downloadDetail(props.row.id)" />
             <q-btn v-if="props.row.status !== 'CONFIRMED'" flat dense icon="delete" size="sm" color="negative" aria-label="보고서 삭제" @click="confirmDelete(props.row)" />
@@ -141,11 +140,11 @@
         </div>
         <header class="monthly-hero">
           <div class="monthly-hero-main">
-            <div class="monthly-hero-kicker"><span>{{ detailDialog.report.reportYear }}년 {{ detailDialog.report.reportMonth }}월</span><span :class="['monthly-status', `monthly-status--${detailDialog.report.status.toLowerCase()}`]">{{ REPORT_STATUS_KO[detailDialog.report.status] }}</span></div>
-            <h1>{{ detailDialog.report.title }}</h1>
+            <h1 class="bo-page-title">{{ detailDialog.report.title }}</h1>
+            <div class="monthly-report-context"><span>{{ detailDialog.report.reportYear }}년 {{ detailDialog.report.reportMonth }}월</span><span :class="['monthly-status', `monthly-status--${detailDialog.report.status.toLowerCase()}`]">{{ REPORT_STATUS_KO[detailDialog.report.status] }}</span></div>
             <div class="monthly-meta"><span><q-icon name="business" /> {{ detailDialog.report.department || '부서 미지정' }}</span><span><q-icon name="person_outline" /> {{ detailDialog.report.createdByName || '작성자 미지정' }}</span><span><q-icon name="update" /> 마지막 집계 {{ detailDialog.report.aggregatedAt ? fmtDatetimeKst(detailDialog.report.aggregatedAt) : '기록 없음' }}<template v-if="detailDialog.report.aggregatedByName"> · {{ detailDialog.report.aggregatedByName }}</template></span></div>
           </div>
-          <div class="monthly-hero-actions">
+          <div class="monthly-hero-actions bo-page-actions">
             <q-btn v-if="canUseFeedback" outline color="blue-grey-8" icon="forum" :label="`${detailDialog.report.reportMonth}월 피드백 메모`" no-caps @click="feedbackOpen = true" />
             <q-btn v-if="detailDialog.report.status !== 'CONFIRMED'" outline color="blue-grey-8" icon="edit" label="수정" no-caps @click="openEdit(detailDialog.report)" />
             <q-btn outline color="blue-grey-8" icon="download" label="Excel" no-caps @click="downloadDetail(detailDialog.report.id)" />
@@ -164,11 +163,11 @@
 
         <section id="monthly-operations" class="monthly-surface monthly-insight-card">
           <div class="monthly-section-heading">
-            <div><span class="monthly-section-kicker">자동 집계</span><h2>서버 점검</h2></div>
+            <div><h2>서버 점검 <span class="monthly-section-note">자동 집계</span></h2></div>
             <q-btn v-if="detailDialog.report.status === 'DRAFT' || detailDialog.report.status === 'REVIEWING'"
-              flat dense icon="refresh" label="재집계" size="sm" color="teal" no-caps
+              flat dense icon="refresh" label="새로고침" size="sm" color="teal" no-caps
               :loading="refreshingId === detailDialog.report.id" @click="doRefresh(detailDialog.report)">
-              <q-tooltip>업무 현황과 서버 점검을 함께 재집계합니다.</q-tooltip>
+              <q-tooltip>최신 업무 현황과 서버 점검을 불러옵니다.</q-tooltip>
             </q-btn>
           </div>
           <div class="text-caption text-grey-6 q-mb-xs">{{ previousInspectionLabel }}의 확정된 서버 점검 결과서를 자동 집계합니다. 부서별로 필터링하지 않습니다.</div>
@@ -180,7 +179,7 @@
                 <template v-else-if="!inspectionDetailsAvailable">이 보고서에는 서버 점검 이슈 상세가 아직 집계되지 않았습니다.</template>
                 <template v-else>이 보고서에는 미완료 점검 이슈가 새 기준으로 집계되지 않았습니다.</template>
                 <template v-if="detailDialog.report.status === 'CONFIRMED'">최신 기준으로 다시 집계하려면 확정을 해제해 주세요.</template>
-                <template v-else>재집계하면 {{ previousInspectionLabel }} 이슈를 가져옵니다.</template>
+                <template v-else>새로고침하면 {{ previousInspectionLabel }} 이슈를 가져옵니다.</template>
               </q-banner>
               <div v-if="!detailDialog.report.operationalSummary.inspectionReports.length" class="inspection-empty">{{ inspectionMonthMatches ? `확정된 ${previousInspectionLabel} 서버 점검 결과서가 없습니다.` : '기존 집계에 서버 점검 결과서가 없습니다.' }}</div>
               <template v-else-if="inspectionDetailsAvailable">
@@ -209,7 +208,7 @@
               </template>
             </template>
           </template>
-          <div v-else class="text-caption text-grey-6">집계된 서버 점검 현황이 없습니다. 재집계 후 확인할 수 있습니다.</div>
+          <div v-else class="text-caption text-grey-6">집계된 서버 점검 현황이 없습니다. 새로고침 후 확인할 수 있습니다.</div>
         </section>
 
         <div id="monthly-work" class="monthly-work">
@@ -219,13 +218,15 @@
           <q-badge color="grey-5" :label="`총 ${detailDialog.report.stats.total}건`" class="q-ml-sm" />
           <q-space />
           <q-btn v-if="detailDialog.report.status === 'DRAFT' || detailDialog.report.status === 'REVIEWING'"
-            flat dense icon="refresh" label="재집계" size="sm" color="teal" no-caps
+            flat dense icon="add" label="이슈 추가" size="sm" color="primary" no-caps @click="createIssueOpen = true" />
+          <q-btn flat dense icon="refresh" label="새로고침" size="sm" color="teal" no-caps
             :loading="refreshingId === detailDialog.report.id" @click="doRefresh(detailDialog.report)" />
           <q-btn flat dense :icon="expanded ? 'fullscreen_exit' : 'fullscreen'"
             :label="expanded ? '전체화면 종료' : '전체화면'" :aria-label="expanded ? '업무 현황 전체화면 종료' : '업무 현황 전체화면 보기'"
             :aria-pressed="expanded" size="sm" no-caps @click="toggle" />
         </q-card-section>
         <q-separator />
+        <div v-if="syncError" role="status" class="text-negative text-caption q-px-md q-py-sm">{{ syncError }}</div>
         <q-tabs v-model="detailTab" dense align="left" class="q-px-md">
           <q-tab name="project" label="프로젝트별" />
           <q-tab name="person"  label="개인별" />
@@ -240,29 +241,34 @@
 
             <!-- 프로젝트별 -->
             <q-tab-panel name="project" class="q-pa-none">
-              <div v-if="!detailDialog.report.byProject.length" class="text-grey-5 text-center q-pa-lg">
-                집계된 업무가 없습니다.
-              </div>
+              <div v-if="!detailDialog.report.byProject.length" class="text-grey-5 text-center q-pa-lg">집계된 업무가 없습니다.</div>
               <q-expansion-item v-for="(pb, i) in detailDialog.report.byProject" :key="pb.projectId"
                 default-opened :label="pb.projectName"
                 :caption="`${pb.orgName ?? ''} · 완료 ${pb.stats.completed}/${pb.stats.total} · ${pb.stats.completionRate}%`"
                 class="q-mb-sm" :header-class="`${headerBg(i)} ${headerText(i)} text-weight-bold`">
                 <q-card flat>
                   <q-card-section class="q-pa-sm">
-                    <div class="text-caption text-grey-6 q-mb-xs">시작일순 · 시작일이 없으면 마감일 기준</div>
-                    <div v-for="item in projectTimeline(pb)" :key="item.issueId"
-                      class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders cursor-pointer issue-row"
-                      @click="openIssueDetail(item.issueId)">
-                      <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
-                      <div class="col issue-row-title"><span class="text-body2 ellipsis">{{ item.title }}</span><q-badge v-if="item.isDelayed" outline color="negative" label="지연" class="issue-delay-badge" /></div>
-                      <span v-if="item.assigneeName" class="text-caption text-grey-7">{{ item.assigneeName }}</span>
-                      <q-badge v-if="pb.upcoming.some(next => next.issueId === item.issueId)" outline color="primary" label="차월 계획" />
-                      <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
-                      <q-badge color="grey-5" :label="STATUS_KO[item.status] ?? item.status" />
-                      <span class="text-caption text-grey-6">{{ fmtDateKst(item.startDate) }} ~ {{ fmtDateKst(item.dueDate) }}</span>
-                    </div>
-                    <div v-if="!projectTimeline(pb).length"
-                      class="text-grey-5 text-caption">업무 없음</div>
+                    <template v-for="sec in projectBreakdown(pb)" :key="sec.label">
+                      <div class="q-mb-sm">
+                        <div class="text-caption text-weight-bold q-mb-xs" :class="`text-${sec.color}`">{{ sec.label }}</div>
+                        <div v-if="sec.items.length">
+                          <div v-for="item in sec.items" :key="item.issueId"
+                            class="row items-center q-gutter-xs q-mb-xs q-pa-xs bg-grey-1 rounded-borders cursor-pointer issue-row"
+                            @click="openIssueDetail(item.issueId)">
+                            <span class="text-caption text-grey-6" style="min-width:90px">{{ item.projectName }}-{{ item.issueNumber }}</span>
+                            <div class="col issue-row-title">
+                              <span class="text-body2 ellipsis">{{ item.title }}</span>
+                              <q-badge v-if="item.isDelayed" outline color="negative" label="지연" class="issue-delay-badge" />
+                            </div>
+                            <span v-if="item.assigneeName" class="text-caption text-grey-7">{{ item.assigneeName }}</span>
+                            <q-badge :color="PRIORITY_COLOR[item.priority]" :label="PRIORITY_KO[item.priority]" />
+                            <q-badge color="grey-5" :label="STATUS_KO[item.status] ?? item.status" />
+                            <span class="text-caption text-grey-6">{{ fmtDateKst(item.startDate) }} ~ {{ fmtDateKst(item.dueDate) }}</span>
+                          </div>
+                        </div>
+                        <div v-else class="text-caption text-grey-5 q-pl-sm">없음</div>
+                      </div>
+                    </template>
                   </q-card-section>
                 </q-card>
               </q-expansion-item>
@@ -362,7 +368,7 @@
         <!-- 관리자 코멘트 -->
         <section v-if="detailDialog.report.adminComment" class="monthly-surface monthly-admin-note">
           <div>
-            <div class="monthly-section-heading"><div><span class="monthly-section-kicker">참고</span><h2>관리자 코멘트</h2></div><q-icon name="chat_bubble_outline" size="20px" /></div>
+            <div class="monthly-section-heading"><div><h2>관리자 코멘트 <span class="monthly-section-note">참고</span></h2></div><q-icon name="chat_bubble_outline" size="20px" /></div>
             <div class="text-body2 q-pa-sm bg-grey-1 rounded-borders" style="white-space:pre-wrap">
               {{ detailDialog.report.adminComment }}
             </div>
@@ -389,7 +395,8 @@
       </q-card>
     </q-dialog>
     <IssueDetailDialog v-if="issueDialog.open && issueDialog.issue" v-model="issueDialog.open"
-      :project-id="issueDialog.issue.projectId" :issue="issueDialog.issue" />
+      :project-id="issueDialog.issue.projectId" :issue="issueDialog.issue" @updated="reloadDetail" @deleted="reloadDetail" />
+    <ReportIssueCreateDialog v-model="createIssueOpen" @created="reloadDetail" @updated="reloadDetail" />
     </div>
   </q-page>
 </template>
@@ -401,19 +408,21 @@ import { Notify, Dialog, useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 import {
   listMonthlyReports, getMonthlyReport, createMonthlyReport, updateMonthlyReport,
-  deleteMonthlyReport, refreshMonthlyReport, changeMonthlyReportStatus,
+  deleteMonthlyReport, changeMonthlyReportStatus,
   type MonthlyReport, type MonthlyReportCreate,
   type ReportStatus, type WorkItem, type ProjectBreakdown, type PersonBreakdown,
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 import { fmtDateKst, fmtDatetimeKst } from 'src/utils/time/kst'
-import { projectTimeline } from 'src/utils/reportProjectOrder'
+import { sortWorkItemsByDate } from 'src/utils/reportProjectOrder'
 import MonthlyHighlights from './components/MonthlyHighlights.vue'
 import MonthlyFeedback from './components/MonthlyFeedback.vue'
 import { listMyFeedback, listFeedback, type MonthlyFeedback as FeedbackItem } from 'src/services/pm/monthlyFeedback'
 import { useAuthStore } from 'src/stores/auth'
 import AutoWorkPanel from './components/AutoWorkPanel.vue'
 import IssueDetailDialog from './components/IssueDetailDialog.vue'
+import ReportIssueCreateDialog from './components/ReportIssueCreateDialog.vue'
+import { useReportAutoRefresh } from 'src/composables/useReportAutoRefresh'
 import { getLinkedIssue, type Issue } from 'src/services/pm/issue'
 
 // ── 레이블 맵 ─────────────────────────────────────────────────────────
@@ -446,6 +455,9 @@ const reports = ref<MonthlyReport[]>([])
 const loading = ref(false)
 const detailLoading = ref(false)
 const refreshingId = ref<string | null>(null)
+const syncError = ref('')
+const createIssueOpen = ref(false)
+let refreshRequest = 0
 const changingStatus = ref(false)
 const detailTab = ref('project')
 const issueDialog = ref<{ open: boolean; issue: Issue | null }>({ open: false, issue: null })
@@ -493,6 +505,10 @@ function breakdown(pb: ProjectBreakdown | PersonBreakdown) {
     { label: '🔄 진행 중',  items: pb.inProgress, color: 'primary'  },
     { label: '📌 차월 계획', items: pb.upcoming,   color: 'grey-7'   },
   ]
+}
+
+function projectBreakdown(pb: ProjectBreakdown) {
+  return breakdown(pb).map(section => ({ ...section, items: sortWorkItemsByDate(section.items) }))
 }
 
 // ── 생성 ──────────────────────────────────────────────────────────────
@@ -579,20 +595,30 @@ async function submitEdit() {
   }
 }
 
-// ── 재집계 ────────────────────────────────────────────────────────────
-async function doRefresh(r: MonthlyReport) {
+// ── 최신 업무 조회 ─────────────────────────────────────────────────────
+async function doRefresh(r: MonthlyReport, silent = false) {
+  const request = ++refreshRequest
+  const previous = detailDialog.value.report
   refreshingId.value = r.id
   try {
-    const updated = await refreshMonthlyReport(r.id)
-    Notify.create({ type: 'positive', message: '업무 현황과 서버 점검을 재집계했습니다.' })
-    if (isDetail.value && detailDialog.value.report?.id === r.id) detailDialog.value.report = updated
-    else await load()
+    const updated = await getMonthlyReport(r.id)
+    if (request !== refreshRequest) return
+    if (route.params.id === r.id && detailDialog.value.report === previous) detailDialog.value.report = updated
+    reports.value = reports.value.map(report => report.id === updated.id ? updated : report)
+    syncError.value = ''
   } catch (e) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, '재집계 실패') })
+    if (request !== refreshRequest) return
+    syncError.value = '최신 업무를 불러오지 못했습니다. 새로고침으로 다시 시도해 주세요.'
+    if (!silent) Notify.create({ type: 'negative', message: getErrorMessage(e, '새로고침 실패') })
   } finally {
-    refreshingId.value = null
+    if (request === refreshRequest) refreshingId.value = null
   }
 }
+useReportAutoRefresh(
+  () => !!detailDialog.value.report && ['DRAFT', 'REVIEWING'].includes(detailDialog.value.report.status)
+    && !detailLoading.value && !changingStatus.value && !refreshingId.value,
+  async () => { if (detailDialog.value.report) await doRefresh(detailDialog.value.report, true) },
+)
 
 // ── 상세 ──────────────────────────────────────────────────────────────
 const detailDialog = ref<{ report: MonthlyReport | null }>({ report: null })
@@ -652,10 +678,7 @@ watch(() => [route.params.id, route.query.feedback], ([id, feedback]) => {
 }, { immediate: true })
 
 async function reloadDetail() {
-  const id = detailDialog.value.report?.id
-  if (!id) return
-  try { const report = await getMonthlyReport(id); if (route.params.id === id) detailDialog.value.report = report }
-  catch (e) { Notify.create({ type: 'negative', message: getErrorMessage(e, '보고서를 다시 불러오지 못했습니다.') }) }
+  if (detailDialog.value.report) await doRefresh(detailDialog.value.report)
 }
 
 async function changeStatus(status: ReportStatus) {
@@ -759,6 +782,10 @@ watch([canUseFeedback, isDetail], async ([allowed, detail]) => {
 watch(() => route.params.id, async (id, _previousId, onCleanup) => {
   let active = true
   onCleanup(() => { active = false })
+  ++refreshRequest
+  refreshingId.value = null
+  syncError.value = ''
+  createIssueOpen.value = false
   detailDialog.value.report = null
   detailTab.value = 'project'
   if (typeof id !== 'string' || !id) {
@@ -779,55 +806,53 @@ watch(() => route.params.id, async (id, _previousId, onCleanup) => {
 </script>
 
 <style scoped>
-.monthly-page { min-height: 100%; padding: 28px 32px 52px; background: #f5f7f9; color: #243648; }
+.monthly-page { min-height: 100%; padding: 28px 32px 52px; background: var(--bo-canvas); color: var(--bo-text); }
 .monthly-shell { position: relative; width: 100%; min-height: 200px; max-width: 1500px; margin: 0 auto; }
 .monthly-list-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 25px; }
-.monthly-list-header h1, .monthly-hero h1 { margin: 5px 0 0; color: #172a3a; font-size: 27px; line-height: 1.3; letter-spacing: -.035em; font-weight: 750; }
-.monthly-list-header p { margin: 6px 0 0; color: #738394; font-size: 13px; }
-.monthly-eyebrow { color: #7d8d9c; font-size: 12px; font-weight: 600; }
-.monthly-eyebrow span { margin: 0 5px; color: #c4cdd5; }
+.monthly-list-header h1, .monthly-hero h1 { margin: 5px 0 0; color: var(--bo-text); font-size: 24px; line-height: 1.3; letter-spacing: -.02em; font-weight: 750; }
+.monthly-list-header p { margin: 6px 0 0; color: var(--bo-muted); font-size: 13px; }
 .monthly-header-actions, .monthly-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.monthly-header-actions :deep(.q-btn), .monthly-hero-actions :deep(.q-btn) { min-height: 36px; border-radius: 8px; padding: 0 12px; font-size: 12px; font-weight: 600; }
-.monthly-filter, .monthly-list-card, .monthly-surface { background: #fff; border: 1px solid #e1e8ef; border-radius: 14px; }
-.monthly-filter-label { display: flex; align-items: center; gap: 7px; margin-right: 8px; color: #576d7d; font-size: 12px; font-weight: 700; }
-.monthly-filter :deep(.q-field__control) { height: 36px; border-radius: 7px; }
+.monthly-header-actions :deep(.q-btn), .monthly-hero-actions :deep(.q-btn) { min-height: 38px; border-radius: var(--bo-control-radius); padding: 7px 14px; font-size: 14px; font-weight: 600; }
+.monthly-filter, .monthly-list-card, .monthly-surface { background: #fff; border: 1px solid var(--bo-border); border-radius: var(--bo-radius); }
+.monthly-filter-label { display: flex; align-items: center; gap: 7px; margin-right: 8px; color: var(--bo-secondary); font-size: 12px; font-weight: 700; }
+.monthly-filter :deep(.q-field__control) { height: 40px; border-radius: var(--bo-control-radius); }
 .monthly-list-card { overflow: hidden; }
-.monthly-list-title { padding: 20px 22px 14px; color: #213849; font-size: 15px; }
-.monthly-list-title span { margin-left: 9px; color: #8a99a7; font-size: 12px; }
-.monthly-table :deep(thead tr) { background: #f8fafb; }
-.monthly-table :deep(th) { color: #81909e; font-size: 11px; font-weight: 700; }
-.monthly-table :deep(tbody td) { height: 57px; border-color: #f0f3f5; }
-.monthly-table :deep(tbody tr:hover) { background: #f8fbfc; }
-.monthly-period { color: #335164; font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
-.monthly-report-link { max-width: 360px; padding: 0; overflow: hidden; border: 0; background: transparent; color: #244b5b; font: inherit; font-weight: 700; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.monthly-report-link:hover { color: #168079; text-decoration: underline; }
-.monthly-report-link:focus-visible { outline: 2px solid #168079; outline-offset: 3px; border-radius: 2px; }
-.monthly-report-department { margin-top: 3px; color: #9aa8b3; font-size: 11px; }
-.monthly-list-stats { display: flex; flex-wrap: wrap; gap: 10px; color: #8795a2; font-size: 11px; }
-.monthly-list-stats b { color: #40596b; margin-left: 2px; }
+.monthly-list-title { padding: 20px 22px 14px; color: var(--bo-text); font-size: 15px; }
+.monthly-list-title span { margin-left: 9px; color: var(--bo-muted); font-size: 12px; }
+.monthly-table :deep(thead tr) { background: var(--bo-surface-subtle); }
+.monthly-table :deep(th) { color: var(--bo-secondary); font-size: 11px; font-weight: 700; }
+.monthly-table :deep(tbody td) { height: 48px; border-color: var(--bo-surface-subtle); }
+.monthly-table :deep(tbody tr:hover) { background: var(--bo-surface-subtle); }
+.monthly-period { color: var(--bo-secondary); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; }
+.monthly-report-link { max-width: 360px; padding: 0; overflow: hidden; border: 0; background: transparent; color: var(--bo-accent-ink); font: inherit; font-weight: 700; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.monthly-report-link:hover { color: var(--bo-accent-ink); text-decoration: underline; }
+.monthly-report-link:focus-visible { outline: 2px solid var(--bo-accent-ink); outline-offset: 3px; border-radius: 2px; }
+.monthly-report-department { margin-top: 3px; color: var(--bo-muted); font-size: 11px; }
+.monthly-list-stats { display: flex; flex-wrap: wrap; gap: 10px; color: var(--bo-muted); font-size: 11px; }
+.monthly-list-stats b { color: var(--bo-secondary); margin-left: 2px; }
 .monthly-list-stats .monthly-list-delay, .monthly-list-stats .monthly-list-delay b { color: #c06459; }
-.monthly-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 6px; background: #f0f3f5; color: #637582; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.monthly-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 6px; background: var(--bo-surface-subtle); color: var(--bo-muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
 .monthly-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .monthly-status--reviewing { color: #a47227; background: #fff6e6; }
 .monthly-status--confirmed { color: #298374; background: #e8f5f1; }
 .monthly-detail-topline { display: flex; align-items: center; gap: 18px; margin: 0 0 15px; }
-.monthly-back { color: #526d7d; font-size: 12px; }
-.monthly-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding: 26px 28px; border: 1px solid #dfe8ec; border-radius: 16px; background: linear-gradient(112deg, #fff 0%, #f1f8f8 100%); }
+.monthly-back { color: var(--bo-muted); font-size: 12px; }
+.monthly-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding: 26px 28px; border: 1px solid var(--bo-border); border-radius: var(--bo-radius); background: var(--bo-surface); }
 .monthly-hero-main { min-width: 0; }
-.monthly-hero-kicker { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: #4d8d88; font-size: 12px; font-weight: 700; }
+.monthly-report-context { margin-top: 10px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: var(--bo-secondary); font-size: 12px; font-weight: 700; }
 .monthly-hero h1 { overflow-wrap: anywhere; }
-.monthly-meta { display: flex; flex-wrap: wrap; gap: 8px 17px; margin-top: 13px; color: #718493; font-size: 12px; }
+.monthly-meta { display: flex; flex-wrap: wrap; gap: 8px 17px; margin-top: 13px; color: var(--bo-muted); font-size: 12px; }
 .monthly-meta span { display: inline-flex; align-items: center; gap: 4px; }
-.monthly-meta .q-icon { font-size: 16px; color: #91a4ae; }
+.monthly-meta .q-icon { font-size: 16px; color: var(--bo-muted); }
 .monthly-hero-actions { justify-content: flex-end; flex-shrink: 0; max-width: 510px; }
-.monthly-section-nav { display: flex; gap: 4px; overflow-x: auto; margin: 22px 0 16px; padding-bottom: 2px; border-bottom: 1px solid #dfe6eb; }
-.monthly-section-nav button { flex: 0 0 auto; padding: 9px 14px 11px; border: 0; background: transparent; color: #6e8190; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
-.monthly-section-nav button:hover, .monthly-section-nav button:focus-visible { color: #197c75; background: #eaf3f2; border-radius: 7px 7px 0 0; outline: none; }
+.monthly-section-nav { display: flex; gap: 4px; overflow-x: auto; margin: 22px 0 16px; padding-bottom: 2px; border-bottom: 1px solid var(--bo-border); }
+.monthly-section-nav button { flex: 0 0 auto; padding: 9px 14px 11px; border: 0; background: transparent; color: var(--bo-muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.monthly-section-nav button:hover, .monthly-section-nav button:focus-visible { color: var(--bo-accent-ink); background: var(--bo-accent-soft); border-radius: var(--bo-control-radius) 7px 0 0; outline: none; }
 .monthly-work, .monthly-admin-note, .monthly-insight-card { scroll-margin-top: 20px; margin-bottom: 16px; }
 .monthly-insight-card, .monthly-admin-note { min-width: 0; padding: 22px 24px; }
-.monthly-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; color: #9aaeb6; }
-.monthly-section-heading h2 { margin: 3px 0 0; color: #1b3242; font-size: 16px; line-height: 1.4; font-weight: 700; }
-.monthly-section-kicker { color: #75909c; font-size: 10px; font-weight: 700; letter-spacing: .1em; }
+.monthly-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; color: var(--bo-muted); }
+.monthly-section-heading h2 { margin: 3px 0 0; color: var(--bo-text); font-size: 16px; line-height: 1.4; font-weight: 700; }
+.monthly-section-note { margin-left: 6px; color: var(--bo-muted); font-size: 12px; font-weight: 500; }
 .inspection-content { margin-top: 20px; }
 .inspection-subheading { margin: 0 0 10px; color: #405a68; font-size: 13px; line-height: 1.4; font-weight: 700; }
 .inspection-legacy-note { margin: 12px 0 0; color: #8a7652; font-size: 12px; line-height: 1.5; }
@@ -852,13 +877,13 @@ watch(() => route.params.id, async (id, _previousId, onCleanup) => {
 .inspection-followup small, .inspection-notes p { color: #6f8290; }
 .inspection-followup small { display: block; }
 .inspection-notes p { font-size: 13px; line-height: 1.6; }
-.issue-row:hover { background: #e8eaf6 !important; }
+.issue-row:hover { background: var(--bo-accent-soft) !important; }
 .issue-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .issue-row-title > .ellipsis { min-width: 0; }
 .issue-delay-badge { flex-shrink: 0; }
 .monthly-data-note { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 14px; color: #8998a5; font-size: 11px; line-height: 1.55; }
 .monthly-data-note .q-icon { flex: 0 0 auto; }
-.monthly-unavailable { margin: 30px 0; padding: 60px 20px; text-align: center; color: #7c8f9d; background: #fff; border: 1px solid #e1e8ef; border-radius: 14px; }
+.monthly-unavailable { margin: 30px 0; padding: 60px 20px; text-align: center; color: var(--bo-muted); background: #fff; border: 1px solid var(--bo-border); border-radius: var(--bo-radius); }
 .monthly-page--dark { background: #101827; color: #e2e8f0; color-scheme: dark; }
 .monthly-page--dark .monthly-filter,
 .monthly-page--dark .monthly-list-card,

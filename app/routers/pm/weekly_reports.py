@@ -18,6 +18,7 @@ from app.models.pm.reports import (
 from app.models.sr.service_request import SR_STATUS_LABEL, REQUEST_TYPE_LABEL
 from app.routers.auth import get_current_user
 from app.routers.pm.report_agg import aggregate_period
+from app.services.report_snapshot import is_live_report, snapshot_filter, sync_report_snapshot
 
 router = APIRouter()
 
@@ -384,6 +385,27 @@ async def export_weekly_list(
     return _excel_response(wb, f"주간보고목록_{year or '전체'}년.xlsx")
 
 
+async def _collect_snapshot(doc: dict) -> dict:
+    ns, ne = _next_week(doc["start_date"], doc["end_date"])
+    all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
+        doc["start_date"], doc["end_date"], ns, ne
+    )
+    sr_summary = await _aggregate_sr(doc["start_date"], doc["end_date"])
+    return {
+        "by_project": [p.model_dump() for p in by_project],
+        "by_person": [p.model_dump() for p in by_person],
+        "all_items": [i.model_dump() for i in all_items],
+        "upcoming_items": [i.model_dump() for i in upcoming_items],
+        "stats": stats.model_dump(), "sr_summary": sr_summary.model_dump(),
+    }
+
+
+async def _sync_snapshot(doc: dict) -> dict:
+    return await sync_report_snapshot(
+        MongoClientManager.get_pm_weekly_reports_collection(), doc, _collect_snapshot,
+    )
+
+
 @router.get("/{report_id}", response_model=WeeklyReportOut)
 async def get_weekly_report(
     report_id: str,
@@ -395,6 +417,7 @@ async def get_weekly_report(
     )
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    doc = await _sync_snapshot(doc)
     return await _enrich(_doc_to_out(doc), doc)
 
 
@@ -487,11 +510,7 @@ async def refresh_weekly_report(
     if doc.get("status", "DRAFT") not in {"DRAFT", "REVIEWING"}:
         raise HTTPException(status_code=409, detail="확정 전 보고서만 재집계할 수 있습니다.")
 
-    ns, ne = _next_week(doc["start_date"], doc["end_date"])
-    all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
-        doc["start_date"], doc["end_date"], ns, ne
-    )
-    sr_summary = await _aggregate_sr(doc["start_date"], doc["end_date"])
+    snapshot = await _collect_snapshot(doc)
     updated = await col.find_one_and_update(
         {
             "_id": ObjectId(report_id),
@@ -500,12 +519,7 @@ async def refresh_weekly_report(
         },
         {
             "$set": {
-                "by_project":     [p.model_dump() for p in by_project],
-                "by_person":      [p.model_dump() for p in by_person],
-                "all_items":      [i.model_dump() for i in all_items],
-                "upcoming_items": [i.model_dump() for i in upcoming_items],
-                "stats":          stats.model_dump(),
-                "sr_summary":     sr_summary.model_dump(),
+                **snapshot,
                 "updated_by":     ObjectId(current_user.id),
                 "updated_at":     datetime.now(timezone.utc),
             },
@@ -540,6 +554,9 @@ async def change_report_status(
     now = datetime.now(timezone.utc)
     update: dict = {"status": body.status, "updated_by": ObjectId(current_user.id), "updated_at": now}
     if body.status == "CONFIRMED":
+        if is_live_report(doc):
+            update.update(await _collect_snapshot(doc))
+            update["aggregated_at"] = now
         update["confirmed_by"] = ObjectId(current_user.id)
         update["confirmed_at"] = now
     elif body.status != "CONFIRMED":
@@ -549,10 +566,13 @@ async def change_report_status(
 
     action = f"상태 변경: {STATUS_KO.get(body.status, body.status)}"
     updated = await col.find_one_and_update(
-        {"_id": ObjectId(report_id)},
+        snapshot_filter(doc),
         {"$set": update, "$push": {"edit_history": _history_entry(current_user, action)}},
         return_document=True,
     )
+    if not updated:
+        raise HTTPException(status_code=409, detail="보고서가 변경되었습니다. 새로고침 후 다시 확인해 주세요.")
+    updated = await _sync_snapshot(updated)
     return await _enrich(_doc_to_out(updated), updated)
 
 
@@ -666,11 +686,13 @@ async def preview_weekly_report(
     report_id: str,
     current_user: UserPublic = Depends(get_current_user),
 ):
+    _require_pm(current_user)
     doc = await MongoClientManager.get_pm_weekly_reports_collection().find_one(
         {"_id": ObjectId(report_id), "deleted_at": None}
     )
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    doc = await _sync_snapshot(doc)
     r = _doc_to_out(doc)
     r.created_by_name = await _user_name(doc.get("created_by"))
 
@@ -794,6 +816,7 @@ async def export_weekly_detail(
     )
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    doc = await _sync_snapshot(doc)
 
     r = _doc_to_out(doc)
     r.created_by_name = await _user_name(doc.get("created_by"))

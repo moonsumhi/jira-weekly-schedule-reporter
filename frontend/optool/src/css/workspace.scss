@@ -1,0 +1,148 @@
+// Shared screen presentation for task pages. Document and print styles stay local.
+@media screen {
+  .backoffice-layout .q-page-container .q-page.bo-page {
+    width: 100%;
+    max-width: 1664px;
+    margin-inline: auto;
+    padding: 28px 32px 40px;
+    color: var(--bo-text);
+    background: var(--bo-canvas);
+  }
+
+  .backoffice-layout .bo-page .bo-page-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 24px;
+  }
+  .bo-page-heading > .col,
+  .bo-page-heading > div { min-width: 0; }
+  .bo-page-heading > .q-btn { flex-shrink: 0; }
+  .backoffice-layout .bo-page .bo-page-title {
+    margin: 0;
+    color: var(--bo-text);
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+  .backoffice-layout .bo-page .bo-page-title--standalone { margin-bottom: 24px; }
+  .bo-page .bo-page-heading .bo-page-description {
+    margin: 6px 0 0;
+    color: var(--bo-muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .backoffice-layout .bo-page .bo-page-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .bo-page .bo-filterbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 16px;
+    border: 1px solid var(--bo-border);
+    border-radius: var(--bo-radius);
+    background: var(--bo-surface);
+  }
+  .bo-filterbar > * { margin: 0; }
+  .bo-filterbar .q-field { min-width: 0; }
+  .bo-filterbar .bo-search { flex: 1 1 240px; }
+  .bo-page .q-card,
+  .bo-page .q-stepper,
+  .bo-page .q-table__container { border-radius: var(--bo-radius); }
+  .bo-page .q-card--bordered,
+  .bo-page .q-list--bordered { border-color: var(--bo-border); }
+  .bo-page .q-list--bordered { background: var(--bo-surface); border-radius: var(--bo-radius); }
+  .bo-page .q-card > .q-table__container,
+  .bo-page .q-card > .q-card__section > .q-table__container,
+  .bo-page .space-panel > .q-table__container { border: 0; border-radius: 0; }
+  .bo-page .q-card > .q-table__container:last-child,
+  .bo-page .space-panel > .q-table__container:last-child { border-radius: 0 0 var(--bo-radius) var(--bo-radius); }
+  .bo-page .q-table thead th { color: var(--bo-secondary); font-size: 12px; font-weight: 600; background: var(--bo-surface-subtle); }
+  .bo-page .q-table tbody td { border-color: var(--bo-border); }
+  .bo-page .q-table__bottom { font-size: 12px; }
+  .bo-page .q-table__bottom--nodata { min-height: 88px; justify-content: center; gap: 8px; }
+  .bo-page .q-table__bottom--nodata .q-icon { font-size: 20px; }
+  .bo-page .q-field--outlined .q-field__control { border-radius: var(--bo-control-radius); }
+  .bo-page .q-btn:not(.q-btn--round) { border-radius: var(--bo-control-radius); }
+  .bo-page .q-card__section > .text-subtitle1,
+  .bo-page .q-card__section > .text-subtitle2 { color: var(--bo-secondary); font-size: 15px; font-weight: 650; }
+  .bo-page .q-tabs:not(.q-tabs--vertical) { border-bottom: 1px solid var(--bo-border); }
+  .bo-page .q-tab__label { font-weight: 550; }
+  .bo-page .q-tab--active .q-tab__label { font-weight: 650; }
+  .bo-page .q-tab:not(.q-tab--active) { color: var(--bo-muted); }
+
+  // Keep status hues while giving their text a consistent, readable treatment.
+  .bo-page .q-badge.bg-grey-5,
+  .q-dialog .q-badge.bg-grey-5 { background: #f2f4f7 !important; color: #475467 !important; }
+  .bo-page .q-badge.bg-blue-4,
+  .bo-page .q-badge.bg-blue-5,
+  .q-dialog .q-badge.bg-blue-4,
+  .q-dialog .q-badge.bg-blue-5 { background: #eff8ff !important; color: #175cd3 !important; }
+  .bo-page .q-badge.bg-orange-6,
+  .q-dialog .q-badge.bg-orange-6 { background: #fffaeb !important; color: #93370d !important; }
+  .bo-page .q-badge.bg-green-6,
+  .q-dialog .q-badge.bg-green-6 { background: #ecfdf3 !important; color: #027a48 !important; }
+  .bo-page .q-badge.bg-red-6,
+  .q-dialog .q-badge.bg-red-6 { background: #fef3f2 !important; color: #b42318 !important; }
+
+  .bo-dialog-heading { color: var(--bo-text); background: var(--bo-surface); border-bottom: 1px solid var(--bo-border); }
+  .bo-dialog-heading .text-caption { margin-top: 6px; color: var(--bo-muted); }
+  .bo-page .report-shell { max-width: none; padding: 0; }
+  .bo-page .report-toolbar { min-height: 0; top: 64px; background: var(--bo-canvas); backdrop-filter: none; }
+  .bo-page .monthly-shell,
+  .bo-page .inspection-content { max-width: none; }
+
+  .bo-page .calendar-wrap {
+    padding: 20px;
+    background: var(--bo-surface);
+    border: 1px solid var(--bo-border);
+    border-radius: var(--bo-radius);
+  }
+  .bo-page .fc {
+    --fc-border-color: var(--bo-border);
+    --fc-today-bg-color: var(--bo-accent-soft);
+    --fc-neutral-bg-color: var(--bo-surface-subtle);
+    --fc-button-bg-color: var(--bo-surface);
+    --fc-button-text-color: var(--bo-secondary);
+    --fc-button-border-color: var(--bo-border-strong);
+    --fc-button-hover-bg-color: var(--bo-accent-soft);
+    --fc-button-hover-border-color: var(--q-primary);
+    --fc-button-active-bg-color: var(--bo-accent-soft);
+    --fc-button-active-border-color: var(--q-primary);
+    font-family: inherit;
+  }
+  .bo-page .fc .fc-toolbar-title { font-size: 18px; font-weight: 650; letter-spacing: -0.02em; }
+  .bo-page .fc .fc-button { border-radius: var(--bo-control-radius); font-size: 13px; font-weight: 550; box-shadow: none; }
+  .bo-page .fc .fc-col-header-cell { background: var(--bo-surface-subtle); font-size: 12px; font-weight: 600; }
+  .bo-page .fc .fc-daygrid-day-number { font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 1023px) {
+    .backoffice-layout .q-page-container .q-page.bo-page { padding: 24px; }
+    .backoffice-layout .bo-page .bo-page-heading { align-items: flex-start; }
+    .backoffice-layout .bo-page .bo-page-actions { flex-wrap: wrap; }
+  }
+  @media (max-width: 599px) {
+    .backoffice-layout .q-page-container .q-page.bo-page { padding: 20px 16px 32px; }
+    .backoffice-layout .bo-page .bo-page-title { font-size: 22px; }
+    .backoffice-layout .bo-page .bo-page-heading { gap: 12px 8px; margin-bottom: 20px; }
+    .bo-page-heading > .col { flex: 1 1 160px; }
+    .backoffice-layout .bo-page .bo-page-actions { width: 100%; }
+    .bo-page .bo-filterbar { gap: 10px; padding: 12px; }
+    .bo-filterbar .bo-search { flex-basis: 100%; width: 100%; }
+    .bo-page .calendar-wrap { padding: 12px; }
+    .bo-page .fc .fc-header-toolbar { display: flex; flex-wrap: wrap; gap: 12px; }
+    .bo-page .fc .fc-toolbar-title { font-size: 16px; }
+    .q-dialog__inner:not(.q-dialog__inner--maximized) > .q-card { min-width: 0 !important; max-width: calc(100vw - 32px); }
+  }
+}

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md" :class="{ 'work-management-dark': theme.appearanceMode === 'dark' }">
+  <q-page class="q-pa-md bo-page" :class="{ 'work-management-dark': theme.appearanceMode === 'dark' }">
     <q-tabs v-if="isJobPage" :model-value="activeJobTab" dense no-caps align="left"
       active-color="primary" indicator-color="primary" class="job-category-tabs q-mb-md"
       @update:model-value="selectJobTab">
@@ -14,10 +14,10 @@
 
     <template v-if="!loading && (isAllJobs || template)">
       <!-- Header -->
-      <div class="row items-center q-gutter-sm q-mb-md">
+      <div class="row items-center q-gutter-sm q-mb-md bo-page-heading">
         <div>
-          <div class="text-h6">{{ trashView ? '작업 관리 휴지통' : (isAllJobs ? '전체 작업 관리' : template?.title) }}</div>
-          <div class="text-caption text-grey">{{ trashView ? `${isAllJobs ? '전체' : template?.title} · 삭제된 문서 ${deletedCount}건` : (isAllJobs ? `전체 문서 ${rows.length}건` : template?.jiraIssueKey) }}</div>
+          <div role="heading" aria-level="1" class="text-h6 bo-page-title">{{ trashView ? '작업 관리 휴지통' : (isAllJobs ? '전체 작업 관리' : template?.title) }}</div>
+          <div class="text-caption text-grey bo-page-description">{{ trashView ? `${isAllJobs ? '전체' : template?.title} · 삭제된 문서 ${deletedCount}건` : (isAllJobs ? `전체 문서 ${rows.length}건` : template?.jiraIssueKey) }}</div>
         </div>
         <q-space />
         <q-btn v-if="trashView" flat dense no-caps icon="arrow_back" label="작업 목록" @click="closeTrash" />

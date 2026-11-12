@@ -1,10 +1,12 @@
 <template>
-  <q-page class="q-pa-md recurring-issue-page">
-    <div class="row items-center q-gutter-sm q-mb-md">
-      <div class="text-h6">반복 업무</div>
-      <q-chip dense square color="grey-2" text-color="grey-8" icon="repeat">
-        규칙을 정해두면 매일 09시에 도래한 회차 이슈가 자동 생성됩니다
-      </q-chip>
+  <q-page class="q-pa-md bo-page recurring-issue-page">
+    <div class="row items-center q-gutter-sm q-mb-md bo-page-heading">
+      <div class="col">
+        <div role="heading" aria-level="1" class="text-h6 bo-page-title">반복 업무</div>
+        <p class="bo-page-description">
+          규칙을 정해두면 매일 09시에 도래한 회차 이슈가 자동 생성됩니다
+        </p>
+      </div>
       <q-space />
       <q-select
         v-model="filterProjectId"
@@ -45,7 +47,7 @@
 
         <template #body-cell-rule="props">
           <q-td :props="props">
-            <span>매월 {{ ruleSummary(props.row.rule) }} {{ props.row.rule.time }}</span>
+            <span>{{ rulePeriod(props.row.rule) }} {{ ruleSummary(props.row.rule) }} {{ props.row.rule.time }}</span>
             <div v-if="props.row.leadDays" class="text-caption text-grey-6">
               {{ props.row.leadDays }}일 전 생성
             </div>
@@ -92,7 +94,7 @@
         <q-card-section class="q-px-lg q-pt-md q-pb-none">
           <div class="text-h6 text-weight-bold">{{ editingId ? '반복 업무 수정' : '반복 업무 추가' }}</div>
           <div class="text-caption text-grey-6">
-            규칙을 저장하면 매월 지정한 날에 이슈가 자동 생성됩니다
+            매월 또는 매년 지정한 날에 이슈가 자동 생성됩니다
           </div>
         </q-card-section>
         <q-separator class="q-mt-md" />
@@ -146,6 +148,12 @@
           <!-- 반복 규칙 -->
           <div class="section-label q-mb-sm">반복 규칙</div>
           <div class="ri-fields">
+            <div class="ri-row">
+              <q-select v-model="form.freq" :options="FREQ_OPTIONS" emit-value map-options
+                label="반복 주기 *" outlined dense class="col" />
+              <q-select v-if="form.freq === 'yearly'" v-model="form.month" :options="monthOptions"
+                emit-value map-options label="반복할 월 *" outlined dense class="col" />
+            </div>
             <q-btn-toggle
               v-model="form.mode"
               :options="MODE_OPTIONS"
@@ -161,9 +169,9 @@
               v-model="form.daysOfMonth"
               :options="dayOptions"
               multiple use-chips
-              label="매월 회차일 *"
-              outlined dense
-              hint="매달 이슈를 만들 날짜 (예: 5, 19 → 매월 5일·19일)"
+              :label="form.freq === 'yearly' ? `${form.month}월 회차일 *` : '매월 회차일 *'"
+              outlined dense hide-bottom-space class="ri-date-field"
+              hint="해당 월에 없는 날짜는 건너뜁니다. 2월 29일은 윤년에만 생성됩니다."
             />
 
             <!-- 요일 지정 -->
@@ -175,8 +183,8 @@
                   multiple use-chips label="요일 *" outlined dense class="col" />
               </div>
               <div class="text-caption text-grey-6" style="margin-top:-2px">
-                <span v-if="weekdaySummary">→ 매월 {{ weekdaySummary }}</span>
-                <span v-else>몇 번째와 요일을 고르면 조합됩니다 (예: 1번째 + 목 → 매월 첫 목요일)</span>
+                <span v-if="weekdaySummary">→ {{ rulePeriod(form) }} {{ weekdaySummary }}</span>
+                <span v-else>몇 번째와 요일을 고르면 조합됩니다 (예: 1번째 + 목 → 첫 목요일)</span>
               </div>
             </template>
 
@@ -184,7 +192,7 @@
               <q-input v-model="form.time" label="시각" outlined dense mask="##:##" placeholder="09:00" class="col">
                 <template #prepend><q-icon name="schedule" size="18px" color="grey-6" /></template>
               </q-input>
-              <q-input v-model.number="form.leadDays" type="number" min="0"
+              <q-input v-model.number="form.leadDays" type="number" min="0" max="60"
                 label="며칠 전 생성" outlined dense class="col"
                 suffix="일 전" hint="0 = 당일 생성" />
             </div>
@@ -234,7 +242,11 @@
             <q-input v-model.number="genYear" type="number" label="연도" outlined dense
               class="col" @update:model-value="loadPreview" />
             <q-select v-model="genMonth" :options="monthOptions" emit-value map-options label="월"
-              outlined dense class="col" @update:model-value="loadPreview" />
+              outlined dense class="col" :disable="genTarget?.rule.freq === 'yearly'"
+              @update:model-value="loadPreview" />
+          </div>
+          <div v-if="genTarget?.rule.freq === 'yearly'" class="text-caption text-grey-6 q-mt-sm">
+            매년 {{ genMonth }}월에 반복됩니다. 생성할 연도를 선택하세요.
           </div>
 
           <div v-if="genTarget?.includeInInspection" class="text-caption text-teal q-mt-sm">
@@ -312,6 +324,10 @@ const PRIORITY_OPTIONS = [
 ]
 const dayOptions = Array.from({ length: 31 }, (_, i) => i + 1)
 const monthOptions = Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}월`, value: i + 1 }))
+const FREQ_OPTIONS = [
+  { label: '매월', value: 'monthly' },
+  { label: '매년', value: 'yearly' },
+]
 const MODE_OPTIONS = [
   { label: '날짜 지정', value: 'day_of_month' },
   { label: '요일 지정', value: 'weekday' },
@@ -364,6 +380,10 @@ function projectName(id: string): string {
   return p ? `${p.key} · ${p.name}` : '-'
 }
 
+function rulePeriod(rule: { freq: string; month?: number | null }): string {
+  return rule.freq === 'yearly' ? `매년 ${rule.month}월` : '매월'
+}
+
 function ruleSummary(rule: RecurringIssueTemplate['rule']): string {
   if (rule.mode === 'weekday') {
     return (rule.weekdays ?? [])
@@ -397,6 +417,8 @@ type FormState = {
   assigneeId: string | null
   description: string
   showOnDashboard: boolean
+  freq: 'monthly' | 'yearly'
+  month: number
   mode: RuleMode
   daysOfMonth: number[]
   weeks: number[]
@@ -417,6 +439,8 @@ const form = ref<FormState>({
   assigneeId: null,
   description: '',
   showOnDashboard: false,
+  freq: 'monthly',
+  month: new Date().getMonth() + 1,
   mode: 'day_of_month',
   daysOfMonth: [],
   weeks: [],
@@ -432,6 +456,7 @@ function resetForm() {
   form.value = {
     name: '', projectId: '', title: '', type: 'TASK', priority: 'MEDIUM',
     assigneeId: null, description: '', showOnDashboard: false,
+    freq: 'monthly', month: new Date().getMonth() + 1,
     mode: 'day_of_month', daysOfMonth: [],
     weeks: [], weekdaysSel: [], time: '09:00',
     leadDays: 0, includeInInspection: false, autoEnabled: true, active: true,
@@ -476,6 +501,8 @@ async function openEdit(row: RecurringIssueTemplate) {
     assigneeId: row.blueprint.assigneeId,
     description: row.blueprint.description ?? '',
     showOnDashboard: row.blueprint.showOnDashboard,
+    freq: row.rule.freq ?? 'monthly',
+    month: row.rule.month ?? new Date().getMonth() + 1,
     mode: row.rule.mode ?? 'day_of_month',
     daysOfMonth: [...(row.rule.daysOfMonth ?? [])],
     weeks: [...new Set((row.rule.weekdays ?? []).map(w => w.week))],
@@ -505,7 +532,8 @@ function buildPayload(): TemplatePayload {
       show_on_dashboard: form.value.showOnDashboard,
     },
     rule: {
-      freq: 'monthly',
+      freq: form.value.freq,
+      month: form.value.freq === 'yearly' ? form.value.month : null,
       mode: form.value.mode,
       days_of_month: form.value.mode === 'day_of_month'
         ? [...form.value.daysOfMonth].sort((a, b) => a - b)
@@ -602,7 +630,8 @@ const newCount = computed(() => preview.value.filter((o) => !o.alreadyExists).le
 function openGenerate(row: RecurringIssueTemplate) {
   genTarget.value = row
   genYear.value = new Date().getFullYear()
-  genMonth.value = new Date().getMonth() + 1
+  genMonth.value = row.rule.freq === 'yearly' && row.rule.month
+    ? row.rule.month : new Date().getMonth() + 1
   preview.value = []
   genDialog.value = true
   void loadPreview()

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="spaces-page">
+  <q-page class="spaces-page bo-page">
     <SpaceHeader
       :title="room ? `${room.name} 배치도` : '사무실 배치도'"
       eyebrow="인적자원 관리 · 공간 관리"

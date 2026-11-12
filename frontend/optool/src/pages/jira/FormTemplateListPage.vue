@@ -1,7 +1,7 @@
 <template>
-  <q-page padding>
-    <div class="row items-center q-mb-md">
-      <div class="text-h5 col">폼 템플릿</div>
+  <q-page class="bo-page" padding>
+    <div class="row items-center q-mb-md bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h5 col bo-page-title">폼 템플릿</div>
       <q-toggle
         v-model="showDeleted"
         label="삭제된 항목 보기"

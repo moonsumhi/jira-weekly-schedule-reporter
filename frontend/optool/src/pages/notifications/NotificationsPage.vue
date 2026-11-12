@@ -1,12 +1,12 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md bo-page">
     <div class="row q-col-gutter-md">
       <!-- 헤더 -->
       <div class="col-12">
-        <div class="row items-center">
+        <div class="row items-center bo-page-heading">
           <div class="col">
-            <div class="text-h5 text-weight-bold">알림</div>
-            <div class="text-caption text-grey-6">수신된 알림 목록</div>
+            <div role="heading" aria-level="1" class="text-h5 text-weight-bold bo-page-title">알림</div>
+            <div class="text-caption text-grey-6 bo-page-description">수신된 알림 목록</div>
           </div>
           <q-btn
             v-if="unreadCount > 0"

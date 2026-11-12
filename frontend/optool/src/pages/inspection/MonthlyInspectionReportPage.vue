@@ -1,7 +1,7 @@
 <template>
-  <q-page class="monthly-report-page">
+  <q-page class="monthly-report-page bo-page">
     <div class="report-shell">
-      <header class="report-toolbar screen-only">
+      <header class="report-toolbar screen-only bo-page-heading" :class="{ 'report-toolbar--detail': report }">
         <div class="toolbar-left">
           <q-btn
             flat
@@ -19,13 +19,13 @@
             :aria-label="report ? '보고서 목록' : '월간 작업으로 돌아가기'"
           />
           <div>
-            <div class="toolbar-eyebrow">
+            <h1 class="bo-page-title">점검 {{ documentLabel }}</h1>
+            <p class="bo-page-description">
               서버 점검 / {{ report ? formatInspectionMonth(report.month) : '월간 작업' }}
-            </div>
-            <h1>점검 {{ documentLabel }}</h1>
+            </p>
           </div>
         </div>
-        <div v-if="report" class="toolbar-actions">
+        <div v-if="report" class="toolbar-actions bo-page-actions">
           <span class="save-status">{{
             report.state === 'FINAL'
               ? `확정된 ${documentLabel}`
@@ -183,19 +183,20 @@
               }}
             </p>
           </div>
-          <InspectionMonthPicker :model-value="month" @update:model-value="changeMonth" />
+          <InspectionMonthPicker class="report-month-picker" :model-value="month" @update:model-value="changeMonth" />
         </section>
         <div v-if="currentReport" class="monthly-document">
           <button
             class="report-card"
+            type="button"
             @click="goReport(currentReport.id)"
           >
             <div class="report-card-icon"><q-icon name="description" size="26px" /></div>
             <div class="report-card-copy">
+              <h3>{{ currentReport.title }}</h3>
               <div class="card-state" :class="{ final: currentReport.state === 'FINAL' }">
                 {{ currentReport.state === 'FINAL' ? '확정' : '초안' }} <span>{{ currentReport.revision }}차</span>
               </div>
-              <h3>{{ currentReport.title }}</h3>
               <p>점검{{ isPlan ? ' 예정일' : '일' }} {{ currentReport.inspectionDate }}</p>
               <small>{{ currentReport.createdBy }} · {{ reportTime(currentReport.updatedAt) }}</small>
             </div>
@@ -212,15 +213,7 @@
           </details>
         </div>
         <section v-else class="report-empty">
-          <div class="empty-document" aria-hidden="true">
-            <div class="mock-line short" />
-            <div class="mock-title" />
-            <div class="mock-stats"><i /><i /><i /></div>
-            <div class="mock-line" />
-            <div class="mock-line" />
-            <div class="mock-line short" />
-            <span><q-icon name="check" size="20px" /></span>
-          </div>
+          <q-icon name="description" size="32px" class="report-empty-icon" aria-hidden="true" />
           <h3>{{ formatInspectionMonth(month) }} 점검 {{ documentLabel }}가 없습니다.</h3>
           <p>
             {{
@@ -305,8 +298,8 @@
       ><q-card class="report-edit-dialog"
         ><q-card-section class="dialog-heading"
           ><div>
-            <div class="toolbar-eyebrow">점검 {{ documentLabel }} · 개요</div>
             <h2>내용 수정</h2>
+            <p class="dialog-help">점검 {{ documentLabel }} · 개요</p>
           </div>
           <q-btn
             flat
@@ -398,8 +391,8 @@
       ><q-card class="report-finalize-dialog"
         ><q-card-section class="dialog-heading"
           ><div>
-            <div class="toolbar-eyebrow">마지막 확인</div>
             <h2>확정</h2>
+            <p class="dialog-help">마지막 확인</p>
           </div>
           <q-btn
             flat
@@ -443,8 +436,8 @@
       ><q-card v-if="selectedServer" class="server-record-dialog"
         ><q-card-section class="dialog-heading"
           ><div>
-            <div class="toolbar-eyebrow">보고서에 포함된 서버 점검 결과</div>
             <h2>{{ selectedServer.hostName }}</h2>
+            <p class="dialog-help">보고서에 포함된 서버 점검 결과</p>
             <p class="dialog-help">{{ selectedServer.ip }}</p>
           </div>
           <q-btn
@@ -958,7 +951,7 @@ onBeforeUnmount(() => {
 </script>
 <style scoped>
 .document-kind-tabs {
-  border-bottom: 1px solid #e1e7ee;
+  border-bottom: 1px solid var(--bo-border);
   margin-bottom: 16px;
 }
 .monthly-report-page {
@@ -967,42 +960,33 @@ onBeforeUnmount(() => {
   color: #27374a;
 }
 .report-shell {
-  max-width: 1350px;
+  max-width: none;
   margin: 0 auto;
-  padding: 0 32px 56px;
+  padding: 0;
 }
 .report-toolbar {
-  min-height: 100px;
+  min-height: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  position: sticky;
-  top: 50px;
+  gap: 16px;
+  position: static;
+  top: 64px;
   z-index: 4;
-  background: #f4f6f9f5;
-  backdrop-filter: blur(12px);
+  background: var(--bo-canvas);
+}
+.report-toolbar--detail {
+  position: sticky;
 }
 .toolbar-left {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.toolbar-eyebrow {
-  font-size: 11px;
-  color: #8b97a6;
-  margin-bottom: 4px;
-}
-h1 {
-  font-size: 21px;
-  line-height: 1.3;
-  font-weight: 700;
-  margin: 0;
-  letter-spacing: -0.6px;
-}
 .toolbar-actions {
   display: flex;
-  gap: 9px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1014,25 +998,25 @@ h1 {
   gap: 8px;
 }
 .report-secondary-actions {
-  color: #65778a;
+  color: var(--bo-secondary);
 }
 .toolbar-actions .q-btn {
   font-size: 12px;
-  border-radius: 7px;
+  border-radius: var(--bo-control-radius);
   min-height: 40px;
 }
 .report-edit-button {
   font-weight: 600;
 }
 .save-status {
-  font-size: 11px;
-  color: #92a0ae;
-  margin-right: 6px;
+  font-size: 12px;
+  color: var(--bo-muted);
+  margin-right: 8px;
 }
 .report-workspace {
   display: grid;
   grid-template-columns: 188px minmax(0, 1fr);
-  gap: 28px;
+  gap: 24px;
   align-items: start;
 }
 .report-outline {
@@ -1044,8 +1028,8 @@ h1 {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-bottom: 23px;
-  border-bottom: 1px solid #e1e7ee;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--bo-border);
 }
 .outline-status b {
   display: block;
@@ -1053,15 +1037,15 @@ h1 {
   font-weight: 650;
 }
 .outline-status b span {
-  font-size: 10px;
-  color: #94a0ac;
+  font-size: 12px;
+  color: var(--bo-muted);
   font-weight: 400;
   margin-left: 6px;
 }
 .outline-status small {
   display: block;
-  color: #8d9baa;
-  font-size: 11px;
+  color: var(--bo-muted);
+  font-size: 12px;
   margin-top: 4px;
 }
 .report-outline nav {
@@ -1076,88 +1060,90 @@ h1 {
   text-align: left;
   font: inherit;
   font-size: 12px;
-  color: #697e92;
+  color: var(--bo-muted);
   padding: 10px 4px;
   cursor: pointer;
   border-radius: 6px;
 }
 .report-outline nav button:hover {
-  background: #e9eef4;
-  color: #345b7b;
+  background: var(--bo-accent-soft);
+  color: var(--bo-accent-ink);
 }
 .report-outline nav button span {
   display: inline-block;
   min-width: 24px;
-  font-size: 10px;
-  color: #a1afbc;
+  font-size: 12px;
+  color: var(--bo-muted);
 }
 .outline-editor {
-  border-top: 1px solid #e1e7ee;
+  border-top: 1px solid var(--bo-border);
   padding-top: 16px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .outline-note {
-  margin-top: 26px;
+  margin-top: 16px;
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  color: #93a0ad;
+  color: var(--bo-muted);
 }
 .outline-note .q-icon {
   margin-top: 4px;
 }
 .outline-note p {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.9;
 }
 .report-list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 36px 0 28px;
+  margin: 24px 0 16px;
+  flex-wrap: wrap;
   gap: 20px;
 }
 h2 {
-  font-size: 23px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.7px;
+  letter-spacing: -0.02em;
   line-height: 1.4;
-  margin: 0 0 10px;
+  margin: 0 0 6px;
 }
 .report-list-header p {
   font-size: 13px;
-  color: #8391a3;
+  color: var(--bo-muted);
   margin: 0;
 }
+.report-month-picker {
+  width: 176px;
+  flex-shrink: 0;
+}
 .monthly-document {
-  max-width: 760px;
+  width: 100%;
 }
 .report-card {
   display: flex;
   width: 100%;
-  gap: 19px;
-  border: 1px solid #e0e7ef;
-  border-radius: 12px;
-  padding: 26px;
+  gap: 16px;
+  border: 1px solid var(--bo-border);
+  border-radius: var(--bo-radius);
+  padding: 24px;
   text-align: left;
-  background: white;
+  background: var(--bo-surface);
   cursor: pointer;
   font: inherit;
   color: inherit;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+  transition: border-color 160ms ease-out;
 }
 .report-card:hover {
-  border-color: #a6bccd;
-  box-shadow: 0 6px 16px #26394a08;
+  border-color: var(--q-primary);
 }
 .report-card-icon {
-  padding: 14px;
-  background: #f1f5f8;
-  color: #86a0b4;
-  border-radius: 10px;
+  padding: 10px;
+  background: var(--bo-accent-soft);
+  color: var(--bo-accent-ink);
+  border-radius: var(--bo-control-radius);
   align-self: flex-start;
 }
 .report-card-copy {
@@ -1168,36 +1154,42 @@ h2 {
   font-size: 16px;
   line-height: 1.6;
   font-weight: 650;
-  margin: 8px 0;
+  margin: 0 0 8px;
   overflow-wrap: anywhere;
 }
 .report-card-copy p {
   font-size: 12px;
-  color: #8795a6;
-  margin: 0 0 18px;
+  color: var(--bo-muted);
+  margin: 8px 0 4px;
 }
 .report-card-copy small {
-  font-size: 10px;
-  color: #9ba7b5;
+  font-size: 12px;
+  color: var(--bo-muted);
 }
 .card-state {
-  color: #aa925f;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #fffaeb;
+  color: #93370d;
+  font-size: 12px;
 }
 .card-state.final {
-  color: #578f79;
+  background: #ecfdf3;
+  color: #027a48;
 }
 .card-state span {
   margin-left: 8px;
-  color: #a0acb9;
+  color: inherit;
 }
 .report-card-open {
-  color: #aebac7;
+  color: var(--bo-muted);
   margin-top: 4px;
 }
 .report-history {
   margin-top: 18px;
-  color: #546579;
+  color: var(--bo-secondary);
   font-size: 13px;
 }
 .report-history summary {
@@ -1206,7 +1198,7 @@ h2 {
 }
 .report-history p {
   margin: 12px 0;
-  color: #8391a3;
+  color: var(--bo-muted);
 }
 .report-history button {
   display: flex;
@@ -1215,7 +1207,7 @@ h2 {
   width: 100%;
   padding: 12px 4px;
   border: 0;
-  border-bottom: 1px solid #e5ebf1;
+  border-bottom: 1px solid var(--bo-border);
   background: transparent;
   color: inherit;
   text-align: left;
@@ -1226,141 +1218,91 @@ h2 {
   overflow-wrap: anywhere;
 }
 .report-history button small {
-  color: #8391a3;
+  color: var(--bo-muted);
 }
 .report-empty {
   text-align: center;
-  border: 1px solid #e2e9f0;
-  background: white;
-  padding: 65px 20px 52px;
-  border-radius: 14px;
+  border: 1px solid var(--bo-border);
+  background: var(--bo-surface);
+  padding: 40px 24px;
+  border-radius: var(--bo-radius);
 }
 .report-empty h3 {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 650;
   line-height: 1.6;
-  margin: 24px 0 10px;
+  margin: 12px 0 6px;
 }
 .report-empty p {
-  color: #8a98a9;
+  color: var(--bo-muted);
   font-size: 13px;
   line-height: 1.9;
-  margin-bottom: 26px;
+  margin-bottom: 20px;
 }
-.report-empty .q-btn {
-  border-radius: 7px;
-  padding: 3px 17px;
-}
-.empty-document {
-  width: 115px;
-  height: 140px;
-  border: 1px solid #dbe5ed;
-  border-radius: 7px;
-  padding: 22px 17px;
-  margin: auto;
-  background: linear-gradient(160deg, white, #f7fafc);
-  transform: rotate(-5deg);
-  box-shadow: 8px 7px 0 #f1f5f8;
-  position: relative;
-}
-.mock-line {
-  height: 3px;
-  background: #e4ebf1;
-  margin-bottom: 7px;
-  border-radius: 2px;
-}
-.mock-line.short {
-  width: 60%;
-}
-.mock-title {
-  height: 6px;
-  width: 90%;
-  background: #b5c8d5;
-  margin: 12px 0 15px;
-  border-radius: 2px;
-}
-.mock-stats {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 15px;
-}
-.mock-stats i {
-  width: 21px;
-  height: 19px;
-  border-radius: 3px;
-  background: #e3edf2;
-}
-.empty-document > span {
-  position: absolute;
-  bottom: -8px;
-  right: -10px;
-  background: #eff7f2;
-  color: #77a48b;
-  border: 4px solid white;
-  border-radius: 50%;
-  padding: 7px;
+.report-empty-icon {
+  color: var(--bo-muted);
 }
 .report-list-note {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  gap: 9px;
-  color: #94a2b1;
-  font-size: 11px;
-  margin-top: 26px;
+  gap: 8px;
+  color: var(--bo-muted);
+  font-size: 12px;
+  margin-top: 16px;
   line-height: 1.8;
 }
 .report-loading {
   text-align: center;
-  padding: 130px 20px;
-  color: #8795a6;
+  padding: 64px 24px;
+  color: var(--bo-muted);
   font-size: 13px;
 }
 .error-banner {
   background: #fff1ef;
-  color: #b36a5e;
+  color: #b42318;
   border-radius: 8px;
   margin-bottom: 20px;
 }
 .report-edit-dialog {
   width: 640px;
   max-width: calc(100vw - 32px);
-  border-radius: 16px;
+  border-radius: var(--bo-radius);
 }
 .report-finalize-dialog,
 .server-record-dialog {
   width: 590px;
   max-width: calc(100vw - 32px);
-  border-radius: 16px;
+  border-radius: var(--bo-radius);
 }
 .dialog-heading {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 26px;
-  gap: 15px;
+  padding: 24px;
+  gap: 16px;
 }
 .dialog-heading h2 {
   font-size: 20px;
   line-height: 1.5;
-  margin: 6px 0 0;
+  margin: 0 0 6px;
 }
 .dialog-fields {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 0 26px 20px;
+  padding: 0 24px 24px;
 }
 .dialog-help {
-  color: #8795a6;
+  color: var(--bo-muted);
   font-size: 12px;
   line-height: 1.8;
   margin: 0;
 }
 .report-finalize-dialog > .q-card__section:not(.dialog-heading),
 .server-record-dialog > .q-card__section:not(.dialog-heading) {
-  padding-left: 26px;
-  padding-right: 26px;
+  padding-left: 24px;
+  padding-right: 24px;
 }
 .finalize-warnings {
   background: #faf7ef;
@@ -1368,7 +1310,7 @@ h2 {
   border-radius: 8px;
   margin-top: 22px;
   font-size: 12px;
-  color: #927e59;
+  color: #93370d;
 }
 .finalize-warnings > b {
   display: block;
@@ -1377,14 +1319,14 @@ h2 {
 .finalize-warnings > div {
   display: flex;
   justify-content: space-between;
-  gap: 15px;
+  gap: 16px;
   padding: 6px 0;
 }
 .finalize-limitations,
 .record-prose {
   font-size: 12px;
   line-height: 1.9;
-  color: #788798;
+  color: var(--bo-muted);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   margin: 18px 0 0;
@@ -1392,8 +1334,8 @@ h2 {
 .server-record-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
-  background: #f5f8fa;
+  gap: 16px;
+  background: var(--bo-surface-subtle);
   border-radius: 8px;
   padding: 20px;
 }
@@ -1404,35 +1346,32 @@ h2 {
 }
 .server-record-stats span,
 .server-record-stats small {
-  font-size: 11px;
-  color: #7c8d9e;
+  font-size: 12px;
+  color: var(--bo-muted);
 }
 .server-record-stats b {
   font-size: 22px;
-  color: #3e546b;
+  color: var(--bo-secondary);
 }
 .server-record-row {
   display: flex;
   justify-content: space-between;
   gap: 14px;
   padding: 12px 0;
-  border-bottom: 1px solid #ecf0f4;
+  border-bottom: 1px solid var(--bo-border);
   font-size: 12px;
-  color: #748699;
+  color: var(--bo-muted);
 }
 @media (max-width: 1150px) {
   .save-status {
     display: none;
   }
-  .report-shell {
-    padding: 0 22px 40px;
-  }
   .report-workspace {
     grid-template-columns: 160px minmax(0, 1fr);
-    gap: 20px;
+    gap: 16px;
   }
   .toolbar-actions .q-btn {
-    font-size: 11px;
+    font-size: 12px;
   }
 }
 @media (max-width: 900px) {
@@ -1445,7 +1384,7 @@ h2 {
   .report-toolbar {
     position: static;
     flex-wrap: wrap;
-    padding: 20px 0;
+    padding: 0;
   }
   .toolbar-actions {
     justify-content: flex-end;
@@ -1453,9 +1392,6 @@ h2 {
   }
 }
 @media (max-width: 600px) {
-  .report-shell {
-    padding: 0 12px 30px;
-  }
   .report-toolbar {
     gap: 16px;
   }
@@ -1477,28 +1413,25 @@ h2 {
     padding: 6px 10px;
   }
   .report-secondary-actions .q-btn {
-    font-size: 11px;
+    font-size: 12px;
   }
   .toolbar-left {
-    gap: 5px;
-  }
-  h1 {
-    font-size: 19px;
+    gap: 8px;
   }
   .report-list-header {
     flex-direction: column;
     align-items: flex-start;
-    margin: 20px 6px;
-    gap: 20px;
+    margin: 20px 0 16px;
+    gap: 16px;
   }
   .report-list-header h2 {
-    font-size: 21px;
+    font-size: 16px;
   }
   .report-list-header p {
     line-height: 1.8;
   }
   .report-card {
-    padding: 20px;
+    padding: 16px;
     gap: 14px;
   }
   .report-history button {
@@ -1521,7 +1454,7 @@ h2 {
   }
   .report-list-note {
     align-items: flex-start;
-    padding: 0 10px;
+    padding: 0;
   }
   .report-list-note .q-icon {
     margin-top: 4px;

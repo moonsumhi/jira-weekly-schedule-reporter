@@ -1,5 +1,5 @@
 <template>
-  <q-page class="spaces-page">
+  <q-page class="spaces-page bo-page">
     <SpaceHeader
       title="인원 현황"
       description="팀별 인원과 근무 공간, 배정된 좌석을 한곳에서 확인하세요."

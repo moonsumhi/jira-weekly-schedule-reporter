@@ -1,11 +1,11 @@
 <template>
-  <q-page padding class="sr-my-page">
+  <q-page class="bo-page sr-my-page" padding>
 
     <!-- 헤더 -->
-    <div class="row items-center q-mb-lg">
+    <div class="row items-center q-mb-lg bo-page-heading">
       <div class="col">
-        <div class="text-h5 text-weight-bold">내 SR 목록</div>
-        <div class="text-caption text-grey-6">내가 등록했거나 같은 팀에서 등록한 SR 현황을 확인합니다.</div>
+        <div role="heading" aria-level="1" class="text-h5 text-weight-bold bo-page-title">내 SR 목록</div>
+        <div class="text-caption text-grey-6 bo-page-description">내가 등록했거나 같은 팀에서 등록한 SR 현황을 확인합니다.</div>
       </div>
       <HelpButton feature="sr-my" guide-path="/pm/sr/guide" class="q-mr-sm" />
       <q-btn color="primary" icon="add" label="SR 접수" to="/pm/sr/new" unelevated />
