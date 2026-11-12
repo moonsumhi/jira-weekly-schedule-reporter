@@ -1,8 +1,8 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md bo-page">
     <!-- 헤더 -->
-    <div class="row items-center q-mb-md q-gutter-sm">
-      <div class="text-h5">내 이슈</div>
+    <div class="row items-center q-mb-md q-gutter-sm bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h5 bo-page-title">내 이슈</div>
       <q-space />
       <q-input
         v-model="search"
@@ -30,7 +30,7 @@
 
     <q-inner-loading :showing="loading" />
 
-    <div v-if="!loading" class="column q-gutter-md">
+    <div v-if="!loading" class="issue-sections">
       <!-- ── 담당 중 ── -->
       <q-card v-if="showAssigned" flat bordered>
         <div
@@ -43,7 +43,7 @@
         </div>
         <template v-if="assignedOpen">
           <q-separator />
-          <div class="issue-table">
+          <div class="issue-table" tabindex="0" role="region" aria-label="이슈 목록">
             <!-- 헤더 -->
             <div class="issue-table-header row items-center q-px-md q-py-xs text-caption text-grey-6">
               <div class="ic-icon"></div>
@@ -131,7 +131,7 @@
         </div>
         <template v-if="reportedOpen">
           <q-separator />
-          <div class="issue-table">
+          <div class="issue-table" tabindex="0" role="region" aria-label="이슈 목록">
             <div class="issue-table-header row items-center q-px-md q-py-xs text-caption text-grey-6">
               <div class="ic-icon"></div>
               <div class="ic-key">키</div>
@@ -239,6 +239,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Notify } from 'quasar'
 import { api } from 'src/boot/axios'
 import {
@@ -269,7 +270,11 @@ const reportedIssues = ref<Issue[]>([])
 const stats = ref<ProjectStat[]>([])
 
 const search = ref('')
-const activeGroup = ref<'all' | 'assigned' | 'reported'>('all')
+const route = useRoute()
+const activeGroup = ref<'all' | 'assigned' | 'reported'>(route.query.group === 'assigned' ? 'assigned' : 'all')
+watch(() => route.query.group, group => {
+  if (group === 'assigned' || group === 'reported' || group === 'all') activeGroup.value = group
+})
 const assignedOpen = ref(true)
 const reportedOpen = ref(true)
 const statsOpen = ref(true)
@@ -477,12 +482,28 @@ onMounted(load)
 </script>
 
 <style scoped>
+.issue-sections {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.issue-table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.issue-table-header,
+.issue-table-row,
+.hierarchy-context-row {
+  min-width: 760px;
+  flex-wrap: nowrap;
+}
+
 .section-toggle:hover {
   background: rgba(0, 0, 0, 0.03);
 }
 
 .issue-table-header {
-  background: #f5f5f5;
+  background: var(--bo-surface-subtle);
 }
 
 .issue-table-row {

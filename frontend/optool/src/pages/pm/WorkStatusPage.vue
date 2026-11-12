@@ -1,13 +1,13 @@
 <template>
-  <q-page class="q-pa-md work-status-page">
+  <q-page class="q-pa-md bo-page work-status-page">
     <div class="row q-col-gutter-md">
 
       <!-- 헤더 -->
       <div class="col-12">
-        <div class="row items-center">
+        <div class="row items-center bo-page-heading">
           <div class="col">
-            <div class="text-h5 text-weight-bold">업무 현황</div>
-            <div class="text-caption text-grey-6">담당자별 업무 일정 현황</div>
+            <div role="heading" aria-level="1" class="text-h5 text-weight-bold bo-page-title">업무 현황</div>
+            <div class="text-caption text-grey-6 bo-page-description">담당자별 업무 일정 현황</div>
           </div>
           <HelpButton feature="work-status" guide-path="/pm/schedule/guide" />
         </div>

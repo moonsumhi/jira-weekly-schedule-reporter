@@ -1375,9 +1375,19 @@ async def migrate_full_rack_placements_to_front() -> None:
         logger.info("랙 전체 배치 %d건을 전면 배치로 마이그레이션 완료", migrated)
 
 
+async def migrate_app_branding() -> None:
+    """이전 기본 앱 이름·탭 제목만 ATOM으로 전환한다."""
+    settings_col = MongoClientManager.get_db()[MongoClientManager.APP_SETTINGS]
+    await settings_col.update_many(
+        {"key": {"$in": ["app_name", "tab_title"]}, "value": "OPTOOL"},
+        {"$set": {"value": "ATOM"}},
+    )
+
+
 async def run_startup() -> None:
     """lifespan startup에서 호출하는 진입점."""
     await create_indexes()
+    await migrate_app_branding()
     from app.services.spaces import initialize as initialize_spaces
     await initialize_spaces()
     await seed_system_menus()

@@ -1,8 +1,8 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md bo-page">
     <div class="row q-col-gutter-md">
       <div class="col-12">
-        <div class="text-h5">Pilot 일감 처리 현황</div>
+        <div role="heading" aria-level="1" class="text-h5 bo-page-title">Pilot 일감 처리 현황</div>
         <div class="text-caption text-grey-7">
           Pilot이 처리 중인 Jira 이슈 목록입니다.
         </div>

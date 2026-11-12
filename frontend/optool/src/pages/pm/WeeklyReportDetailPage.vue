@@ -1,16 +1,16 @@
 <template>
-  <q-page class="q-pa-md weekly-report-page">
+  <q-page class="q-pa-md bo-page weekly-report-page">
 
     <!-- 헤더 -->
-    <div class="row items-start q-mb-md q-gutter-sm">
+    <div class="row items-start q-mb-md q-gutter-sm bo-page-heading">
       <q-btn flat round icon="arrow_back" @click="$router.back()" />
       <div class="col">
         <div class="row items-center q-gutter-sm">
-          <div class="text-h5 text-weight-bold">{{ report?.title }}</div>
+          <div role="heading" aria-level="1" class="text-h5 text-weight-bold bo-page-title">{{ report?.title }}</div>
           <q-badge v-if="report" :color="STATUS_COLOR[report.status] ?? 'grey-6'"
             :label="STATUS_KO[report.status] ?? report.status" class="q-px-sm" style="font-size:12px" />
         </div>
-        <div class="text-caption text-grey-6 q-mt-xs">
+        <div class="text-caption text-grey-6 q-mt-xs bo-page-description">
           스케줄 관리 › 주간 보고 › 상세
           <span v-if="report">
             · {{ report.reportYear }}년 {{ report.reportWeek }}주차
@@ -36,7 +36,7 @@
 
     <q-inner-loading :showing="loading" />
 
-    <div v-if="report && !loading" class="column q-gutter-md">
+    <div v-if="report && !loading" class="column no-wrap q-gutter-md">
 
       <!-- 통계 카드 -->
       <div class="row q-col-gutter-sm">
@@ -61,14 +61,16 @@
             <div class="text-subtitle1 text-weight-bold">자동 집계 업무</div>
             <q-badge color="grey-5" :label="`총 ${report.stats.total}건`" class="q-ml-sm" />
             <q-space />
-            <q-btn v-if="report.status === 'DRAFT' || report.status === 'REVIEWING'" flat dense icon="refresh" label="재집계" size="sm" color="teal" no-caps
-              :loading="refreshing" @click="doRefresh" />
+            <q-btn v-if="report.status === 'DRAFT' || report.status === 'REVIEWING'" flat dense icon="add" label="이슈 추가" size="sm" color="primary" no-caps @click="createIssueOpen = true" />
+            <q-btn flat dense icon="refresh" label="새로고침" size="sm" color="teal" no-caps
+              :loading="refreshing" @click="doRefresh()" />
             <q-btn flat dense :icon="expanded ? 'fullscreen_exit' : 'fullscreen'"
               :label="expanded ? '전체화면 종료' : '전체화면'" :aria-label="expanded ? '자동 집계 업무 전체화면 종료' : '자동 집계 업무 전체화면 보기'"
               :aria-pressed="expanded" size="sm" no-caps @click="toggle" />
           </div>
         </q-card-section>
         <q-separator />
+        <div v-if="syncError" role="status" class="text-negative text-caption q-px-md q-py-sm">{{ syncError }}</div>
         <q-tabs v-model="tab" dense align="left" class="q-px-md">
           <q-tab name="project" label="프로젝트별" />
           <q-tab name="person"  label="개인별" />
@@ -336,18 +338,20 @@
       v-model="issueDialog.open"
       :project-id="issueDialog.issue.projectId"
       :issue="issueDialog.issue"
+      @updated="doRefresh()" @deleted="doRefresh()"
     />
+    <ReportIssueCreateDialog v-model="createIssueOpen" @created="doRefresh()" @updated="doRefresh()" />
 
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Notify, useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 import {
-  getWeeklyReport, refreshWeeklyReport, changeWeeklyReportStatus, deleteManualItem,
+  getWeeklyReport, changeWeeklyReportStatus, deleteManualItem,
   updateManualItem,
   type WeeklyReport, type ManualItem, type ManualItemSection, type ReportStatus,
   type ProjectBreakdown, type PersonBreakdown,
@@ -358,6 +362,8 @@ import { sortWorkItemsByDate } from 'src/utils/reportProjectOrder'
 import WrItemDialog from './components/WrItemDialog.vue'
 import AutoWorkPanel from './components/AutoWorkPanel.vue'
 import IssueDetailDialog from './components/IssueDetailDialog.vue'
+import ReportIssueCreateDialog from './components/ReportIssueCreateDialog.vue'
+import { useReportAutoRefresh } from 'src/composables/useReportAutoRefresh'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { getLinkedIssue, type Issue } from 'src/services/pm/issue'
 
@@ -366,9 +372,12 @@ const $q = useQuasar()
 const route  = useRoute()
 const router = useRouter()
 
-const reportId = route.params.id as string
+const reportId = computed(() => route.params.id as string)
 const loading   = ref(false)
 const refreshing = ref(false)
+const syncError = ref('')
+const createIssueOpen = ref(false)
+let refreshRequest = 0
 const report    = ref<WeeklyReport | null>(null)
 const tab       = ref('project')
 
@@ -462,34 +471,48 @@ function impactColor(impact: string) {
 
 // ── 로드 ──────────────────────────────────────────────────────────────
 async function load() {
+  const id = reportId.value
   loading.value = true
   try {
-    report.value = await getWeeklyReport(reportId)
+    const result = await getWeeklyReport(id)
+    if (reportId.value === id) report.value = result
   } catch (e) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
-    void router.back()
+    if (reportId.value === id) {
+      Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
+      void router.back()
+    }
   } finally {
-    loading.value = false
+    if (reportId.value === id) loading.value = false
   }
 }
 
-// ── 재집계 ────────────────────────────────────────────────────────────
-async function doRefresh() {
+// 원본 이슈 변경 후에도 수기 내용과 편집 중인 입력은 유지한다.
+async function doRefresh(silent = false) {
+  const request = ++refreshRequest
+  const previous = report.value
   refreshing.value = true
   try {
-    report.value = await refreshWeeklyReport(reportId)
-    Notify.create({ type: 'positive', message: '이슈 데이터를 재집계했습니다.' })
+    const updated = await getWeeklyReport(reportId.value)
+    if (request !== refreshRequest) return
+    if (report.value === previous) report.value = updated
+    syncError.value = ''
   } catch (e) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, '재집계 실패') })
+    if (request !== refreshRequest) return
+    syncError.value = '최신 업무를 불러오지 못했습니다. 새로고침으로 다시 시도해 주세요.'
+    if (!silent) Notify.create({ type: 'negative', message: getErrorMessage(e, '새로고침 실패') })
   } finally {
-    refreshing.value = false
+    if (request === refreshRequest) refreshing.value = false
   }
 }
+useReportAutoRefresh(
+  () => !!report.value && ['DRAFT', 'REVIEWING'].includes(report.value.status) && !loading.value && !refreshing.value,
+  () => doRefresh(true),
+)
 
 // ── 상태 변경 ─────────────────────────────────────────────────────────
 async function changeStatus(status: ReportStatus) {
   try {
-    report.value = await changeWeeklyReportStatus(reportId, status)
+    report.value = await changeWeeklyReportStatus(reportId.value, status)
     Notify.create({ type: 'positive', message: `상태가 '${STATUS_KO[status]}'로 변경되었습니다.` })
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '상태 변경 실패') })
@@ -511,7 +534,7 @@ function onItemSaved(updated: WeeklyReport) {
 
 async function toggleInclude(item: ManualItem) {
   try {
-    report.value = await updateManualItem(reportId, item.id, {
+    report.value = await updateManualItem(reportId.value, item.id, {
       include_in_report: !item.includeInReport,
     })
   } catch (e) {
@@ -521,7 +544,7 @@ async function toggleInclude(item: ManualItem) {
 
 async function removeItem(item: ManualItem) {
   try {
-    report.value = await deleteManualItem(reportId, item.id)
+    report.value = await deleteManualItem(reportId.value, item.id)
     Notify.create({ type: 'positive', message: '삭제되었습니다.' })
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '삭제 실패') })
@@ -530,20 +553,20 @@ async function removeItem(item: ManualItem) {
 
 // ── 미리보기 / PDF 출력 ───────────────────────────────────────────────
 function openPreview() {
-  void router.push(`/pm/weekly-report/${reportId}/print?preview=true`)
+  void router.push(`/pm/weekly-report/${reportId.value}/print?preview=true`)
 }
 
 function openPrint() {
-  void router.push(`/pm/weekly-report/${reportId}/print`)
+  void router.push(`/pm/weekly-report/${reportId.value}/print`)
 }
 
 // ── Excel ──────────────────────────────────────────────────────────────
 async function downloadExcel() {
   try {
-    const res = await api.get(`/pm/weekly-reports/${reportId}/export`, { responseType: 'blob' })
+    const res = await api.get(`/pm/weekly-reports/${reportId.value}/export`, { responseType: 'blob' })
     const url = URL.createObjectURL(res.data as Blob)
     const a = document.createElement('a')
-    a.href = url; a.download = `주간보고_${reportId}.xlsx`
+    a.href = url; a.download = `주간보고_${reportId.value}.xlsx`
     document.body.appendChild(a); a.click()
     document.body.removeChild(a); URL.revokeObjectURL(url)
   } catch (e) {
@@ -551,7 +574,16 @@ async function downloadExcel() {
   }
 }
 
-onMounted(load)
+watch(reportId, () => {
+  ++refreshRequest
+  refreshing.value = false
+  syncError.value = ''
+  report.value = null
+  createIssueOpen.value = false
+  issueDialog.value = { open: false, issue: null }
+  itemDialog.value.open = false
+  void load()
+}, { immediate: true })
 </script>
 
 <style scoped>

@@ -16,6 +16,7 @@ from app.models.pm.reports import (
 )
 from app.routers.auth import get_current_user
 from app.routers.pm.report_agg import aggregate_period
+from app.services.report_snapshot import is_live_report, snapshot_filter, sync_report_snapshot
 from app.services.monthly_report_context import capture_context, AGGREGATION_VERSION
 from app.services.monthly_report_scheduler import SYSTEM_USER, TEAM
 from app.routers.pm.weekly_reports import (
@@ -207,6 +208,32 @@ async def export_monthly_list(
     return _excel_response(wb, f"월간보고목록_{year or '전체'}년.xlsx")
 
 
+async def _collect_snapshot(doc: dict) -> dict:
+    start_dt, end_dt = _month_range(doc["report_year"], doc["report_month"])
+    ns, ne = _next_month_range(doc["report_year"], doc["report_month"])
+    all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
+        start_dt, end_dt, ns, ne, monthly_actuals=True
+    )
+    comparison, operational_summary = await capture_context(
+        doc["report_year"], doc["report_month"], doc.get("department"), start_dt, end_dt,
+    )
+    return {
+        "by_project": [p.model_dump() for p in by_project],
+        "by_person": [p.model_dump() for p in by_person],
+        "all_items": [i.model_dump() for i in all_items],
+        "upcoming_items": [i.model_dump() for i in upcoming_items],
+        "stats": stats.model_dump(), "aggregation_version": AGGREGATION_VERSION,
+        "comparison": comparison, "operational_summary": operational_summary,
+    }
+
+
+async def _sync_snapshot(doc: dict) -> dict:
+    return await sync_report_snapshot(
+        MongoClientManager.get_pm_monthly_reports_collection(), doc, _collect_snapshot,
+        aggregated_by=SYSTEM_USER,
+    )
+
+
 @router.get("/{report_id}", response_model=MonthlyReportOut)
 async def get_monthly_report(
     report_id: str,
@@ -218,6 +245,7 @@ async def get_monthly_report(
     )
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    doc = await _sync_snapshot(doc)
     return await _enrich(_doc_to_out(doc), doc, current_user)
 
 
@@ -323,24 +351,12 @@ async def refresh_monthly_report(
 
     if doc.get("status", "DRAFT") not in {"DRAFT", "REVIEWING"}:
         raise HTTPException(status_code=409, detail="확정 전 보고서만 재집계할 수 있습니다.")
-    start_dt, end_dt = _month_range(doc["report_year"], doc["report_month"])
-    ns, ne = _next_month_range(doc["report_year"], doc["report_month"])
-    all_items, upcoming_items, by_project, by_person, stats = await aggregate_period(
-        start_dt, end_dt, ns, ne, monthly_actuals=True
-    )
-    comparison, operational_summary = await capture_context(doc["report_year"], doc["report_month"], doc.get("department"), start_dt, end_dt)
+    snapshot = await _collect_snapshot(doc)
     updated = await col.find_one_and_update(
         {"_id": ObjectId(report_id), "deleted_at": None, "department": doc.get("department"), "$or": [{"status": {"$in": ["DRAFT", "REVIEWING"]}}, {"status": {"$exists": False}}]},
         {
             "$set": {
-                "by_project":     [p.model_dump() for p in by_project],
-                "by_person":      [p.model_dump() for p in by_person],
-                "all_items":      [i.model_dump() for i in all_items],
-                "upcoming_items": [i.model_dump() for i in upcoming_items],
-                "stats":          stats.model_dump(),
-                "aggregation_version": AGGREGATION_VERSION,
-                "comparison": comparison,
-                "operational_summary": operational_summary,
+                **snapshot,
                 "aggregated_at":  datetime.now(timezone.utc),
                 "aggregated_by":  ObjectId(current_user.id),
                 "updated_by":     ObjectId(current_user.id),
@@ -360,17 +376,26 @@ async def change_monthly_report_status(report_id: str, body: WeeklyReportStatusP
     _require_pm(current_user)
     if body.status not in {"DRAFT", "REVIEWING", "CONFIRMED"}:
         raise HTTPException(status_code=400, detail="유효하지 않은 상태값입니다.")
+    col = MongoClientManager.get_pm_monthly_reports_collection()
+    doc = await col.find_one({"_id": ObjectId(report_id), "deleted_at": None})
+    if not doc:
+        raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
     now = datetime.now(timezone.utc)
-    updated = await MongoClientManager.get_pm_monthly_reports_collection().find_one_and_update(
-        {"_id": ObjectId(report_id), "deleted_at": None},
-        {"$set": {"status": body.status, "updated_by": ObjectId(current_user.id), "updated_at": now,
-                  "confirmed_by": ObjectId(current_user.id) if body.status == "CONFIRMED" else None,
-                  "confirmed_at": now if body.status == "CONFIRMED" else None},
+    update = {"status": body.status, "updated_by": ObjectId(current_user.id), "updated_at": now,
+              "confirmed_by": ObjectId(current_user.id) if body.status == "CONFIRMED" else None,
+              "confirmed_at": now if body.status == "CONFIRMED" else None}
+    if body.status == "CONFIRMED" and is_live_report(doc):
+        update.update(await _collect_snapshot(doc))
+        update.update(aggregated_at=now, aggregated_by=ObjectId(current_user.id))
+    updated = await col.find_one_and_update(
+        snapshot_filter(doc),
+        {"$set": update,
          "$push": {"edit_history": _history_entry(current_user, f"상태 변경: {STATUS_KO[body.status]}")}},
         return_document=True,
     )
     if not updated:
-        raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+        raise HTTPException(status_code=409, detail="보고서가 변경되었습니다. 새로고침 후 다시 확인해 주세요.")
+    updated = await _sync_snapshot(updated)
     return await _enrich(_doc_to_out(updated), updated, current_user)
 
 
@@ -411,6 +436,7 @@ async def export_monthly_detail(
     )
     if not doc:
         raise HTTPException(status_code=404, detail="보고서를 찾을 수 없습니다.")
+    doc = await _sync_snapshot(doc)
 
     r = _doc_to_out(doc)
     _mask_operational(r, current_user)

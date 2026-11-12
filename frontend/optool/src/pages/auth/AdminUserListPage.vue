@@ -1,7 +1,7 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="row items-center q-gutter-sm q-mb-md">
-      <div class="text-h6">회원 목록</div>
+  <q-page class="q-pa-md bo-page">
+    <div class="row items-center q-gutter-sm q-mb-md bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h6 bo-page-title">회원 목록</div>
       <q-space />
       <q-btn outline icon="refresh" label="새로고침" :loading="loading" @click="load" />
     </div>

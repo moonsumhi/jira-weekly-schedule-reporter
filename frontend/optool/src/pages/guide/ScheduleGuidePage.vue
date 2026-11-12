@@ -1,12 +1,12 @@
 <template>
-  <q-page class="q-pa-md schedule-guide-page">
+  <q-page class="q-pa-md bo-page schedule-guide-page">
 
     <!-- 헤더 -->
-    <div class="row items-center q-mb-lg">
+    <div class="row items-center q-mb-lg bo-page-heading">
       <q-btn flat round dense icon="arrow_back" class="q-mr-sm" @click="$router.back()" />
       <div>
-        <div class="text-h5 text-weight-bold">스케줄 관리 시스템 사용 가이드</div>
-        <div class="text-caption text-grey-6">시나리오로 배우는 조직·프로젝트·이슈·스프린트·주간 보고 흐름</div>
+        <div role="heading" aria-level="1" class="text-h5 text-weight-bold bo-page-title">스케줄 관리 시스템 사용 가이드</div>
+        <div class="text-caption text-grey-6 bo-page-description">시나리오로 배우는 조직·프로젝트·이슈·스프린트·주간 보고 흐름</div>
       </div>
     </div>
 

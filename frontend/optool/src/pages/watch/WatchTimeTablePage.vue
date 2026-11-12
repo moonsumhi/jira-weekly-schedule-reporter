@@ -1,12 +1,12 @@
 <template>
-  <q-page class="q-pa-md watch-timetable-page">
+  <q-page class="q-pa-md bo-page watch-timetable-page">
     <div class="row q-col-gutter-md">
 
       <div class="col-12">
-        <div class="row items-start">
+        <div class="row items-start bo-page-heading">
           <div>
-            <div class="text-h5">당직 근무 일정표</div>
-            <div class="text-caption text-grey-7">
+            <div role="heading" aria-level="1" class="text-h5 bo-page-title">당직 근무 일정표</div>
+            <div class="text-caption text-grey-7 bo-page-description">
               드래그/리사이즈로 수정할 수 있습니다.
               빈 시간대를 클릭하면 생성할 수 있고,
               이벤트를 클릭하면 수정/삭제할 수 있습니다.
@@ -37,13 +37,13 @@
                   </div>
                   <div class="row items-center q-col-gutter-sm">
                     <div class="col-12 col-sm-4">
-                      <q-input dense v-model="bulkA.assignee" label="담당자" />
+                      <q-input outlined dense v-model="bulkA.assignee" label="담당자" />
                     </div>
                     <div class="col-6 col-sm-3">
-                      <q-input dense v-model="bulkA.fromDate" label="시작일" type="date" />
+                      <q-input outlined dense v-model="bulkA.fromDate" label="시작일" type="date" />
                     </div>
                     <div class="col-6 col-sm-3">
-                      <q-input dense v-model="bulkA.toDate" label="종료일" type="date" />
+                      <q-input outlined dense v-model="bulkA.toDate" label="종료일" type="date" />
                     </div>
                     <div class="col-12 col-sm-2">
                       <q-btn color="blue" class="full-width" label="생성" :loading="busy" @click="createBulkA" />
@@ -61,13 +61,13 @@
                   </div>
                   <div class="row items-center q-col-gutter-sm">
                     <div class="col-12 col-sm-4">
-                      <q-input dense v-model="bulkB.assignee" label="담당자" />
+                      <q-input outlined dense v-model="bulkB.assignee" label="담당자" />
                     </div>
                     <div class="col-6 col-sm-3">
-                      <q-input dense v-model="bulkB.fromDate" label="시작일" type="date" />
+                      <q-input outlined dense v-model="bulkB.fromDate" label="시작일" type="date" />
                     </div>
                     <div class="col-6 col-sm-3">
-                      <q-input dense v-model="bulkB.toDate" label="종료일" type="date" />
+                      <q-input outlined dense v-model="bulkB.toDate" label="종료일" type="date" />
                     </div>
                     <div class="col-12 col-sm-2">
                       <q-btn color="purple" class="full-width" label="생성" :loading="busy" @click="createBulkB" />
@@ -113,7 +113,7 @@
               <q-badge color="blue" label="A타임" style="font-size:13px;padding:4px 8px;" />
             </div>
             <div class="col">
-              <q-input v-model="dialog.assigneeA" label="담당자" dense />
+              <q-input outlined v-model="dialog.assigneeA" label="담당자" dense />
             </div>
           </div>
           <div class="row items-center q-col-gutter-sm">
@@ -121,10 +121,10 @@
               <q-badge color="purple" label="B타임" style="font-size:13px;padding:4px 8px;" />
             </div>
             <div class="col">
-              <q-input v-model="dialog.assigneeB" label="담당자" dense />
+              <q-input outlined v-model="dialog.assigneeB" label="담당자" dense />
             </div>
           </div>
-          <q-input v-model="dialog.note" label="메모 (선택)" dense />
+          <q-input outlined v-model="dialog.note" label="메모 (선택)" dense />
           <div v-if="dialog.error" class="text-negative text-caption">{{ dialog.error }}</div>
         </q-card-section>
 
@@ -133,25 +133,25 @@
           <div class="text-caption text-grey-7">
             {{ dialog.rangeLabel }} 범위의 {{ dialog.selectedIds.length }}개 일정을 한 번에 수정합니다.
           </div>
-          <q-input
+          <q-input outlined
             v-if="dialog.selectedAIds.length"
             v-model="dialog.bulkAssigneeA"
             label="A파트 담당자"
             hint="비워 두면 기존 담당자를 유지합니다."
           />
-          <q-input
+          <q-input outlined
             v-if="dialog.selectedBIds.length"
             v-model="dialog.bulkAssigneeB"
             label="B파트 담당자"
             hint="비워 두면 기존 담당자를 유지합니다."
           />
-          <q-input v-model="dialog.note" label="메모 (입력 시 전체 변경)" />
+          <q-input outlined v-model="dialog.note" label="메모 (입력 시 전체 변경)" />
           <div v-if="dialog.error" class="text-negative text-caption">{{ dialog.error }}</div>
         </q-card-section>
 
         <q-card-section v-else class="q-gutter-md">
-          <q-input v-model="dialog.assignee" label="담당자" />
-          <q-input v-model="dialog.note" label="메모 (선택)" />
+          <q-input outlined v-model="dialog.assignee" label="담당자" />
+          <q-input outlined v-model="dialog.note" label="메모 (선택)" />
           <div v-if="dialog.error" class="text-negative text-caption">{{ dialog.error }}</div>
         </q-card-section>
 

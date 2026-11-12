@@ -1,13 +1,12 @@
 <template>
-  <q-page class="inspection-page">
+  <q-page class="inspection-page bo-page">
     <div class="inspection-content">
-      <header class="page-heading">
+      <header class="page-heading bo-page-heading">
         <div>
-          <div class="eyebrow">서버 점검</div>
-          <h1>월간 작업</h1>
-          <p>월별 점검 작업과 진행 상태를 확인합니다.</p>
+          <h1 class="bo-page-title">월간 작업</h1>
+          <p class="bo-page-description">월별 점검 작업과 진행 상태를 확인합니다.</p>
         </div>
-        <div class="heading-actions">
+        <div class="heading-actions bo-page-actions">
           <q-btn
             flat
             no-caps
@@ -846,11 +845,6 @@ async function performAction(t: InspectionTask, action: 'rollover' | 'exclude', 
   gap: 20px;
   margin-bottom: 20px;
 }
-.eyebrow {
-  color: #79899b;
-  font-size: 12px;
-  margin-bottom: 7px;
-}
 h1 {
   font-size: 25px;
   font-weight: 700;
@@ -860,7 +854,7 @@ h1 {
 }
 .page-heading p {
   font-size: 13px;
-  color: #76869a;
+  color: var(--bo-muted);
   margin: 9px 0 0;
 }
 .heading-actions {
@@ -959,7 +953,7 @@ h1 {
 }
 .progress-note {
   font-size: 11px;
-  color: #95a0ad;
+  color: var(--bo-muted);
   margin-top: 9px;
 }
 .work-panel {
@@ -1145,7 +1139,7 @@ h1 {
 .empty-state p {
   margin: 10px 0 24px;
   font-size: 12px;
-  color: #93a0af;
+  color: var(--bo-muted);
   line-height: 1.8;
 }
 .loading-list {

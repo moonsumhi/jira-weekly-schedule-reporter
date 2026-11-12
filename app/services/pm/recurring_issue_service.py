@@ -8,8 +8,8 @@
 from __future__ import annotations
 
 import calendar
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
 from bson import ObjectId
 
@@ -74,6 +74,8 @@ def compute_occurrences(template: dict, year: int, month: int) -> List[Dict[str,
     회차 라벨은 날짜순 순번에서 파생하므로 지정 방식(날짜/요일)과 무관하게 동일하다.
     """
     rule = template.get("rule", {})
+    if rule.get("freq", "monthly") == "yearly" and rule.get("month") != month:
+        return []
     time_str = rule.get("time", "09:00")
     hh, mm = (int(x) for x in time_str.split(":"))
     base_title = template.get("blueprint", {}).get("title", "").strip() or template.get("name", "반복 업무")
@@ -185,18 +187,18 @@ async def generate_month(
 async def generate_due(template: dict, today: datetime) -> List[dict]:
     """오늘 기준 lead 창(회차일-lead_days ~ 회차일)에 든 회차를 생성한다. (스케줄러용)
 
-    이달·다음달 회차만 검사해 과거를 소급 생성하지 않는다.
+    한국 날짜 기준 오늘부터 lead_days 뒤까지 검사해 과거를 소급 생성하지 않는다.
     """
     lead = int(template.get("lead_days", 0) or 0)
-    today_d = today.date()
+    today_d = today.astimezone(KST).date() if today.tzinfo else today.date()
     created: List[dict] = []
 
-    months: List[Tuple[int, int]] = [(today.year, today.month)]
-    nm_year, nm_month = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
-    months.append((nm_year, nm_month))
-
-    from datetime import timedelta
-    for (y, m) in months:
+    # 최대 60일의 사전 생성 기간은 다음다음 달 또는 다음 해까지 걸칠 수 있다.
+    end_d = today_d + timedelta(days=lead)
+    first_month = today_d.year * 12 + today_d.month - 1
+    last_month = end_d.year * 12 + end_d.month - 1
+    for month_index in range(first_month, last_month + 1):
+        y, m = month_index // 12, month_index % 12 + 1
         for occ in compute_occurrences(template, y, m):
             occ_d = occ["occurrence_dt"].astimezone(KST).date()
             create_from = occ_d - timedelta(days=lead)

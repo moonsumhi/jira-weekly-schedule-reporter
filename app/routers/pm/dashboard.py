@@ -6,9 +6,21 @@ from fastapi import APIRouter, Depends
 from app.db.mongo import MongoClientManager
 from app.models.user import UserPublic
 from app.routers.auth import get_current_user
-from app.services.pm.issue_service import enrich_issue
+from app.services.pm.issue_service import attach_linked_sr_info, enrich_issue
 
 router = APIRouter()
+
+
+@router.get("/my-issues")
+async def get_my_open_issues(current_user: UserPublic = Depends(get_current_user)):
+    """홈의 내 일감: 오래된 지연 건도 빠지지 않도록 담당 미완료 이슈 전체를 반환."""
+    issues_col = MongoClientManager.get_pm_issues_collection()
+    docs = await issues_col.find({
+        "assignee_id": ObjectId(current_user.id),
+        "status": {"$nin": ["DONE", "IMPLEMENTED"]},
+    }).sort("updated_at", -1).to_list(None)
+    await attach_linked_sr_info(docs)
+    return [await enrich_issue(doc) for doc in docs]
 
 
 @router.get("")

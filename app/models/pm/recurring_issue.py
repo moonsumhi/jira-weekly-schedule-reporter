@@ -27,14 +27,16 @@ class WeekdayOccurrence(BaseModel):
 
 
 class RecurrenceRule(BaseModel):
-    """반복 규칙 — 매월, 두 가지 방식.
+    """매월 또는 매년 지정한 월에 날짜/요일 규칙으로 반복한다.
 
-    mode="day_of_month" : 매월 특정일들 (days_of_month, 예: [5, 19])
-    mode="weekday"      : 매월 N째주 X요일들 (weekdays, 예: 첫째주 월요일)
+    mode="day_of_month" : 해당 월의 특정일들 (days_of_month, 예: [5, 19])
+    mode="weekday"      : 해당 월의 N번째 X요일들 (weekdays, 예: 첫 번째 월요일)
+    해당 월에 없는 날짜/요일은 건너뛴다. 2월 29일은 윤년에만 생성한다.
     """
-    freq: Literal["monthly"] = "monthly"
+    freq: Literal["monthly", "yearly"] = "monthly"
+    month: Optional[int] = Field(default=None, ge=1, le=12, description="매년 반복할 월 (freq=yearly)")
     mode: Literal["day_of_month", "weekday"] = "day_of_month"
-    days_of_month: List[int] = Field(default_factory=list, description="매월 회차일 (mode=day_of_month)")
+    days_of_month: List[int] = Field(default_factory=list, description="해당 월의 회차일 (mode=day_of_month)")
     weekdays: List[WeekdayOccurrence] = Field(default_factory=list, description="N째주 X요일 (mode=weekday)")
     time: str = Field(default="09:00", description="회차 시각 HH:MM (start/due 시간)")
 
@@ -59,6 +61,8 @@ class RecurrenceRule(BaseModel):
 
     @model_validator(mode="after")
     def _require_one(self) -> "RecurrenceRule":
+        if self.freq == "yearly" and self.month is None:
+            raise ValueError("freq=yearly 이면 반복할 month 가 필요합니다.")
         if self.mode == "day_of_month" and not self.days_of_month:
             raise ValueError("mode=day_of_month 이면 days_of_month 가 최소 1개 필요합니다.")
         if self.mode == "weekday" and not self.weekdays:

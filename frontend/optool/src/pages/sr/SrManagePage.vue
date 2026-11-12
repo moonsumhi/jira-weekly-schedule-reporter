@@ -1,11 +1,11 @@
 <template>
-  <q-page padding class="sr-manage-page">
+  <q-page padding class="sr-manage-page bo-page">
 
     <!-- ── 헤더 ───────────────────────────────────────────────────────── -->
-    <div class="row items-center q-mb-lg">
+    <div class="row items-center q-mb-lg sr-page-heading bo-page-heading">
       <div class="col">
-        <div class="text-h5 text-weight-bold">SR 관리</div>
-        <div class="text-caption text-grey-6">접수된 SR을 검토 · 배정 · 처리합니다.</div>
+        <h1 class="text-h5 text-weight-bold q-my-none bo-page-title">SR 관리</h1>
+        <div class="text-caption text-grey-6 bo-page-description">접수된 SR을 검토 · 배정 · 처리합니다.</div>
       </div>
       <HelpButton feature="sr-manage" guide-path="/pm/sr/guide" class="q-mr-xs" />
       <q-btn v-if="isAdminUser" outline color="indigo-7" icon="settings" label="SR 기본 프로젝트"
@@ -16,16 +16,15 @@
     </div>
 
     <!-- ── 통계 카드 ─────────────────────────────────────────────────── -->
-    <div v-if="stats" class="row q-col-gutter-sm q-mb-lg">
-      <div v-for="c in statCards" :key="c.label" class="col-6 col-sm-3 col-md-auto" style="min-width:110px">
-        <q-card flat bordered class="text-center q-pa-sm stat-card"
-          :class="c.tab ? 'cursor-pointer stat-card--clickable' : ''"
+    <div v-if="stats" class="sr-stats q-mb-lg" aria-label="SR 처리 현황">
+        <component :is="c.tab ? 'button' : 'div'" v-for="c in statCards" :key="c.label"
+          :type="c.tab ? 'button' : undefined" class="sr-stat"
+          :class="{ 'sr-stat--clickable': c.tab }"
           @click="c.tab && switchStatTab(c.tab)">
-          <div class="text-h4 text-weight-bold" :class="`text-${c.color}`">{{ c.value }}</div>
-          <div class="text-caption text-grey-6">{{ c.label }}</div>
+          <span class="sr-stat-label">{{ c.label }}</span>
+          <strong class="sr-stat-value" :class="`text-${c.color}`">{{ c.value }}</strong>
           <q-tooltip v-if="c.tab">{{ c.label }} 탭으로 이동</q-tooltip>
-        </q-card>
-      </div>
+        </component>
     </div>
 
     <!-- ── 검색 / 필터 바 ────────────────────────────────────────────── -->
@@ -346,7 +345,7 @@
     <!-- ── SR 기본 프로젝트 설정 다이얼로그 ─────────────────────────── -->
     <q-dialog v-model="srProjectDialog">
       <q-card style="min-width:460px">
-        <q-card-section class="bg-indigo-7 text-white q-pb-sm">
+        <q-card-section class="bo-dialog-heading q-pb-sm">
           <div class="text-h6">SR 기본 프로젝트 설정</div>
           <div class="text-caption opacity-80">담당자 배정 시 이슈가 자동 등록될 프로젝트를 선택하세요.</div>
         </q-card-section>
@@ -1014,9 +1013,23 @@ watch(srProjectDialog, (open) => { if (open) void loadProjects() })
 </script>
 
 <style scoped>
-.stat-card { transition: transform 0.15s; }
-.stat-card:hover { transform: translateY(-2px); }
-.stat-card--clickable:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+.sr-page-heading { gap: 10px; }
+.sr-page-heading > .col { min-width: 200px; }
+.sr-page-heading .text-caption { margin-top: 6px; font-size: 13px; }
+.sr-stats { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); border: 1px solid var(--bo-border); background: var(--bo-surface); border-radius: var(--bo-radius); }
+.sr-stat { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border: 0; border-radius: 12px; color: var(--bo-text); background: transparent; text-align: left; font: inherit; min-width: 0; }
+.sr-stat-label { font-size: 12px; color: var(--bo-muted); white-space: nowrap; }
+.sr-stat-value { font-size: 25px; line-height: 1.2; font-weight: 650; font-variant-numeric: tabular-nums; }
+.sr-stat--clickable { cursor: pointer; }
+.sr-stat--clickable:hover { background: var(--bo-surface-subtle); }
+@media (max-width: 1200px) {
+  .sr-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 599px) {
+  .sr-page-heading > .col { flex-basis: 100%; margin-bottom: 6px; }
+  .sr-stat { padding: 14px 12px; gap: 8px; }
+  .sr-stat-value { font-size: 22px; }
+}
 
 .bulk-bar {
   background: #e8f0fe;

@@ -1,6 +1,6 @@
 <template>
-  <q-page padding class="audit-log-page">
-    <div class="text-h6 q-mb-md">Audit Log</div>
+  <q-page class="bo-page audit-log-page" padding>
+    <div role="heading" aria-level="1" class="text-h6 q-mb-md bo-page-title bo-page-title--standalone">Audit Log</div>
 
     <!-- 필터 영역 -->
     <q-card flat bordered class="q-mb-md">

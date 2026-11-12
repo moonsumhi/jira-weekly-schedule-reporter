@@ -1,20 +1,21 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="row items-center q-mb-md">
-      <div class="text-h5">프로젝트</div>
+  <q-page class="q-pa-md bo-page">
+    <div class="row items-center q-mb-md bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h5 bo-page-title">프로젝트</div>
       <q-badge v-if="projects.length" color="grey-5" :label="`${totalCount} / ${projects.length}`" class="q-ml-sm" />
       <q-space />
       <q-btn color="primary" icon="add" label="새 프로젝트" @click="openCreateDialog" />
     </div>
 
     <!-- 검색 + 정렬 -->
-    <div class="row items-center q-gutter-sm q-mb-md">
+    <div class="bo-filterbar">
       <q-input
         v-model="search"
         dense outlined
         placeholder="프로젝트명 · 키 · 설명 · 일감 제목 검색"
         :maxlength="200"
         style="flex: 1; min-width: 0"
+        class="bo-search"
       >
         <template #prepend><q-icon name="search" color="grey-5" /></template>
         <template v-if="search" #append>
@@ -130,8 +131,8 @@
                 </div>
               </q-card-section>
               <q-card-actions align="right">
-                <q-btn flat dense icon="fa-solid fa-table-columns" label="보드" @click.stop="goToBoard(project)" />
-                <q-btn flat dense icon="fa-solid fa-list" label="백로그" @click.stop="goToBacklog(project)" />
+                <q-btn flat dense icon="view_kanban" label="보드" @click.stop="goToBoard(project)" />
+                <q-btn flat dense icon="format_list_bulleted" label="백로그" @click.stop="goToBacklog(project)" />
               </q-card-actions>
             </q-card>
           </div>
@@ -166,8 +167,8 @@
             </div>
           </q-card-section>
           <q-card-actions align="right">
-            <q-btn flat dense icon="fa-solid fa-table-columns" label="보드" @click.stop="goToBoard(project)" />
-            <q-btn flat dense icon="fa-solid fa-list" label="백로그" @click.stop="goToBacklog(project)" />
+            <q-btn flat dense icon="view_kanban" label="보드" @click.stop="goToBoard(project)" />
+            <q-btn flat dense icon="format_list_bulleted" label="백로그" @click.stop="goToBacklog(project)" />
           </q-card-actions>
         </q-card>
       </div>
@@ -485,7 +486,7 @@ function goToBacklog(project: Project) {
 :global(body.body--dark .issue-search-key) { color: #93c5fd; }
 :global(body.body--dark .issue-search-project) { color: #a9bdd6; }
 .project-card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  border-color: var(--q-primary);
 }
 .ellipsis-2-lines {
   display: -webkit-box;

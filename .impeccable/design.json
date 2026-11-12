@@ -1,0 +1,345 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-12T04:07:25Z",
+  "title": "Design System: ATOM Backoffice",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "업무 파랑",
+        "canonical": "#2563eb",
+        "tonalRamp": [
+          "oklch(15% 0.0977 262.9)",
+          "oklch(26% 0.1569 262.9)",
+          "oklch(38% 0.2001 262.9)",
+          "oklch(50% 0.2152 262.9)",
+          "oklch(62% 0.2001 262.9)",
+          "oklch(74% 0.1569 262.9)",
+          "oklch(86% 0.0916 262.9)",
+          "oklch(95% 0.0337 262.9)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "작업 바탕",
+        "canonical": "#f6f8fb",
+        "tonalRamp": [
+          "oklch(15% 0.0021 258.3)",
+          "oklch(26% 0.0033 258.3)",
+          "oklch(38% 0.0042 258.3)",
+          "oklch(50% 0.0045 258.3)",
+          "oklch(62% 0.0042 258.3)",
+          "oklch(74% 0.0033 258.3)",
+          "oklch(86% 0.0019 258.3)",
+          "oklch(95% 0.0007 258.3)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "흰 작업 면",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.0)",
+          "oklch(26% 0.0000 0.0)",
+          "oklch(38% 0.0000 0.0)",
+          "oklch(50% 0.0000 0.0)",
+          "oklch(62% 0.0000 0.0)",
+          "oklch(74% 0.0000 0.0)",
+          "oklch(86% 0.0000 0.0)",
+          "oklch(95% 0.0000 0.0)"
+        ]
+      },
+      "surface-subtle": {
+        "role": "neutral",
+        "displayName": "보조 면",
+        "canonical": "#f9fafb",
+        "tonalRamp": [
+          "oklch(15% 0.0008 247.8)",
+          "oklch(26% 0.0012 247.8)",
+          "oklch(38% 0.0016 247.8)",
+          "oklch(50% 0.0017 247.8)",
+          "oklch(62% 0.0016 247.8)",
+          "oklch(74% 0.0012 247.8)",
+          "oklch(86% 0.0007 247.8)",
+          "oklch(95% 0.0003 247.8)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "본문 잉크",
+        "canonical": "#182230",
+        "tonalRamp": [
+          "oklch(15% 0.0138 256.9)",
+          "oklch(26% 0.0221 256.9)",
+          "oklch(38% 0.0282 256.9)",
+          "oklch(50% 0.0304 256.9)",
+          "oklch(62% 0.0282 256.9)",
+          "oklch(74% 0.0221 256.9)",
+          "oklch(86% 0.0129 256.9)",
+          "oklch(95% 0.0048 256.9)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "보조 제목",
+        "canonical": "#344054",
+        "tonalRamp": [
+          "oklch(15% 0.0173 260.5)",
+          "oklch(26% 0.0278 260.5)",
+          "oklch(38% 0.0354 260.5)",
+          "oklch(50% 0.0381 260.5)",
+          "oklch(62% 0.0354 260.5)",
+          "oklch(74% 0.0278 260.5)",
+          "oklch(86% 0.0162 260.5)",
+          "oklch(95% 0.0060 260.5)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "설명 회색",
+        "canonical": "#667085",
+        "tonalRamp": [
+          "oklch(15% 0.0159 265.1)",
+          "oklch(26% 0.0255 265.1)",
+          "oklch(38% 0.0326 265.1)",
+          "oklch(50% 0.0350 265.1)",
+          "oklch(62% 0.0326 265.1)",
+          "oklch(74% 0.0255 265.1)",
+          "oklch(86% 0.0149 265.1)",
+          "oklch(95% 0.0055 265.1)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "면 경계",
+        "canonical": "#e4e7ec",
+        "tonalRamp": [
+          "oklch(15% 0.0034 260.7)",
+          "oklch(26% 0.0055 260.7)",
+          "oklch(38% 0.0070 260.7)",
+          "oklch(50% 0.0075 260.7)",
+          "oklch(62% 0.0070 260.7)",
+          "oklch(74% 0.0055 260.7)",
+          "oklch(86% 0.0032 260.7)",
+          "oklch(95% 0.0012 260.7)"
+        ]
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "입력 경계",
+        "canonical": "#cdd3dd",
+        "tonalRamp": [
+          "oklch(15% 0.0069 260.7)",
+          "oklch(26% 0.0111 260.7)",
+          "oklch(38% 0.0142 260.7)",
+          "oklch(50% 0.0153 260.7)",
+          "oklch(62% 0.0142 260.7)",
+          "oklch(74% 0.0111 260.7)",
+          "oklch(86% 0.0065 260.7)",
+          "oklch(95% 0.0024 260.7)"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "선택 바탕",
+        "canonical": "#eef4ff",
+        "tonalRamp": [
+          "oklch(15% 0.0073 262.8)",
+          "oklch(26% 0.0117 262.8)",
+          "oklch(38% 0.0149 262.8)",
+          "oklch(50% 0.0161 262.8)",
+          "oklch(62% 0.0149 262.8)",
+          "oklch(74% 0.0117 262.8)",
+          "oklch(86% 0.0068 262.8)",
+          "oklch(95% 0.0025 262.8)"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "선택 잉크",
+        "canonical": "#1d3f86",
+        "tonalRamp": [
+          "oklch(15% 0.0571 262.7)",
+          "oklch(26% 0.0917 262.7)",
+          "oklch(38% 0.1169 262.7)",
+          "oklch(50% 0.1258 262.7)",
+          "oklch(62% 0.1169 262.7)",
+          "oklch(74% 0.0917 262.7)",
+          "oklch(86% 0.0536 262.7)",
+          "oklch(95% 0.0197 262.7)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "페이지 제목",
+        "purpose": "일반 페이지·자산 제목. 홈에는 화면별 크기가 있다."
+      },
+      "subtitle": {
+        "displayName": "구역 제목",
+        "purpose": "화면 안의 보조 구역 제목."
+      },
+      "title": {
+        "displayName": "모듈 제목",
+        "purpose": "홈 모듈의 제목."
+      },
+      "body": {
+        "displayName": "한국어 본문",
+        "purpose": "설명, 입력, 기본 화면 텍스트."
+      },
+      "table-body": {
+        "displayName": "표 본문",
+        "purpose": "조밀한 업무 행과 tabular-nums 숫자."
+      },
+      "label": {
+        "displayName": "표 머리글",
+        "purpose": "공통 표 머리글. 화면별 명시적 예외는 유지한다."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating",
+        "value": "0 12px 32px rgb(16 24 40 / 14%)",
+        "purpose": "메뉴와 대화상자."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-state",
+        "value": "background-color 160ms ease-out, opacity 160ms ease-out",
+        "purpose": "공통 버튼 상태 레이어. prefers-reduced-motion: reduce에서는 transition: none."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "drawer",
+        "value": "1024px"
+      },
+      {
+        "name": "page-compact-max",
+        "value": "1023px"
+      },
+      {
+        "name": "mobile-max",
+        "value": "599px"
+      },
+      {
+        "name": "dashboard-two-columns-max",
+        "value": "1100px"
+      },
+      {
+        "name": "dashboard-one-column-max",
+        "value": "600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "주요 버튼",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "기본 테마의 주요 실행 버튼. Quasar의 상태 레이어를 CSS로 표현한다.",
+      "html": "<button class=\"ds-button-primary\" type=\"button\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg>자산 등록</button>",
+      "css": ".ds-button-primary{display:inline-flex;align-items:center;justify-content:center;gap:4px;position:relative;min-height:38px;padding:7px 14px;border:0;border-radius:var(--bo-control-radius,8px);font:600 14px/1.715 'Pretendard Variable', var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif);letter-spacing:0;text-transform:none;cursor:pointer;background:var(--q-primary,#2563eb);color:#fff}.ds-button-primary::after{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;pointer-events:none;transition:opacity 160ms ease-out}.ds-button-primary:hover::after{opacity:.15}.ds-button-primary:active::after{opacity:.22}.ds-button-primary:focus-visible{outline:2px solid var(--bo-accent-ink,#1d3f86);outline-offset:3px}.ds-button-primary:disabled{opacity:.7;cursor:default}.ds-button-primary:disabled::after{opacity:0}@media(prefers-reduced-motion:reduce){.ds-button-primary::after{transition:none}}"
+    },
+    {
+      "name": "외곽선 버튼",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "테두리로 구분하는 보조 실행 버튼.",
+      "html": "<button class=\"ds-button-outline\" type=\"button\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 4h6v6M20 4l-9 9M10 4H4v16h16v-6\"/></svg>원본 열기</button>",
+      "css": ".ds-button-outline{display:inline-flex;align-items:center;justify-content:center;gap:4px;position:relative;min-height:38px;padding:7px 14px;border:0;border-radius:var(--bo-control-radius,8px);font:600 14px/1.715 'Pretendard Variable', var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif);letter-spacing:0;text-transform:none;cursor:pointer;background:transparent;color:var(--q-primary,#2563eb)}.ds-button-outline::before{content:'';position:absolute;inset:0;border:1px solid currentColor;border-radius:inherit;opacity:.32;pointer-events:none}.ds-button-outline::after{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;pointer-events:none;transition:opacity 160ms ease-out}.ds-button-outline:hover::after{opacity:.15}.ds-button-outline:active::after{opacity:.22}.ds-button-outline:focus-visible{outline:2px solid var(--bo-accent-ink,#1d3f86);outline-offset:3px}.ds-button-outline:disabled{opacity:.7;cursor:default}.ds-button-outline:disabled::after{opacity:0}@media(prefers-reduced-motion:reduce){.ds-button-outline::after{transition:none}}"
+    },
+    {
+      "name": "평면 버튼",
+      "kind": "button",
+      "refersTo": "button-flat",
+      "description": "검색 초기화 등 주변 조작에 쓰는 촘촘한 버튼.",
+      "html": "<button class=\"ds-button-flat\" type=\"button\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 18 17\"/></svg>초기화</button>",
+      "css": ".ds-button-flat{display:inline-flex;align-items:center;justify-content:center;gap:4px;position:relative;min-height:30px;padding:4px 8px;border:0;border-radius:var(--bo-control-radius,8px);font:600 14px/1.715 'Pretendard Variable', var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif);letter-spacing:0;text-transform:none;cursor:pointer;background:transparent;color:var(--bo-muted,#667085)}.ds-button-flat::after{content:'';position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;pointer-events:none;transition:opacity 160ms ease-out}.ds-button-flat:hover::after{opacity:.15}.ds-button-flat:active::after{opacity:.22}.ds-button-flat:focus-visible{outline:2px solid var(--bo-accent-ink,#1d3f86);outline-offset:3px}.ds-button-flat:disabled{opacity:.7;cursor:default}.ds-button-flat:disabled::after{opacity:0}@media(prefers-reduced-motion:reduce){.ds-button-flat::after{transition:none}}"
+    },
+    {
+      "name": "외곽선 입력",
+      "kind": "input",
+      "refersTo": "input-outlined",
+      "description": "자산·SR 검색의 흰 입력 면. 오류와 비활성 선택자도 포함한다.",
+      "html": "<label class=\"ds-search-label\">업무 검색<span class=\"ds-search-field\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m16 16 4.5 4.5\"/></svg><input class=\"ds-search-input\" type=\"search\" placeholder=\"번호, 제목, 요청자 검색\"></span></label>",
+      "css": ".ds-search-label{display:grid;gap:6px;max-width:340px;font:400 12px/1.55 'Pretendard Variable', var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif);color:var(--bo-muted,#667085)}.ds-search-field{display:flex;align-items:center;gap:8px;padding:0 12px;min-height:40px;background:var(--bo-surface,#fff);border:1px solid var(--bo-border-strong,#cdd3dd);border-radius:var(--bo-control-radius,8px)}.ds-search-field:hover{border-color:var(--bo-text,#182230)}.ds-search-field:has(:focus-visible){outline:2px solid var(--bo-accent-ink,#1d3f86);outline-offset:2px;border-color:var(--q-primary,#2563eb)}.ds-search-input{width:100%;min-width:0;border:0;background:transparent;color:var(--bo-text,#182230);font:400 14px/1.55 'Pretendard Variable', var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif);caret-color:var(--q-primary,#2563eb)}.ds-search-input:focus-visible{outline:0}.ds-search-input::placeholder{color:var(--bo-muted,#667085);opacity:1}.ds-search-field:has([aria-invalid=true]){border-color:var(--q-negative,#c10015)}.ds-search-field:has(:disabled){background:var(--bo-surface-subtle,#f9fafb);opacity:.6}"
+    },
+    {
+      "name": "현재 위치 탐색",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "사이드바의 Pretendard Variable과 시스템 대체 서체, 상위 14px/500·하위 13px/450·선택 600 및 행간 1.45. 앱의 폰트 정의만 이용하며 예시에서 폰트를 내려받지 않는다. 대응 SVG 아이콘과 기존 선택 색상을 사용하고 실제 설정과 사용자 아이콘을 보존한다.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"주 메뉴 예시\"><a class=\"ds-nav-link\" href=\"#overview\"><svg width=\"20\" height=\"20\" viewBox=\"0 -960 960 960\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M120-520v-320h320v320H120Zm0 400v-320h320v320H120Zm400-400v-320h320v320H520Zm0 400v-320h320v320H520ZM200-600h160v-160H200v160Zm400 0h160v-160H600v160Zm0 400h160v-160H600v160Zm-400 0h160v-160H200v160Zm400-400Zm0 240Zm-240 0Zm0-240Z\"/></svg><span>업무 개요</span></a><div class=\"ds-nav-children\"><a class=\"ds-nav-link ds-nav-child\" href=\"#requests\" aria-current=\"page\"><svg width=\"18\" height=\"18\" viewBox=\"0 -960 960 960\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-120H640q-30 38-71.5 59T480-240q-47 0-88.5-21T320-320H200v120Zm349-142q31-22 43-58h168v-360H200v360h168q12 36 43 58t69 22q38 0 69-22ZM200-200h560-560Z\"/></svg><span>요청 관리</span></a></div></nav>",
+      "css": ".ds-nav{display:grid;gap:4px;max-width:224px;font:500 14px/1.45 'Pretendard Variable',var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif);letter-spacing:-.01em}.ds-nav-link{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:var(--bo-control-radius,8px);color:var(--bo-secondary,#344054);text-decoration:none;position:relative}.ds-nav-link svg{flex-shrink:0}.ds-nav-link span{min-width:0;overflow-wrap:anywhere}.ds-nav-children{margin:4px 0 8px 21px;padding-left:10px;border-left:1px solid var(--bo-border,#e4e7ec)}.ds-nav-child{min-height:40px;padding:0 10px;gap:10px;font-size:13px;font-weight:450}.ds-nav-link[aria-current=page]{background:var(--bo-accent-soft,#eef4ff);color:var(--bo-accent-ink,#1d3f86);font-weight:600}.ds-nav-link::after{content:'';position:absolute;inset:0;background:currentColor;border-radius:inherit;opacity:0;pointer-events:none}.ds-nav-link:hover::after{opacity:.15}.ds-nav-link:active::after{opacity:.22}.ds-nav-link:focus-visible{outline:2px solid var(--bo-accent-ink,#1d3f86);outline-offset:-2px}"
+    },
+    {
+      "name": "상태 필터 칩",
+      "kind": "chip",
+      "refersTo": "chip-dense",
+      "description": "SR의 미선택·포함·제외 표현 예시. 실제 상태별 색상과 순환 동작은 업무 컴포넌트가 결정한다.",
+      "html": "<div class=\"ds-chip-row\"><button class=\"ds-chip\" type=\"button\" aria-pressed=\"false\">검토 중</button><button class=\"ds-chip ds-chip-included\" type=\"button\" aria-pressed=\"true\">처리 중</button><button class=\"ds-chip ds-chip-excluded\" type=\"button\" aria-pressed=\"mixed\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><path d=\"m6.3 6.3 11.4 11.4\"/></svg>처리 완료 제외</button></div>",
+      "css": ".ds-chip-row{display:flex;flex-wrap:wrap;gap:4px}.ds-chip{display:inline-flex;align-items:center;gap:4px;height:1.5em;padding:0 .4em;border:0;border-radius:12px;background:#f5f5f5;color:#424242;font:500 14px/1.4 'Pretendard Variable', var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif);cursor:pointer;position:relative}.ds-chip-included{background:var(--q-primary,#2563eb);color:#fff}.ds-chip-excluded{background:transparent;color:var(--q-primary,#2563eb);border:1px solid currentColor}.ds-chip::after{content:'';position:absolute;inset:0;background:currentColor;opacity:0;border-radius:inherit;pointer-events:none}.ds-chip:hover::after{opacity:.15}.ds-chip:active::after{opacity:.22}.ds-chip:focus-visible{outline:2px solid var(--bo-accent-ink,#1d3f86);outline-offset:3px}@media(max-width:599px){.ds-chip{min-height:28px}}"
+    },
+    {
+      "name": "업무 모듈 카드",
+      "kind": "card",
+      "refersTo": "workspace-card",
+      "description": "홈의 경계선 카드. 제목과 조작은 본문 스크롤 밖에 유지한다.",
+      "html": "<section class=\"ds-card\"><header class=\"ds-card-header\"><h2 class=\"ds-card-title\">다가오는 당직 일정</h2><button type=\"button\" class=\"ds-card-open\" aria-label=\"일정 열기\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 4h6v6M20 4l-9 9M10 4H4v16h16v-6\"/></svg></button></header><div class=\"ds-card-body\"><p class=\"ds-card-empty\">30일 이내 당직 일정이 없습니다.</p></div></section>",
+      "css": ".ds-card{max-width:420px;padding:20px;border:1px solid var(--bo-border,#e4e7ec);border-radius:var(--bo-radius,12px);background:var(--bo-surface,#fff);color:var(--bo-text,#182230);font-family:'Pretendard Variable', var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif)}.ds-card-header{display:flex;align-items:center;gap:8px;margin-bottom:16px}.ds-card-title{flex:1;margin:0;font-size:15px;font-weight:700;line-height:1.45}.ds-card-open{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:0;border-radius:50%;background:transparent;color:var(--bo-muted,#667085);cursor:pointer}.ds-card-open:hover{background:rgb(24 34 48 / 3%)}.ds-card-open:active{background:var(--bo-surface-subtle,#f9fafb)}.ds-card-open:focus-visible{outline:2px solid var(--bo-accent-ink,#1d3f86);outline-offset:3px}.ds-card-body{max-height:180px;overflow-y:auto}.ds-card-empty{margin:20px 0;text-align:center;font-size:12px;line-height:1.55;color:var(--bo-muted,#667085)}@media(max-width:600px){.ds-card{padding:16px}}"
+    },
+    {
+      "name": "업무 표",
+      "kind": "custom",
+      "refersTo": "data-table",
+      "description": "옅은 머리글, 조용한 구분선, 숫자 정렬을 갖춘 공통 표. 넓은 표는 내부에서 스크롤한다.",
+      "html": "<div class=\"ds-table-wrap\"><table class=\"ds-table\"><thead><tr><th scope=\"col\">업무</th><th scope=\"col\">상태</th></tr></thead><tbody><tr><td><a class=\"ds-table-link\" href=\"#task\">서버 점검</a></td><td>검토 중</td></tr><tr><td><a class=\"ds-table-link\" href=\"#report\">월간 운영 보고</a></td><td>작성 중</td></tr></tbody></table></div>",
+      "css": ".ds-table-wrap{overflow-x:auto;border:1px solid var(--bo-border,#e4e7ec);border-radius:var(--bo-radius,12px);background:var(--bo-surface,#fff)}.ds-table{width:100%;min-width:300px;border-collapse:collapse;color:var(--bo-text,#182230);font-family:'Pretendard Variable', var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif);font-variant-numeric:tabular-nums}.ds-table th{height:44px;background:var(--bo-surface-subtle,#f9fafb);color:var(--bo-secondary,#344054);font-size:12px;font-weight:650;text-align:left}.ds-table td{height:48px;font-size:13px}.ds-table th,.ds-table td{padding:0 16px;border-bottom:1px solid var(--bo-border,#e4e7ec)}.ds-table tbody tr:last-child td{border-bottom:0}.ds-table tbody tr:hover{background:rgb(24 34 48 / 3%)}.ds-table-link{color:var(--q-primary,#2563eb);text-decoration:none}.ds-table-link:hover{text-decoration:underline;text-underline-offset:3px}.ds-table-link:active{color:var(--bo-accent-ink,#1d3f86)}.ds-table-link:focus-visible{outline:2px solid var(--bo-accent-ink,#1d3f86);outline-offset:3px}"
+    },
+    {
+      "name": "구역 탭",
+      "kind": "nav",
+      "refersTo": "tab-active",
+      "description": "인증·업무 구역을 나누는 밑줄 탭의 시각 상태 예시.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"인증 예시\"><button class=\"ds-tab\" type=\"button\" role=\"tab\" aria-selected=\"true\">로그인</button><button class=\"ds-tab\" type=\"button\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">회원가입</button></div>",
+      "css": ".ds-tabs{display:flex;border-bottom:1px solid var(--bo-border,#e4e7ec);max-width:380px}.ds-tab{flex:1;position:relative;min-height:42px;padding:0 16px;border:0;background:transparent;color:var(--bo-muted,#667085);font:550 14px/1.5 'Pretendard Variable', var(--bo-font, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Segoe UI', sans-serif);cursor:pointer}.ds-tab[aria-selected=true]{color:var(--bo-accent-ink,#1d3f86)}.ds-tab[aria-selected=true]::before{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:currentColor}.ds-tab:hover{background:rgb(24 34 48 / 3%)}.ds-tab:active{background:var(--bo-accent-soft,#eef4ff)}.ds-tab:focus-visible{outline:2px solid var(--bo-accent-ink,#1d3f86);outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "운영 업무의 안내 데스크",
+    "overview": "현재 위치와 업무 원본을 쉽게 찾는 한국어 작업 공간이다. 옅은 회색 바탕 위에 흰 탐색 영역과 작업 면을 두고, 짙은 제목과 작은 보조 설명으로 정보의 순서를 만든다. 표와 목록의 밀도를 유지하며 선택 상태와 주요 조작에 색을 사용한다.\n\n[Untitled UI 무료 Figma 키트](https://www.untitledui.com/free-figma-ui-kit)의 대시보드 구성 언어를 Vue·Quasar에 맞게 적용했다. 상용 키트 자산이나 React 구현을 가져오지 않았다. 이 문서는 완료된 공통 구현을 기록하며, 실제 앱 이름·탭 제목·테마·메뉴 표현은 관리자 설정을 따른다.",
+    "keyCharacteristics": [
+      "흰 작업 면과 얇은 경계선으로 구획한다.",
+      "선택 메뉴와 상단 위치 이름을 함께 유지한다.",
+      "주요 조작, 선택 상태, 업무 상태의 색 역할을 구분한다.",
+      "넓은 화면의 업무 밀도와 작은 화면의 읽기 순서를 함께 보존한다."
+    ],
+    "rules": [
+      {
+        "name": "The Theme Continuity Rule",
+        "body": "주요 조작과 현재 위치는 런타임 테마를 따른다. 관리자가 정한 메뉴 이름·아이콘·색상과 업무 상태의 의미를 보존한다.",
+        "section": "colors"
+      },
+      {
+        "name": "The Quiet Surface Rule",
+        "body": "기본 작업 면은 경계선으로 구획하고, 공통 그림자는 떠 있는 조작 영역에 사용한다.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** 공통 화면에는 `--bo-*`와 `--q-primary`를 사용하고 테마 변경을 반영한다.",
+      "**Do** 선택 메뉴, 상단 위치 이름, 연결된 업무 원본의 관계를 유지한다.",
+      "**Do** 작은 화면에서는 필터의 줄을 나누고 넓은 표는 자체 영역에서 스크롤한다.",
+      "**Do** 키보드 포커스, 오류, 비활성, 빈 상태를 구별한다.",
+      "**Do** 공통 화면 스타일을 `@media screen`에 두어 기존 인쇄 문서의 형식을 보존한다."
+    ],
+    "donts": [
+      "**Don't** 관리자 설정의 앱 이름·탭 제목·메뉴 표현을 고정 브랜드 값으로 덮어쓰지 않는다.",
+      "**Don't** 업무 상태 색을 장식용 테마 색으로 바꾸거나 샘플 수치를 실제 실적으로 표시하지 않는다.",
+      "**Don't** 기존 자산·점검의 개별 색상과 문서 양식 값을 새 공통 토큰으로 승격하지 않는다.",
+      "**Don't** 사이드카의 합성 명도 단계를 앱에서 사용하는 색상 토큰으로 취급하지 않는다."
+    ]
+  }
+}

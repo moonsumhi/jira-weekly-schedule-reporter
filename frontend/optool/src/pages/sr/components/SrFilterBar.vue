@@ -2,7 +2,7 @@
   <div class="sr-filter-bar">
 
     <!-- ── 행 1: 통합 검색 + 검색/초기화 버튼 ───────────────────────────── -->
-    <div class="row items-center q-gutter-sm q-mb-sm">
+    <div class="sr-search-row row items-center q-gutter-sm q-mb-sm">
       <q-input
         v-model="localSearch"
         class="col"
@@ -33,7 +33,7 @@
     </div>
 
     <!-- ── 행 2: 상태 탭 칩 + 빠른 토글 ────────────────────────────────── -->
-    <div class="row items-start justify-between q-mb-xs" style="gap:8px">
+    <div class="sr-status-row row items-start justify-between q-mb-xs" style="gap:8px">
       <!-- 상태 칩 (가로 스크롤) -->
       <div class="status-chips-wrap">
         <q-chip
@@ -55,7 +55,7 @@
       </div>
 
       <!-- 빠른 토글: 긴급 / 지연 / 내 담당 -->
-      <div class="row no-wrap" style="gap:4px; flex-shrink:0; padding-top:2px">
+      <div class="sr-quick-filters row no-wrap" style="gap:4px; flex-shrink:0; padding-top:2px">
         <q-chip
           clickable dense
           :color="localFilter.isUrgent ? 'negative' : 'grey-2'"
@@ -573,5 +573,12 @@ function onToggle(key: 'isUrgent' | 'isDelayed' | 'myAssigned') {
 
 .advanced-panel {
   padding-bottom: 4px;
+}
+@media (max-width: 599px) {
+  .sr-search-row > .q-field { flex: 1 1 calc(100% - 8px); }
+  .sr-status-row { flex-direction: column; align-items: stretch; }
+  .status-chips-wrap { flex: none; width: 100%; }
+  .sr-quick-filters { width: 100%; }
+  .sr-filter-bar :deep(.q-chip--dense) { min-height: 28px; }
 }
 </style>

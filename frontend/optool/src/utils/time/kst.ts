@@ -1,5 +1,22 @@
 import {DateTime} from 'luxon'
 
+/** 한국 시간의 ISO 주차. 연말·연초에는 달력 연도와 주차 연도가 다를 수 있다. */
+export function getIsoWeekKst(now = new Date()): { year: number; week: number } {
+  const date = DateTime.fromJSDate(now, { zone: 'Asia/Seoul' })
+  return { year: date.weekYear, week: date.weekNumber }
+}
+
+/** 이번 주 보고 기간 (한국 시간, 월요일부터 일요일까지). */
+export function getIsoWeekPeriodKst(now = new Date()) {
+  const date = DateTime.fromJSDate(now, { zone: 'Asia/Seoul' })
+  return {
+    year: date.weekYear,
+    week: date.weekNumber,
+    startDate: date.startOf('week').toFormat('yyyy-MM-dd'),
+    endDate: date.endOf('week').toFormat('yyyy-MM-dd'),
+  }
+}
+
 /** ISO datetime → KST "YYYY-MM-DD" (날짜만 표시할 때) */
 export function fmtDateKst(iso: string | null | undefined): string {
   if (!iso) return '-'

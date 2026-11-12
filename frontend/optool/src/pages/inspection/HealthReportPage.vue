@@ -1,7 +1,7 @@
 <template>
-  <q-page padding>
-    <div class="row items-center q-mb-md q-gutter-sm">
-      <div class="text-h6">서버 점검 (월1회)</div>
+  <q-page class="bo-page" padding>
+    <div class="row items-center q-mb-md q-gutter-sm bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h6 bo-page-title">서버 점검 (월1회)</div>
       <q-space />
 
       <!-- 보고서 선택 -->

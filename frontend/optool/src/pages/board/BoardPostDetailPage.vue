@@ -1,5 +1,5 @@
 <template>
-  <q-page padding class="board-post-detail-page" :class="{ 'document-detail-dark': $q.dark.isActive }">
+  <q-page padding class="board-post-detail-page bo-page" :class="{ 'document-detail-dark': $q.dark.isActive }">
     <div class="document-detail-layout" :class="{ 'document-nav-open': docNavOpen }">
       <aside v-if="docNavOpen" class="document-nav-panel">
         <q-card flat bordered class="document-outline-card">
@@ -65,7 +65,7 @@
             <q-icon name="chevron_right" />
           </template>
         </div>
-        <div class="text-h6">{{ post.title }}</div>
+        <div role="heading" aria-level="1" class="text-h6 bo-page-title">{{ post.title }}</div>
         <div class="text-caption text-grey q-mt-xs">
           {{ post.authorName }} · {{ formatDate(post.createdAt) }}
           · v{{ post.version }}

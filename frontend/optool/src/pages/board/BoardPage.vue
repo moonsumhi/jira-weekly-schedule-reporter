@@ -1,7 +1,7 @@
 <template>
-  <q-page padding>
-    <div class="board-toolbar row items-center q-mb-md">
-      <div class="board-toolbar-title text-h6">{{ boardTitle }}</div>
+  <q-page padding class="bo-page">
+    <div class="bo-page-heading board-toolbar row items-center q-mb-md">
+      <div role="heading" aria-level="1" class="board-toolbar-title text-h6 bo-page-title">{{ boardTitle }}</div>
       <q-btn icon="note_add" label="새 문서" color="primary" style="flex-shrink: 0; margin-left: 15px;" @click="openWrite" />
       <q-space />
       <q-checkbox

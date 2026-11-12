@@ -1,14 +1,14 @@
 <template>
-  <header class="space-header">
+  <header class="space-header bo-page-heading">
     <div class="space-header__intro">
       <slot name="leading" />
       <div class="space-header__heading">
-        <div class="space-eyebrow">{{ eyebrow || '인적자원 관리' }}</div>
-        <h1>{{ title }}</h1>
-        <p v-if="description">{{ description }}</p>
+        <h1 class="bo-page-title">{{ title }}</h1>
+        <p v-if="description" class="bo-page-description">{{ description }}</p>
+        <div v-if="eyebrow" class="space-context">{{ eyebrow }}</div>
       </div>
     </div>
-    <div class="space-header__actions">
+    <div class="space-header__actions bo-page-actions">
       <slot />
       <q-btn
         flat

@@ -59,6 +59,23 @@ class RecurringInspectionTests(unittest.IsolatedAsyncioTestCase):
         await recurring.generate_due(self.template, datetime(2026, 10, 31))
         self.assertEqual(len(self.items), 1)
 
+    async def test_yearly_manual_and_automatic_generation_share_duplicate_check(self):
+        self.template['rule'].update(freq='yearly', month=1)
+        self.template['lead_days'] = 60
+        await recurring.generate_due(self.template, datetime(2026, 11, 2))
+        self.assertEqual(self.items[0]['month'], '2027-01')
+        self.assertEqual(self.issues[0]['occurrence_date'], '2027-01-01')
+        result = await recurring.generate_month(self.template, 2027, 1)
+        self.assertEqual(len(result['skipped']), 1)
+        result = await recurring.generate_month(self.template, 2027, 2)
+        self.assertEqual(result, {'created': [], 'skipped': []})
+        await recurring.generate_due(self.template, datetime(2026, 12, 31))
+        self.assertEqual(len(self.items), 1)
+        self.assertEqual(len(self.issues), 1)
+        result = await recurring.generate_month(self.template, 2028, 1)
+        self.assertEqual(len(result['created']), 1)
+        self.assertEqual(self.items[1]['month'], '2028-01')
+
     async def test_existing_templates_default_off_and_updates_apply_to_future_issues(self):
         self.template.pop('include_in_inspection')
         await recurring.generate_month(self.template, 2026, 10)

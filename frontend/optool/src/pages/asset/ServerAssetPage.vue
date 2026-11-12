@@ -1,5 +1,11 @@
 <template>
-  <q-page class="q-pa-md asset-page">
+  <q-page class="q-pa-md bo-page asset-page">
+    <header class="asset-page-heading bo-page-heading">
+      <div>
+        <h1 class="bo-page-title">자산 관리</h1>
+        <p class="bo-page-description">등록된 자산과 운영 이력을 확인합니다.</p>
+      </div>
+    </header>
     <!-- 카테고리 탭 (항상 표시, 랙 포함) -->
     <q-tabs
       :model-value="category || '전체'"
@@ -5481,6 +5487,14 @@ onMounted(() => {
 .asset-filter-bar :deep(.q-field__control) {
   min-height: 40px;
   height: 40px;
+}
+@media (max-width: 599px) {
+  .asset-filter-bar > .q-field.col {
+    flex: 1 1 calc(100% - 8px);
+    order: 2;
+    width: calc(100% - 8px);
+  }
+  .asset-filter-bar > .q-btn { margin-left: auto; }
 }
 .advanced-filter-count {
   min-width: 18px;

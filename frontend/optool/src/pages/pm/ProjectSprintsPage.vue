@@ -1,7 +1,7 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="row items-center q-mb-md">
-      <div class="text-h6">{{ project?.name }} — 스프린트</div>
+  <q-page class="q-pa-md bo-page">
+    <div class="row items-center q-mb-md bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h6 bo-page-title">{{ project?.name }} — 스프린트</div>
       <q-badge v-if="project" color="primary" :label="project.key" class="q-ml-sm" />
       <q-space />
       <q-btn color="primary" icon="add" label="스프린트 생성" @click="openCreateDialog" />

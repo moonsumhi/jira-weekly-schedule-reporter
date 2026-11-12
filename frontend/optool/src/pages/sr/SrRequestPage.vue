@@ -1,11 +1,11 @@
 <template>
-  <q-page padding class="sr-request-page">
+  <q-page padding class="sr-request-page bo-page">
 
-    <div class="row items-center q-mb-md">
+    <div class="row items-center q-mb-md bo-page-heading">
       <q-btn flat dense round icon="arrow_back" class="q-mr-xs" @click="$router.back()" />
       <div class="col">
-        <div class="text-h6 text-weight-bold">{{ editId ? 'SR 수정' : 'SR 접수' }}</div>
-        <div class="text-caption text-grey-5">{{ editId ? 'SR 내용을 수정합니다.' : '데이터운영팀에 업무 요청을 접수합니다.' }}</div>
+        <div role="heading" aria-level="1" class="text-h6 text-weight-bold bo-page-title">{{ editId ? 'SR 수정' : 'SR 접수' }}</div>
+        <div class="text-caption text-grey-5 bo-page-description">{{ editId ? 'SR 내용을 수정합니다.' : '데이터운영팀에 업무 요청을 접수합니다.' }}</div>
       </div>
       <HelpButton feature="sr-new" guide-path="/pm/sr/guide" />
     </div>
@@ -842,8 +842,10 @@ async function save(submit: boolean) {
 .table-field-row:last-of-type { border-bottom: none; }
 
 .draft-banner :deep(.q-banner__content) { padding: 10px 0; }
-.sr-stepper :deep(.q-stepper__header) { border-bottom: 1px solid #eee; }
-.sr-stepper :deep(.q-stepper__step-inner) { padding: 20px 0 8px; }
+.sr-stepper { border: 1px solid var(--bo-border); }
+.sr-stepper :deep(.q-stepper__header) { border-bottom: 1px solid var(--bo-border); }
+.sr-stepper :deep(.q-stepper__step-inner) { padding: 24px; }
+@media (max-width: 599px) { .sr-stepper :deep(.q-stepper__step-inner) { padding: 16px; } }
 
 .step-body {
   display: flex;
@@ -881,25 +883,23 @@ async function save(submit: boolean) {
   align-items: center;
   gap: 5px;
   padding: 16px 10px;
-  border: 1.5px solid rgba(0,0,0,0.1);
+  border: 1px solid var(--bo-border-strong);
   border-radius: 8px;
   cursor: pointer;
   text-align: center;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  transition: border-color 160ms ease-out, background-color 160ms ease-out;
   background: #fafafa;
 }
 .type-card:hover {
   border-color: var(--q-primary);
   background: #fff;
-  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.12);
 }
 .type-card--selected {
   border-color: var(--q-primary);
-  background: #e8f1fd;
-  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.18);
+  background: var(--bo-accent-soft);
 }
-.type-card__name { font-size: 0.82rem; font-weight: 600; color: #333; }
-.type-card__desc { font-size: 0.7rem; color: #9e9e9e; line-height: 1.3; }
+.type-card__name { font-size: 14px; font-weight: 600; color: var(--bo-text); }
+.type-card__desc { font-size: 12px; color: var(--bo-muted); line-height: 1.5; }
 
 /* ── 선택된 유형 뱃지 ── */
 .selected-type-badge {
@@ -909,7 +909,7 @@ async function save(submit: boolean) {
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--q-primary);
-  background: #e8f1fd;
+  background: var(--bo-accent-soft);
   border-radius: 20px;
   padding: 4px 12px 4px 10px;
 }

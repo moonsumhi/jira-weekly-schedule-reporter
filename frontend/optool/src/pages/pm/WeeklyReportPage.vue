@@ -1,11 +1,11 @@
 <template>
-  <q-page class="q-pa-md weekly-report-page">
+  <q-page class="q-pa-md bo-page weekly-report-page">
 
     <!-- 헤더 -->
-    <div class="row items-center q-mb-md q-gutter-sm">
+    <div class="row items-center q-mb-md q-gutter-sm bo-page-heading">
       <div>
-        <div class="text-h5 text-weight-bold">주간 보고</div>
-        <div class="text-caption text-grey-6">스케줄 관리 › 주간 보고</div>
+        <div role="heading" aria-level="1" class="text-h5 text-weight-bold bo-page-title">주간 보고</div>
+        <div class="text-caption text-grey-6 bo-page-description">스케줄 관리 › 주간 보고</div>
       </div>
       <q-space />
       <HelpButton feature="weekly-report" guide-path="/pm/schedule/guide" />
@@ -36,9 +36,25 @@
     <q-card flat bordered>
       <q-table :rows="reports" :columns="columns" row-key="id" flat :loading="loading"
         no-data-label="보고서가 없습니다." :pagination="{ rowsPerPage: 15 }">
+        <template #body-cell-week="props">
+          <q-td :props="props">
+            <router-link :to="`/pm/weekly-report/${props.row.id}`" class="report-detail-link">
+              {{ props.value }}
+            </router-link>
+          </q-td>
+        </template>
+        <template #body-cell-title="props">
+          <q-td :props="props">
+            <router-link :to="`/pm/weekly-report/${props.row.id}`" class="report-detail-link">
+              {{ props.row.title }}
+            </router-link>
+          </q-td>
+        </template>
         <template #body-cell-period="props">
-          <q-td :props="props" class="text-caption text-grey-7">
-            {{ props.row.startDate?.slice(0,10) }} ~ {{ props.row.endDate?.slice(0,10) }}
+          <q-td :props="props" class="text-caption">
+            <router-link :to="`/pm/weekly-report/${props.row.id}`" class="report-detail-link">
+              {{ props.row.startDate?.slice(0,10) }} ~ {{ props.row.endDate?.slice(0,10) }}
+            </router-link>
           </q-td>
         </template>
         <template #body-cell-stats="props">
@@ -69,7 +85,7 @@
           <q-td :props="props" class="q-gutter-xs">
             <q-btn flat dense icon="open_in_new" size="sm" color="primary" title="상세 보기" @click="openDetail(props.row)" />
             <q-btn flat dense icon="edit" size="sm" color="grey-7" @click="openEdit(props.row)" />
-            <q-btn v-if="props.row.status === 'DRAFT' || props.row.status === 'REVIEWING'" flat dense icon="refresh" size="sm" color="teal" title="이슈 재집계"
+            <q-btn v-if="props.row.status === 'DRAFT' || props.row.status === 'REVIEWING'" flat dense icon="refresh" size="sm" color="teal" title="보고서 새로고침" aria-label="보고서 새로고침"
               :loading="refreshingId === props.row.id" @click="doRefresh(props.row)" />
             <q-btn flat dense icon="download" size="sm" color="positive" @click="downloadDetail(props.row.id)" />
             <q-btn flat dense icon="delete" size="sm" color="negative" @click="confirmDelete(props.row)" />
@@ -142,19 +158,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Notify, Dialog } from 'quasar'
 import { api } from 'boot/axios'
 import {
   listWeeklyReports, createWeeklyReport, updateWeeklyReport,
-  deleteWeeklyReport, refreshWeeklyReport,
+  deleteWeeklyReport, getWeeklyReport,
   type WeeklyReport, type WeeklyReportCreate,
 } from 'src/services/pm/reports'
 import { getErrorMessage } from 'src/utils/http/error'
 import { useAuthStore } from 'src/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 // ── 보고서 상태 ────────────────────────────────────────────────────────
@@ -167,12 +184,20 @@ const reports = ref<WeeklyReport[]>([])
 const loading = ref(false)
 const refreshingId = ref<string | null>(null)
 
-const filter = ref<{ year: number | null; week: number | null }>({
-  year: now.getFullYear(), week: null,
-})
+function routeFilter() {
+  const year = typeof route.query.year === 'string' ? Number(route.query.year) : NaN
+  const week = typeof route.query.week === 'string' ? Number(route.query.week) : NaN
+  return {
+    year: Number.isInteger(year) && year >= 1 && year <= 9999 ? year : now.getFullYear(),
+    week: Number.isInteger(week) && week >= 1 && week <= 53 ? week : null,
+  }
+}
+const filter = ref<{ year: number | null; week: number | null }>(routeFilter())
 
-const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i)
-  .map(y => ({ label: `${y}년`, value: y }))
+const yearOptions = computed(() => [...new Set([
+  ...Array.from({ length: 5 }, (_, i) => now.getFullYear() - i),
+  ...(filter.value.year ? [filter.value.year] : []),
+])].sort((a, b) => b - a).map(y => ({ label: `${y}년`, value: y })))
 
 // ── 테이블 컬럼 ───────────────────────────────────────────────────────
 const columns = [
@@ -297,11 +322,11 @@ async function submitEdit() {
 async function doRefresh(r: WeeklyReport) {
   refreshingId.value = r.id
   try {
-    await refreshWeeklyReport(r.id)
-    Notify.create({ type: 'positive', message: '이슈 데이터를 재집계했습니다.' })
+    await getWeeklyReport(r.id)
+    Notify.create({ type: 'positive', message: '최신 업무를 불러왔습니다.' })
     await load()
   } catch (e) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, '재집계 실패') })
+    Notify.create({ type: 'negative', message: getErrorMessage(e, '새로고침 실패') })
   } finally {
     refreshingId.value = null
   }
@@ -364,19 +389,40 @@ async function downloadDetail(id: string) {
 }
 
 // ── 로드 ──────────────────────────────────────────────────────────────
+let loadRequest = 0
 async function load() {
+  const request = ++loadRequest
   loading.value = true
   try {
-    reports.value = await listWeeklyReports({
+    const data = await listWeeklyReports({
       ...(filter.value.year ? { year: filter.value.year } : {}),
       ...(filter.value.week ? { week: filter.value.week } : {}),
     })
+    if (request === loadRequest) reports.value = data
   } catch (e) {
-    Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
+    if (request === loadRequest) Notify.create({ type: 'negative', message: getErrorMessage(e, '로드 실패') })
   } finally {
-    loading.value = false
+    if (request === loadRequest) loading.value = false
   }
 }
 
+watch(() => [route.query.year, route.query.week], () => {
+  filter.value = routeFilter()
+  void load()
+})
 onMounted(load)
+onUnmounted(() => { ++loadRequest })
 </script>
+
+<style scoped>
+.report-detail-link {
+  color: var(--bo-accent-ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+.report-detail-link:hover,
+.report-detail-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+</style>

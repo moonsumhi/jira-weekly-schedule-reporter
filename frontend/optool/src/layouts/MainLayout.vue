@@ -1,7 +1,8 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
-    <q-header elevated :text-color="theme.currentTextColor()">
-      <q-toolbar>
+  <q-layout view="lHh Lpr lFf" class="backoffice-layout">
+    <a class="skip-to-content" href="#workspace-content" @click.prevent="focusWorkspace">본문으로 이동</a>
+    <q-header class="workspace-header">
+      <q-toolbar class="workspace-toolbar">
         <!-- menu button only when logged in -->
         <q-btn
           v-if="authIsLoggedIn"
@@ -11,12 +12,17 @@
           icon="menu"
           :aria-label="miniDrawer ? '사이드바 펼치기' : (isNarrowLayout ? '메뉴 열기' : '사이드바 접기')"
           :title="miniDrawer ? '사이드바 펼치기' : (isNarrowLayout ? '메뉴 열기' : '사이드바 접기')"
+          :aria-expanded="leftDrawerOpen && !miniDrawer"
+          aria-controls="workspace-navigation"
           @click="toggleLeftDrawer"
         />
 
-        <q-toolbar-title>{{ theme.appName }}</q-toolbar-title>
+        <q-toolbar-title class="workspace-location">
+          <span v-if="auth.isLoggedIn" class="workspace-location-team">데이터운영팀 <span aria-hidden="true">/</span></span>
+          <span>{{ auth.isLoggedIn ? currentPageTitle : theme.appName }}</span>
+        </q-toolbar-title>
 
-        <div>{{ theme.appName }} v1.1.0</div>
+        <span class="workspace-version">v1.2.0</span>
 
         <!-- 알림 벨 -->
         <NotificationBell v-if="authIsLoggedIn" class="q-ml-xs" />
@@ -28,7 +34,8 @@
           icon="smart_toy"
           aria-label="AI 채팅"
           class="q-ml-xs"
-          :color="aiChatOpen ? 'white' : ''"
+          :color="aiChatOpen ? 'primary' : undefined"
+          :aria-pressed="aiChatOpen"
           @click="aiChatOpen = !aiChatOpen"
         >
           <q-tooltip>AI 어시스턴트</q-tooltip>
@@ -39,7 +46,8 @@
           v-if="authIsLoggedIn && !isExternal"
           flat dense round
           icon="fa-solid fa-link"
-          aria-label="Links"
+          aria-label="서비스 바로가기"
+          :aria-expanded="rightDrawerOpen"
           class="q-ml-sm"
           @click="toggleRightDrawer"
         />
@@ -49,38 +57,42 @@
     <!-- drawer only when logged in -->
     <q-drawer
       v-if="authIsLoggedIn"
-      class="app-sidebar"
+      class="app-sidebar workspace-drawer"
       v-model="leftDrawerOpen"
       show-if-above
       bordered
       :dark="theme.appearanceMode === 'dark'"
       :style="theme.appearanceMode === 'dark' ? { backgroundColor: '#17212f' } : undefined"
-      :width="248"
       :mini="miniDrawer"
       :mini-width="80"
-      :breakpoint="767"
+      :width="248"
+      :breakpoint="1024"
+      :behavior="isNarrowLayout ? 'mobile' : 'desktop'"
     >
       <!-- column layout to pin logout button at bottom -->
-      <div
-        class="column fit"
+      <div id="workspace-navigation" class="column no-wrap fit"
         :class="{ 'sidebar-dark': theme.appearanceMode === 'dark' }"
-        :style="{ backgroundColor: theme.appearanceMode === 'dark' ? '#17212f' : theme.sidebarBackgroundColor }"
-      >
+        :style="{ backgroundColor: theme.appearanceMode === 'dark' ? '#17212f' : theme.sidebarBackgroundColor }">
+        <div class="workspace-brand-row">
+          <button class="workspace-brand" type="button" :aria-label="`${theme.appName} 홈으로 이동`" @click="goHome">
+            <q-icon :name="sidebarIcons.brand" size="28px" color="primary" aria-hidden="true" />
+            <span v-if="!miniDrawer" class="workspace-brand-copy">
+              <span class="workspace-brand-name">{{ theme.appName }}</span>
+              <span class="workspace-brand-team">데이터운영팀 백오피스</span>
+            </span>
+          </button>
+          <q-btn flat round dense :icon="sidebarIcons.close" class="workspace-nav-close" aria-label="메뉴 닫기" @click="leftDrawerOpen = false" />
+        </div>
 
         <!-- MENU AREA -->
-        <q-scroll-area class="col">
+        <q-scroll-area class="col workspace-nav-scroll" :content-style="{ width: '100%', boxSizing: 'border-box' }">
+          <nav ref="navigationElement" aria-label="주 메뉴" class="workspace-navigation">
           <q-list class="sidebar-menu-list" :dark="theme.appearanceMode === 'dark'">
-            <q-item v-if="miniDrawer" :dark="theme.appearanceMode === 'dark'" clickable v-ripple class="sidebar-home-link" @click="goHome">
-              <q-item-section avatar>
-                <q-icon name="home" />
-              </q-item-section>
-              <q-tooltip anchor="center right" self="center left">대시보드</q-tooltip>
+            <q-item clickable v-ripple :active="route.name === 'app-home'" active-class="workspace-home--active" class="workspace-home" to="/app" :aria-current="route.name === 'app-home' ? 'page' : undefined">
+              <q-item-section avatar><q-icon :name="sidebarIcons.dashboard" size="20px" /></q-item-section>
+              <q-item-section>대시보드</q-item-section>
             </q-item>
-            <q-item v-else :dark="theme.appearanceMode === 'dark'" clickable v-ripple class="sidebar-home-link" @click="goHome">
-              <q-item-section>
-                <q-item-label>데이터운영팀</q-item-label>
-              </q-item-section>
-            </q-item>
+            <q-separator class="workspace-nav-separator" />
 
             <!-- 모든 메뉴를 sortOrder 순서대로 렌더링 -->
             <template v-for="menu in sortedVisibleMenus" :key="menu.id">
@@ -147,36 +159,28 @@
             </template>
 
           </q-list>
+          </nav>
         </q-scroll-area>
 
         <!-- USER / LOGOUT AREA (BOTTOM) -->
-        <q-separator />
-
-        <q-item
-          :dark="theme.appearanceMode === 'dark'"
-          clickable v-ripple
-          class="q-py-sm"
-          @click="$router.push('/account/my-page')"
-        >
-          <q-item-section avatar>
-            <q-avatar color="primary" text-color="white" size="36px" class="text-caption">
-              {{ authMe?.fullName?.[0] ?? authMe?.email?.[0]?.toUpperCase() ?? '?' }}
-            </q-avatar>
-          </q-item-section>
-          <q-item-section>
-            <q-item-label class="text-weight-medium">{{ authMe?.fullName ?? '-' }}</q-item-label>
-            <q-item-label caption :class="theme.appearanceMode === 'dark' ? 'text-grey-5' : 'text-grey-6'">{{ authMe?.email }}</q-item-label>
-          </q-item-section>
-          <q-item-section side>
-            <q-btn
-              flat round dense
-              icon="logout"
-              color="grey-6"
-              size="sm"
-              @click.stop="onLogout"
-            />
-          </q-item-section>
-        </q-item>
+        <div class="workspace-account">
+          <q-item clickable v-ripple to="/account/my-page" class="workspace-account-link"
+            active-class="workspace-account-link--active" aria-label="마이페이지">
+            <q-item-section avatar>
+              <q-avatar size="36px" class="workspace-account-avatar">
+                {{ auth.me?.fullName?.[0] ?? auth.me?.email?.[0]?.toUpperCase() ?? '?' }}
+              </q-avatar>
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="workspace-account-name" :title="auth.me?.fullName ?? undefined">{{ auth.me?.fullName ?? '-' }}</q-item-label>
+              <q-item-label caption :title="auth.me?.email">{{ auth.me?.email }}</q-item-label>
+            </q-item-section>
+            <q-tooltip>마이페이지</q-tooltip>
+          </q-item>
+          <q-btn v-if="!miniDrawer" flat round dense :icon="sidebarIcons.logout" aria-label="로그아웃" class="workspace-logout" @click="onLogout">
+            <q-tooltip>로그아웃</q-tooltip>
+          </q-btn>
+        </div>
       </div>
     </q-drawer>
     <!-- 오른쪽 링크 사이드바 (내부망만) -->
@@ -300,7 +304,7 @@
       </q-card>
     </q-dialog>
 
-    <q-page-container :class="{ 'pm-theme-container': isScheduleManagementRoute }">
+    <q-page-container id="workspace-content" tabindex="-1" :class="{ 'pm-theme-container': isScheduleManagementRoute }">
       <router-view />
     </q-page-container>
 
@@ -320,7 +324,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from 'stores/auth'
@@ -328,6 +332,7 @@ import { useMenuStore } from 'stores/menus'
 import { useThemeStore } from 'stores/theme'
 import { useNotificationStore } from 'stores/notification'
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue'
+import { sidebarIcons } from 'src/utils/sidebarIcons'
 import NotificationBell from 'components/NotificationBell.vue'
 import NoticePopup from 'components/NoticePopup.vue'
 import AiChatPanel from 'components/AiChatPanel.vue'
@@ -358,6 +363,10 @@ const isScheduleManagementRoute = computed(() => route.path.startsWith('/pm'))
 
 function recordHomeVisit() {
   void api.get('/auth/home-ping')
+}
+
+function focusWorkspace() {
+  document.getElementById('workspace-content')?.focus()
 }
 
 function goHome() {
@@ -469,6 +478,27 @@ const jobMenuItems = computed<EssentialLinkProps[]>(() => {
   return items
 })
 
+const currentPageTitle = computed(() => {
+  if (route.name === 'app-home') return '대시보드'
+  const activePath = typeof route.meta.activeMenuLink === 'string' ? route.meta.activeMenuLink : route.path
+  const destinations = sortedVisibleMenus.value.flatMap((menu) => [
+    { title: menu.title, link: menu.link },
+    ...(menu.slug === 'job' ? jobMenuItems.value : menu.submenus?.length ? menuChildren(menu) : boardChildrenOf(menu.id)),
+  ])
+  const match = destinations
+    .filter((item) => {
+      if (!item.link || item.link === '#' || /^https?:/.test(item.link)) return false
+      const [path = '', query] = item.link.split('?')
+      if (activePath !== path && !activePath.startsWith(`${path}/`)) return false
+      return !query || Array.from(new URLSearchParams(query)).every(([key, value]) => route.query[key] === value)
+    })
+    .sort((a, b) => (b.link?.length ?? 0) - (a.link?.length ?? 0))[0]
+  if (match) return match.title
+  if (route.path.startsWith('/account')) return '계정 설정'
+  if (route.path.startsWith('/notifications')) return '알림'
+  return theme.appName
+})
+
 const pendingCount = computed(() => auth.pendingCount)
 let pendingTimer: ReturnType<typeof setInterval> | null = null
 
@@ -476,12 +506,34 @@ const leftDrawerOpen = ref(false)
 const rightDrawerOpen = ref(false)
 const aiChatOpen = ref(false)
 const sidebarMini = ref(localStorage.getItem('sidebar-mini-mode-v2') !== 'false')
-const isNarrowLayout = computed(() => $q.screen.width <= 767)
+const isNarrowLayout = computed(() => $q.screen.width <= 1024)
 const miniDrawer = computed(() => !isNarrowLayout.value && sidebarMini.value)
 
 watch(sidebarMini, (mini) => {
   localStorage.setItem('sidebar-mini-mode-v2', String(mini))
 })
+
+const navigationElement = ref<HTMLElement | null>(null)
+let navigationRevealTimer: ReturnType<typeof setTimeout> | undefined
+
+function scheduleActiveMenuReveal() {
+  if (navigationRevealTimer) clearTimeout(navigationRevealTimer)
+  // QExpansionItem opens over 300ms. Scroll its container after the final layout.
+  navigationRevealTimer = setTimeout(() => {
+    const active = navigationElement.value?.querySelector<HTMLElement>('[aria-current="page"]')
+    const viewport = navigationElement.value?.closest<HTMLElement>('.q-scrollarea__container')
+    if (!active || !viewport) return
+    const item = active.getBoundingClientRect()
+    const bounds = viewport.getBoundingClientRect()
+    if (item.top < bounds.top + 8) viewport.scrollTop += item.top - bounds.top - 8
+    else if (item.bottom > bounds.bottom - 8) viewport.scrollTop += item.bottom - bounds.bottom + 8
+  }, 350)
+}
+
+watch([() => route.fullPath, sortedVisibleMenus, jobMenuItems, leftDrawerOpen], async () => {
+  await nextTick()
+  scheduleActiveMenuReveal()
+}, { flush: 'post', immediate: true })
 
 function toggleLeftDrawer() {
   if (isNarrowLayout.value) {
@@ -748,6 +800,7 @@ onMounted(async () => {
 watch(
   () => route.path,
   (newPath, oldPath) => {
+    if ($q.screen.width < 1024) leftDrawerOpen.value = false
     if (auth.isLoggedIn && oldPath === '/admin/menus' && newPath !== '/admin/menus') {
       void menuStore.refresh()
     }
@@ -755,6 +808,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  if (navigationRevealTimer) clearTimeout(navigationRevealTimer)
   if (pendingTimer) clearInterval(pendingTimer)
   notifStore.stopPolling()
 })
@@ -783,6 +837,117 @@ onBeforeUnmount(() => {
   margin-right: 0;
 }
 
+
+#workspace-navigation { font-family: 'Pretendard Variable', var(--bo-font); }
+.workspace-header {
+  background: var(--bo-surface);
+  color: var(--bo-text);
+  border-bottom: 1px solid var(--bo-border);
+}
+.workspace-toolbar {
+  min-height: 64px;
+  padding: 0 24px;
+  gap: 8px;
+}
+.workspace-location {
+  display: flex;
+  gap: 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.workspace-location-team {
+  color: var(--bo-muted);
+  font-weight: 400;
+}
+.workspace-location-team > span {
+  padding-left: 14px;
+  color: var(--bo-border-strong);
+}
+.workspace-version {
+  color: var(--bo-muted);
+  font-size: 12px;
+  margin-right: 12px;
+}
+.workspace-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 20px 20px 18px;
+  flex-shrink: 0;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.workspace-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--bo-text);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.workspace-brand-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.workspace-brand-name { font-size: 20px; line-height: 1.3; font-weight: 700; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.workspace-brand-team { color: var(--bo-muted); font-size: 12px; line-height: 1.5; }
+.workspace-nav-close { display: none; color: var(--bo-muted); flex-shrink: 0; }
+.workspace-nav-scroll { min-height: 0; min-width: 0; width: 100%; }
+.workspace-navigation { width: 100%; box-sizing: border-box; padding: 4px 12px 20px; }
+.workspace-home {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--bo-secondary);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+}
+.workspace-home .q-item__section--avatar { min-width: 32px; padding-right: 12px; }
+.workspace-home--active { color: var(--bo-accent-ink); background: var(--bo-accent-soft); font-weight: 600; }
+.workspace-nav-separator { margin: 14px 12px; }
+.workspace-account { display: flex; align-items: center; gap: 2px; width: 100%; min-width: 0; box-sizing: border-box; padding: 12px; border-top: 1px solid var(--bo-border); flex-shrink: 0; }
+.workspace-account-link { flex: 1; min-width: 0; min-height: 56px; padding: 8px; border-radius: 8px; color: var(--bo-text); }
+.workspace-account-link--active { background: var(--bo-accent-soft); }
+.workspace-account-link :deep(.q-item__section--avatar) { min-width: 46px; padding-right: 10px; }
+.workspace-account-link :deep(.q-item__section--main) { min-width: 0; }
+.workspace-account-name { font-size: 13px; font-weight: 600; }
+.workspace-account-link :deep(.q-item__label) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.workspace-account-link :deep(.q-item__label--caption) { margin-top: 4px; font-size: 12px; color: var(--bo-muted); }
+.workspace-account-avatar { background: var(--bo-accent-soft); color: var(--bo-accent-ink); font-size: 14px; font-weight: 600; }
+.workspace-logout { color: var(--bo-muted); width: 36px; height: 36px; flex-shrink: 0; }
+.workspace-brand:focus-visible, .workspace-home:focus-visible, .workspace-account-link:focus-visible { outline-offset: -2px; }
+@media (max-width: 1024px) {
+  .workspace-brand-row { padding-right: 12px; }
+  .workspace-nav-close { display: inline-flex; width: 36px; height: 36px; }
+}
+.skip-to-content {
+  position: fixed;
+  top: 8px;
+  left: 12px;
+  z-index: 10000;
+  transform: translateY(-180%);
+  background: var(--bo-surface);
+  color: var(--bo-accent-ink);
+  padding: 10px 16px;
+  border-radius: 8px;
+}
+.skip-to-content:focus { transform: translateY(0); }
+@media (max-width: 599px) {
+  .workspace-toolbar { min-height: 56px; padding: 0 12px; gap: 2px; }
+  .workspace-location { padding: 0 6px; }
+  .workspace-location-team, .workspace-version { display: none; }
+}
+@media print {
+  .skip-to-content { display: none; }
+}
 .link-card {
   border: 1px solid #e0e0e0;
   border-radius: 6px;
@@ -838,4 +1003,12 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 2px;
 }
+
+:deep(.q-drawer--mini .workspace-brand-row) { padding: 20px 16px 18px; }
+:deep(.q-drawer--mini .workspace-brand) { justify-content: center; }
+:deep(.q-drawer--mini .workspace-navigation) { padding: 4px 8px 20px; }
+:deep(.q-drawer--mini .sidebar-menu-list .q-item) { padding: 10px 12px; }
+:deep(.q-drawer--mini .sidebar-menu-list .q-item__section--avatar) { min-width: 0; width: 100%; padding: 0; align-items: center; }
+:deep(.q-drawer--mini .workspace-account) { padding: 8px; }
+:deep(.q-drawer--mini .workspace-account-link .q-item__section--avatar) { min-width: 36px; padding: 0; }
 </style>

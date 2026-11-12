@@ -1,6 +1,6 @@
 <template>
-  <q-page padding>
-    <div class="text-subtitle1 text-weight-bold q-mb-md">세션 설정</div>
+  <q-page class="bo-page" padding>
+    <div role="heading" aria-level="1" class="text-subtitle1 text-weight-bold q-mb-md bo-page-title bo-page-title--standalone">세션 설정</div>
 
     <q-card flat bordered style="max-width: 480px">
       <q-card-section class="q-gutter-md">

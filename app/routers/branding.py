@@ -6,7 +6,7 @@ from app.db.mongo import MongoClientManager
 
 router = APIRouter()
 
-DEFAULT_APP_NAME = "OPTOOL"
+DEFAULT_APP_NAME = "ATOM"
 DEFAULT_THEME_COLOR = "blue"
 
 

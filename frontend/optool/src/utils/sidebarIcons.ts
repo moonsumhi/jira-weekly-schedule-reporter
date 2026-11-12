@@ -1,0 +1,82 @@
+import {
+  symOutlinedAccountTree, symOutlinedAdminPanelSettings, symOutlinedApartment,
+  symOutlinedAssignment, symOutlinedBarChart, symOutlinedCalendarMonth,
+  symOutlinedCalendarViewWeek, symOutlinedChecklist, symOutlinedClose,
+  symOutlinedDashboard, symOutlinedDatabase, symOutlinedDescription,
+  symOutlinedDevices, symOutlinedDns, symOutlinedDoorFront,
+  symOutlinedEventRepeat, symOutlinedFactCheck, symOutlinedFolderOpen,
+  symOutlinedGridView, symOutlinedGroups, symOutlinedHelp,
+  symOutlinedHub, symOutlinedInbox, symOutlinedInventory2,
+  symOutlinedKeyboardArrowDown, symOutlinedLayers, symOutlinedLogout,
+  symOutlinedNotifications, symOutlinedPalette, symOutlinedSchedule,
+  symOutlinedSecurity, symOutlinedSend, symOutlinedSettings,
+  symOutlinedSpaceDashboard, symOutlinedThumbUp, symOutlinedWork,
+} from '@quasar/extras/material-symbols-outlined'
+
+export const sidebarIcons = {
+  brand: symOutlinedSpaceDashboard,
+  dashboard: symOutlinedGridView,
+  expand: symOutlinedKeyboardArrowDown,
+  close: symOutlinedClose,
+  logout: symOutlinedLogout,
+}
+
+// Modernize familiar menu glyphs at render time; stored settings and
+// unrecognized custom icons keep their original meaning and representation.
+const equivalents: Record<string, string> = {
+  'fa-briefcase': symOutlinedWork,
+  'fa-computer': symOutlinedDevices,
+  'fa-desktop': symOutlinedDevices,
+  'fa-clock': symOutlinedSchedule,
+  'fa-calendar': symOutlinedCalendarMonth,
+  'fa-calendar-days': symOutlinedCalendarMonth,
+  'fa-calendar-week': symOutlinedCalendarViewWeek,
+  'fa-diagram-project': symOutlinedAccountTree,
+  'fa-paper-plane': symOutlinedSend,
+  'fa-server': symOutlinedDns,
+  'fa-user-shield': symOutlinedAdminPanelSettings,
+  'fa-building-user': symOutlinedApartment,
+  'fa-building': symOutlinedApartment,
+  'fa-users': symOutlinedGroups,
+  'fa-door-open': symOutlinedDoorFront,
+  'fa-clipboard': symOutlinedAssignment,
+  'fa-clipboard-list': symOutlinedAssignment,
+  'fa-file-alt': symOutlinedDescription,
+  'fa-file-lines': symOutlinedDescription,
+  'fa-file': symOutlinedDescription,
+  'fa-folder': symOutlinedFolderOpen,
+  'fa-folder-open': symOutlinedFolderOpen,
+  'fa-layer-group': symOutlinedLayers,
+  'fa-network-wired': symOutlinedHub,
+  'fa-shield-halved': symOutlinedSecurity,
+  'fa-database': symOutlinedDatabase,
+  'fa-boxes-stacked': symOutlinedInventory2,
+  'fa-gauge': symOutlinedDashboard,
+  'fa-chart-bar': symOutlinedBarChart,
+  'fa-repeat': symOutlinedEventRepeat,
+  'fa-circle-question': symOutlinedHelp,
+  'fa-list-check': symOutlinedChecklist,
+  'fa-tasks': symOutlinedFactCheck,
+  'fa-thumbs-up': symOutlinedThumbUp,
+  'fa-bars': symOutlinedChecklist,
+  'fa-bullhorn': symOutlinedNotifications,
+  'fa-palette': symOutlinedPalette,
+  'fa-gear': symOutlinedSettings,
+  'fa-cog': symOutlinedSettings,
+  work: symOutlinedWork,
+  inbox: symOutlinedInbox,
+  dns: symOutlinedDns,
+  fact_check: symOutlinedFactCheck,
+  description: symOutlinedDescription,
+  calendar_month: symOutlinedCalendarMonth,
+  schedule: symOutlinedSchedule,
+  meeting_room: symOutlinedDoorFront,
+  settings: symOutlinedSettings,
+  dashboard: symOutlinedDashboard,
+  grid_view: symOutlinedGridView,
+}
+
+export function resolveSidebarIcon(icon: string): string {
+  const key = icon.split(/\s+/).find(part => equivalents[part])
+  return key ? equivalents[key]! : icon
+}

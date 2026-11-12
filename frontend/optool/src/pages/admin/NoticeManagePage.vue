@@ -1,7 +1,7 @@
 <template>
-  <q-page padding>
-    <div class="row items-center q-mb-md">
-      <div class="text-h6 col">공지사항 관리</div>
+  <q-page class="bo-page" padding>
+    <div class="row items-center q-mb-md bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h6 col bo-page-title">공지사항 관리</div>
       <q-btn icon="add" label="공지 등록" color="primary" @click="openCreate" />
     </div>
 

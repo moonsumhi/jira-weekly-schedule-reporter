@@ -88,8 +88,10 @@ class MonthlyActualsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_status_transition_records_confirmation_and_unlock(self):
         user = UserPublic(id=str(ObjectId()), email="test@example.com")
-        col = SimpleNamespace(find_one_and_update=AsyncMock(return_value={"status": "ok"}))
+        col = SimpleNamespace(find_one=AsyncMock(return_value={"_id": ObjectId(), "status": "REVIEWING"}),
+                              find_one_and_update=AsyncMock(return_value={"status": "ok"}))
         with patch.object(Mongo, "get_pm_monthly_reports_collection", return_value=col), patch.object(monthly_reports, "_require_pm"), \
+             patch.object(monthly_reports, "_collect_snapshot", AsyncMock(return_value={})), \
              patch.object(monthly_reports, "_doc_to_out", side_effect=lambda d: d), \
              patch.object(monthly_reports, "_enrich", AsyncMock(side_effect=lambda d, _doc, _user: d)):
             for status in ("REVIEWING", "CONFIRMED", "REVIEWING"):

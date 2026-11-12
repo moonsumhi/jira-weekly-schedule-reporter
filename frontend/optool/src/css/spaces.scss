@@ -1,20 +1,20 @@
 // Scoped to the organization and space screens; shared shell/theme remain unchanged.
 .spaces-page,
 .space-dialog {
-  --space-bg: #f5f7fa;
-  --space-surface: #fff;
-  --space-line: #e2e7ee;
-  --space-text: #243247;
-  --space-muted: #64748b;
-  --space-soft: #eef5fc;
+  --space-bg: var(--bo-canvas);
+  --space-surface: var(--bo-surface);
+  --space-line: var(--bo-border);
+  --space-text: var(--bo-text);
+  --space-muted: var(--bo-muted);
+  --space-soft: var(--bo-accent-soft);
   color: var(--space-text);
   font-size: 14px;
-  .q-btn {
-    border-radius: 7px;
-    font-weight: 500;
+  .q-btn:not(.q-btn--round) {
+    border-radius: var(--bo-control-radius);
+    font-weight: 600;
   }
   .q-field--outlined .q-field__control {
-    border-radius: 7px;
+    border-radius: var(--bo-control-radius);
     background: var(--space-surface);
   }
   .q-field__label {
@@ -47,7 +47,7 @@
   gap: 12px;
   min-width: 0;
 }
-.space-eyebrow {
+.space-context {
   color: var(--space-muted);
   font-size: 12px;
   margin-bottom: 6px;

@@ -171,7 +171,8 @@ class MonthlyContextTests(unittest.IsolatedAsyncioTestCase):
         }
         col = SimpleNamespace(find_one=AsyncMock(return_value=doc))
         with patch.object(M, "get_pm_monthly_reports_collection", return_value=col), \
-             patch.object(monthly_reports, "_require_pm"), patch.object(monthly_reports, "_user_name", AsyncMock(return_value="사용자")):
+             patch.object(monthly_reports, "_require_pm"), patch.object(monthly_reports, "_sync_snapshot", AsyncMock(side_effect=lambda doc: doc)), \
+             patch.object(monthly_reports, "_user_name", AsyncMock(return_value="사용자")):
             response = await monthly_reports.export_monthly_detail(str(doc["_id"]), user)
             content = b"".join([chunk async for chunk in response.body_iterator])
         workbook = openpyxl.load_workbook(BytesIO(content))
@@ -198,7 +199,8 @@ class MonthlyContextTests(unittest.IsolatedAsyncioTestCase):
         }
         col = SimpleNamespace(find_one=AsyncMock(return_value=doc))
         with patch.object(M, "get_pm_monthly_reports_collection", return_value=col), \
-             patch.object(monthly_reports, "_require_pm"), patch.object(monthly_reports, "_user_name", AsyncMock(return_value="사용자")):
+             patch.object(monthly_reports, "_require_pm"), patch.object(monthly_reports, "_sync_snapshot", AsyncMock(side_effect=lambda doc: doc)), \
+             patch.object(monthly_reports, "_user_name", AsyncMock(return_value="사용자")):
             for month, expected in (("2024-01", "서버 점검 (2024-01)"), (None, "서버 점검 (기준 변경 전)")):
                 with self.subTest(inspection_month=month):
                     if month:

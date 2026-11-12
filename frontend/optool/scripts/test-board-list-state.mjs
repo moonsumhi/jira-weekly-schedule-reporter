@@ -3,9 +3,11 @@ import { defaultBoardListState, readBoardListState, writeBoardListState } from '
 
 const values = new Map()
 const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }
-const filtered = { search: '배포', category: '공지', pagination: { page: 3, rowsPerPage: 30, sortBy: 'createdAt', descending: true } }
+const filtered = { search: '배포', category: '공지', pagination: { page: 3, rowsPerPage: 30, sortBy: 'updatedAt', descending: true } }
 writeBoardListState('first', filtered, storage)
 assert.deepEqual(readBoardListState('first', storage), filtered)
+storage.setItem('board-list:legacy', JSON.stringify({ ...filtered, pagination: { ...filtered.pagination, sortBy: 'createdAt' } }))
+assert.deepEqual(readBoardListState('legacy', storage), filtered)
 assert.deepEqual(readBoardListState('second', storage), defaultBoardListState())
 writeBoardListState('first', { ...filtered, search: '', category: null }, storage)
 assert.equal(readBoardListState('first', storage).search, '')
