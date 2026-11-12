@@ -277,6 +277,7 @@
 </template>
 <script setup lang="ts">
 import { ref, computed, nextTick, onBeforeUnmount, watch } from 'vue';
+import { useDialogHistory } from 'src/composables/useDialogHistory';
 import { api } from 'boot/axios';
 import type { ResourceServer } from 'src/services/inspectionReports';
 import { percent } from 'src/services/inspectionReports';
@@ -347,6 +348,7 @@ const trendDialog = ref(false),
   trendMaximized = ref(false),
   trendLoading = ref(false),
   trendError = ref(false);
+useDialogHistory(trendDialog);
 const trendHostName = ref(''),
   trendPoints = ref<TrendPoint[]>([]);
 let trendRequest = 0;

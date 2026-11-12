@@ -40,11 +40,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onBeforeUnmount, onUnmounted } from 'vue'
+import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
 import { useQuasar } from 'quasar'
 import * as XLSX from 'xlsx'
 import { api } from 'src/boot/axios'
 import { attachmentRelPath, downloadAttachment } from 'src/utils/attachment'
+import { createDialogHistory } from 'src/utils/dialogHistory'
 
 interface AttachmentLike {
   url: string
@@ -58,6 +60,15 @@ const props = defineProps<{
   attachment: AttachmentLike | null
 }>()
 const emit = defineEmits<{ 'update:modelValue': [boolean] }>()
+const dialogHistory = createDialogHistory(window, () => emit('update:modelValue', false))
+watch(() => props.modelValue, (open) => { void dialogHistory.setOpen(open) }, { immediate: true })
+async function closeBeforeNavigation() {
+  if (props.modelValue) emit('update:modelValue', false)
+  await dialogHistory.close()
+}
+onBeforeRouteLeave(closeBeforeNavigation)
+onBeforeRouteUpdate(closeBeforeNavigation)
+onBeforeUnmount(() => dialogHistory.dispose())
 
 const $q = useQuasar()
 const loading = ref(false)

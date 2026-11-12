@@ -293,6 +293,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount, defineComponent, h } from 'vue';
+import { useDialogHistory } from 'src/composables/useDialogHistory';
 import { useQuasar } from 'quasar';
 import type { ResourceMonth } from 'src/services/inspectionResources';
 import { inspectionError } from 'src/services/inspection';
@@ -603,6 +604,7 @@ interface HistoryPointRes {
 let trendGeneration = 0;
 const trendError = ref('');
 const trendDialog = ref(false);
+useDialogHistory(trendDialog);
 const trendMaximized = ref(false);
 const trendLoading = ref(false);
 const trendHostName = ref('');
