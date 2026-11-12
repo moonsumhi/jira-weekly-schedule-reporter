@@ -547,10 +547,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, defineComponent, h, type PropType } from 'vue'
+import { ref, computed, watch, nextTick, defineComponent, h, onBeforeUnmount, type PropType } from 'vue'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
-import { useRouter } from 'vue-router'
+import { useRouter, onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
+import { createDialogHistory } from 'src/utils/dialogHistory'
 import { QIcon, QBtn } from 'quasar'
 import draggable from 'vuedraggable'
 
@@ -619,6 +620,15 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const dialogHistory = createDialogHistory(window, () => emit('update:modelValue', false))
+watch(() => props.modelValue, (open) => { void dialogHistory.setOpen(open) }, { immediate: true })
+async function closeBeforeNavigation() {
+  if (props.modelValue) emit('update:modelValue', false)
+  await dialogHistory.close()
+}
+onBeforeRouteLeave(closeBeforeNavigation)
+onBeforeRouteUpdate(closeBeforeNavigation)
+onBeforeUnmount(() => dialogHistory.dispose())
 const tab = ref('detail')
 
 const displayProjectKey = computed(() => props.projectKey ?? props.issue?.projectKey ?? '')
