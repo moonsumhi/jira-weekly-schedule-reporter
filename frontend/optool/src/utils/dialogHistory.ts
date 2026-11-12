@@ -1,3 +1,5 @@
+const liveDialogTokens = new Set<string>()
+
 /** Keep a temporary, same-URL history entry while a dialog is open. */
 export function createDialogHistory(browser: Window, onBack: () => void) {
   const key = '__optoolIssueDialog'
@@ -13,6 +15,7 @@ export function createDialogHistory(browser: Window, onBack: () => void) {
     if (!active || event.state?.[key] === token) return
     const sameUrl = browser.location.href === url
     active = false
+    liveDialogTokens.delete(token)
     browser.removeEventListener('popstate', onPop, true)
     if (sameUrl) event.stopImmediatePropagation()
     const notify = desiredOpen && !pending
@@ -30,9 +33,10 @@ export function createDialogHistory(browser: Window, onBack: () => void) {
     url = browser.location.href
     const state = { ...browser.history.state, [key]: token }
     // Reuse a marker restored by Forward or a page reload.
-    if (browser.history.state?.[key]) browser.history.replaceState(state, '', url)
+    if (browser.history.state?.[key] && !liveDialogTokens.has(browser.history.state[key])) browser.history.replaceState(state, '', url)
     else browser.history.pushState(state, '', url)
     active = true
+    liveDialogTokens.add(token)
     browser.addEventListener('popstate', onPop, true)
   }
 
@@ -42,6 +46,7 @@ export function createDialogHistory(browser: Window, onBack: () => void) {
     if (!active) return Promise.resolve()
     if (browser.history.state?.[key] !== token || browser.location.href !== url) {
       active = false
+      liveDialogTokens.delete(token)
       browser.removeEventListener('popstate', onPop, true)
       return Promise.resolve()
     }

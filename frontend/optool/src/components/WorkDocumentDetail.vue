@@ -328,7 +328,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeRouteLeave, onBeforeRouteUpdate } from 'vue-router'
+import { createDialogHistory } from 'src/utils/dialogHistory'
 import { useQuasar } from 'quasar'
 import { formEntryService, type FormEntry, type FormEntryExportFormat, type FormEntryExportHistory, type FormEntryRevisionDetail, type FormEntryRevisionSummary, type WorkDocumentAsset } from 'src/services/formEntries'
 import WorkDocumentAssets from './WorkDocumentAssets.vue'
@@ -831,6 +833,19 @@ function formatDate(value?: string | null) {
 }
 function closeImmediately() { emit('update:modelValue', false) }
 function close() { if (!props.saving) confirmDiscard(closeImmediately) }
+const dialogHistory = createDialogHistory(window, () => {
+  // Keep Back contained in this dialog if saving or discard confirmation keeps it open.
+  void dialogHistory.setOpen(true)
+  if (!editorUploading.value) close()
+})
+watch(() => props.modelValue, (open) => { void dialogHistory.setOpen(open) }, { immediate: true })
+async function closeBeforeNavigation() {
+  if (props.modelValue) closeImmediately()
+  await dialogHistory.close()
+}
+onBeforeRouteLeave(closeBeforeNavigation)
+onBeforeRouteUpdate(closeBeforeNavigation)
+onBeforeUnmount(() => dialogHistory.dispose())
 function requestDelete() { if (props.entry && !props.entry.isDeleted) emit('delete', props.entry) }
 function handleDialogUpdate(open: boolean) {
   if (open) emit('update:modelValue', true)

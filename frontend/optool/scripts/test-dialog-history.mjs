@@ -13,7 +13,7 @@ function mockBrowser() {
   const initial = { position: 4, current: '/pm/projects?filter=mine', back: '/dashboard' }
   const entries = [{ state: {}, url: '/dashboard' }, { state: initial, url: '/pm/projects?filter=mine' }]
   let index = 1
-  let listener
+  const listeners = new Set()
   let queued
   let stopped = false
   const browser = {
@@ -26,11 +26,15 @@ function mockBrowser() {
         index--
         browser.location.href = entries[index].url
         stopped = false
-        listener?.({ state: entries[index].state, stopImmediatePropagation() { stopped = true } })
+        const event = { state: entries[index].state, stopImmediatePropagation() { stopped = true } }
+        for (const listener of [...listeners]) {
+          listener(event)
+          if (stopped) break
+        }
       } },
     },
-    addEventListener(_, handler) { listener = handler },
-    removeEventListener(_, handler) { if (listener === handler) listener = undefined },
+    addEventListener(_, handler) { listeners.add(handler) },
+    removeEventListener(_, handler) { listeners.delete(handler) },
   }
   return { browser, initial, flush() { const fn = queued; queued = undefined; fn?.() },
     get index() { return index }, get stopped() { return stopped } }
@@ -78,4 +82,35 @@ test('rapid reopen and dispose consume only their own temporary entries', async 
   assert.equal(m.index, 2)
   dialog.dispose(); m.flush()
   assert.equal(m.index, 1)
+})
+
+test('nested details close one at a time and preserve the underlying dialog', async () => {
+  const m = mockBrowser()
+  let parentClosed = 0, childClosed = 0
+  const parent = createDialogHistory(m.browser, () => parentClosed++)
+  const child = createDialogHistory(m.browser, () => childClosed++)
+  await parent.setOpen(true)
+  await child.setOpen(true)
+  assert.equal(m.index, 3)
+  m.browser.history.back(); m.flush()
+  assert.equal(childClosed, 1)
+  assert.equal(parentClosed, 0)
+  m.browser.history.back(); m.flush()
+  assert.equal(parentClosed, 1)
+})
+
+test('a declined close can restore the entry for another Back attempt', async () => {
+  const m = mockBrowser()
+  let attempts = 0
+  const dialog = createDialogHistory(m.browser, () => {
+    attempts++
+    void dialog.setOpen(true)
+  })
+  await dialog.setOpen(true)
+  m.browser.history.back(); m.flush()
+  assert.equal(attempts, 1)
+  assert.equal(m.index, 2)
+  m.browser.history.back(); m.flush()
+  assert.equal(attempts, 2)
+  dialog.dispose(); m.flush()
 })
