@@ -84,7 +84,7 @@
                 <div class="stat-count text-weight-bold q-mb-xs" :style="{ color: statFgColor(s.color) }">
                   {{ s.count }}
                 </div>
-                <q-badge :color="s.color" :label="s.label" class="stat-badge" />
+                <q-badge :color="s.color" :label="s.label" class="stat-badge pm-issue-status-badge" />
               </q-card>
             </div>
           </div>

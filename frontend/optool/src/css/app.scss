@@ -72,6 +72,39 @@ body.body--dark .project-board-page .pm-board-status-badge.pm-board-status--done
 
 // Dark mode surfaces for schedule management. These pages combine Quasar
 // components with custom tables and FullCalendar styles.
+body.body--dark .theme-settings-page {
+  .theme-color-picker input,
+  .sidebar-color-picker input {
+    background: #26364c;
+    border-color: #71839a;
+    color-scheme: dark;
+  }
+
+  .color-swatch--active {
+    border-color: #cbd5e1;
+  }
+}
+
+body.body--dark .q-dialog .report-finalize-dialog .finalize-warnings {
+  background: #332b20;
+  color: #f0d59f;
+  border: 1px solid #725a36;
+}
+
+body.body--dark .weekly-report-page {
+  .q-badge:is(.bg-grey, .bg-grey-2, .bg-grey-3, .bg-grey-5, .bg-grey-6, .bg-blue-grey) {
+    background: #2c3b50 !important;
+    color: #e2e8f0 !important;
+    border: 1px solid #63738b;
+  }
+
+  .q-badge:is(.bg-positive, .bg-green, .bg-green-2, .bg-green-6) {
+    background: #19412f !important;
+    color: #b8f0ce !important;
+    border: 1px solid #438b65;
+  }
+}
+
 body.body--dark .pm-theme-container {
   color: #e2e8f0;
 
@@ -573,6 +606,38 @@ body.body--dark {
   .asset-page {
     color: #e2e8f0;
 
+    .asset-more-button {
+      color: #dbeafe !important;
+      background: #26364c !important;
+
+      &::before {
+        border-color: #7794b7;
+      }
+
+      &:hover,
+      &:focus-visible {
+        background: #334b68 !important;
+      }
+    }
+
+    .asset-filter-button {
+      color: #dbeafe !important;
+      background: #26364c !important;
+      border: 1px solid #7794b7;
+      padding-inline: 10px;
+
+      &:hover,
+      &:focus-visible {
+        background: #334b68 !important;
+      }
+
+      &--active {
+        color: #e5f2ff !important;
+        background: #234c76 !important;
+        border-color: #93c5fd;
+      }
+    }
+
     .trash-guide {
       background: #1e293b !important;
       border-color: #475569;
@@ -938,6 +1003,12 @@ body.body--dark {
 
     .view-tabs button {
       color: #b6c2d2;
+    }
+
+    .inspection-date .day-label {
+      background: #26364c;
+      color: #bfdbfe;
+      border: 1px solid #496585;
     }
 
     .view-tabs button span,
@@ -1718,6 +1789,11 @@ body.body--dark {
 
   .sr-guide-page {
     color: #e2e8f0;
+
+    .sr-inline-status-menu {
+      background: #26364c;
+      border-color: #475569;
+    }
 
     .q-card,
     .mock-screen,

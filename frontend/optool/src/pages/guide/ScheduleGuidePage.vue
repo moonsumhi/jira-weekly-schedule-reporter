@@ -1120,6 +1120,11 @@ function scrollTo(id: string) {
 </script>
 
 <style scoped>
+.schedule-guide-tip {
+  background: #fff7df;
+  border: 1px solid #ecd49a;
+  color: #6b4e16;
+}
 .scenario-header {
   border-left: 4px solid var(--q-primary);
   background: #f0f4ff;

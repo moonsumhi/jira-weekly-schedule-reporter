@@ -1,5 +1,5 @@
 <template>
-  <q-page padding>
+  <q-page padding class="theme-settings-page">
     <div class="text-subtitle1 text-weight-bold q-mb-md">스킨 설정</div>
 
     <q-card flat bordered class="settings-card q-mb-md">

@@ -133,6 +133,12 @@ onBeforeUnmount(() => { ++request })
 .work-document-row strong { color: #33485f; font-size: 14px; font-weight: 500; }
 .work-document-kind { font-size: 11px; color: #7188a3; }
 .work-document-row small { font-size: 11px; }
+:global(body.body--dark .work-document-row) { color: #b9c7d9; border-bottom-color: #334155; }
+:global(body.body--dark .work-document-row:hover) { background: #26364c; color: #e2e8f0; }
+:global(body.body--dark .work-document-row:focus-visible) { background: #26364c; color: #e2e8f0; }
+:global(body.body--dark .work-document-row:focus-visible) { outline: 2px solid #5d8fd6; outline-offset: -2px; }
+:global(body.body--dark .work-document-row strong) { color: #e2e8f0; }
+:global(body.body--dark .work-document-kind) { color: #a9bdd6; }
 .note-preview { white-space: pre-wrap; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; line-height: 1.7; }
 .inspection-row-heading { display: flex; align-items: center; gap: 8px; }
 .inspection-row-status { font-size: 11px; padding: 1px 6px; border-radius: 4px; color: #738091; background: #f1f3f6; }

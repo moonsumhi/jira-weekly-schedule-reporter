@@ -590,7 +590,7 @@
               <div class="row items-center q-gutter-sm">
                 <q-chip color="blue-7" text-color="white" dense size="sm" icon-right="arrow_drop_down">처리 중</q-chip>
                 <q-icon name="arrow_forward" color="grey-4" size="14px" />
-                <div class="column q-gutter-xs" style="border:1px solid #e0e0e0;border-radius:6px;padding:6px;background:white">
+                <div class="column q-gutter-xs sr-inline-status-menu">
                   <q-badge color="purple"   label="처리 완료" />
                   <q-badge color="brown"    label="보류" />
                 </div>
@@ -885,5 +885,11 @@ const manageTabs = ['전체', '접수', '검토 중', '처리 중', '처리 완�
   border: 1px solid rgba(0,0,0,0.1);
   border-radius: 6px;
   overflow: hidden;
+}
+.sr-inline-status-menu {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 6px;
+  background: #fff;
 }
 </style>

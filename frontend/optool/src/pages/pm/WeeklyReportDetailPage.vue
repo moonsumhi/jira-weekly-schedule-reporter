@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-md weekly-report-page">
 
     <!-- 헤더 -->
     <div class="row items-start q-mb-md q-gutter-sm">

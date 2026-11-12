@@ -51,7 +51,7 @@
         />
 
       <!-- 더보기: 유틸리티 모음 -->
-      <q-btn outline dense no-caps icon="more_horiz" label="더보기" color="grey-7">
+      <q-btn outline dense no-caps icon="more_horiz" label="더보기" color="grey-7" class="asset-more-button">
         <q-menu anchor="bottom right" self="top right">
           <q-list style="min-width: 200px">
             <q-item clickable v-close-popup @click="openColVisDialog">
@@ -188,6 +188,8 @@
         <q-btn
           v-if="!trashView"
           flat dense no-caps icon="tune" label="상세 필터"
+          class="asset-filter-button"
+          :class="{ 'asset-filter-button--active': advancedFilterOpen }"
           :color="advancedFilterOpen ? 'indigo-7' : 'grey-7'"
           @click="advancedFilterOpen = !advancedFilterOpen"
         >
