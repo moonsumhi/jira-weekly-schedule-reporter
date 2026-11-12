@@ -132,7 +132,7 @@ const basicEntries = computed(() => {
     entry('rack', props.rackName, 'RackNo.'), entry('rackUnit', position.value, 'Rack Unit No.'),
     ...BASIC_KEYS.filter(key => a.fields[key] !== undefined && a.fields[key] !== null && a.fields[key] !== '')
       .map(key => entry(key, a.fields[key])),
-    entry('운영체제', a.fields['운영체제'], ['네트워크', '정보보호시스템'].includes(props.placement?.assetCategory ?? '') ? '기종' : '운영체제'),
+    entry('운영체제', a.fields['운영체제'], ['네트워크', '정보보호시스템', '스토리지'].includes(props.placement?.assetCategory ?? '') ? '기종' : '운영체제'),
     entry('version', a.fields.version),
   ]
 })

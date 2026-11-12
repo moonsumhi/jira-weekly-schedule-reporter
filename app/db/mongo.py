@@ -14,6 +14,10 @@ class MongoClientManager:
     ASSET_NOTES = "asset_notes"
     ASSETS_NETWORK = "assets_network"
     ASSETS_NETWORK_HISTORY = "assets_network_history"
+    ASSETS_STORAGE = "assets_storage"
+    ASSETS_STORAGE_HISTORY = "assets_storage_history"
+    ASSETS_SOFTWARE = "assets_software"
+    ASSETS_SOFTWARE_HISTORY = "assets_software_history"
     ASSETS_SECURITY = "assets_security"
     ASSETS_SECURITY_HISTORY = "assets_security_history"
     ASSETS_DBMS = "assets_dbms"
@@ -34,6 +38,8 @@ class MongoClientManager:
     CATEGORY_COLLECTIONS: dict = {
         "서버":         (ASSETS_SERVERS,  ASSETS_SERVER_HISTORY),
         "네트워크":     (ASSETS_NETWORK,  ASSETS_NETWORK_HISTORY),
+        "스토리지":     (ASSETS_STORAGE,  ASSETS_STORAGE_HISTORY),
+        "소프트웨어":   (ASSETS_SOFTWARE, ASSETS_SOFTWARE_HISTORY),
         "정보보호시스템": (ASSETS_SECURITY, ASSETS_SECURITY_HISTORY),
         "DBMS":        (ASSETS_DBMS,     ASSETS_DBMS_HISTORY),
         "VMware":      (ASSETS_VMWARE,   ASSETS_VMWARE_HISTORY),
@@ -41,12 +47,14 @@ class MongoClientManager:
     }
 
     # 카테고리별 랙 배치 성격. placement_mode:
-    #   RACK_U   — 물리적으로 랙 U를 직접 점유(서버·네트워크·정보보호시스템·VMware)
+    #   RACK_U   — 물리적으로 랙 U를 직접 점유(서버·네트워크·스토리지·정보보호시스템·VMware)
     #   ROOM     — 서버실 단위 배치(랙 자신)
-    #   VIA_HOST — 논리 자산이라 호스트 물리서버 위치를 따름(DBMS)
+    #   VIA_HOST — 논리 자산이라 호스트 물리서버 위치를 따름(DBMS·소프트웨어)
     ASSET_CATEGORY_CONFIG: dict = {
         "서버":         {"placement_mode": "RACK_U",   "default_u_height": 2},
         "네트워크":     {"placement_mode": "RACK_U",   "default_u_height": 1},
+        "스토리지":     {"placement_mode": "RACK_U",   "default_u_height": 2},
+        "소프트웨어":   {"placement_mode": "VIA_HOST"},
         "정보보호시스템": {"placement_mode": "RACK_U",   "default_u_height": 1},
         "DBMS":        {"placement_mode": "VIA_HOST"},
         "VMware":      {"placement_mode": "RACK_U",   "default_u_height": 2},

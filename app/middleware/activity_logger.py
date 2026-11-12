@@ -116,6 +116,8 @@ def _match_page(path: str, query_params: dict) -> Optional[str]:
         return {
             "서버":          "서버 자산",
             "네트워크":      "네트워크 자산",
+            "스토리지":      "스토리지 자산",
+            "소프트웨어":    "소프트웨어 자산",
             "정보보호시스템": "정보보호시스템 자산",
             "DBMS":          "DBMS 자산",
             "VMware":        "VMware 자산",

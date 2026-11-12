@@ -471,12 +471,20 @@ async function openIssueDetail(issueId: string) {
   }
 }
 
-const filter = ref<{ year: number | null; month: number | null }>({
-  year: now.getFullYear(), month: null,
-})
+function routeFilter() {
+  const year = typeof route.query.year === 'string' ? Number(route.query.year) : NaN
+  const month = typeof route.query.month === 'string' ? Number(route.query.month) : NaN
+  return {
+    year: Number.isInteger(year) && year >= 1 && year <= 9999 ? year : now.getFullYear(),
+    month: Number.isInteger(month) && month >= 1 && month <= 12 ? month : null,
+  }
+}
+const filter = ref<{ year: number | null; month: number | null }>(routeFilter())
 
-const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i)
-  .map(y => ({ label: `${y}년`, value: y }))
+const yearOptions = computed(() => [...new Set([
+  ...Array.from({ length: 5 }, (_, i) => now.getFullYear() - i),
+  ...(filter.value.year ? [filter.value.year] : []),
+])].sort((a, b) => b - a).map(y => ({ label: `${y}년`, value: y })))
 const monthOptions = Array.from({ length: 12 }, (_, i) => ({ label: `${i + 1}월`, value: i + 1 }))
 
 // ── 테이블 컬럼 ───────────────────────────────────────────────────────
@@ -778,6 +786,11 @@ watch([canUseFeedback, isDetail], async ([allowed, detail]) => {
   try { myFeedback.value = await listMyFeedback() }
   catch (e) { Notify.create({ type: 'negative', message: getErrorMessage(e, '작성 요청을 불러오지 못했습니다.') }) }
 }, { immediate: true })
+
+watch(() => [route.query.year, route.query.month], () => {
+  filter.value = routeFilter()
+  if (!isDetail.value) void load()
+})
 
 watch(() => route.params.id, async (id, _previousId, onCleanup) => {
   let active = true

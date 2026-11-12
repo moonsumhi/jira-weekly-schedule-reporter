@@ -303,7 +303,7 @@ class AssetsService:
         ip = patch.get("ip")
         if ip is not None and ip != existing["ip"]:
             asset_type = existing.get("fields", {}).get("자산유형", "서버")
-            if await col.find_one({**_ip_asset_type_query(ip, asset_type), "_id": {"$ne": _id}}):
+            if not (self._category == '소프트웨어' and not ip) and await col.find_one({**_ip_asset_type_query(ip, asset_type), "_id": {"$ne": _id}}):
                 raise ValueError(f"자산유형 '{asset_type}'에 동일한 IP가 이미 존재합니다.")
             update["ip"] = ip
 

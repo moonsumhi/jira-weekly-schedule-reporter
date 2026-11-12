@@ -17,7 +17,7 @@ from fastapi import HTTPException
 from app.db.mongo import MongoClientManager
 from app.utils.mongo import oid
 
-_SEARCH_CATEGORIES = ["서버", "네트워크", "정보보호시스템", "DBMS", "VMware"]
+_SEARCH_CATEGORIES = [category for category in MongoClientManager.CATEGORY_COLLECTIONS if category != "랙"]
 _SEARCH_LIMIT_PER_CAT = 20
 
 

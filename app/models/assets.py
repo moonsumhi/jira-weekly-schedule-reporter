@@ -23,8 +23,8 @@ class ServerAssetCreate(ServerAssetBase):
 
 class McpAssetCreate(ServerAssetCreate):
     """MCP 자산 등록 요청. system_info는 서버 자산에만 사용할 수 있다."""
-    category: Literal['서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware']
-    ip: str = Field(..., min_length=1, description='IP 주소 (필수)')
+    category: Literal['서버', '네트워크', '스토리지', '소프트웨어', '정보보호시스템', 'DBMS', 'VMware']
+    ip: str = Field(default='', description='IP 주소 (소프트웨어는 선택, 그 외 필수)')
     asset_no: str = Field(..., min_length=1, description='자산번호 (필수)')
     fields: Dict[str, Any] = Field(..., description='구분, 서버명, 설명, 운영체제 필수. DBMS는 version 또는 db_series, 정보보호시스템은 제조사 추가')
     db_series: Optional[str] = Field(default=None, description='DBMS 시리즈. version이 없는 경우 사용')

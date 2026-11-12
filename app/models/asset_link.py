@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
 from typing import Literal
 
-AssetCategory = Literal['서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙']
+AssetCategory = Literal['서버', '네트워크', '스토리지', '소프트웨어', '정보보호시스템', 'DBMS', 'VMware', '랙']
 
 
 class AssetSelection(BaseModel):

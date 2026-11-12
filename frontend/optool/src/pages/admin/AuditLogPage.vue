@@ -295,6 +295,8 @@ const categoryOptions = [
   { label: '전체', value: null },
   { label: '서버', value: '서버' },
   { label: '네트워크', value: '네트워크' },
+  { label: '스토리지', value: '스토리지' },
+  { label: '소프트웨어', value: '소프트웨어' },
   { label: '정보보호시스템', value: '정보보호시스템' },
   { label: 'DBMS', value: 'DBMS' },
   { label: 'VMware', value: 'VMware' },
@@ -434,6 +436,8 @@ function actionColor(action: string): string {
 function categoryColor(cat: string): string {
   if (cat === '서버') return 'blue'
   if (cat === '네트워크') return 'teal'
+  if (cat === '스토리지') return 'cyan-8'
+  if (cat === '소프트웨어') return 'indigo'
   if (cat === 'DBMS') return 'deep-purple'
   if (cat === '정보보호시스템') return 'orange'
   if (cat === 'VMware') return 'green'

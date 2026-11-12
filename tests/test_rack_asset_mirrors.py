@@ -46,7 +46,7 @@ class RackAssetMirrorTests(unittest.IsolatedAsyncioTestCase):
         self.rack = await AssetsService('랙').create(ip='', name='A1', asset_id='A1',
             fields={'total_u': 42, 'server_room': '서버실 1'}, actor_email=self.user.email)
         self.members = []
-        for index, category in enumerate(['서버', '네트워크', '정보보호시스템', 'VMware']):
+        for index, category in enumerate(['서버', '네트워크', '정보보호시스템', 'VMware', '스토리지']):
             asset = await AssetsService(category).create(ip=f'192.0.2.{index + 1}', name=f'asset-{index}',
                 fields={'비고': '보존할 값'}, actor_email=self.user.email)
             placement = await placements.create_placement({

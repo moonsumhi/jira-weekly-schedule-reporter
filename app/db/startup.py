@@ -458,6 +458,8 @@ _SYSTEM_MENU_EXTRAS: dict[str, dict] = {
             {"title": "전체",          "icon": "fa-solid fa-layer-group",   "link": "/asset/list"},
             {"title": "서버",          "icon": "fa-solid fa-server",        "link": "/asset/list?category=서버"},
             {"title": "네트워크",      "icon": "fa-solid fa-network-wired", "link": "/asset/list?category=네트워크"},
+            {"title": "스토리지",      "icon": "fa-solid fa-hard-drive",    "link": "/asset/list?category=스토리지"},
+            {"title": "소프트웨어",    "icon": "fa-solid fa-cubes",         "link": "/asset/list?category=소프트웨어"},
             {"title": "정보보호시스템", "icon": "fa-solid fa-shield-halved", "link": "/asset/list?category=정보보호시스템"},
             {"title": "DBMS",         "icon": "fa-solid fa-database",      "link": "/asset/list?category=DBMS"},
             {"title": "VMware",       "icon": "fa-brands fa-vuejs",        "link": "/asset/list?category=VMware"},
@@ -519,6 +521,17 @@ async def seed_system_menu_extras() -> None:
             update["submenus"] = extras["submenus"]
         if update:
             await menus_col.update_one({"slug": slug}, {"$set": update})
+
+
+async def migrate_storage_software_submenus() -> None:
+    """기존 메뉴 설정과 순서를 보존하면서 새 자산 유형을 한 번씩 추가한다."""
+    menus = MongoClientManager.get_menus_collection()
+    for submenu in _SYSTEM_MENU_EXTRAS["asset"]["submenus"]:
+        if submenu["title"] in {"스토리지", "소프트웨어"}:
+            await menus.update_one(
+                {"slug": "asset", "submenus.link": {"$ne": submenu["link"]}},
+                {"$push": {"submenus": submenu}},
+            )
 
 
 async def migrate_space_submenus() -> None:
@@ -1392,6 +1405,7 @@ async def run_startup() -> None:
     await initialize_spaces()
     await seed_system_menus()
     await seed_system_menu_extras()
+    await migrate_storage_software_submenus()
     await migrate_space_submenus()
     await migrate_inspection_tasks()
     from app.services.monthly_inspection_reports import indexes as report_indexes
