@@ -375,6 +375,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSrIssueCompletion } from 'src/composables/useSrIssueCompletion'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
@@ -417,6 +418,7 @@ const priorityOptions = SR_PRIORITY_OPTIONS
 // ── 스토어 / 라우터 ───────────────────────────────────────────────────────
 
 const $q        = useQuasar()
+const confirmIssueCompletion = useSrIssueCompletion()
 const route     = useRoute()
 const router    = useRouter()
 const authStore = useAuthStore()
@@ -904,7 +906,8 @@ async function doStatusChange(
 ) {
   changingStatusId.value = row.id
   try {
-    await changeSRStatus(row.id, { status: newStatus, ...extra })
+    const completeLinkedIssues = await confirmIssueCompletion([row.id], newStatus)
+    await changeSRStatus(row.id, { status: newStatus, ...extra, complete_linked_issues: completeLinkedIssues })
     row.status = newStatus
     $q.notify({ type: 'positive', message: `"${statusLabel(newStatus)}"로 변경되었습니다.` })
   } catch (e) {
@@ -939,9 +942,18 @@ async function doBulkStatusChange(
 ) {
   bulkChanging.value = true
   let successCount = 0
-  for (const row of selected.value) {
+  const rows = [...selected.value]
+  let completeLinkedIssues = false
+  try {
+    completeLinkedIssues = await confirmIssueCompletion(rows.map(row => row.id), newStatus)
+  } catch {
+    bulkChanging.value = false
+    $q.notify({ type: 'negative', message: '연결된 일감을 확인하지 못했습니다. 다시 시도해 주세요.' })
+    return
+  }
+  for (const row of rows) {
     try {
-      await changeSRStatus(row.id, { status: newStatus, ...extra })
+      await changeSRStatus(row.id, { status: newStatus, ...extra, complete_linked_issues: completeLinkedIssues })
       row.status = newStatus
       successCount++
     } catch { /* 개별 실패 무시 */ }

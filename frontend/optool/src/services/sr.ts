@@ -258,6 +258,7 @@ export type SRProcessingPatch = Partial<Omit<SRAssign, 'assignee_name'>> & {
 
 export type SRStatusChange = {
   status: SRStatus
+  complete_linked_issues?: boolean
   reason?: string | undefined
   process_result?: string | undefined
   deployed?: boolean | undefined

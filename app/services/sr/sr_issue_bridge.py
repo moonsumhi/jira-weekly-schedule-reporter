@@ -115,3 +115,33 @@ async def update_pm_issue_assignee(issue_id: str, assignee_id: str) -> None:
             "updated_at": datetime.now(timezone.utc),
         }},
     )
+
+
+async def prepare_issue_completion(sr: dict, user, requested: bool, status: str) -> list[dict]:
+    """Resolve links on the server and authorize before changing the SR."""
+    if not requested:
+        return []
+    from fastapi import HTTPException
+    from app.services.pm.permission import require_pm_member
+    from app.models.pm.issue import canonical_issue_status
+
+    if status != 'COMPLETED':
+        raise HTTPException(422, '연결 일감 완료는 SR 처리 완료 시에만 선택할 수 있습니다.')
+    ids = [ObjectId(str(sr[field])) for field in ('converted_issue_id', 'related_issue_id')
+           if sr.get(field) and ObjectId.is_valid(str(sr[field]))]
+    query = {'$or': [{'_id': {'$in': ids}},
+                     {'linked_sr_id': {'$in': [str(sr['_id']), sr['_id']]}}]}
+    issues = await MongoClientManager.get_pm_issues_collection().find(query).to_list(None)
+    pending = [issue for issue in issues if canonical_issue_status(issue.get('status')) != 'DONE']
+    for project_id in {str(issue['project_id']) for issue in pending}:
+        await require_pm_member(user, project_id)
+    return pending
+
+
+async def complete_linked_issues(issues: list[dict], user) -> None:
+    # Use the standard issue update path, including history and inspection snapshots.
+    from app.models.pm.issue import IssuePatch
+    from app.routers.pm.issues import patch_issue
+
+    for issue in issues:
+        await patch_issue(str(issue['project_id']), str(issue['_id']), IssuePatch(status='DONE'), user)

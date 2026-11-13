@@ -181,6 +181,7 @@ class SRAssign(BaseModel):
 
 class SRStatusChange(BaseModel):
     status: SRStatus
+    complete_linked_issues: bool = False
     reason: Optional[str] = None
     process_result: Optional[str] = None
     deployed: Optional[bool] = None

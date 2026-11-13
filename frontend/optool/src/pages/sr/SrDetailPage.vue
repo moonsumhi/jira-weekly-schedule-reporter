@@ -1353,6 +1353,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSrIssueCompletion } from 'src/composables/useSrIssueCompletion'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import MarkdownContent from 'src/components/MarkdownContent.vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -1401,6 +1402,7 @@ const TYPE_CHIP_COLOR: Record<string, string> = {
 // ── refs / store ────────────────────────────────────────────────────
 
 const $q         = useQuasar()
+const confirmIssueCompletion = useSrIssueCompletion()
 const route      = useRoute()
 const router     = useRouter()
 const authStore  = useAuthStore()
@@ -2147,7 +2149,9 @@ async function doStatusChange() {
   if (!statusForm.value.status) return
   actionLoading.value = true; activeAction.value = 'status'
   try {
+    const completeLinkedIssues = await confirmIssueCompletion([srId.value], statusForm.value.status as SRStatus)
     await changeSRStatus(srId.value, {
+      complete_linked_issues: completeLinkedIssues,
       status:         statusForm.value.status as SRStatus,
       reason:         statusForm.value.reason || undefined,
       process_result: statusForm.value.processResult || undefined,

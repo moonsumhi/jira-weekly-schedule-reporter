@@ -642,6 +642,9 @@ async def change_status(
     if new_status == "COMPLETED" and not body.process_result:
         raise HTTPException(status_code=400, detail="처리 결과를 입력해야 합니다.")
 
+    from app.services.sr.sr_issue_bridge import prepare_issue_completion, complete_linked_issues
+    linked_issues = await prepare_issue_completion(doc, current_user, body.complete_linked_issues, new_status)
+
     now = datetime.now(timezone.utc)
     updates: dict = {"status": new_status, "updated_at": now, "updated_by": _user_label(current_user)}
 
@@ -670,6 +673,8 @@ async def change_status(
     )
 
     updated = await col.find_one({"_id": ObjectId(sr_id)})
+
+    await complete_linked_issues(linked_issues, current_user)
 
     # Redmine과 동일하게 "완료" 상태로 처음 바뀔 때만 처리완료 메일 발송.
     # old_status != COMPLETED 체크로, 이미 완료된 SR을 재수정(배포여부/처리결과 등)
