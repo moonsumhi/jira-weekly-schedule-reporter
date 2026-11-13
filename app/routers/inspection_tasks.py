@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.user import UserPublic
+from app.models.asset_link import AssetCategory
 from app.routers.auth import get_current_user
 from app.services import inspection_service as svc
 from app.services import inspection_work_plans as plans
@@ -197,7 +198,7 @@ async def schedule(month: Month, user: UserPublic = Depends(require_inspection))
 
 @router.get('/assets')
 async def search_assets(search: str = Query('', max_length=200), ids: str = '',
-                        category: Literal['서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙'] | None = None,
+                        category: AssetCategory | None = None,
                         user: UserPublic = Depends(require_inspection)):
     values = ids.split(',') if ids else []
     if len(values) > 100:

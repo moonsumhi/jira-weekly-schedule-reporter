@@ -230,6 +230,7 @@ function onDrop(u: number, laneSide: 'FRONT' | 'REAR') {
 const CATEGORY_COLOR: Record<string, string> = {
   서버: '#1976d2',
   네트워크: '#009688',
+  스토리지: '#00838f',
   정보보호시스템: '#9c27b0',
   DBMS: '#f57c00',
   VMware: '#43a047',
@@ -237,6 +238,7 @@ const CATEGORY_COLOR: Record<string, string> = {
 const CATEGORY_ICON: Record<string, string> = {
   서버: 'dns',
   네트워크: 'lan',
+  스토리지: 'storage',
   정보보호시스템: 'shield',
   DBMS: 'storage',
   VMware: 'cloud',

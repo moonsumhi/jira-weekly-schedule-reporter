@@ -452,6 +452,7 @@ const totalAssets = computed(() => racks.value.reduce((s, r) => s + (r.assetCoun
 
 const CAT_COLOR: Record<string, string> = {
   서버: '#1976d2', 네트워크: '#009688', 정보보호시스템: '#9c27b0', DBMS: '#f57c00', VMware: '#43a047',
+  스토리지: '#00838f', 소프트웨어: '#3949ab',
 }
 function catColor(c: string): string { return CAT_COLOR[c] || '#64748b' }
 function usageColor(r: number): string { return r >= 90 ? 'negative' : r >= 70 ? 'orange' : 'primary' }

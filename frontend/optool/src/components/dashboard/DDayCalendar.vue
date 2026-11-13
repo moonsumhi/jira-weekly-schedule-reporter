@@ -61,11 +61,12 @@ export interface CalendarDDay {
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
+import interactionPlugin from '@fullcalendar/interaction'
 import koLocale from '@fullcalendar/core/locales/ko'
 import type { CalendarOptions } from '@fullcalendar/core'
 
 const props = defineProps<{ events: CalendarDDay[]; today: string; loading: boolean; loadFailed: boolean; errorMessage?: string }>()
-const emit = defineEmits<{ retry: [] }>()
+const emit = defineEmits<{ retry: []; create: [date: string] }>()
 const calendar = ref<InstanceType<typeof FullCalendar>>()
 const container = ref<HTMLElement>()
 const monthTitle = ref('')
@@ -103,8 +104,21 @@ function closeOverflow() {
   if (overflowTarget.value) overflowTarget.value.setAttribute('aria-expanded', 'false')
 }
 
+function createOnDate(date: string) {
+  overflowOpen.value = false
+  emit('create', date)
+}
+
+function createFromDateKey(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  if (event.repeat) return
+  const date = (event.currentTarget as HTMLElement).closest<HTMLElement>('[data-date]')?.dataset.date
+  if (date) createOnDate(date)
+}
+
 const options = computed<CalendarOptions>(() => ({
-  plugins: [dayGridPlugin],
+  plugins: [dayGridPlugin, interactionPlugin],
   initialView: 'dayGridMonth',
   initialDate,
   now: props.today,
@@ -133,7 +147,20 @@ const options = computed<CalendarOptions>(() => ({
   },
   eventDisplay: 'block',
   displayEventTime: false,
+  dateClick: info => createOnDate(info.dateStr),
   dayCellContent: info => info.dayNumberText.replace('일', ''),
+  dayCellDidMount: ({ el }) => {
+    const dayNumber = el.querySelector<HTMLElement>('.fc-daygrid-day-number')
+    if (!dayNumber) return
+    dayNumber.setAttribute('role', 'button')
+    dayNumber.setAttribute('tabindex', '0')
+    dayNumber.setAttribute('aria-label', `${el.dataset.date} D-Day 추가`)
+    dayNumber.setAttribute('aria-haspopup', 'dialog')
+    dayNumber.addEventListener('keydown', createFromDateKey)
+  },
+  dayCellWillUnmount: ({ el }) => {
+    el.querySelector<HTMLElement>('.fc-daygrid-day-number')?.removeEventListener('keydown', createFromDateKey)
+  },
   datesSet: info => {
     monthTitle.value = info.view.title
     displayedMonth.value = info.view.currentStart.toISOString().slice(0, 7)
@@ -185,6 +212,8 @@ onUnmounted(() => {
 .calendar-month :deep(.fc) { --fc-border-color: var(--bo-border); --fc-today-bg-color: var(--bo-accent-soft); --fc-neutral-bg-color: var(--bo-surface-subtle); --fc-page-bg-color: var(--bo-surface); font-size: 12px; }
 .calendar-month :deep(.fc-col-header-cell) { padding: 4px 0; background: var(--bo-surface-subtle); color: var(--bo-secondary); font-weight: 600; }
 .calendar-month :deep(.fc-daygrid-day-number) { padding: 4px 6px; color: var(--bo-secondary); font-variant-numeric: tabular-nums; text-decoration: none; }
+.calendar-month :deep(.fc-daygrid-day-frame) { cursor: pointer; }
+.calendar-month :deep(.fc-daygrid-day-number:focus-visible) { outline: 2px solid var(--bo-accent-ink); outline-offset: -2px; }
 .calendar-month :deep(.fc-daygrid-day-events) { min-height: 0; }
 .calendar-month :deep(.fc-day-today .fc-daygrid-day-number) { color: var(--bo-accent-ink); font-weight: 750; }
 .calendar-month :deep(.fc-day-sun .fc-col-header-cell-cushion),

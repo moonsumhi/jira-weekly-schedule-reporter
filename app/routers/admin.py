@@ -415,6 +415,8 @@ async def get_audit_log(
     asset_category_map = {
         "서버": MongoClientManager.ASSETS_SERVER_HISTORY,
         "네트워크": MongoClientManager.ASSETS_NETWORK_HISTORY,
+        "스토리지": MongoClientManager.ASSETS_STORAGE_HISTORY,
+        "소프트웨어": MongoClientManager.ASSETS_SOFTWARE_HISTORY,
         "정보보호시스템": MongoClientManager.ASSETS_SECURITY_HISTORY,
         "DBMS": MongoClientManager.ASSETS_DBMS_HISTORY,
         "VMware": MongoClientManager.ASSETS_VMWARE_HISTORY,

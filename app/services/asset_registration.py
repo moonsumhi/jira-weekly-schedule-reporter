@@ -51,7 +51,7 @@ def prepare_mcp_asset(body: McpAssetCreate) -> tuple[dict, dict]:
             missing.append(label)
     if not body.name.strip():
         missing.append('호스트명')
-    if not body.ip.strip():
+    if not body.ip.strip() and body.category != '소프트웨어':
         missing.append('IP')
     if not body.asset_no.strip():
         missing.append('자산번호')

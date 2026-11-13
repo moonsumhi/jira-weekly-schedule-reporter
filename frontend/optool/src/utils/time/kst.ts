@@ -17,6 +17,12 @@ export function getIsoWeekPeriodKst(now = new Date()) {
   }
 }
 
+/** 한국 시간의 달력 연월. ISO 주차 연도와 구분한다. */
+export function getCalendarMonthKst(now = new Date()): { year: number; month: number } {
+  const date = DateTime.fromJSDate(now, { zone: 'Asia/Seoul' })
+  return { year: date.year, month: date.month }
+}
+
 /** ISO datetime → KST "YYYY-MM-DD" (날짜만 표시할 때) */
 export function fmtDateKst(iso: string | null | undefined): string {
   if (!iso) return '-'

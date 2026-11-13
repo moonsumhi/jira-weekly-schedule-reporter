@@ -258,7 +258,7 @@
               <q-select
                 v-model="advancedFilters.operatingSystems" :options="operatingSystemFilterOptions"
                 :display-value="filterSelectionDisplay(advancedFilters.operatingSystems)"
-                :label="['네트워크', '정보보호시스템'].includes(category) ? '기종' : '운영체제'"
+                :label="assetProductLabel(category)"
                 outlined dense clearable multiple bg-color="white"
                 class="advanced-filter-field"
               >
@@ -607,7 +607,7 @@
             <q-input v-model="createName" borderless dense class="top-field-input" placeholder="hostname" />
           </div>
           <div class="top-field-row q-mt-sm">
-            <span class="top-field-label">IP<span class="req-star">*</span>:</span>
+            <span class="top-field-label">IP<span v-if="activeCreateCategory !== '소프트웨어'" class="req-star">*</span>:</span>
             <div class="col">
               <q-input v-model="createIp" borderless dense class="top-field-input" placeholder="192.168.0.1" @blur="checkDuplicateIp" />
               <div v-if="createIpError" class="text-negative text-caption q-mt-xs">{{ createIpError }}</div>
@@ -689,7 +689,7 @@
         <!-- 운영체제 / 기종 섹션 -->
         <q-card-section class="q-py-sm">
           <div class="section-title-row">
-            <span class="section-title">{{ activeCreateCategory === 'DBMS' ? 'DBMS' : (activeCreateCategory === '네트워크' || activeCreateCategory === '정보보호시스템') ? '기종' : '운영체제' }}</span>
+            <span class="section-title">{{ assetProductLabel(activeCreateCategory) }}</span>
           </div>
           <div class="section-divider" />
           <!-- DBMS: DB 종류 + 시리즈 + 패치버전 -->
@@ -748,6 +748,24 @@
             </div>
             <div v-if="createEosStatusText" class="eos-banner q-mt-sm"
                  :class="eosBannerClass(createEosStatus)">
+              <span class="eos-item"><span class="eos-item-label">EoS(서비스 종료) 여부<LifecycleReferenceButton label="EoS" :entry="assetLifecycleEvidence(createFields, 'eos')" /></span><strong>{{ createEosStatusText }}</strong></span>
+              <span class="eos-sep">·</span>
+              <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
+            </div>
+          </template>
+          <template v-else-if="isExtendedAssetCategory(activeCreateCategory)">
+            <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
+              <div class="col-8 form-field">
+                <div class="field-label">{{ assetProductLabel(activeCreateCategory) }} <span class="req-star">*</span></div>
+                <q-input v-model="createFields['운영체제']" borderless dense class="field-input"
+                  :placeholder="activeCreateCategory === '스토리지' ? '스토리지 기종 입력' : '소프트웨어 제품명 입력'" />
+              </div>
+              <div class="col-4 form-field">
+                <div class="field-label">{{ activeCreateCategory === '스토리지' ? '펌웨어 버전' : '버전' }}</div>
+                <q-input v-model="createFields['version']" borderless dense class="field-input" />
+              </div>
+            </div>
+            <div v-if="createEosStatusText" class="eos-banner q-mt-sm" :class="eosBannerClass(createEosStatus)">
               <span class="eos-item"><span class="eos-item-label">EoS(서비스 종료) 여부<LifecycleReferenceButton label="EoS" :entry="assetLifecycleEvidence(createFields, 'eos')" /></span><strong>{{ createEosStatusText }}</strong></span>
               <span class="eos-sep">·</span>
               <span class="eos-item"><span class="eos-item-label">종료 일자</span><strong>{{ createEosDateText }}</strong></span>
@@ -1159,6 +1177,10 @@
             />
           </template>
 
+          <template v-else-if="editFieldKey === '운영체제' && isExtendedAssetCategory(selectedRow?.fields?.['자산유형'] || category)">
+            <q-input v-model="editFieldText" outlined dense :label="assetProductLabel(selectedRow?.fields?.['자산유형'] || category)" class="q-mt-md" />
+            <q-input v-model="editFieldVersionText" outlined dense label="버전" class="q-mt-sm" />
+          </template>
           <!-- 운영체제 cascading (Version도 통합) -->
           <template v-else-if="editFieldKey === '운영체제'">
             <q-select
@@ -1316,7 +1338,7 @@
         <!-- 운영체제 / 기종 섹션 -->
         <q-card-section class="q-py-sm">
           <div class="section-title-row">
-            <span class="section-title">{{ (rowEditTarget?.fields?.['자산유형'] || category) === 'DBMS' ? 'DBMS' : ['네트워크', '정보보호시스템'].includes((rowEditTarget?.fields?.['자산유형'] || category) as string) ? '기종' : '운영체제' }}</span>
+            <span class="section-title">{{ assetProductLabel(rowEditTarget?.fields?.['자산유형'] || category) }}</span>
           </div>
           <div class="section-divider" />
           <!-- DBMS: DB 종류 + 시리즈 + 버전 cascade -->
@@ -1361,11 +1383,15 @@
             </div>
           </template>
           <!-- 네트워크 / 정보보호시스템: 자유 입력 -->
-          <template v-else-if="['네트워크', '정보보호시스템'].includes((rowEditTarget?.fields?.['자산유형'] || category) as string)">
+          <template v-else-if="isFreeformAssetProduct(rowEditTarget?.fields?.['자산유형'] || category)">
             <div class="row q-col-gutter-x-md q-mt-xs">
-              <div class="col-12 form-field">
-                <div class="field-label">기종</div>
-                <q-input v-model="rowEditValues['운영체제']" borderless dense class="field-input" placeholder="예: Cisco Nexus C93180YC-EX" />
+              <div class="col form-field">
+                <div class="field-label">{{ assetProductLabel(rowEditTarget?.fields?.['자산유형'] || category) }}</div>
+                <q-input v-model="rowEditValues['운영체제']" borderless dense class="field-input" />
+              </div>
+              <div v-if="isExtendedAssetCategory(rowEditTarget?.fields?.['자산유형'] || category)" class="col-4 form-field">
+                <div class="field-label">{{ (rowEditTarget?.fields?.['자산유형'] || category) === '스토리지' ? '펌웨어 버전' : '버전' }}</div>
+                <q-input v-model="rowEditValues['version']" borderless dense class="field-input" />
               </div>
             </div>
             <!-- 자동 감지된 경우 -->
@@ -1798,14 +1824,14 @@
           <!-- 운영체제 / 기종 -->
           <q-card-section class="q-py-sm">
             <div class="section-title-row">
-              <span class="section-title">{{ detailTarget.fields?.['자산유형'] === 'DBMS' ? 'DBMS' : ['네트워크', '정보보호시스템'].includes(detailTarget.fields?.['자산유형'] as string) ? '기종' : '운영체제' }}</span>
+              <span class="section-title">{{ assetProductLabel(detailTarget.fields?.['자산유형']) }}</span>
             </div>
             <div class="section-divider" />
             <!-- 네트워크 / 정보보호시스템: 기종 + EoS -->
-            <template v-if="['네트워크', '정보보호시스템'].includes(detailTarget.fields?.['자산유형'] as string)">
+            <template v-if="isFreeformAssetProduct(detailTarget.fields?.['자산유형'])">
               <div class="row q-col-gutter-x-md q-col-gutter-y-md q-mt-xs">
-                <div :class="detailTarget.fields?.['자산유형'] === '정보보호시스템' ? 'col-8 form-field' : 'col-12 form-field'">
-                  <div class="field-label">기종</div>
+                <div :class="detailTarget.fields?.['자산유형'] === '정보보호시스템' || isExtendedAssetCategory(detailTarget.fields?.['자산유형']) ? 'col-8 form-field' : 'col-12 form-field'">
+                  <div class="field-label">{{ assetProductLabel(detailTarget.fields?.['자산유형']) }}</div>
                   <q-input v-if="detailEditing" v-model="rowEditValues['운영체제']" borderless dense class="field-input" />
                   <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['운영체제']) }}</div>
                 </div>
@@ -1813,6 +1839,11 @@
                   <div class="field-label">수량</div>
                   <q-input v-if="detailEditing" v-model="rowEditValues['수량']" type="number" borderless dense class="field-input" />
                   <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['수량']) }}</div>
+                </div>
+                <div v-if="isExtendedAssetCategory(detailTarget.fields?.['자산유형'])" class="col-4 form-field">
+                  <div class="field-label">{{ detailTarget.fields?.['자산유형'] === '스토리지' ? '펌웨어 버전' : '버전' }}</div>
+                  <q-input v-if="detailEditing" v-model="rowEditValues['version']" borderless dense class="field-input" />
+                  <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['version']) }}</div>
                 </div>
               </div>
               <div class="row q-col-gutter-x-md q-mt-sm">
@@ -2196,6 +2227,12 @@
           </q-card-section>
         </q-tab-panel>
 
+        <!-- 패널 순서를 위 탭과 맞춰 슬라이드 방향을 유지한다. -->
+        <q-tab-panel v-if="canViewSystemInfo" name="system-info" class="q-pa-none">
+          <AssetSystemInfo :key="detailTarget.id" :model-value="detailEditing ? rowEditSystemInfo : detailSystemInfo"
+            :editing="detailEditing" :disabled="rowEditSaving" @update:model-value="value => rowEditSystemInfo = value" />
+        </q-tab-panel>
+
         <q-tab-panel name="location" class="q-pa-md">
           <div class="row q-col-gutter-x-lg q-col-gutter-y-md">
             <div class="col-6 form-field">
@@ -2221,10 +2258,6 @@
             label="랙 배치도에서 보기" class="q-mt-md" @click="goToRack()" />
         </q-tab-panel>
 
-        <q-tab-panel v-if="canViewSystemInfo" name="system-info" class="q-pa-none">
-          <AssetSystemInfo :key="detailTarget.id" :model-value="detailEditing ? rowEditSystemInfo : detailSystemInfo"
-            :editing="detailEditing" :disabled="rowEditSaving" @update:model-value="value => rowEditSystemInfo = value" />
-        </q-tab-panel>
         <q-tab-panel name="work-documents" class="q-pa-md">
           <AssetWorkDocuments v-if="inspectionAuth.me?.isAdmin || inspectionAuth.me?.permissions?.includes('asset')" :key="detailTarget.id" :asset-id="detailTarget.id" :asset-deleted="!!detailTarget.isDeleted" @navigate="closeDetail" />
         </q-tab-panel>
@@ -2392,7 +2425,7 @@
         <q-card-section>
           <q-select
             v-model="selectedAssetType"
-            :options="pendingImport ? ['전체 (Excel 기준)', '서버', '네트워크', 'DBMS', '정보보호시스템', 'VMware'] : ['서버', '네트워크', 'DBMS', '정보보호시스템', 'VMware']"
+            :options="pendingImport ? ['전체 (Excel 기준)', ...editableAssetCategories] : editableAssetCategories"
             outlined dense label="유형 선택"
           />
           <div v-if="pendingImport && selectedAssetType === '전체 (Excel 기준)'" class="text-caption text-grey q-mt-xs">
@@ -2828,7 +2861,9 @@ import { eolStatusColor, eolStatusLabel, getAutoEol } from 'src/services/eolData
 import { useMenuStore } from 'src/stores/menus'
 import {
   ANTIVIRUS_KEY, ELASTIC_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
+  assetProductLabel, isExtendedAssetCategory, isFreeformAssetProduct,
 } from './assetKeys'
+import { assetCategories, editableAssetCategories } from 'src/services/assetLinks'
 import { CATEGORY_TEMPLATE_COLS, type TemplateCol } from './assetTemplateColumns'
 
 const vadaOptions = [
@@ -2872,7 +2907,7 @@ const inspectionAuth = useAuthStore()
 
 // 사이드바 자산 하위 메뉴와 같은 순서로 카테고리 탭을 표시한다.
 // 메뉴 데이터가 아직 로드되지 않은 최초 렌더링에서는 기본 순서를 사용한다.
-const DEFAULT_ASSET_CATEGORY_TABS = ['전체', '서버', '네트워크', '정보보호시스템', 'DBMS', 'VMware', '랙']
+const DEFAULT_ASSET_CATEGORY_TABS = ['전체', ...assetCategories]
 const ASSET_CATEGORY_SET = new Set(DEFAULT_ASSET_CATEGORY_TABS)
 const assetCategoryTabs = computed(() => {
   const assetMenu = menuStore.sidebarMenus.find((menu) => menu.slug === 'asset')
@@ -2964,7 +2999,7 @@ const PREFERRED_FIELD_KEYS = [
 
 // 필드 키 → 표시 레이블 매핑
 function fieldLabel(key: string): string {
-  if (key === '운영체제' && ['네트워크', '정보보호시스템'].includes(category.value)) return '기종'
+  if (key === '운영체제' && isFreeformAssetProduct(category.value)) return assetProductLabel(category.value)
   if (category.value === 'VMware') {
     if (key === EOL_STATUS_KEY) return 'EoTG 여부'
     if (key === EOL_DATE_KEY) return 'EoTG 기간'
@@ -3444,6 +3479,8 @@ function assetTypeColor(row: ServerAsset): string {
   const t = (row.fields?.['자산유형'] as string) || '서버'
   if (t === '서버') return 'blue'
   if (t === '네트워크') return 'teal'
+  if (t === '스토리지') return 'cyan-8'
+  if (t === '소프트웨어') return 'indigo'
   if (t === 'DBMS') return 'deep-purple'
   if (t === '정보보호시스템') return 'orange'
   if (t === 'VMware') return 'green'
@@ -3807,7 +3844,7 @@ const LOCATION_OPTIONS = computed(() => [...LOCATION_PRESETS.value, '기타'])
 const DBMS_LOCATION_OPTIONS = ['암빅데이터센터', 'Closed DMZ', '기타']
 
 // 랙 장착 카테고리는 위치를 랙 배치에서 미러링하므로 서버 폼에선 읽기전용
-const PLACEABLE_CATS = ['서버', '네트워크', '정보보호시스템']
+const PLACEABLE_CATS = ['서버', '네트워크', '정보보호시스템', '스토리지']
 const isCreateLocationLocked = computed(() => PLACEABLE_CATS.includes(activeCreateCategory.value))
 const isRowEditLocationLocked = computed(() =>
   PLACEABLE_CATS.includes((rowEditTarget.value?.fields?.['자산유형'] as string) || category.value || '서버'),
@@ -3879,7 +3916,7 @@ watch(
 async function doCreate() {
   const ip = createIp.value.trim()
   const name = createName.value.trim()
-  if (!ip) {
+  if (!ip && activeCreateCategory.value !== '소프트웨어') {
     $q.notify({ type: 'warning', message: 'IP는 필수입니다.' })
     return
   }
@@ -3913,9 +3950,9 @@ async function doCreate() {
       $q.notify({ type: 'warning', message: '제조사는 필수입니다.' })
       return
     }
-  } else if (activeCreateCategory.value === '네트워크') {
-    if (!createFields.value['운영체제']) {
-      $q.notify({ type: 'warning', message: '기종은 필수입니다.' })
+  } else if (isFreeformAssetProduct(activeCreateCategory.value)) {
+    if (!createFields.value['운영체제']?.trim()) {
+      $q.notify({ type: 'warning', message: `${assetProductLabel(activeCreateCategory.value)}은 필수입니다.` })
       return
     }
   } else {
@@ -3935,7 +3972,7 @@ async function doCreate() {
     for (const [k, v] of Object.entries(createFields.value)) {
       if (k === '자산번호') continue  // top-level asset_no field
       if ([EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY].some(key => key === k)) continue
-      if ((v ?? '').toString().trim()) fields[k] = k.startsWith('Cisco 소프트웨어') ? v : parseSmartValue(v)
+      if ((v ?? '').toString().trim()) fields[k] = k.startsWith('Cisco 소프트웨어') || (isExtendedAssetCategory(activeCreateCategory.value) && ['운영체제', 'version'].includes(k)) ? v : parseSmartValue(v)
     }
     if (createTags.value.length) fields[TAGS_KEY] = createTags.value
     // 자산유형을 초기 생성 시부터 전달 → 같은 IP·다른 자산유형 레코드 허용
@@ -4077,7 +4114,7 @@ async function doEditField() {
       return
     }
     nextFields[key] = value
-    if (key === '운영체제' && editFieldOsFamily.value) {
+    if (key === '운영체제' && (editFieldOsFamily.value || isExtendedAssetCategory(selectedRow.value.fields?.['자산유형'] || category.value))) {
       nextFields['version'] = editFieldVersionText.value || null
       const eos = getAutoEos(editFieldText.value, editFieldVersionText.value)
       nextFields[EOS_STATUS_KEY] = eos?.status ?? null
@@ -4532,7 +4569,7 @@ async function doRowEdit() {
     for (const { key } of rowEditFields.value) {
       if (key === '__ip__' || key === '__name__' || key === '자산번호') continue
       const val = (rowEditValues.value[key] ?? '').toString().trim()
-      newFields[key] = val ? (key.startsWith('Cisco 소프트웨어') ? val : parseSmartValue(val)) : null
+      newFields[key] = val ? (key.startsWith('Cisco 소프트웨어') || (isExtendedAssetCategory(rowCat) && ['운영체제', 'version'].includes(key)) ? val : parseSmartValue(val)) : null
     }
     newFields[TAGS_KEY] = rowEditTags.value.length ? rowEditTags.value : null
     const rowEditAssetNo = (rowEditValues.value['자산번호'] ?? '').trim() || null
@@ -4540,7 +4577,7 @@ async function doRowEdit() {
     const updated = await patchServer(String(row.id), {
       fields: newFields, asset_no: rowEditAssetNo,
       ...(row.version != null ? { version: row.version } : {}),
-      ...(newIp ? { ip: newIp } : {}), ...(newName ? { name: newName } : {}),
+      ...(newIp || rowCat === '소프트웨어' ? { ip: newIp } : {}), ...(newName ? { name: newName } : {}),
       ...(canViewSystemInfo.value && systemInfoDirty.value ? { system_info: systemInformationPayload(rowEditSystemInfo.value) } : {}),
     }, rowCat)
 
@@ -4629,7 +4666,7 @@ const DEFAULT_TEMPLATE_COLS: TemplateCol[] = [
   { key: 'asset_id',    label: 'Asset ID (고유키, 재import 시 매칭용)', sample: '' },
   { key: 'ip',          label: 'IP' },
   { key: 'name',        label: 'HostName' },
-  { key: '자산유형',    label: '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)', sample: '' },
+  { key: '자산유형',    label: '자산유형(서버 / 네트워크 / 스토리지 / 소프트웨어 / DBMS / 정보보호시스템 / VMware)', sample: '' },
   ...COLUMN_DISPLAY_ORDER
     .filter(k => k !== '__ip__' && k !== '__name__')
     .map(k => {
@@ -5089,6 +5126,10 @@ async function _runImport(buf: ArrayBuffer, password: string) {
       'EoS종료일자': EOS_DATE_KEY,
       // 합성 라벨 (key / display 형식)
       '자산유형(서버 / 네트워크 / DBMS / 정보보호시스템 / VMware)': '자산유형',
+      '자산유형(서버 / 네트워크 / 스토리지 / 소프트웨어 / DBMS / 정보보호시스템 / VMware)': '자산유형',
+      '운영체제 / 제품명': '운영체제',
+      '버전': 'version',
+      '펌웨어 버전': 'version',
       '자산 종류': '자산유형',
       '운영체제 / 배포판': '운영체제',
       '운영체제 / 기종': '운영체제',
