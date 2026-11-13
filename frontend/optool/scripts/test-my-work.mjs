@@ -11,7 +11,7 @@ const issue = (id, values = {}) => ({ id, projectKey: 'OPS', projectName: 'ìš´ì˜
 const sr = (id, values = {}) => ({ id, srNo: `SR-${id}`, title: `SR ${id}`, assigneeId: 'me', requesterId: 'other', status: 'ASSIGNED', plannedDueDate: null, desiredDueDate: null, ...values })
 
 test('only my assigned unfinished work is shown, regardless of who reported or requested it', () => {
-  const issues = [issue('mine'), issue('created', { reporterId: 'me', assigneeId: 'other' }), issue('unassigned', { assigneeId: null }), issue('done', { status: 'DONE' }), issue('legacy', { status: 'IMPLEMENTED' })]
+  const issues = [issue('mine'), issue('epic', { type: 'EPIC' }), issue('created', { reporterId: 'me', assigneeId: 'other' }), issue('unassigned', { assigneeId: null }), issue('done', { status: 'DONE' }), issue('legacy', { status: 'IMPLEMENTED' })]
   const srs = [sr('mine'), sr('requested', { requesterId: 'me', assigneeId: 'other' }), ...['DRAFT', 'COMPLETED', 'CONFIRMING', 'CLOSED', 'CANCELLED', 'REJECTED'].map(status => sr(status, { status }))]
   assert.deepEqual(buildMyWork(issues, srs, 'me', today).map(row => row.id).sort(), ['issue-mine', 'sr-mine'])
   assert.deepEqual(buildMyWork(issues, srs, undefined, today), [])

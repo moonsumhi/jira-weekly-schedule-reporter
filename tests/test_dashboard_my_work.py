@@ -32,14 +32,15 @@ class DashboardMyWorkTests(unittest.IsolatedAsyncioTestCase):
         user_id, other_id = ObjectId(), ObjectId()
         user = UserPublic(id=str(user_id), email='worker@example.com', permissions=['pm'])
         docs = [dict(_id=ObjectId(), assignee_id=user_id if owner == 'me' else other_id if owner == 'other' else None,
-                     reporter_id=user_id, status=status, marker=marker)
-                for owner, status, marker in records]
+                     reporter_id=user_id, status=status, type=issue_type, marker=marker)
+                for owner, status, marker, issue_type in records]
         queries = []
 
         def find(query):
             queries.append(query)
             return Cursor([doc for doc in docs if doc['assignee_id'] == query.get('assignee_id')
-                           and doc['status'] not in query.get('status', {}).get('$nin', [])])
+                           and doc['status'] not in query.get('status', {}).get('$nin', [])
+                           and doc['type'] != query.get('type', {}).get('$ne')])
 
         async def enrich(doc):
             return {'id': str(doc['_id']), 'assignee_id': str(doc['assignee_id']), 'status': doc['status'], 'marker': doc['marker']}
@@ -58,15 +59,17 @@ class DashboardMyWorkTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_only_current_assignee_open_issues_even_when_client_supplies_another_user(self):
         rows, queries, user_id = await self.exercise([
-            ('me', 'TODO', 'mine'), ('me', 'IN_PROGRESS', 'working'), ('me', 'BACKLOG', 'backlog'),
-            ('me', 'DONE', 'done'), ('me', 'IMPLEMENTED', 'legacy'),
-            ('other', 'IN_PROGRESS', 'reported-by-me'), (None, 'TODO', 'unassigned'),
+            ('me', 'TODO', 'mine', 'TASK'), ('me', 'IN_PROGRESS', 'working', 'STORY'),
+            ('me', 'BACKLOG', 'backlog', 'TASK'), ('me', 'TODO', 'epic', 'EPIC'),
+            ('me', 'DONE', 'done', 'TASK'), ('me', 'IMPLEMENTED', 'legacy', 'TASK'),
+            ('other', 'IN_PROGRESS', 'reported-by-me', 'TASK'), (None, 'TODO', 'unassigned', 'TASK'),
         ])
         self.assertEqual([row['marker'] for row in rows], ['mine', 'working', 'backlog'])
         self.assertEqual(queries[0]['assignee_id'], user_id)
+        self.assertEqual(queries[0]['type'], {'$ne': 'EPIC'})
 
     async def test_more_than_fifty_recent_issues_do_not_hide_older_work(self):
-        rows, _, _ = await self.exercise([('me', 'TODO', str(i)) for i in range(60)] + [('me', 'IN_PROGRESS', 'old-overdue')])
+        rows, _, _ = await self.exercise([('me', 'TODO', str(i), 'TASK') for i in range(60)] + [('me', 'IN_PROGRESS', 'old-overdue', 'TASK')])
         self.assertEqual(len(rows), 61)
         self.assertEqual(rows[-1]['marker'], 'old-overdue')
 

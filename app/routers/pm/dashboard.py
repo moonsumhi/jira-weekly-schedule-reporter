@@ -17,6 +17,7 @@ async def get_my_open_issues(current_user: UserPublic = Depends(get_current_user
     issues_col = MongoClientManager.get_pm_issues_collection()
     docs = await issues_col.find({
         "assignee_id": ObjectId(current_user.id),
+        "type": {"$ne": "EPIC"},
         "status": {"$nin": ["DONE", "IMPLEMENTED"]},
     }).sort("updated_at", -1).to_list(None)
     await attach_linked_sr_info(docs)

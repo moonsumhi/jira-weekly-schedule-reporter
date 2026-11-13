@@ -38,7 +38,7 @@ export function buildMyWork(issues: Issue[], srs: SRListItem[], userId: string |
   const ownSrs = srs.filter(sr => sr.assigneeId === userId && activeSrStatuses.has(sr.status))
   const linkedSrs = new Set(ownSrs.map(sr => sr.id))
   const rows: MyWorkItem[] = issues
-    .filter(issue => issue.assigneeId === userId && issue.status !== 'DONE' && issue.status !== 'IMPLEMENTED'
+    .filter(issue => issue.type !== 'EPIC' && issue.assigneeId === userId && issue.status !== 'DONE' && issue.status !== 'IMPLEMENTED'
       && !(issue.linkedSrId && linkedSrs.has(issue.linkedSrId)))
     .map(issue => ({
       id: `issue-${issue.id}`, kind: 'issue', issue,
