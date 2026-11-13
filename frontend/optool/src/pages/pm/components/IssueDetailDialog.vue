@@ -61,7 +61,7 @@
                 flat dense no-caps
                 icon="link" label="연결된 SR 바로가기"
                 color="teal-7" class="q-mb-md text-caption"
-                @click="emit('update:modelValue', false); void router.push(`/pm/sr/${localIssue.linkedSrId}`).catch(() => {})" />
+                @click="openLinkedSr" />
 
               <!-- 설명 -->
               <div class="q-mb-md">
@@ -630,6 +630,20 @@ onBeforeRouteLeave(closeBeforeNavigation)
 onBeforeRouteUpdate(closeBeforeNavigation)
 onBeforeUnmount(() => dialogHistory.dispose())
 const tab = ref('detail')
+
+async function openLinkedSr() {
+  const srId = localIssue.value?.linkedSrId
+  if (!srId) return
+  emit('update:modelValue', false)
+  // Finish the native Back used to remove the dialog entry before starting navigation.
+  // Otherwise it can race router.push and return the browser to the dashboard.
+  await dialogHistory.close()
+  try {
+    await router.push(`/pm/sr/${encodeURIComponent(srId)}`)
+  } catch (error) {
+    Notify.create({ type: 'negative', message: getErrorMessage(error, '연결된 SR로 이동하지 못했습니다.') })
+  }
+}
 
 const displayProjectKey = computed(() => props.projectKey ?? props.issue?.projectKey ?? '')
 const saving = ref(false)
