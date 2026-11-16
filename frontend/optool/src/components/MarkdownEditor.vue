@@ -38,13 +38,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import Editor from '@toast-ui/editor'
 import '@toast-ui/editor/dist/toastui-editor.css'
 import '@toast-ui/editor/dist/theme/toastui-editor-dark.css'
 import { useQuasar } from 'quasar'
 import { api } from 'boot/axios'
 import { searchMentionUsers, type MentionUser } from 'src/services/mention'
+import { createEditorModelSync } from 'src/utils/editorModelSync'
 
 const props = defineProps<{
   modelValue:   string | null | undefined
@@ -76,8 +77,12 @@ interface ToastEditorApi {
   destroy(): void
 }
 let editor: ToastEditorApi | null = null
-let externalSet  = false
-let isComposing  = false
+const modelSync = createEditorModelSync({
+  read: () => editor?.getMarkdown() ?? '',
+  write: value => editor?.setMarkdown(value),
+  emit: value => emit('update:modelValue', value),
+  onCompositionSettled: scheduleSlashMenuUpdate,
+})
 const slashVisible = ref(false)
 const slashQuery = ref('')
 const slashActiveIndex = ref(0)
@@ -133,7 +138,7 @@ function closeSlashMenu() {
 }
 
 function updateSlashMenu() {
-  if (!props.slashCommands || isComposing || !editor || !editorEl.value) return
+  if (!props.slashCommands || modelSync.composing || !editor || !editorEl.value) return
   const selection = window.getSelection()
   if (!selection?.rangeCount || !selection.isCollapsed) {
     closeSlashMenu()
@@ -192,7 +197,7 @@ function closeMentionMenu() {
 }
 
 function updateMentionMenu() {
-  if (!props.mentions || isComposing || !editor || !editorEl.value) return
+  if (!props.mentions || modelSync.composing || !editor || !editorEl.value) return
   const selection = window.getSelection()
   if (!selection?.rangeCount || !selection.isCollapsed) { closeMentionMenu(); return }
   const caret = selection.getRangeAt(0)
@@ -251,7 +256,7 @@ function insertMention(user: MentionUser) {
   editor.focus()
   editor.replaceSelection(`@${user.displayName} `, range.start, range.end)
   emit('mention-selected', user)
-  emit('update:modelValue', editor.getMarkdown())
+  modelSync.publish()
 }
 
 function positionSlashMenu(caret: Range) {
@@ -266,7 +271,7 @@ function positionSlashMenu(caret: Range) {
 }
 
 function handleSlashKeydown(event: KeyboardEvent) {
-  if (props.mentions && mentionVisible.value && !isComposing && !event.isComposing) {
+  if (props.mentions && mentionVisible.value && !modelSync.composing && !event.isComposing) {
     if (event.key === 'Escape') {
       event.preventDefault(); event.stopPropagation(); closeMentionMenu(); return
     }
@@ -285,7 +290,7 @@ function handleSlashKeydown(event: KeyboardEvent) {
       return
     }
   }
-  if (!props.slashCommands || !slashVisible.value || isComposing || event.isComposing) return
+  if (!props.slashCommands || !slashVisible.value || modelSync.composing || event.isComposing) return
   if (event.key === 'Escape') {
     event.preventDefault()
     event.stopPropagation()
@@ -307,7 +312,7 @@ function handleSlashKeydown(event: KeyboardEvent) {
 }
 
 function scheduleSlashMenuUpdate() {
-  if (isComposing || (!props.slashCommands && !props.mentions)) return
+  if (modelSync.composing || (!props.slashCommands && !props.mentions)) return
   if (props.slashCommands) requestAnimationFrame(updateSlashMenu)
   if (props.mentions) requestAnimationFrame(updateMentionMenu)
 }
@@ -326,7 +331,7 @@ function runSlashCommand(item: SlashCommand) {
     return
   }
   if (item.command) editor.exec(item.command, item.payload)
-  emit('update:modelValue', editor.getMarkdown())
+  modelSync.publish()
 }
 
 function handleSlashImageSelected(event: Event) {
@@ -340,7 +345,7 @@ function handleSlashImageSelected(event: Event) {
     }
     editor.focus()
     editor.exec('addImage', { imageUrl: url, altText: file.name })
-    emit('update:modelValue', editor.getMarkdown())
+    modelSync.publish()
   })
 }
 
@@ -507,8 +512,7 @@ onMounted(() => {
     },
     events: {
       change: () => {
-        if (externalSet || isComposing) return
-        emit('update:modelValue', editor?.getMarkdown() ?? '')
+        modelSync.publish()
         scheduleSlashMenuUpdate()
       },
     },
@@ -531,16 +535,15 @@ watch(() => $q.dark.isActive, (isDark) => {
 })
 
 function handleCompositionStart() {
-  isComposing = true
+  modelSync.compositionStart()
 }
 
 function handleCompositionEnd() {
-  isComposing = false
-  if (!externalSet) emit('update:modelValue', editor?.getMarkdown() ?? '')
-  scheduleSlashMenuUpdate()
+  modelSync.compositionEnd()
 }
 
 onBeforeUnmount(() => {
+  modelSync.dispose()
   emit('uploading', false)
   editorEl.value?.removeEventListener('paste', handlePaste, true)
   editorEl.value?.removeEventListener('keydown', handleSlashKeydown, true)
@@ -554,15 +557,8 @@ onBeforeUnmount(() => {
   editor = null
 })
 
-watch(() => props.modelValue, async (newVal) => {
-  if (!editor || isComposing) return
-  const cur = editor.getMarkdown()
-  if ((newVal ?? '') !== cur) {
-    externalSet = true
-    editor.setMarkdown(newVal ?? '')
-    await nextTick()
-    externalSet = false
-  }
+watch(() => props.modelValue, (newVal) => {
+  if (editor) modelSync.applyExternal(newVal ?? '')
 })
 </script>
 
