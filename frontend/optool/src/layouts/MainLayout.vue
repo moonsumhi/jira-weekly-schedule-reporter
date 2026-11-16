@@ -186,6 +186,7 @@
     <!-- 오른쪽 링크 사이드바 (내부망만) -->
     <q-drawer
       v-if="authIsLoggedIn && !isExternal"
+      class="workspace-bookmarks-drawer"
       v-model="rightDrawerOpen"
       side="right"
       bordered

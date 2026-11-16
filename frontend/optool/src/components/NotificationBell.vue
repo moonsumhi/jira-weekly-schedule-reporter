@@ -15,6 +15,7 @@
       />
 
       <q-menu
+        class="notification-dropdown-menu"
         anchor="bottom right"
         self="top right"
         :offset="[0, 4]"
@@ -22,7 +23,7 @@
         @before-show="notifStore.loadDropdown()"
       >
         <!-- 헤더 -->
-        <div class="row items-center q-px-md q-py-sm bg-grey-1">
+        <div class="notification-dropdown-header row items-center q-px-md q-py-sm bg-grey-1">
           <div class="col text-subtitle2 text-weight-bold">알림</div>
           <q-btn
             v-if="notifStore.unreadCount > 0"
@@ -70,7 +71,8 @@
             v-for="n in notifStore.dropdownItems"
             :key="n.id"
             clickable
-            :class="n.isRead ? 'bg-white' : 'bg-blue-1'"
+            class="notification-dropdown-item"
+            :class="n.isRead ? 'notification-dropdown-item--read' : 'notification-dropdown-item--unread'"
             @click="handleClick(n)"
           >
             <q-item-section avatar>

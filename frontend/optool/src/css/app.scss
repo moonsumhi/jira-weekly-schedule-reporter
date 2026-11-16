@@ -556,6 +556,73 @@ body.body--dark {
   }
 }
 
+// Notification menu and service bookmarks use light-mode utility colors in
+// their templates; give their teleported/drawer surfaces explicit dark colors.
+body.body--dark .notification-dropdown-menu {
+  background: #182334;
+  color: #e2e8f0;
+}
+
+body.body--dark .notification-dropdown-menu .notification-dropdown-header {
+  background: #202e41 !important;
+  color: #e2e8f0;
+}
+
+body.body--dark .notification-dropdown-menu .notification-dropdown-item {
+  color: #dbe5f1;
+  border-color: #334155;
+}
+
+body.body--dark .notification-dropdown-menu .notification-dropdown-item--read {
+  background: #182334;
+}
+
+body.body--dark .notification-dropdown-menu .notification-dropdown-item--unread {
+  background: #22334a;
+}
+
+body.body--dark .notification-dropdown-menu .notification-dropdown-item:hover {
+  background: #2a3b52;
+}
+
+body.body--dark .notification-dropdown-menu .text-grey-8,
+body.body--dark .notification-dropdown-menu .text-grey-7,
+body.body--dark .notification-dropdown-menu .text-grey-5 {
+  color: #aebbd0 !important;
+}
+
+body.body--dark .workspace-bookmarks-drawer,
+body.body--dark .workspace-bookmarks-drawer .q-drawer__content,
+body.body--dark .workspace-bookmarks-drawer .q-scrollarea,
+body.body--dark .workspace-bookmarks-drawer .q-scrollarea__container,
+body.body--dark .workspace-bookmarks-drawer .q-scrollarea__content {
+  background: #182334;
+  color: #dbe5f1;
+  border-color: #334155;
+}
+
+body.body--dark .workspace-bookmarks-drawer .link-card {
+  border-color: #3b4a60;
+  background: #202e41;
+}
+
+body.body--dark .workspace-bookmarks-drawer .link-card-body:hover {
+  background: #2a3b52;
+}
+
+body.body--dark .workspace-bookmarks-drawer .link-card-title {
+  color: #e2e8f0;
+}
+
+body.body--dark .workspace-bookmarks-drawer .link-card-desc {
+  color: #aebbd0;
+}
+
+body.body--dark .workspace-bookmarks-drawer .link-tag {
+  color: #bfdbfe;
+  background: #29476a;
+}
+
 body.body--dark .work-management-dark,
 body.body--dark .work-document--dark {
   scrollbar-color: #52657f #17212f;
