@@ -122,10 +122,12 @@ const displayIcon = computed(() => resolveSidebarIcon(props.icon))
 const isActive = computed(() => {
   if (!props.link || props.link === '#') return false
   const [linkPath, linkQueryStr] = props.link.split('?')
+  const linkParams = new URLSearchParams(linkQueryStr)
+  // Asset categories share one route; the unfiltered link is active only without a category.
+  if (linkPath === '/asset/list' && (route.query.category || '') !== (linkParams.get('category') || '')) return false
   if (route.meta.activeMenuLink === linkPath && !linkQueryStr) return true
   if (route.path !== linkPath && !route.path.startsWith(`${linkPath}/`)) return false
   if (!linkQueryStr) return true
-  const linkParams = new URLSearchParams(linkQueryStr)
   for (const [k, v] of linkParams.entries()) {
     if (route.query[k] !== v) return false
   }
