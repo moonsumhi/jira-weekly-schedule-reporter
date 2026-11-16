@@ -1,6 +1,6 @@
 <template>
   <q-dialog :model-value="modelValue" maximized transition-show="slide-up" transition-hide="slide-down"
-    @update:model-value="$emit('update:modelValue', $event)">
+    @update:model-value="$emit('update:modelValue', $event)" @hide="dialogHistory.restoreScroll">
     <q-card class="column" style="width: 100%; height: 100%">
       <!-- Header -->
       <q-toolbar class="bg-primary text-white">

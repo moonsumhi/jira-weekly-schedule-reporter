@@ -1,6 +1,6 @@
 <template>
   <q-dialog :model-value="modelValue" maximized transition-show="slide-up" transition-hide="slide-down"
-    @update:model-value="handleDialogUpdate">
+    @update:model-value="handleDialogUpdate" @hide="dialogHistory.restoreScroll">
     <q-card :class="['work-document', { 'work-document--dark': theme.appearanceMode === 'dark' }]" :dark="theme.appearanceMode === 'dark'">
       <header class="document-topbar">
         <q-btn flat round dense icon="arrow_back" :aria-label="backLabel || '목록으로 돌아가기'" :disable="saving || editorUploading" @click="close" />

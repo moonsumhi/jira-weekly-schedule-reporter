@@ -30,7 +30,7 @@
 
     <q-inner-loading :showing="loading" />
 
-    <div v-if="!loading" class="issue-sections">
+    <div class="issue-sections" :aria-busy="loading">
       <!-- ── 담당 중 ── -->
       <q-card v-if="showAssigned" flat bordered>
         <div

@@ -1,3 +1,5 @@
+import { captureDialogScroll } from './dialogScroll'
+
 const liveDialogTokens = new Set<string>()
 
 /** Keep a temporary, same-URL history entry while a dialog is open. */
@@ -10,6 +12,19 @@ export function createDialogHistory(browser: Window, onBack: () => void) {
   let url = ''
   let pending: Promise<void> | undefined
   let resolvePending: (() => void) | undefined
+  let restorePosition: (() => void) | undefined
+  let restoreFrame: number | undefined
+
+  function restoreScroll() {
+    // Never move a newly opened dialog or an intentional navigation back to
+    // the previous page's coordinates.
+    if (!active && browser.location.href === url) restorePosition?.()
+  }
+
+  function cancelRestoreFrame() {
+    if (restoreFrame !== undefined) browser.cancelAnimationFrame(restoreFrame)
+    restoreFrame = undefined
+  }
 
   function onPop(event: PopStateEvent) {
     if (!active || event.state?.[key] === token) return
@@ -25,12 +40,22 @@ export function createDialogHistory(browser: Window, onBack: () => void) {
     resolvePending = undefined
     resolve?.()
     if (notify && !disposed) onBack()
+    if (sameUrl) {
+      cancelRestoreFrame()
+      // Let Vue hide the dialog and Quasar release its page scroll lock first.
+      restoreFrame = browser.requestAnimationFrame(() => {
+        restoreFrame = undefined
+        restoreScroll()
+      })
+    }
   }
 
   function open() {
     desiredOpen = true
     if (disposed || active) return
+    cancelRestoreFrame()
     url = browser.location.href
+    restorePosition = captureDialogScroll(browser)
     const state = { ...browser.history.state, [key]: token }
     // Reuse a marker restored by Forward or a page reload.
     if (browser.history.state?.[key] && !liveDialogTokens.has(browser.history.state[key])) browser.history.replaceState(state, '', url)
@@ -65,6 +90,8 @@ export function createDialogHistory(browser: Window, onBack: () => void) {
   return {
     setOpen,
     close,
+    // QDialog's hide event also covers focus/transition work after popstate.
+    restoreScroll,
     dispose() {
       disposed = true
       void close()

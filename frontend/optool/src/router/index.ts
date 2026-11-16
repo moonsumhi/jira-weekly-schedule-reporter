@@ -8,6 +8,7 @@ import {
 import { Notify } from 'quasar'
 import routes from './routes'
 import { useAuthStore } from 'stores/auth'
+import { routeScrollBehavior } from 'src/utils/routeScroll'
 
 export default defineRouter(function () {
   const createHistory = import.meta.env.QUASAR_SERVER
@@ -17,7 +18,7 @@ export default defineRouter(function () {
       : createWebHashHistory
 
   const Router = createRouter({
-    scrollBehavior: () => ({ left: 0, top: 0 }),
+    scrollBehavior: routeScrollBehavior,
     routes,
     history: createHistory(import.meta.env.QUASAR_VUE_ROUTER_BASE),
   })
