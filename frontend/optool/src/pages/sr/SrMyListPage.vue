@@ -27,8 +27,8 @@
       <q-space />
       <q-btn
         flat dense size="sm" no-caps icon="tune" label="상세 필터"
-        :class="detailFiltersExpanded ? 'text-indigo-7' : 'text-grey-6'"
-        class="q-px-xs" @click="detailFiltersExpanded = !detailFiltersExpanded"
+        :class="[detailFiltersExpanded ? 'text-indigo-7' : 'text-grey-6', { 'sr-toolbar-toggle--active': detailFiltersExpanded }]"
+        class="q-px-xs sr-toolbar-toggle" @click="detailFiltersExpanded = !detailFiltersExpanded"
       >
         <q-badge v-if="activeFilterCount" color="indigo-7" :label="activeFilterCount" class="q-ml-xs" />
       </q-btn>
@@ -37,10 +37,11 @@
         :color="showReceivedDate ? 'grey-7' : 'indigo-7'"
         :icon="showReceivedDate ? 'visibility_off' : 'visibility'"
         :label="showReceivedDate ? '상세보기 숨기기' : '상세 보기'"
-        class="q-px-xs"
+        class="q-px-xs sr-toolbar-toggle"
+        :class="{ 'sr-toolbar-toggle--active': showReceivedDate }"
         @click="showReceivedDate = !showReceivedDate"
       />
-      <q-btn v-if="activeFilterCount" flat dense size="sm" no-caps color="grey-6" icon="refresh" label="필터 초기화" @click="resetDetailFilters" />
+      <q-btn v-if="activeFilterCount" flat dense size="sm" no-caps color="grey-6" icon="refresh" label="필터 초기화" class="sr-toolbar-toggle" @click="resetDetailFilters" />
     </div>
 
     <q-slide-transition>
@@ -48,22 +49,22 @@
         <q-separator class="q-mb-md" />
         <div class="row q-col-gutter-sm">
           <div class="col-12 col-sm-6 col-md-3">
-            <q-select v-model="categoryFilter" :options="categoryOptions" label="카테고리" dense outlined clearable emit-value map-options bg-color="white">
+            <q-select v-model="categoryFilter" :options="categoryOptions" label="카테고리" dense outlined clearable emit-value map-options :dark="$q.dark.isActive" :bg-color="$q.dark.isActive ? 'blue-grey-9' : 'white'" class="sr-detail-filter">
               <template #prepend><q-icon name="category" size="16px" color="grey-5" /></template>
             </q-select>
           </div>
           <div class="col-12 col-sm-6 col-md-3">
-            <q-select v-model="requesterFilter" :options="requesterOptions" label="접수자" dense outlined clearable emit-value map-options bg-color="white">
+            <q-select v-model="requesterFilter" :options="requesterOptions" label="접수자" dense outlined clearable emit-value map-options :dark="$q.dark.isActive" :bg-color="$q.dark.isActive ? 'blue-grey-9' : 'white'" class="sr-detail-filter">
               <template #prepend><q-icon name="person" size="16px" color="grey-5" /></template>
             </q-select>
           </div>
           <div class="col-12 col-sm-6 col-md-3">
-            <q-select v-model="assigneeFilter" :options="assigneeOptions" label="담당자" dense outlined clearable emit-value map-options bg-color="white">
+            <q-select v-model="assigneeFilter" :options="assigneeOptions" label="담당자" dense outlined clearable emit-value map-options :dark="$q.dark.isActive" :bg-color="$q.dark.isActive ? 'blue-grey-9' : 'white'" class="sr-detail-filter">
               <template #prepend><q-icon name="manage_accounts" size="16px" color="grey-5" /></template>
             </q-select>
           </div>
           <div class="col-12 col-sm-6 col-md-3">
-            <q-select v-model="statusFilter" :options="statusOptions" label="현재 상황" dense outlined clearable emit-value map-options bg-color="white">
+            <q-select v-model="statusFilter" :options="statusOptions" label="현재 상황" dense outlined clearable emit-value map-options :dark="$q.dark.isActive" :bg-color="$q.dark.isActive ? 'blue-grey-9' : 'white'" class="sr-detail-filter">
               <template #prepend><q-icon name="task_alt" size="16px" color="grey-5" /></template>
             </q-select>
           </div>
@@ -79,12 +80,13 @@
             :color="statusChipColor(tab)"
             :text-color="statusChipTextColor(tab)"
             :outline="statusTabState(tab.key) === 'exclude'"
+            :class="['sr-status-chip', `sr-status-chip--${tab.key}`, `sr-status-chip--${statusTabState(tab.key)}`]"
             clickable dense
             @click="handleStatusChipClick(tab.key)"
           >
             <q-icon v-if="statusTabState(tab.key) === 'exclude'" name="block" size="11px" class="q-mr-xs" />
             {{ tab.label }}
-            <span v-if="tab.count > 0" class="q-ml-xs"
+            <span v-if="tab.count > 0" class="q-ml-xs sr-status-chip__count"
               :class="statusTabState(tab.key) === 'include' ? 'text-white' : $q.dark.isActive ? 'text-blue-grey-2' : 'text-grey-5'"
               style="font-size:0.72rem">{{ tab.count }}</span>
             <q-tooltip v-if="tab.key !== 'all'">
@@ -110,7 +112,7 @@
         <div class="row items-center q-gutter-xs">
           <q-icon name="view_list" size="18px" color="primary" />
           <span class="text-subtitle2 text-weight-medium">SR 목록</span>
-          <q-badge color="blue-1" text-color="blue-8" :label="`${filteredRows.length}건`" />
+          <q-badge class="sr-list-count-badge" color="blue-1" text-color="blue-8" :label="`${filteredRows.length}건`" />
         </div>
         <span v-if="filteredRows.length" class="text-caption text-grey-6">
           {{ pageStart }}–{{ pageEnd }}건 표시
@@ -145,16 +147,16 @@
                         <div class="sr-row__heading">
               <div v-if="showReceivedDate" class="row items-center q-gutter-xs q-mb-xs">
                 <span class="text-caption text-grey-5">{{ row.srNo }}</span>
-                <q-badge :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" text-color="white" style="font-size:0.65rem" />
-                <q-badge v-if="row.isUrgent" color="red" label="긴급" style="font-size:0.65rem" />
-                <q-badge v-if="row.isDelayed" color="negative" label="지연" style="font-size:0.65rem" />
+                <q-badge :class="['sr-priority-badge', `sr-priority-badge--${row.priority.toLowerCase()}`]" :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" text-color="white" style="font-size:0.65rem" />
+                <q-badge v-if="row.isUrgent" class="sr-urgent-badge" color="red" label="긴급" style="font-size:0.65rem" />
+                <q-badge v-if="row.isDelayed" class="sr-urgent-badge" color="negative" label="지연" style="font-size:0.65rem" />
               </div>
               <div class="sr-title text-body2 text-weight-medium text-dark">
                 {{ formatTitle(row) }}
                 <span v-if="!showReceivedDate" class="sr-row__inline-badges">
-                  <q-badge :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" text-color="white" style="font-size:0.65rem" />
-                  <q-badge v-if="row.isUrgent" color="red" label="긴급" style="font-size:0.65rem" />
-                  <q-badge v-if="row.isDelayed" color="negative" label="지연" style="font-size:0.65rem" />
+                  <q-badge :class="['sr-priority-badge', `sr-priority-badge--${row.priority.toLowerCase()}`]" :color="priorityColor(row.priority)" :label="priorityLabel(row.priority)" text-color="white" style="font-size:0.65rem" />
+                  <q-badge v-if="row.isUrgent" class="sr-urgent-badge" color="red" label="긴급" style="font-size:0.65rem" />
+                  <q-badge v-if="row.isDelayed" class="sr-urgent-badge" color="negative" label="지연" style="font-size:0.65rem" />
                 </span>
               </div>
             </div>

@@ -1803,6 +1803,119 @@ body.body--dark {
   .sr-my-page {
     color: #e2e8f0;
 
+    .sr-toolbar-toggle {
+      background: #26364c !important;
+      color: #dbe5f1 !important;
+      border: 1px solid #52657d;
+      border-radius: 6px;
+    }
+
+    .sr-toolbar-toggle:hover {
+      background: #344a66 !important;
+    }
+
+    .sr-toolbar-toggle--active {
+      background: #234d78 !important;
+      color: #e2f1ff !important;
+      border-color: #6ea9e0;
+    }
+
+    .sr-toolbar-toggle--active:hover {
+      background: #2c5d91 !important;
+    }
+
+    .sr-toolbar-toggle .q-badge {
+      background: #1b3761 !important;
+      color: #e8f3ff !important;
+      border: 1px solid #6ea9e0;
+    }
+
+    .sr-advanced-panel .sr-detail-filter .q-field__control {
+      background: #111b2a !important;
+    }
+
+    .sr-advanced-panel .sr-detail-filter .q-field__control::before {
+      border-color: #52657d;
+    }
+
+    .sr-list-count-badge {
+      background: #24466b !important;
+      color: #e2f1ff !important;
+      border: 1px solid #527eae;
+      font-weight: 600;
+    }
+
+    .sr-priority-badge,
+    .sr-urgent-badge {
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+
+    .sr-priority-badge--critical,
+    .sr-urgent-badge {
+      background: #692c36 !important;
+      color: #ffe2e6 !important;
+      border-color: #bf7180;
+    }
+
+    .sr-priority-badge--high {
+      background: #604323 !important;
+      color: #ffe9c8 !important;
+      border-color: #bf9159;
+    }
+
+    .sr-priority-badge--medium {
+      background: #25486d !important;
+      color: #deefff !important;
+      border-color: #6197ca;
+    }
+
+    .sr-priority-badge--low {
+      background: #344155 !important;
+      color: #e1e9f4 !important;
+      border-color: #75869e;
+    }
+
+    .sr-status-chip {
+      background: #26364c !important;
+      color: #dbe5f1 !important;
+      border: 1px solid #52657d;
+    }
+
+    .sr-status-chip__count {
+      color: inherit !important;
+      opacity: 0.85;
+    }
+
+    .sr-status-chip:not(.sr-status-chip--include):not(.sr-status-chip--exclude):hover {
+      background: #344a66 !important;
+      border-color: #7090b4;
+    }
+
+    .sr-status-chip--include {
+      background: #234d78 !important;
+      color: #e2f1ff !important;
+      border-color: #5b9bd4;
+    }
+
+    .sr-status-chip--include.sr-status-chip--done {
+      background: #1d4d3f !important;
+      color: #dcfce7 !important;
+      border-color: #5bb590;
+    }
+
+    .sr-status-chip--include.sr-status-chip--cancelled {
+      background: #40394f !important;
+      color: #f0e9ff !important;
+      border-color: #9b8bb7;
+    }
+
+    .sr-status-chip--exclude {
+      background: #392b35 !important;
+      color: #ffd4dd !important;
+      border-color: #ba7e93;
+    }
+
     .sr-owner-scope-chip {
       background: #26364c !important;
       color: #dbe5f1 !important;
