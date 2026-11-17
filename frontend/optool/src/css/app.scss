@@ -623,6 +623,21 @@ body.body--dark .workspace-bookmarks-drawer .link-tag {
   background: #29476a;
 }
 
+body.body--dark .workspace-bookmarks-drawer .link-card-actions {
+  background: #182334;
+  border-top-color: #3b4a60;
+}
+
+body.body--dark .workspace-bookmarks-drawer .link-card-action--edit {
+  background: #254769;
+  color: #d9ecff !important;
+}
+
+body.body--dark .workspace-bookmarks-drawer .link-card-action--delete {
+  background: #4b2b36;
+  color: #ffd9df !important;
+}
+
 body.body--dark .work-management-dark,
 body.body--dark .work-document--dark {
   scrollbar-color: #52657f #17212f;
@@ -3095,4 +3110,209 @@ body.body--dark .q-dialog .source-dialog {
     .my-work-today-count,
     .my-work-row--today .my-work-deadline-label { color: #ffd08a; }
   }
+}
+
+// Badges on the four day-to-day views keep their status meaning in dark mode.
+body.body--dark .sr-my-page .sr-status-tone {
+  color: #edf3fb !important;
+  border: 1px solid transparent;
+}
+body.body--dark .sr-my-page .sr-status-tone--draft,
+body.body--dark .sr-my-page .sr-status-tone--cancelled {
+  background: #344155 !important;
+  border-color: #7f91a9;
+}
+body.body--dark .sr-my-page .sr-status-tone--submitted,
+body.body--dark .sr-my-page .sr-status-tone--assigned,
+body.body--dark .sr-my-page .sr-status-tone--in_progress {
+  background: #234c75 !important;
+  border-color: #6598c7;
+}
+body.body--dark .sr-my-page .sr-status-tone--reviewing,
+body.body--dark .sr-my-page .sr-status-tone--pending_info {
+  background: #624720 !important;
+  border-color: #c49a59;
+}
+body.body--dark .sr-my-page .sr-status-tone--rejected {
+  background: #632b35 !important;
+  border-color: #bd6b7b;
+}
+body.body--dark .sr-my-page .sr-status-tone--approved {
+  background: #1c504c !important;
+  border-color: #58a9a0;
+}
+body.body--dark .sr-my-page .sr-status-tone--completed,
+body.body--dark .sr-my-page .sr-status-tone--closed {
+  background: #204c3a !important;
+  border-color: #4b9b70;
+}
+body.body--dark .sr-my-page .sr-status-tone--confirming {
+  background: #4a3663 !important;
+  border-color: #a282bf;
+}
+body.body--dark .sr-my-page .sr-status-tone--on_hold {
+  background: #4a3a31 !important;
+  border-color: #a68b7b;
+}
+
+body.body--dark .pm-dashboard-page .pm-dashboard-count-badge.bg-primary,
+body.body--dark .pm-dashboard-page .pm-dashboard-project-badge {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border: 1px solid #6598c7;
+}
+body.body--dark .pm-dashboard-page .pm-dashboard-count-badge.bg-teal {
+  background: #1c504c !important;
+  color: #ddfff8 !important;
+  border: 1px solid #58a9a0;
+}
+
+body.body--dark .watch-timetable-page .watch-shift-badge--a,
+body.body--dark .q-dialog .watch-shift-badge--a {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border: 1px solid #6598c7;
+}
+body.body--dark .watch-timetable-page .watch-shift-badge--b,
+body.body--dark .q-dialog .watch-shift-badge--b {
+  background: #4a3663 !important;
+  color: #f2e7ff !important;
+  border: 1px solid #a282bf;
+}
+
+body.body--dark .asset-detail-drawer .q-badge {
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+body.body--dark .asset-detail-drawer .q-badge.bg-positive {
+  background: #204c3a !important;
+  color: #c5f3d5 !important;
+  border-color: #4b9b70;
+}
+body.body--dark .asset-detail-drawer .q-badge.bg-orange,
+body.body--dark .asset-detail-drawer .q-badge.bg-warning {
+  background: #624720 !important;
+  color: #ffe5b0 !important;
+  border-color: #c49a59;
+}
+body.body--dark .asset-detail-drawer .q-badge.bg-negative {
+  background: #632b35 !important;
+  color: #ffd9df !important;
+  border-color: #bd6b7b;
+}
+body.body--dark .asset-detail-drawer .q-badge.bg-blue-grey-8,
+body.body--dark .asset-detail-drawer .q-badge.bg-grey {
+  background: #344155 !important;
+  color: #e2e8f0 !important;
+  border-color: #7f91a9;
+}
+body.body--dark .asset-detail-drawer .q-badge.q-badge--outline {
+  background: #26364c !important;
+  color: #dbe5f1 !important;
+  border-color: #62758e;
+}
+body.body--dark .asset-detail-drawer .q-badge.q-badge--outline.text-positive {
+  background: #204c3a !important;
+  color: #c5f3d5 !important;
+  border-color: #4b9b70;
+}
+body.body--dark .asset-detail-drawer .q-badge.q-badge--outline.text-info {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border-color: #6598c7;
+}
+body.body--dark .asset-detail-drawer .q-badge.q-badge--outline.text-warning {
+  background: #624720 !important;
+  color: #ffe5b0 !important;
+  border-color: #c49a59;
+}
+body.body--dark .asset-detail-drawer .q-badge.q-badge--outline.text-negative {
+  background: #632b35 !important;
+  color: #ffd9df !important;
+  border-color: #bd6b7b;
+}
+body.body--dark .asset-detail-drawer .detail-tag-chip {
+  background: #344155 !important;
+  color: #dbe5f1 !important;
+  border: 1px solid #7f91a9;
+}
+
+body.body--dark .pm-project-list-page .pm-project-count-badge {
+  background: #344155 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #7f91a9;
+}
+body.body--dark .pm-project-list-page .pm-project-key-badge,
+body.body--dark .pm-project-list-page .pm-project-search-count-badge {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border: 1px solid #6598c7;
+}
+body.body--dark .pm-project-list-page .pm-project-sr-badge {
+  background: #1c504c !important;
+  color: #ddfff8 !important;
+  border: 1px solid #58a9a0;
+}
+body.body--dark .pm-project-list-page .pm-project-issue-status-badge.text-grey-5 {
+  background: #344155 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #7f91a9;
+}
+body.body--dark .pm-project-list-page .pm-project-issue-status-badge.text-blue-4 {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border: 1px solid #6598c7;
+}
+body.body--dark .pm-project-list-page .pm-project-issue-status-badge.text-orange-6 {
+  background: #624720 !important;
+  color: #ffe5b0 !important;
+  border: 1px solid #c49a59;
+}
+body.body--dark .pm-project-list-page .pm-project-issue-status-badge.text-green-6 {
+  background: #204c3a !important;
+  color: #c5f3d5 !important;
+  border: 1px solid #4b9b70;
+}
+
+.notifications-page .notification-row--unread {
+  background: #e3f2fd;
+}
+body.body--dark .notifications-page .notification-list-card {
+  background: #182334 !important;
+  color: #e2e8f0;
+  border-color: #45566f;
+}
+body.body--dark .notifications-page .notification-tabs {
+  color: #b8c7dc !important;
+}
+body.body--dark .notifications-page .notification-tabs .q-tab--active {
+  color: #93c5fd !important;
+}
+body.body--dark .notifications-page .notification-list .q-item + .q-item,
+body.body--dark .notifications-page .q-separator {
+  border-color: #334155 !important;
+}
+body.body--dark .notifications-page .notification-row--read {
+  background: #182334;
+}
+body.body--dark .notifications-page .notification-row--unread {
+  background: #203953;
+  box-shadow: inset 3px 0 #6ea8ed;
+}
+body.body--dark .notifications-page .notification-row .text-grey-8 {
+  color: #c5d0df !important;
+}
+body.body--dark .notifications-page .notification-row .text-grey-5,
+body.body--dark .notifications-page .notification-list-card .text-grey {
+  color: #aebdd0 !important;
+}
+body.body--dark .notifications-page .notification-count-badge {
+  background: #632b35 !important;
+  color: #ffd9df !important;
+  border: 1px solid #bd6b7b;
+}
+body.body--dark .notifications-page .notification-new-badge {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border: 1px solid #6598c7;
 }

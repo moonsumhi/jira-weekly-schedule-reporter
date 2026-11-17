@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md bo-page">
+  <q-page class="q-pa-md bo-page notifications-page">
     <div class="row q-col-gutter-md">
       <!-- 헤더 -->
       <div class="col-12">
@@ -22,7 +22,7 @@
           v-model="tab"
           dense
           align="left"
-          class="text-grey-7"
+          class="text-grey-7 notification-tabs"
           active-color="primary"
           indicator-color="primary"
           narrow-indicator
@@ -31,7 +31,7 @@
           <q-tab name="unread">
             <div class="row items-center no-wrap q-gutter-xs">
               <span>읽지 않음</span>
-              <q-badge v-if="unreadCount > 0" color="red" :label="unreadCount" />
+              <q-badge v-if="unreadCount > 0" color="red" :label="unreadCount" class="notification-count-badge" />
             </div>
           </q-tab>
           <q-tab name="archived" label="보관됨" />
@@ -41,7 +41,7 @@
 
       <!-- 목록 -->
       <div class="col-12">
-        <q-card flat bordered>
+        <q-card flat bordered class="notification-list-card">
           <q-linear-progress v-if="loading" indeterminate color="primary" />
 
           <div v-if="!loading && loadError" class="q-pa-xl text-center text-negative">
@@ -57,12 +57,12 @@
             알림이 없습니다.
           </div>
 
-          <q-list separator>
+          <q-list separator class="notification-list">
             <q-item
               v-for="n in items"
               :key="n.id"
-              :class="n.isRead ? '' : 'bg-blue-1'"
-              class="q-py-md"
+              :class="n.isRead ? 'notification-row--read' : 'notification-row--unread'"
+              class="q-py-md notification-row"
             >
               <q-item-section avatar>
                 <q-icon
@@ -83,7 +83,7 @@
                   <q-badge
                     v-if="!n.isRead"
                     color="blue" label="새 알림"
-                    class="q-ml-xs"
+                    class="q-ml-xs notification-new-badge"
                     style="font-size: 9px"
                   />
                 </q-item-label>

@@ -106,7 +106,7 @@
                 <q-item v-for="opt in STATUS_OPTIONS" :key="opt.value"
                   clickable v-close-popup @click="bulkStatusChange(opt.value)">
                   <q-item-section>
-                    <q-badge :color="statusColor(opt.value)" :label="opt.label" text-color="white" />
+                    <q-badge :color="statusColor(opt.value)" :label="opt.label" text-color="white" class="sr-status-tone" :class="`sr-status-tone--${opt.value.toLowerCase()}`" />
                   </q-item-section>
                 </q-item>
               </q-list>
@@ -203,7 +203,7 @@
             <q-td class="text-center editable-cell" @click.stop>
               <div class="inline-block relative-position">
                 <q-chip :color="statusColor(row.status)" text-color="white" dense size="sm"
-                  :class="changingStatusId === row.id ? '' : 'cursor-pointer'">
+                  :class="['sr-status-tone', `sr-status-tone--${row.status.toLowerCase()}`, { 'cursor-pointer': changingStatusId !== row.id }]">
                   <q-spinner v-if="changingStatusId === row.id" size="12px" class="q-mr-xs" />
                   {{ statusLabel(row.status) }}
                   <q-popup-proxy v-if="changingStatusId !== row.id" cover transition-show="scale" transition-hide="scale">
@@ -214,7 +214,7 @@
                           clickable v-close-popup @click="requestStatusChange(row, opt.value)"
                           :active="row.status === opt.value" active-class="bg-blue-1">
                           <q-item-section>
-                            <q-badge :color="statusColor(opt.value)" :label="opt.label"
+                            <q-badge :color="statusColor(opt.value)" :label="opt.label" class="sr-status-tone" :class="`sr-status-tone--${opt.value.toLowerCase()}`"
                               text-color="white" style="font-size:0.72rem" />
                           </q-item-section>
                         </q-item>
@@ -1089,5 +1089,47 @@ watch(srProjectDialog, (open) => { if (open) void loadProjects() })
 }
 .editable-cell:hover .edit-hint {
   opacity: 1;
+}
+
+:global(body.body--dark .sr-status-tone) {
+  color: #edf3fb !important;
+  border: 1px solid transparent;
+}
+:global(body.body--dark .sr-status-tone--draft),
+:global(body.body--dark .sr-status-tone--cancelled) {
+  background: #344155 !important;
+  border-color: #7f91a9;
+}
+:global(body.body--dark .sr-status-tone--submitted),
+:global(body.body--dark .sr-status-tone--assigned),
+:global(body.body--dark .sr-status-tone--in_progress) {
+  background: #234c75 !important;
+  border-color: #6598c7;
+}
+:global(body.body--dark .sr-status-tone--reviewing),
+:global(body.body--dark .sr-status-tone--pending_info) {
+  background: #624720 !important;
+  border-color: #c49a59;
+}
+:global(body.body--dark .sr-status-tone--rejected) {
+  background: #632b35 !important;
+  border-color: #bd6b7b;
+}
+:global(body.body--dark .sr-status-tone--approved) {
+  background: #1c504c !important;
+  border-color: #58a9a0;
+}
+:global(body.body--dark .sr-status-tone--completed),
+:global(body.body--dark .sr-status-tone--closed) {
+  background: #204c3a !important;
+  border-color: #4b9b70;
+}
+:global(body.body--dark .sr-status-tone--confirming) {
+  background: #4a3663 !important;
+  border-color: #a282bf;
+}
+:global(body.body--dark .sr-status-tone--on_hold) {
+  background: #4a3a31 !important;
+  border-color: #a68b7b;
 }
 </style>

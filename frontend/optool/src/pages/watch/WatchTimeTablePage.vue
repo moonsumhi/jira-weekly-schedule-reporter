@@ -32,7 +32,7 @@
               <div class="col-12">
                 <q-card flat bordered class="q-pa-sm">
                   <div class="row items-center q-gutter-xs q-mb-xs">
-                    <q-badge color="blue" label="A타임" />
+                    <q-badge color="blue" label="A타임" class="watch-shift-badge watch-shift-badge--a" />
                     <span class="text-caption text-grey-7">11:00 ~ 12:00</span>
                   </div>
                   <div class="row items-center q-col-gutter-sm">
@@ -56,7 +56,7 @@
               <div class="col-12">
                 <q-card flat bordered class="q-pa-sm">
                   <div class="row items-center q-gutter-xs q-mb-xs">
-                    <q-badge color="purple" label="B타임" />
+                    <q-badge color="purple" label="B타임" class="watch-shift-badge watch-shift-badge--b" />
                     <span class="text-caption text-grey-7">12:00 ~ 13:00</span>
                   </div>
                   <div class="row items-center q-col-gutter-sm">
@@ -110,7 +110,7 @@
         <q-card-section v-if="dialog.mode === 'create'" class="q-gutter-md">
           <div class="row items-center q-col-gutter-sm">
             <div class="col-auto">
-              <q-badge color="blue" label="A타임" style="font-size:13px;padding:4px 8px;" />
+              <q-badge color="blue" label="A타임" class="watch-shift-badge watch-shift-badge--a" style="font-size:13px;padding:4px 8px;" />
             </div>
             <div class="col">
               <q-input outlined v-model="dialog.assigneeA" label="담당자" dense />
@@ -118,7 +118,7 @@
           </div>
           <div class="row items-center q-col-gutter-sm">
             <div class="col-auto">
-              <q-badge color="purple" label="B타임" style="font-size:13px;padding:4px 8px;" />
+              <q-badge color="purple" label="B타임" class="watch-shift-badge watch-shift-badge--b" style="font-size:13px;padding:4px 8px;" />
             </div>
             <div class="col">
               <q-input outlined v-model="dialog.assigneeB" label="담당자" dense />

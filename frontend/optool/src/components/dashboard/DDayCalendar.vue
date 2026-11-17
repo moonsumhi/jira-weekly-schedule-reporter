@@ -34,7 +34,7 @@
       </div>
       <ul class="calendar-overflow-list">
         <li v-for="event in overflowEvents" :key="event.id">
-          <span class="calendar-overflow-count" :style="{ background: event.color }">{{ event.daysLabel }}</span>
+          <span class="calendar-overflow-count" :style="eventColors(event.color)">{{ event.daysLabel }}</span>
           <div class="calendar-overflow-info">
             <strong>{{ event.title }}</strong>
             <p v-if="event.note">{{ event.note }}</p>
@@ -64,9 +64,30 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import koLocale from '@fullcalendar/core/locales/ko'
 import type { CalendarOptions } from '@fullcalendar/core'
+import { useQuasar } from 'quasar'
 
 const props = defineProps<{ events: CalendarDDay[]; today: string; loading: boolean; loadFailed: boolean; errorMessage?: string }>()
 const emit = defineEmits<{ retry: []; create: [date: string] }>()
+const $q = useQuasar()
+const darkEventColors: Record<string, [string, string]> = {
+  '#b42318': ['#552a2d', '#cf7775'],
+  '#b54708': ['#563920', '#d39a62'],
+  '#936000': ['#554526', '#cbb56a'],
+  '#067647': ['#214b3b', '#69af88'],
+  '#175cd3': ['#23466d', '#79a9df'],
+  '#6941c6': ['#443568', '#a994dd'],
+  '#067a6f': ['#1d4b4a', '#6bb7af'],
+  '#475467': ['#344155', '#8999ae'],
+  '#7b1fa2': ['#49335e', '#b487d0'],
+  '#1976d2': ['#234c75', '#78acd9'],
+  '#3949ab': ['#343f6a', '#8e9de0'],
+}
+
+function eventColors(color: string) {
+  if (!$q.dark.isActive) return { backgroundColor: color, borderColor: color, color: '#fff' }
+  const [backgroundColor, borderColor] = darkEventColors[color.toLowerCase()] ?? ['#344155', '#8999ae']
+  return { backgroundColor, borderColor, color: '#edf3fb' }
+}
 const calendar = ref<InstanceType<typeof FullCalendar>>()
 const container = ref<HTMLElement>()
 const monthTitle = ref('')
@@ -170,9 +191,9 @@ const options = computed<CalendarOptions>(() => ({
     title: event.title,
     start: event.date,
     allDay: true,
-    backgroundColor: event.color,
-    borderColor: event.color,
-    textColor: '#ffffff',
+    backgroundColor: eventColors(event.color).backgroundColor,
+    borderColor: eventColors(event.color).borderColor,
+    textColor: eventColors(event.color).color,
     extendedProps: { daysLabel: event.daysLabel, note: event.note },
   })),
   eventDidMount: info => {

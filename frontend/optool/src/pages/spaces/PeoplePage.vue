@@ -237,6 +237,8 @@
         <template #body-cell-active="p"
           ><q-td :props="p"
             ><q-badge
+              class="people-status-badge"
+              :class="p.row.active ? 'people-status-badge--active' : 'people-status-badge--inactive'"
               :color="p.row.active ? 'green-1' : 'grey-3'"
               :text-color="p.row.active ? 'green-9' : 'grey-8'"
               :label="p.row.active ? '활성' : '비활성'" /></q-td
@@ -612,6 +614,16 @@ async function save() {
 }
 .people-detail-filters {
   padding-top: 16px;
+}
+:global(body.body--dark .people-status-badge--active) {
+  background: #204c3a !important;
+  color: #c5f3d5 !important;
+  border: 1px solid #4b9b70;
+}
+:global(body.body--dark .people-status-badge--inactive) {
+  background: #364354 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #74869c;
 }
 @media (max-width: 600px) {
   .people-search {

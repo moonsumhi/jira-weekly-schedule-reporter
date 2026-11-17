@@ -76,16 +76,16 @@
           </div>
 
           <div class="row items-center q-gutter-sm q-mb-sm" aria-label="정책 상태 범례">
-            <q-badge color="green-2" text-color="green-10" label="정상 · 91일 이상" />
-            <q-badge color="orange-2" text-color="orange-10" label="만료예정 · 31~90일" />
-            <q-badge color="red-2" text-color="red-10" label="만료임박 · 0~30일" />
-            <q-badge color="grey-4" text-color="grey-9" label="종료 · 종료일 경과" />
+            <q-badge class="policy-status-badge policy-status-badge--normal" color="green-2" text-color="green-10" label="정상 · 91일 이상" />
+            <q-badge class="policy-status-badge policy-status-badge--upcoming" color="orange-2" text-color="orange-10" label="만료예정 · 31~90일" />
+            <q-badge class="policy-status-badge policy-status-badge--expiring" color="red-2" text-color="red-10" label="만료임박 · 0~30일" />
+            <q-badge class="policy-status-badge policy-status-badge--expired" color="grey-4" text-color="grey-9" label="종료 · 종료일 경과" />
           </div>
 
           <div class="row items-center q-mt-lg q-mb-sm">
             <div class="text-h6">내 방화벽 정책</div>
             <q-space />
-            <q-badge color="blue-grey-1" text-color="blue-grey-9" :label="`총 ${policyRows.length}건`" />
+            <q-badge class="policy-count-badge" color="blue-grey-1" text-color="blue-grey-9" :label="`총 ${policyRows.length}건`" />
           </div>
 
           <q-table
@@ -100,7 +100,7 @@
             <template #body="props">
               <q-tr :props="props" :class="policyRowClass(props.row)">
                 <q-td v-for="col in props.cols" :key="col.name" :props="props">
-                  <q-badge v-if="col.name === 'status'" :color="statusColor(props.row)" :text-color="statusTextColor(props.row)">
+                  <q-badge v-if="col.name === 'status'" class="policy-status-badge" :class="`policy-status-badge--${policyStatus(props.row).rowClass.replace('policy-row-', '')}`" :color="statusColor(props.row)" :text-color="statusTextColor(props.row)">
                     {{ policyStatus(props.row).label }}
                   </q-badge>
                   <span v-else-if="col.name === 'policyName'" class="column">
@@ -297,5 +297,52 @@ function statusTextColor(row: PolicyRow): string {
 :deep(.policy-row-expired > td) {
   background: #eeeeee;
   color: #616161;
+}
+
+:global(body.body--dark .policy-status-badge--normal) {
+  background: #204c3a !important;
+  color: #c5f3d5 !important;
+  border: 1px solid #4b9b70;
+}
+
+:global(body.body--dark .policy-status-badge--upcoming) {
+  background: #5a401c !important;
+  color: #ffe5b0 !important;
+  border: 1px solid #b98a3e;
+}
+
+:global(body.body--dark .policy-status-badge--expiring) {
+  background: #632b35 !important;
+  color: #ffd9df !important;
+  border: 1px solid #bd6b7b;
+}
+
+:global(body.body--dark .policy-status-badge--expired) {
+  background: #364354 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #74869c;
+}
+
+:global(body.body--dark .policy-count-badge) {
+  background: #263b52 !important;
+  color: #dcecff !important;
+  border: 1px solid #5f83a8;
+}
+
+:global(body.body--dark .policy-row-normal > td) {
+  background: #1c3029;
+}
+
+:global(body.body--dark .policy-row-upcoming > td) {
+  background: #382d21;
+}
+
+:global(body.body--dark .policy-row-expiring > td) {
+  background: #3c252d;
+}
+
+:global(body.body--dark .policy-row-expired > td) {
+  background: #26313d;
+  color: #d5deea;
 }
 </style>

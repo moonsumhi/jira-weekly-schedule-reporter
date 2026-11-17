@@ -165,7 +165,7 @@
           <!-- 우측 메타 -->
                     <div class="sr-row__meta text-right q-pr-sm">
             <div class="sr-row__meta-primary">
-              <q-chip :color="statusColor(row.status)" text-color="white" dense size="xs" style="font-size:0.7rem">
+              <q-chip :color="statusColor(row.status)" text-color="white" dense size="xs" class="sr-status-tone" :class="`sr-status-tone--${row.status.toLowerCase()}`" style="font-size:0.7rem">
                 {{ statusLabel(row.status) }}
               </q-chip>
               <div v-if="!showReceivedDate && row.desiredDueDate" class="text-caption text-grey-5">

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md bo-page">
+  <q-page class="q-pa-md bo-page pm-dashboard-page">
     <!-- 헤더 -->
     <div class="row items-center q-mb-md q-gutter-sm bo-page-heading">
       <div role="heading" aria-level="1" class="text-h5 bo-page-title">내 이슈</div>
@@ -39,7 +39,7 @@
         >
           <q-icon :name="assignedOpen ? 'expand_less' : 'expand_more'" color="grey-7" class="q-mr-sm" />
           <span class="text-subtitle1 text-weight-medium q-mr-sm">담당 중</span>
-          <q-badge color="primary" :label="filteredAssigned.length" />
+          <q-badge color="primary" :label="filteredAssigned.length" class="pm-dashboard-count-badge" />
         </div>
         <template v-if="assignedOpen">
           <q-separator />
@@ -127,7 +127,7 @@
         >
           <q-icon :name="reportedOpen ? 'expand_less' : 'expand_more'" color="grey-7" class="q-mr-sm" />
           <span class="text-subtitle1 text-weight-medium q-mr-sm">내가 만든</span>
-          <q-badge color="teal" :label="filteredReported.length" />
+          <q-badge color="teal" :label="filteredReported.length" class="pm-dashboard-count-badge" />
         </div>
         <template v-if="reportedOpen">
           <q-separator />
@@ -202,7 +202,7 @@
                 <q-card flat bordered>
                   <q-card-section class="q-pa-md">
                     <div class="row items-center q-mb-sm q-gutter-xs">
-                      <q-badge color="primary" :label="stat.projectKey" />
+                      <q-badge color="primary" :label="stat.projectKey" class="pm-dashboard-project-badge" />
                       <span class="text-subtitle2">{{ stat.projectName }}</span>
                     </div>
                     <div class="row q-gutter-sm">

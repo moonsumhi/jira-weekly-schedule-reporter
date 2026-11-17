@@ -1,8 +1,8 @@
 <template>
-  <q-page class="q-pa-md bo-page">
+  <q-page class="q-pa-md bo-page pm-project-list-page">
     <div class="row items-center q-mb-md bo-page-heading">
       <div role="heading" aria-level="1" class="text-h5 bo-page-title">프로젝트</div>
-      <q-badge v-if="projects.length" color="grey-5" :label="`${totalCount} / ${projects.length}`" class="q-ml-sm" />
+      <q-badge v-if="projects.length" color="grey-5" :label="`${totalCount} / ${projects.length}`" class="q-ml-sm pm-project-count-badge" />
       <q-space />
       <q-btn color="primary" icon="add" label="새 프로젝트" @click="openCreateDialog" />
     </div>
@@ -38,7 +38,7 @@
       <div class="text-subtitle1 text-weight-medium q-mb-sm row items-center q-gutter-x-sm">
         <q-icon name="manage_search" color="primary" />
         <span>일감 검색 결과</span>
-        <q-badge v-if="issueMatches.length" outline color="primary">{{ issueMatches.length }}건{{ issueHasMore ? '+' : '' }}</q-badge>
+        <q-badge v-if="issueMatches.length" outline color="primary" class="pm-project-search-count-badge">{{ issueMatches.length }}건{{ issueHasMore ? '+' : '' }}</q-badge>
         <q-spinner v-if="issueSearchLoading" color="primary" size="20px" />
       </div>
       <q-banner v-if="issueSearchError" dense rounded class="issue-search-error q-mb-sm">
@@ -56,7 +56,7 @@
           </q-item-section>
           <q-item-section side>
             <q-spinner v-if="loadingIssueId === issue.id" color="primary" size="18px" class="q-mb-xs" />
-            <q-badge outline :color="STATUS_COLOR[issue.status]">{{ STATUS_LABEL[issue.status] }}</q-badge>
+            <q-badge outline :color="STATUS_COLOR[issue.status]" class="pm-project-issue-status-badge">{{ STATUS_LABEL[issue.status] }}</q-badge>
           </q-item-section>
         </q-item>
       </q-list>
@@ -111,8 +111,8 @@
                     size="18px"
                     @click.stop
                   />
-                  <q-badge color="primary" :label="project.key" />
-                  <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" />
+                  <q-badge color="primary" :label="project.key" class="pm-project-key-badge" />
+                  <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" class="pm-project-sr-badge" />
                 </div>
                 <div class="row items-start no-wrap q-gutter-x-xs">
                   <q-btn
@@ -147,8 +147,8 @@
         <q-card flat bordered class="cursor-pointer project-card" @click="goToProject(project)">
           <q-card-section>
             <div class="row items-center q-gutter-sm q-mb-xs">
-              <q-badge color="primary" :label="project.key" />
-              <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" />
+              <q-badge color="primary" :label="project.key" class="pm-project-key-badge" />
+              <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" class="pm-project-sr-badge" />
             </div>
             <div class="row items-start no-wrap q-gutter-x-xs">
               <q-btn

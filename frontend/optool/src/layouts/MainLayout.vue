@@ -198,7 +198,7 @@
           <div class="text-subtitle1 text-weight-bold col">서비스 바로가기</div>
           <q-btn v-if="authMe?.isAdmin" flat dense round icon="add" size="sm" @click="openLinkCreate" />
           <q-btn v-if="authMe?.isAdmin" flat dense round icon="playlist_add" size="sm" color="grey" title="일괄 등록" @click="openBulkImport" />
-          <q-btn v-if="authMe?.isAdmin" flat dense round :icon="linkEditMode ? 'close' : 'edit'" size="sm" color="grey" @click="linkEditMode = !linkEditMode" />
+          <q-btn v-if="authMe?.isAdmin" flat dense round :icon="linkEditMode ? 'close' : 'edit'" size="sm" color="grey" :title="linkEditMode ? '편집 종료' : '편집 모드'" :aria-label="linkEditMode ? '편집 종료' : '편집 모드'" @click="linkEditMode = !linkEditMode" />
         </div>
         <q-separator />
 
@@ -234,8 +234,8 @@
 
               <!-- 관리자 편집 버튼 -->
               <div v-if="linkEditMode && authMe?.isAdmin" class="link-card-actions">
-                <q-btn flat dense round icon="edit" size="xs" color="grey" @click.stop="openLinkEdit(link)" />
-                <q-btn flat dense round icon="delete" size="xs" color="negative" @click.stop="confirmDeleteLink(link)" />
+                <q-btn flat dense no-caps icon="edit" label="수정" size="sm" color="primary" class="link-card-action--edit" :aria-label="`${link.title} 수정`" @click.stop="openLinkEdit(link)" />
+                <q-btn flat dense no-caps icon="delete" label="삭제" size="sm" color="negative" class="link-card-action--delete" :aria-label="`${link.title} 삭제`" @click.stop="confirmDeleteLink(link)" />
               </div>
             </div>
           </div>
@@ -997,11 +997,12 @@ onBeforeUnmount(() => {
   padding: 1px 5px;
 }
 .link-card-actions {
-  position: absolute;
-  top: 2px;
-  right: 4px;
   display: flex;
-  gap: 2px;
+  justify-content: flex-end;
+  gap: 4px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--bo-border);
+  background: var(--bo-surface);
 }
 
 :deep(.q-drawer--mini .workspace-brand-row) { padding: 20px 16px 18px; }
