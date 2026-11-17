@@ -190,6 +190,7 @@
       class="workspace-bookmarks-drawer"
       v-model="rightDrawerOpen"
       side="right"
+      overlay
       bordered
       :width="280"
     >
