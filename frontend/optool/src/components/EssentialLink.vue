@@ -3,6 +3,7 @@
   <q-expansion-item
     v-if="children && children.length"
     :model-value="!compact && isExpanded"
+    :duration="compact ? 0 : 100"
     :dark="theme.appearanceMode === 'dark'"
     class="sidebar-expansion-item"
     @update:model-value="onExpansionToggle"

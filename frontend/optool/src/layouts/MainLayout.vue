@@ -64,6 +64,7 @@
       :dark="theme.appearanceMode === 'dark'"
       :style="theme.appearanceMode === 'dark' ? { backgroundColor: '#17212f' } : undefined"
       :mini="miniDrawer"
+      no-mini-animation
       :mini-width="80"
       :width="248"
       :breakpoint="1024"
@@ -85,7 +86,7 @@
         </div>
 
         <!-- MENU AREA -->
-        <q-scroll-area class="col workspace-nav-scroll" :content-style="{ width: '100%', boxSizing: 'border-box' }">
+        <div class="col workspace-nav-scroll">
           <nav ref="navigationElement" aria-label="주 메뉴" class="workspace-navigation">
           <q-list class="sidebar-menu-list" :dark="theme.appearanceMode === 'dark'">
             <q-item clickable v-ripple :active="route.name === 'app-home'" active-class="workspace-home--active" class="workspace-home" to="/app" :aria-current="route.name === 'app-home' ? 'page' : undefined">
@@ -160,7 +161,7 @@
 
           </q-list>
           </nav>
-        </q-scroll-area>
+        </div>
 
         <!-- USER / LOGOUT AREA (BOTTOM) -->
         <div class="workspace-account">
@@ -522,7 +523,7 @@ function scheduleActiveMenuReveal() {
   // QExpansionItem opens over 300ms. Scroll its container after the final layout.
   navigationRevealTimer = setTimeout(() => {
     const active = navigationElement.value?.querySelector<HTMLElement>('[aria-current="page"]')
-    const viewport = navigationElement.value?.closest<HTMLElement>('.q-scrollarea__container')
+    const viewport = navigationElement.value?.closest<HTMLElement>('.workspace-nav-scroll')
     if (!active || !viewport) return
     const item = active.getBoundingClientRect()
     const bounds = viewport.getBoundingClientRect()
@@ -817,13 +818,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 :deep(.q-drawer--left) {
-  transition:
-    width 180ms cubic-bezier(0.2, 0, 0, 1),
-    transform 180ms cubic-bezier(0.2, 0, 0, 1);
+  transition: none;
 }
 
 :deep(.q-page-container) {
-  transition: padding-left 180ms cubic-bezier(0.2, 0, 0, 1);
+  transition: none;
 }
 
 :deep(.q-drawer--mini .sidebar-menu-list .q-item) {
@@ -899,7 +898,7 @@ onBeforeUnmount(() => {
 .workspace-brand-name { font-size: 20px; line-height: 1.3; font-weight: 700; letter-spacing: -0.02em; overflow-wrap: anywhere; }
 .workspace-brand-team { color: var(--bo-muted); font-size: 12px; line-height: 1.5; }
 .workspace-nav-close { display: none; color: var(--bo-muted); flex-shrink: 0; }
-.workspace-nav-scroll { min-height: 0; min-width: 0; width: 100%; }
+.workspace-nav-scroll { min-height: 0; min-width: 0; width: 100%; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
 .workspace-navigation { width: 100%; box-sizing: border-box; padding: 4px 12px 20px; }
 .workspace-home {
   min-height: 44px;
@@ -1012,4 +1011,5 @@ onBeforeUnmount(() => {
 :deep(.q-drawer--mini .sidebar-menu-list .q-item__section--avatar) { min-width: 0; width: 100%; padding: 0; align-items: center; }
 :deep(.q-drawer--mini .workspace-account) { padding: 8px; }
 :deep(.q-drawer--mini .workspace-account-link .q-item__section--avatar) { min-width: 36px; padding: 0; }
+
 </style>
