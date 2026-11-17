@@ -3179,6 +3179,21 @@ body.body--dark .q-dialog .watch-shift-badge--b {
   color: #f2e7ff !important;
   border: 1px solid #a282bf;
 }
+body.body--dark .watch-timetable-page .watch-create-button--a {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border: 1px solid #6598c7;
+}
+body.body--dark .watch-timetable-page .watch-create-button--b {
+  background: #4a3663 !important;
+  color: #f2e7ff !important;
+  border: 1px solid #a282bf;
+}
+body.body--dark .watch-timetable-page .watch-import-button {
+  background: #1c504c !important;
+  color: #ddfff8 !important;
+  border: 1px solid #58a9a0;
+}
 
 body.body--dark .asset-detail-drawer .q-badge {
   font-weight: 600;
@@ -3315,4 +3330,108 @@ body.body--dark .notifications-page .notification-new-badge {
   background: #234c75 !important;
   color: #e0f0ff !important;
   border: 1px solid #6598c7;
+}
+
+body.body--dark .monthly-report-page .report-card .card-state {
+  background: #624720;
+  color: #ffe5b0;
+  border: 1px solid #c49a59;
+}
+body.body--dark .monthly-report-page .report-card .card-state.final {
+  background: #204c3a;
+  color: #c5f3d5;
+  border-color: #4b9b70;
+}
+
+body.body--dark .resource-page .result-identity .server-name:not(a) {
+  color: #e2e8f0;
+}
+body.body--dark .resource-page .result-identity .server-ip,
+body.body--dark .resource-page .result-identity .server-context {
+  color: #b8c7da;
+}
+body.body--dark .resource-page .result-identity .regular-label {
+  border-color: #62758e;
+  color: #dbe5f1;
+}
+body.body--dark .resource-page .result-identity .unlinked-label {
+  background: #624720;
+  color: #ffe5b0;
+  border: 1px solid #c49a59;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+body.body--dark .resource-page .stat-card.unlinked .stat-value {
+  color: #ffe5b0;
+}
+body.body--dark .resource-page .stat-card.unlinked .stat-label {
+  color: #e7d1a4;
+}
+
+// The server-inspection links menu is teleported outside the issue dialog.
+body.body--dark .inspection-link-trigger {
+  color: #b8c7da;
+}
+body.body--dark .inspection-link-trigger.has-links {
+  background: #21354d;
+  color: #b9d8ff;
+}
+body.body--dark .inspection-link-count,
+body.body--dark .has-links .inspection-link-count {
+  background: #304763;
+  color: #d5e7ff;
+}
+body.body--dark .inspection-link-chevron {
+  color: #aebfd4;
+}
+body.body--dark .inspection-links-menu {
+  background: #182334;
+  color: #e2e8f0;
+  border: 1px solid #384b63;
+}
+body.body--dark .inspection-link-panel {
+  color: #e2e8f0;
+}
+body.body--dark .inspection-link-header p,
+body.body--dark .inspection-link-summary,
+body.body--dark .inspection-link-summary > span + span,
+body.body--dark .inspection-link-row-top,
+body.body--dark .inspection-link-meta,
+body.body--dark .inspection-link-feedback,
+body.body--dark .inspection-link-refresh-error {
+  color: #b2c1d3;
+}
+body.body--dark .inspection-link-header .q-btn,
+body.body--dark .inspection-link-row-arrow {
+  color: #a9bdd5;
+}
+body.body--dark .inspection-link-list,
+body.body--dark .inspection-link-footer {
+  border-color: #384b63;
+}
+body.body--dark .inspection-link-row {
+  background: #182334;
+  color: #e2e8f0;
+  border-color: #384b63;
+}
+body.body--dark .inspection-link-row:hover,
+body.body--dark .inspection-link-row:focus-visible {
+  background: #263b55;
+}
+body.body--dark .inspection-link-status.is-pending {
+  background: #29456a;
+  color: #bfdcff;
+}
+body.body--dark .inspection-link-status.is-done {
+  background: #1f4c3d;
+  color: #b8ead0;
+}
+body.body--dark .inspection-link-status.is-archived {
+  background: #384252;
+  color: #d0dae6;
+}
+body.body--dark .inspection-link-feedback strong {
+  color: #e2e8f0;
 }

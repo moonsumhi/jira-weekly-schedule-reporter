@@ -15,7 +15,7 @@
           <q-space />
           <div class="row items-center q-gutter-sm">
             <q-btn flat dense icon="download" label="템플릿 다운로드" @click="downloadTemplate" />
-            <q-btn color="teal" icon="upload" label="Import" :loading="importing" @click="triggerImport" />
+            <q-btn color="teal" icon="upload" label="Import" class="watch-import-button" :loading="importing" @click="triggerImport" />
             <input ref="importInput" type="file" accept=".xlsx,.xls" style="display:none" @change="onImportFile" />
           </div>
         </div>
@@ -46,7 +46,7 @@
                       <q-input outlined dense v-model="bulkA.toDate" label="종료일" type="date" />
                     </div>
                     <div class="col-12 col-sm-2">
-                      <q-btn color="blue" class="full-width" label="생성" :loading="busy" @click="createBulkA" />
+                      <q-btn color="blue" class="full-width watch-create-button watch-create-button--a" label="생성" :loading="busy" @click="createBulkA" />
                     </div>
                   </div>
                 </q-card>
@@ -70,7 +70,7 @@
                       <q-input outlined dense v-model="bulkB.toDate" label="종료일" type="date" />
                     </div>
                     <div class="col-12 col-sm-2">
-                      <q-btn color="purple" class="full-width" label="생성" :loading="busy" @click="createBulkB" />
+                      <q-btn color="purple" class="full-width watch-create-button watch-create-button--b" label="생성" :loading="busy" @click="createBulkB" />
                     </div>
                   </div>
                 </q-card>
