@@ -357,6 +357,23 @@ function handleEditorFocusout() {
 
 const editorMinHeight = `${Math.max((props.rows ?? 4) * 36, 160)}px`
 
+function updateEditorPlaceholder() {
+  const text = props.placeholder ?? '내용을 입력하세요. (마크다운 문법 지원: # 제목, **굵게**, - 목록)'
+  editorEl.value?.querySelectorAll<HTMLElement>('.ProseMirror').forEach(root => {
+    const block = root.firstElementChild
+    const empty = root.childNodes.length === 1 && block !== null
+      && /^(P|DIV|H[1-6])$/.test(block.tagName)
+      && block.textContent === '' && !block.querySelector(':not(br)')
+    if (root.dataset.editorPlaceholder !== text) root.dataset.editorPlaceholder = text
+    root.classList.toggle('editor-is-empty', empty)
+  })
+}
+
+function scheduleEditorPlaceholderUpdate() {
+  // Toast UI can emit change before it has painted the new document.
+  queueMicrotask(updateEditorPlaceholder)
+}
+
 async function uploadImageBlob(blob: Blob | File): Promise<string | null> {
   try {
     const fd = new FormData()
@@ -494,7 +511,10 @@ onMounted(() => {
     initialValue:    props.modelValue ?? '',
     initialEditType: 'wysiwyg',
     previewStyle:    'tab',
-    placeholder:     props.placeholder ?? '내용을 입력하세요. (마크다운 문법 지원: # 제목, **굵게**, - 목록)',
+    // Toast UI's placeholder is a widget inside contenteditable. Removing it
+    // on the first keystroke interrupts native Korean composition in Chrome.
+    // Render the hint with CSS instead, without adding/removing document nodes.
+    placeholder:     '',
     toolbarItems: [
       ['heading', 'bold', 'italic', 'strike'],
       ['hr', 'quote'],
@@ -513,8 +533,10 @@ onMounted(() => {
     events: {
       change: () => {
         modelSync.publish()
+        scheduleEditorPlaceholderUpdate()
         scheduleSlashMenuUpdate()
       },
+      changeMode: scheduleEditorPlaceholderUpdate,
     },
   }) as unknown as ToastEditorApi
   editorEl.value.querySelector<HTMLElement>('.toastui-editor-defaultUI')
@@ -523,11 +545,15 @@ onMounted(() => {
   editorEl.value.addEventListener('paste', handlePaste, true)
   editorEl.value.addEventListener('keydown', handleSlashKeydown, true)
   editorEl.value.addEventListener('input', scheduleSlashMenuUpdate, true)
+  editorEl.value.addEventListener('input', updateEditorPlaceholder, true)
   editorEl.value.addEventListener('keyup', scheduleSlashMenuUpdate, true)
   editorEl.value.addEventListener('focusout', handleEditorFocusout, true)
   editorEl.value.addEventListener('compositionstart', handleCompositionStart, true)
   editorEl.value.addEventListener('compositionend', handleCompositionEnd, true)
+  updateEditorPlaceholder()
 })
+
+watch(() => props.placeholder, updateEditorPlaceholder)
 
 watch(() => $q.dark.isActive, (isDark) => {
   const editorUI = editorEl.value?.querySelector<HTMLElement>('.toastui-editor-defaultUI')
@@ -548,6 +574,7 @@ onBeforeUnmount(() => {
   editorEl.value?.removeEventListener('paste', handlePaste, true)
   editorEl.value?.removeEventListener('keydown', handleSlashKeydown, true)
   editorEl.value?.removeEventListener('input', scheduleSlashMenuUpdate, true)
+  editorEl.value?.removeEventListener('input', updateEditorPlaceholder, true)
   editorEl.value?.removeEventListener('keyup', scheduleSlashMenuUpdate, true)
   editorEl.value?.removeEventListener('focusout', handleEditorFocusout, true)
   editorEl.value?.removeEventListener('compositionstart', handleCompositionStart, true)
@@ -602,5 +629,17 @@ watch(() => props.modelValue, (newVal) => {
 :deep(.toastui-editor-contents) {
   font-size: 0.9rem;
   line-height: 1.7;
+}
+:deep(.ProseMirror.editor-is-empty)::before {
+  content: attr(data-editor-placeholder);
+  position: absolute;
+  left: 25px;
+  right: 25px;
+  color: #757575;
+  pointer-events: none;
+  user-select: none;
+}
+:deep(.toastui-editor-dark .ProseMirror.editor-is-empty)::before {
+  color: #aeb4c0;
 }
 </style>
