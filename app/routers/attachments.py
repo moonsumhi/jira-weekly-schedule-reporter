@@ -4,6 +4,7 @@ document_files 컬렉션에 등록된 파일이 아닌, /app/uploads 아래 임�
 저장된 첨부파일(SR 접수/댓글 등)을 대상으로 하므로 file_id가 아니라
 /app/uploads 기준 상대경로(path)로 대상을 지정한다.
 """
+import asyncio
 import logging
 import os
 import shutil
@@ -15,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 
 from app.utils.html_preview import HWP_BASE_CSS, make_self_contained
+from app.utils.hwpx_preview import render_hwpx_preview
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -56,6 +58,22 @@ async def hwp_preview(path: str = Query(...)):
         return HTMLResponse(content="<html><body><p>미리보기를 생성할 수 없습니다.</p></body></html>")
     finally:
         shutil.rmtree(out_dir, ignore_errors=True)
+
+
+@router.get("/hwpx-preview", response_class=HTMLResponse)
+async def hwpx_preview(path: str = Query(...)):
+    file_path = _resolve_safe_path(path)
+    if file_path.suffix.lower() != '.hwpx':
+        raise HTTPException(status_code=400, detail='HWPX 파일이 아닙니다.')
+    try:
+        content = await asyncio.to_thread(render_hwpx_preview, file_path)
+    except Exception as exc:
+        logger.warning('HWPX 미리보기 실패: %s', type(exc).__name__)
+        raise HTTPException(status_code=422, detail='HWPX 미리보기를 생성할 수 없습니다. 파일 손상 여부와 문서 크기를 확인해 주세요.') from exc
+    return HTMLResponse(content=content, headers={
+        'Content-Security-Policy': "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox",
+        'X-Content-Type-Options': 'nosniff',
+    })
 
 
 @router.get("/docx-preview", response_class=HTMLResponse)

@@ -161,6 +161,7 @@ const fileIcon = computed(() => {
 })
 
 const iframeSandbox = computed(() => {
+  if (ext.value === 'hwpx') return ''
   // 업로드된 원본 HTML은 스크립트 실행을 차단해 XSS를 방지 (다른 형식은 백엔드에서 변환된 안전한 HTML)
   return ext.value === 'html' || ext.value === 'htm' ? 'allow-same-origin' : undefined
 })
@@ -191,12 +192,13 @@ async function load() {
     iframeUrl.value = `${apiBase()}/attachments/docx-preview?path=${encodeURIComponent(attachmentRelPath(att.url))}`
     return
   }
-  if (ext.value === 'pptx' || ext.value === 'ppt') {
+  if (ext.value === 'pptx' || ext.value === 'ppt' || ext.value === 'hwpx') {
     loading.value = true
     try {
       // Use the shared API client so the current JWT is sent with the request.
       // Raw fetch bypasses the Axios auth interceptor.
-      const resp = await api.get('/attachments/pptx-preview', {
+      const endpoint = ext.value === 'hwpx' ? 'hwpx-preview' : 'pptx-preview'
+      const resp = await api.get(`/attachments/${endpoint}`, {
         params: { path: attachmentRelPath(att.url) },
         responseType: 'blob',
       })
@@ -211,7 +213,7 @@ async function load() {
           } catch { /* Keep the original request error if the response isn't JSON. */ }
         }
       }
-      $q.notify({ type: 'negative', message: e instanceof Error ? e.message : '프레젠테이션 미리보기를 불러오지 못했습니다.' })
+      $q.notify({ type: 'negative', message: e instanceof Error ? e.message : '문서 미리보기를 불러오지 못했습니다.' })
     } finally {
       loading.value = false
     }
