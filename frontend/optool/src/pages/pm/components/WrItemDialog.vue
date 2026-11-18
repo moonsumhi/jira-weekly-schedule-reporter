@@ -121,9 +121,12 @@
                 <div class="field-label">발생일수</div>
                 <q-input
                   v-model="form.category"
+                  aria-label="발생일수"
                   outlined
                   type="number"
                   min="0"
+                  step="any"
+                  inputmode="decimal"
                   placeholder="0"
                   suffix="일"
                 />
@@ -132,9 +135,12 @@
                 <div class="field-label">총사용일수</div>
                 <q-input
                   v-model="form.item_type"
+                  aria-label="총사용일수"
                   outlined
                   type="number"
                   min="0"
+                  step="any"
+                  inputmode="decimal"
                   placeholder="0"
                   suffix="일"
                 />
@@ -142,11 +148,15 @@
               <div class="col-4">
                 <div class="field-label">잔여일수</div>
                 <q-input
-                  v-model="form.action_plan"
+                  :model-value="remainingDays"
+                  aria-label="잔여일수"
+                  readonly
+                  hint="발생일수 − 총사용일수"
                   outlined
                   type="number"
-                  min="0"
-                  placeholder="0"
+                  step="any"
+                  inputmode="decimal"
+                  placeholder="자동 계산"
                   suffix="일"
                 />
               </div>
@@ -336,12 +346,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { Notify, useQuasar, type QInput } from 'quasar'
 import { addManualItem, updateManualItem, type ManualItem, type ManualItemCreate, type ManualItemSection } from 'src/services/pm/reports'
 import { listPmUsers } from 'src/services/pm/users'
 import { getErrorMessage } from 'src/utils/http/error'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
+import { attendanceRemaining, validAttendanceDays } from 'src/utils/reportAttendance'
 
 const $q = useQuasar()
 
@@ -451,6 +462,7 @@ const EMPTY_FORM: FormType = {
 }
 
 const form = ref<FormType>({ ...EMPTY_FORM })
+const remainingDays = computed(() => attendanceRemaining(form.value.category, form.value.item_type))
 
 watch(() => props.modelValue, (open) => {
   if (!open) return
@@ -478,7 +490,12 @@ function close() {
 
 async function save() {
   if (!form.value.title.trim()) {
-    Notify.create({ type: 'warning', message: '제목을 입력해주세요.' })
+    Notify.create({ type: 'warning', message: props.section === 'ATTENDANCE' ? '성명을 입력해주세요.' : '제목을 입력해주세요.' })
+    return
+  }
+
+  if (props.section === 'ATTENDANCE' && (!validAttendanceDays(form.value.category) || !validAttendanceDays(form.value.item_type))) {
+    Notify.create({ type: 'warning', message: '발생일수와 총사용일수는 0 이상의 숫자로 입력해주세요. 소수도 입력할 수 있습니다.' })
     return
   }
 
@@ -495,6 +512,13 @@ async function save() {
   if (form.value.options)            payload.options = form.value.options
   if (form.value.requested_decision) payload.requested_decision = form.value.requested_decision
   if (form.value.desired_date)       payload.desired_date = form.value.desired_date
+
+  if (props.section === 'ATTENDANCE') {
+    // Send explicit nulls when an input is cleared, including when editing.
+    payload.category = form.value.category?.trim() || null
+    payload.item_type = form.value.item_type?.trim() || null
+    payload.action_plan = remainingDays.value
+  }
 
   saving.value = true
   try {

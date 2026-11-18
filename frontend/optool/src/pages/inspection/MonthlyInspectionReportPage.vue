@@ -3,21 +3,6 @@
     <div class="report-shell">
       <header class="report-toolbar screen-only bo-page-heading" :class="{ 'report-toolbar--detail': report }">
         <div class="toolbar-left">
-          <q-btn
-            flat
-            round
-            dense
-            icon="arrow_back"
-            :to="
-              report
-                ? {
-                    path: '/inspection/monthly-reports',
-                    query: { month: report.month, kind: report.kind || 'RESULT' },
-                  }
-                : { path: '/inspection/tasks', query: { month } }
-            "
-            :aria-label="report ? '보고서 목록' : '월간 작업으로 돌아가기'"
-          />
           <div>
             <h1 class="bo-page-title">점검 {{ documentLabel }}</h1>
             <p class="bo-page-description">
