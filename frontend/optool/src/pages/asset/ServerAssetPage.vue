@@ -65,7 +65,7 @@
               <q-item-section>컬럼 상세보기</q-item-section>
             </q-item>
             <q-separator />
-            <q-item clickable v-close-popup @click="downloadTemplate">
+            <q-item clickable v-close-popup @click="templateChoiceDialog = true">
               <q-item-section avatar><q-icon name="file_download" /></q-item-section>
               <q-item-section>템플릿 다운로드</q-item-section>
             </q-item>
@@ -598,6 +598,35 @@
     </q-card>
 
     <!-- Create dialog -->
+    <q-dialog v-model="templateChoiceDialog">
+      <q-card style="width: 460px; max-width: 90vw">
+        <q-card-section class="row items-center">
+          <div class="text-h6">템플릿 다운로드</div>
+          <q-space />
+          <q-btn flat round dense icon="close" v-close-popup aria-label="닫기" />
+        </q-card-section>
+        <q-separator />
+        <q-list separator>
+          <q-item clickable v-close-popup @click="downloadTemplate">
+            <q-item-section avatar><q-icon name="table_view" color="primary" /></q-item-section>
+            <q-item-section>
+              <q-item-label>전체 자산</q-item-label>
+              <q-item-label caption>자산 기본 정보용 · 이 화면의 Import (엑셀)로 등록</q-item-label>
+            </q-item-section>
+            <q-item-section side><q-icon name="download" /></q-item-section>
+          </q-item>
+          <q-item clickable v-close-popup @click="downloadHardwareTemplate">
+            <q-item-section avatar><q-icon name="memory" color="primary" /></q-item-section>
+            <q-item-section>
+              <q-item-label>서버 자산 하드웨어 정보</q-item-label>
+              <q-item-label caption>CPU·메모리·디스크 등 · 전용 일괄 등록 스크립트로 적용</q-item-label>
+            </q-item-section>
+            <q-item-section side><q-icon name="download" /></q-item-section>
+          </q-item>
+        </q-list>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="createDialog" @hide="createOverrideCategory = ''">
       <q-card class="server-form-card">
         <!-- 상단: 호스트명 & IP 강조 필드 -->
@@ -4676,8 +4705,10 @@ const DEFAULT_TEMPLATE_COLS: TemplateCol[] = [
     }),
 ]
 
+const templateChoiceDialog = ref(false)
+
 function downloadTemplate() {
-  const cat = category.value
+  const cat = ''
   const baseCols = CATEGORY_TEMPLATE_COLS[cat] ?? DEFAULT_TEMPLATE_COLS
 
   // 페이지와 동일한 순서로 정렬
@@ -4703,6 +4734,13 @@ function downloadTemplate() {
   const sheetName = cat || '전체자산'
   XLSX.utils.book_append_sheet(wb, ws, sheetName)
   XLSX.writeFile(wb, `${sheetName}_템플릿.xlsx`)
+}
+
+function downloadHardwareTemplate() {
+  const link = document.createElement('a')
+  link.href = '/templates/server-hardware-bulk.xlsx'
+  link.download = '서버자산_하드웨어정보_템플릿.xlsx'
+  link.click()
 }
 
 /** Import */

@@ -1,0 +1,50 @@
+# 서버 자산 하드웨어 정보 일괄 등록
+
+양식: `outputs/server-hardware-import/서버하드웨어_IP_일괄등록.xlsx` (또는 자산 화면에서 다운로드)
+실행기: `scripts/import_server_hardware.py`
+
+이전 `서버하드웨어_일괄등록.xlsx`는 Asset ID 방식이므로 사용하지 마세요.
+
+이 도구는 **기존 서버 자산의 하드웨어 정보만** 갱신합니다. 자산을 새로 만들거나 일반 자산 필드를 변경하지 않습니다. Python 3.12와 프로젝트 `requirements.txt`의 `openpyxl`, `pydantic`이 필요합니다.
+
+## Excel 작성
+
+- 모든 데이터 행의 `ip`에 자산 화면에 표시되는 서버 IP를 입력합니다. 기존 서버 자산과 IP가 정확히 일치해야 합니다. 같은 IP의 서버가 없거나 여러 대이면 적용하지 않습니다.
+- `Servers`는 서버당 한 행입니다. `serverName`은 선택사항이지만 입력하면 현재 서버명과 일치하는지 검사합니다.
+- `MemorySlots`, `Disks`, `Partitions`, `Networks`, `GPUs`는 같은 IP를 반복해 서버당 여러 행을 입력할 수 있습니다.
+- 기존 목록 항목은 다음 값으로 식별합니다: 메모리 슬롯 `slot`, 디스크 `name`, 파티션 `mountPoint`+`source`, 네트워크 `name`, GPU `manufacturer`+`productName`.
+- 빈 칸은 기존 값을 유지합니다. 새 목록 행은 추가하며, 기존 목록 항목은 삭제하지 않습니다. 의도적인 빈 값으로 지우는 기능은 없습니다.
+- 숫자 열에는 단위 문자 없이 숫자만 입력합니다. `hardware.biosDate`는 `YYYY-MM-DD` 형식입니다.
+- 양식의 첫 행은 자산 상세 화면의 하드웨어 정보 항목명과 같습니다. `Servers` 시트에는 제조사·버전처럼 반복되는 이름을 구분하기 위해 `메인보드 상세 · 제조사`처럼 상세 제목을 붙였습니다. 헤더 이름을 임의로 바꾸지 마세요. `Guide` 시트에 입력 규칙이 있습니다.
+
+## 실행
+
+자산 수정 권한이 있는 계정의 로그인 토큰을 환경 변수로 설정합니다. 토큰을 명령줄 인수나 Excel 파일에 적지 마세요.
+
+PowerShell:
+
+```powershell
+$env:ASSET_IMPORT_TOKEN = '<로그인 토큰>'
+python -m scripts.import_server_hardware preview 'outputs/server-hardware-import/서버하드웨어_IP_일괄등록.xlsx' --base-url 'http://localhost:9000/api' --output 'hardware-plan.json'
+```
+
+Linux/macOS:
+
+```bash
+export ASSET_IMPORT_TOKEN='<로그인 토큰>'
+python -m scripts.import_server_hardware preview outputs/server-hardware-import/서버하드웨어_IP_일괄등록.xlsx --base-url http://localhost:9000/api --output hardware-plan.json
+```
+
+미리보기는 서버를 수정하지 않고 다음 세 파일을 생성합니다.
+
+- `hardware-plan.json`: 적용할 하드웨어 정보와 조회 당시 자산 버전
+- `hardware-plan.changes.csv`: 항목별 변경 전·후 값
+- `hardware-plan.backup.json`: 변경 대상 서버의 적용 전 자산 데이터
+
+변경표와 백업을 검토한 뒤 적용합니다.
+
+```bash
+python -m scripts.import_server_hardware apply hardware-plan.json --base-url http://localhost:9000/api --confirm
+```
+
+적용 주소는 미리보기 주소와 일치해야 합니다. 적용 직전에 모든 대상의 IP, 내부 자산 ID, 버전, 하드웨어 정보가 미리보기 당시와 같은지 검사합니다. 다른 사용자가 수정했다면 쓰기 전에 중단합니다. 적용 중 오류가 나면 이미 적용된 앞선 서버는 자동 롤백되지 않으므로 출력된 완료 건을 확인하고 새 미리보기를 생성하세요. API의 일반 변경 이력은 각 자산 변경에 기록됩니다. JSON 백업은 이 작업의 대상 자산 스냅샷이며 전체 MongoDB 백업은 아닙니다.
