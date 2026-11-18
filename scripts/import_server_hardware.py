@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import ipaddress
 import json
 import os
 import sys
@@ -69,7 +68,7 @@ NUMERIC_TYPES = {
 # The Servers sheet repeats labels such as 제조사, so it includes the section title.
 HEADER_LABELS = {
     'Servers': {
-        'ip': '서버 IP', 'serverName': '서버명',
+        'hostName': 'HostName',
         'hardware.boardManufacturer': '메인보드 상세 · 제조사',
         'hardware.boardModel': '메인보드 상세 · 제품명',
         'hardware.boardVersion': '메인보드 상세 · 버전',
@@ -97,14 +96,14 @@ HEADER_LABELS = {
         'memory.totalSlots': '메모리 정보 · 전체 슬롯 수',
     },
     'MemorySlots': {
-        'ip': '서버 IP', 'slot': '메모리 슬롯', 'status': '장착 상태',
+        'hostName': 'HostName', 'slot': '메모리 슬롯', 'status': '장착 상태',
         'manufacturer': '제조사', 'partNumber': 'Part Number',
         'model': '모델명', 'specification': '사양', 'type': '메모리 타입',
         'formFactor': 'Form Factor', 'speed': 'Speed',
         'sizeBytes': 'Size (byte)', 'capacityGb': 'Size (GB)', 'serial': 'Serial',
     },
     'Disks': {
-        'ip': '서버 IP', 'name': '장치명', 'kernelName': '커널명',
+        'hostName': 'HostName', 'name': '장치명', 'kernelName': '커널명',
         'parent': '부모 커널명', 'type': '장치 종류', 'filesystem': '파일시스템 종류',
         'uuid': 'UUID', 'mountPoint': '마운트 경로', 'sizeBytes': 'Size',
         'partitionLabel': '파티션 라벨', 'filesystemLabel': '파일시스템 라벨',
@@ -112,18 +111,18 @@ HEADER_LABELS = {
         'serial': 'Serial', 'capacity': '용량 원문',
     },
     'Partitions': {
-        'ip': '서버 IP', 'mountPoint': '마운트 경로', 'source': '마운트 소스',
+        'hostName': 'HostName', 'mountPoint': '마운트 경로', 'source': '마운트 소스',
         'sizeBytes': 'Size (byte)', 'usedBytes': 'Used (byte)',
         'availableBytes': 'Avail (byte)', 'usedPercent': 'Used (%)',
         'filesystem': '파일시스템 타입',
     },
     'Networks': {
-        'ip': '서버 IP', 'name': '네트워크 인터페이스', 'ipv4': 'IP',
+        'hostName': 'HostName', 'name': '네트워크 인터페이스', 'ipv4': 'IP',
         'netmask': 'netmask', 'gateway': 'gateway',
         'bondingOptions': 'bonding 옵션',
     },
     'GPUs': {
-        'ip': '서버 IP', 'manufacturer': 'GPU 제조사',
+        'hostName': 'HostName', 'manufacturer': 'GPU 제조사',
         'productName': 'GPU 제품명', 'coreCodename': 'GPU 코어 코드네임',
     },
 }
@@ -141,12 +140,12 @@ def camel(name: str) -> str:
 
 def allowed_columns(sheet: str) -> set[str]:
     if sheet == 'Servers':
-        return {'ip', 'serverName'} | {
+        return {'hostName'} | {
             section + '.' + camel(field)
             for section in SHEETS['Servers'] for field in MODEL_FIELDS[section]
         }
     model = LIST_MODELS[sheet].__args__[0]
-    return {'ip'} | {camel(field) for field in model.model_fields}
+    return {'hostName'} | {camel(field) for field in model.model_fields}
 
 
 def cell_value(value: Any, column: str, sheet: str) -> Any:
@@ -197,8 +196,8 @@ def read_rows(path: Path) -> dict[str, list[dict[str, Any]]]:
                 raise ValueError(f'{name}: 헤더가 없습니다')
             columns = [header_key(name, str(item).strip()) if item is not None else '' for item in header]
             columns = columns[:max((i + 1 for i, col in enumerate(columns) if col), default=0)]
-            if not columns or columns[0] != 'ip' or len(columns) != len(set(columns)):
-                raise ValueError(f'{name}: 첫 열은 ip여야 하고 헤더는 중복될 수 없습니다')
+            if not columns or columns[0] != 'hostName' or len(columns) != len(set(columns)):
+                raise ValueError(f'{name}: 첫 열은 HostName이어야 하고 헤더는 중복될 수 없습니다')
             unknown = set(columns) - allowed_columns(name)
             if unknown:
                 raise ValueError(f'{name}: 알 수 없는 열: {", ".join(sorted(unknown))}')
@@ -213,12 +212,9 @@ def read_rows(path: Path) -> dict[str, list[dict[str, Any]]]:
                             for i, col in enumerate(columns)}
                 except ValueError as exc:
                     raise ValueError(f'{name} {row_number}행: {exc}') from exc
-                if not item.get('ip'):
-                    raise ValueError(f'{name} {row_number}행: ip가 없습니다')
-                try:
-                    item['ip'] = str(ipaddress.ip_address(item['ip']))
-                except ValueError as exc:
-                    raise ValueError(f'{name} {row_number}행: 유효한 IP 주소가 필요합니다') from exc
+                if not item.get('hostName'):
+                    raise ValueError(f'{name} {row_number}행: HostName이 없습니다')
+                item['hostName'] = str(item['hostName']).strip().casefold()
                 item['_row'] = row_number
                 result[name].append(item)
         return result
@@ -235,11 +231,11 @@ def identity(sheet: str, item: dict[str, Any]) -> tuple[str, ...]:
 
 
 def merge_system_info(existing: dict[str, Any] | None, rows: dict[str, list[dict[str, Any]]],
-                      ip: str) -> dict[str, Any]:
+                      host_name: str) -> dict[str, Any]:
     info = SystemInformation.model_validate(existing or {}).model_dump(mode='json', by_alias=True)
-    single = [row for row in rows['Servers'] if row['ip'] == ip]
+    single = [row for row in rows['Servers'] if row['hostName'] == host_name]
     if len(single) > 1:
-        raise ValueError(f'{ip}: Servers 시트에 중복 행이 있습니다')
+        raise ValueError(f'{host_name}: Servers 시트에 중복 행이 있습니다')
     if single:
         for column, value in single[0].items():
             if value is None or '.' not in column:
@@ -247,12 +243,12 @@ def merge_system_info(existing: dict[str, Any] | None, rows: dict[str, list[dict
             section, field = column.split('.', 1)
             info[section][field] = value
     for sheet, section in LIST_SECTION.items():
-        incoming = [row for row in rows[sheet] if row['ip'] == ip]
+        incoming = [row for row in rows[sheet] if row['hostName'] == host_name]
         seen: set[tuple[str, ...]] = set()
         for row in incoming:
             key = identity(sheet, row)
             if key in seen:
-                raise ValueError(f'{ip}: {sheet} 시트에 중복 항목 {key}가 있습니다')
+                raise ValueError(f'{host_name}: {sheet} 시트에 중복 항목 {key}가 있습니다')
             seen.add(key)
             current = next((entry for entry in info[section]
                             if tuple(str(entry.get(field) or '').strip() for field in KEY_FIELDS[sheet]) == key), None)
@@ -260,7 +256,7 @@ def merge_system_info(existing: dict[str, Any] | None, rows: dict[str, list[dict
                 current = {field: value for field, value in zip(KEY_FIELDS[sheet], key)}
                 info[section].append(current)
             for field, value in row.items():
-                if field not in ('ip', '_row') and value is not None:
+                if field not in ('hostName', '_row') and value is not None:
                     current[field] = value
     return SystemInformation.model_validate(info).model_dump(mode='json', by_alias=True)
 
@@ -308,35 +304,28 @@ def changed_values(before: Any, after: Any, path: str = '') -> list[tuple[str, A
 
 def preview(args: argparse.Namespace) -> None:
     rows = read_rows(args.workbook)
-    targets = {str(row['ip']) for sheet_rows in rows.values() for row in sheet_rows}
+    targets = {str(row['hostName']) for sheet_rows in rows.values() for row in sheet_rows}
     if not targets:
         raise ValueError('입력된 자산이 없습니다')
     token = api_token()
     assets = request_json(token, 'GET', api_url(args.base_url), params={'category': '서버'})
-    by_ip: dict[str, list[dict[str, Any]]] = {}
+    by_name: dict[str, list[dict[str, Any]]] = {}
     for asset in assets:
-        if not asset.get('is_deleted') and asset.get('ip'):
-            try:
-                ip = str(ipaddress.ip_address(str(asset['ip']).strip()))
-            except ValueError:
-                continue
-            by_ip.setdefault(ip, []).append(asset)
-    missing = sorted(ip for ip in targets if len(by_ip.get(ip, [])) != 1)
+        if not asset.get('is_deleted') and asset.get('name'):
+            by_name.setdefault(str(asset['name']).strip().casefold(), []).append(asset)
+    missing = sorted(name for name in targets if len(by_name.get(name, [])) != 1)
     if missing:
-        raise ValueError('IP에 해당하는 서버가 없거나 중복됩니다: ' + ', '.join(missing))
+        raise ValueError('HostName에 해당하는 서버가 없거나 중복됩니다: ' + ', '.join(missing))
     changes = []
     backups = []
-    for ip in sorted(targets):
-        asset = by_ip[ip][0]
-        row = next((row for row in rows['Servers'] if row['ip'] == ip), None)
-        if row and row.get('serverName') and row['serverName'] != asset['name']:
-            raise ValueError(f'{ip}: 서버명 불일치 (Excel: {row["serverName"]}, 현재: {asset["name"]})')
-        updated = merge_system_info(asset.get('system_info'), rows, ip)
+    for host_name in sorted(targets):
+        asset = by_name[host_name][0]
+        updated = merge_system_info(asset.get('system_info'), rows, host_name)
         current = SystemInformation.model_validate(asset.get('system_info') or {}).model_dump(mode='json', by_alias=True)
         if updated == current:
             continue
         backups.append(asset)
-        changes.append({'ip': ip, 'assetId': asset.get('asset_id'), 'id': asset['id'], 'name': asset['name'],
+        changes.append({'hostName': host_name, 'assetId': asset.get('asset_id'), 'id': asset['id'], 'name': asset['name'],
                         'version': asset.get('version') or 1, 'before': current, 'after': updated})
     output = args.output
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -348,15 +337,15 @@ def preview(args: argparse.Namespace) -> None:
     report_path = output.with_name(output.stem + '.changes.csv')
     with report_path.open('w', encoding='utf-8-sig', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['ip', 'serverName', 'field', 'before', 'after'])
+        writer.writerow(['HostName', 'field', 'before', 'after'])
         for change in changes:
             for field, before, after in changed_values(change['before'], change['after']):
-                writer.writerow([change['ip'], change['name'], field,
+                writer.writerow([change['hostName'], field,
                                  json.dumps(before, ensure_ascii=False), json.dumps(after, ensure_ascii=False)])
     print(f'미리보기: 대상 {len(targets)}건, 변경 {len(changes)}건, 변경 없음 {len(targets) - len(changes)}건')
     print(f'계획: {output}\n변경표: {report_path}\n자산 백업: {output.with_name(output.stem + ".backup.json")}')
     for change in changes:
-        print(f'  {change["ip"]} | {change["name"]} | version {change["version"]}')
+        print(f'  {change["hostName"]} | {change["name"]} | version {change["version"]}')
 
 
 def apply(args: argparse.Namespace) -> None:
@@ -368,27 +357,28 @@ def apply(args: argparse.Namespace) -> None:
         raise ValueError('적용 서버 주소가 미리보기의 서버 주소와 다릅니다')
     token = api_token()
     changes = plan['changes']
-    if any('ip' not in change or 'assetId' not in change for change in changes):
-        raise ValueError('이전 assetId 양식의 계획입니다. IP 템플릿으로 미리보기를 다시 생성하세요')
+    if any('hostName' not in change or 'assetId' not in change for change in changes):
+        raise ValueError('이전 양식의 계획입니다. HostName 템플릿으로 미리보기를 다시 생성하세요')
     # Preflight all assets before the first write. Version is checked again by the API.
     active_assets = request_json(token, 'GET', api_url(base_url), params={'category': '서버'})
     for change in changes:
         matches = [asset for asset in active_assets
-                   if not asset.get('is_deleted') and asset.get('ip') == change['ip']]
+                   if not asset.get('is_deleted') and str(asset.get('name') or '').strip().casefold() == change['hostName']]
         if len(matches) != 1 or matches[0]['id'] != change['id']:
-            raise ValueError(f'{change["ip"]}: 서버 IP 매칭이 미리보기 이후 변경되어 적용을 중단합니다')
+            raise ValueError(f'{change["hostName"]}: HostName 매칭이 미리보기 이후 변경되어 적용을 중단합니다')
     for change in changes:
         current = request_json(token, 'GET', api_url(base_url, change['id']), params={'category': '서버'})
-        if (current.get('ip') != change['ip'] or current.get('asset_id') != change['assetId']
+        if (str(current.get('name') or '').strip().casefold() != change['hostName']
+                or current.get('asset_id') != change['assetId']
                 or current.get('version') != change['version']):
-            raise ValueError(f'{change["ip"]}: IP, 자산 ID 또는 버전이 변경되어 적용을 중단합니다')
+            raise ValueError(f'{change["hostName"]}: HostName, 자산 ID 또는 버전이 변경되어 적용을 중단합니다')
         actual_info = SystemInformation.model_validate(current.get('system_info') or {}).model_dump(mode='json', by_alias=True)
         if actual_info != change['before']:
-            raise ValueError(f'{change["ip"]}: 하드웨어 정보가 변경되어 적용을 중단합니다')
+            raise ValueError(f'{change["hostName"]}: 하드웨어 정보가 변경되어 적용을 중단합니다')
     for index, change in enumerate(changes, 1):
         request_json(token, 'PATCH', api_url(base_url, change['id']), params={'category': '서버'},
                      payload={'version': change['version'], 'system_info': change['after']})
-        print(f'적용 {index}/{len(changes)}: {change["ip"]} | {change["name"]}')
+        print(f'적용 {index}/{len(changes)}: {change["hostName"]} | {change["name"]}')
     print(f'완료: {len(changes)}건')
 
 

@@ -4739,7 +4739,7 @@ function downloadTemplate() {
 function downloadHardwareTemplate() {
   const link = document.createElement('a')
   link.href = '/templates/server-hardware-bulk.xlsx'
-  link.download = '서버자산_하드웨어정보_템플릿.xlsx'
+  link.download = '서버자산_하드웨어정보_HostName_템플릿.xlsx'
   link.click()
 }
 
