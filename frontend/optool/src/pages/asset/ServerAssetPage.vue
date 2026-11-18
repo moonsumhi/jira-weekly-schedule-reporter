@@ -457,7 +457,7 @@
           <!-- NAME -->
           <template #body-cell-name="props">
             <q-td :props="props" :class="{ 'cell-deleted': props.row.isDeleted }">
-              <span>{{ props.row.name }}</span>
+              <span>{{ props.row.fields?.['자산유형'] === '스토리지' ? storageFormIdentity(props.row).__name__ || '-' : props.row.name }}</span>
             </q-td>
           </template>
 
@@ -545,6 +545,12 @@
                 </q-chip>
               </template>
 
+              <template v-else-if="props.row.fields?.['자산유형'] === '스토리지' && ['총물리용량', '사용가능용량', '디스크개별용량'].includes(colKey(props.col))">
+                <span>{{ storageCapacityText({ [colKey(props.col)]: detailEditValue(getField(props.row, colKey(props.col))), [colKey(props.col) + '단위']: detailEditValue(getField(props.row, colKey(props.col) + '단위')) }, colKey(props.col)) }}</span>
+              </template>
+              <template v-else-if="props.row.fields?.['자산유형'] === '소프트웨어' && colKey(props.col) === '구분'">
+                <span>{{ softwareCategoryLabel(displayValue(getField(props.row, '구분'))) }}</span>
+              </template>
               <!-- Normal dynamic field -->
               <template v-else>
                 <span>{{ formatCell(props.col, props.value) }}</span>
@@ -627,13 +633,17 @@
       </q-card>
     </q-dialog>
 
-    <q-dialog v-model="createDialog" @hide="createOverrideCategory = ''">
-      <q-card class="server-form-card">
+    <q-dialog v-model="createDialog" :persistent="actingType === 'create'" @hide="createOverrideCategory = ''">
+      <AssetCategoryFormDialog category="소프트웨어" v-if="activeCreateCategory === '소프트웨어'" v-model="softwareCreateValues" v-model:model-tags="createTags"
+        :saving="actingType === 'create'" @submit="doCreate" @cancel="createDialog = false" />
+      <AssetCategoryFormDialog category="스토리지" v-else-if="activeCreateCategory === '스토리지'" v-model="storageCreateValues" v-model:model-tags="createTags"
+        :saving="actingType === 'create'" @submit="doCreate" @cancel="createDialog = false" />
+      <q-card v-else class="server-form-card">
         <!-- 상단: 호스트명 & IP 강조 필드 -->
         <q-card-section class="q-pb-sm">
           <div class="top-field-row">
-            <span class="top-field-label">호스트명<span class="req-star">*</span>:</span>
-            <q-input v-model="createName" borderless dense class="top-field-input" placeholder="hostname" />
+            <span class="top-field-label">{{ activeCreateCategory === '소프트웨어' ? '관리명' : '호스트명' }}<span class="req-star">*</span>:</span>
+            <q-input v-model="createName" borderless dense class="top-field-input" :placeholder="activeCreateCategory === '소프트웨어' ? '예: 운영 관리 소프트웨어' : 'hostname'" />
           </div>
           <div class="top-field-row q-mt-sm">
             <span class="top-field-label">IP<span v-if="activeCreateCategory !== '소프트웨어'" class="req-star">*</span>:</span>
@@ -660,8 +670,9 @@
               <q-input v-model="createFields['서버명']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
-              <div class="field-label">구분 <span class="req-star">*</span></div>
-              <q-input v-model="createFields['구분']" borderless dense class="field-input" />
+              <div class="field-label">{{ activeCreateCategory === '스토리지' ? '스토리지 유형' : '구분' }} <span class="req-star">*</span></div>
+              <q-select v-if="(activeCreateCategory) === '스토리지'" v-model="createFields['구분']" :options="STORAGE_TYPES" use-input new-value-mode="add-unique" borderless dense class="field-input" aria-label="스토리지 유형" />
+              <q-input v-else v-model="createFields['구분']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">상태</div>
@@ -671,11 +682,11 @@
               <div class="field-label">자산번호 <span class="req-star">*</span></div>
               <q-input v-model="createFields['자산번호']" borderless dense class="field-input" />
             </div>
-            <div class="col-6 form-field">
+            <div v-if="(activeCreateCategory) !== '소프트웨어'" class="col-6 form-field">
               <div class="field-label">RackNo.</div>
               <q-input v-model="createFields['rack_no']" borderless dense readonly class="field-input" placeholder="랙 배치 시 자동" />
             </div>
-            <div class="col-6 form-field">
+            <div v-if="(activeCreateCategory) !== '소프트웨어'" class="col-6 form-field">
               <div class="field-label">Rack Unit No.</div>
               <q-input v-model="createFields['rack_unit_no']" borderless dense readonly class="field-input" placeholder="랙 배치 시 자동" />
             </div>
@@ -687,7 +698,7 @@
               <div class="field-label">SN</div>
               <q-input v-model="createFields['SN']" borderless dense class="field-input" />
             </div>
-            <div class="col-6 form-field">
+            <div v-if="(activeCreateCategory) !== '소프트웨어'" class="col-6 form-field">
               <div class="field-label">위치 <span v-if="!isCreateLocationLocked" class="req-star">*</span></div>
               <q-input
                 v-if="isCreateLocationLocked"
@@ -882,6 +893,7 @@
           </div>
         </q-card-section>
 
+
         <!-- 도입 정보 섹션 -->
         <q-card-section class="q-py-sm">
           <div class="section-title-row">
@@ -901,7 +913,7 @@
               <div class="field-label">소속부서/사업</div>
               <q-input v-model="createFields['소속부서']" borderless dense class="field-input" />
             </div>
-            <div class="col-6 form-field">
+            <div v-if="!isExtendedAssetCategory(activeCreateCategory)" class="col-6 form-field">
               <div class="field-label">제품명(모델명)</div>
               <q-input v-model="createFields['제품명']" borderless dense class="field-input" />
             </div>
@@ -1278,13 +1290,17 @@
     <!-- Export 컬럼 선택 다이얼로그 -->
 
     <!-- Row edit dialog (목록에서 직접 편집할 때 사용) -->
-    <q-dialog v-model="rowEditDialog">
-      <q-card v-if="rowEditTarget" class="server-form-card">
+    <q-dialog v-model="rowEditDialog" :persistent="rowEditSaving">
+      <AssetCategoryFormDialog category="소프트웨어" v-if="rowEditTarget?.fields?.['자산유형'] === '소프트웨어'" v-model="rowEditValues" v-model:model-tags="rowEditTags"
+        editing :own-id="rowEditTarget.id" :saving="rowEditSaving" @submit="doRowEdit" @cancel="rowEditDialog = false" />
+      <AssetCategoryFormDialog category="스토리지" v-else-if="rowEditTarget?.fields?.['자산유형'] === '스토리지'" v-model="rowEditValues" v-model:model-tags="rowEditTags"
+        editing :own-id="rowEditTarget.id" :saving="rowEditSaving" @submit="doRowEdit" @cancel="rowEditDialog = false" />
+      <q-card v-else-if="rowEditTarget" class="server-form-card">
         <!-- 상단: 호스트명 & IP -->
         <q-card-section class="q-pb-sm row items-center">
           <div class="col">
             <div class="top-field-row">
-              <span class="top-field-label">호스트명:</span>
+              <span class="top-field-label">{{ rowEditTarget.fields?.['자산유형'] === '소프트웨어' ? '관리명' : '호스트명' }}:</span>
               <q-input v-model="rowEditValues['__name__']" borderless dense class="top-field-input" />
             </div>
             <div class="top-field-row q-mt-sm">
@@ -1309,8 +1325,9 @@
               <q-input v-model="rowEditValues['서버명']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
-              <div class="field-label">구분</div>
-              <q-input v-model="rowEditValues['구분']" borderless dense class="field-input" />
+              <div class="field-label">{{ rowEditTarget.fields?.['자산유형'] === '스토리지' ? '스토리지 유형' : '구분' }}</div>
+              <q-select v-if="(rowEditTarget?.fields?.['자산유형'] || category) === '스토리지'" v-model="rowEditValues['구분']" :options="STORAGE_TYPES" use-input new-value-mode="add-unique" borderless dense class="field-input" aria-label="스토리지 유형" />
+              <q-input v-else v-model="rowEditValues['구분']" borderless dense class="field-input" />
             </div>
             <div class="col-6 form-field">
               <div class="field-label">상태</div>
@@ -1320,11 +1337,11 @@
               <div class="field-label">자산번호</div>
               <q-input v-model="rowEditValues['자산번호']" borderless dense class="field-input" />
             </div>
-            <div class="col-6 form-field">
+            <div v-if="(rowEditTarget?.fields?.['자산유형'] || category) !== '소프트웨어'" class="col-6 form-field">
               <div class="field-label">RackNo.</div>
               <q-input v-model="rowEditValues['rack_no']" borderless dense readonly class="field-input" placeholder="랙 배치로 관리" />
             </div>
-            <div class="col-6 form-field">
+            <div v-if="(rowEditTarget?.fields?.['자산유형'] || category) !== '소프트웨어'" class="col-6 form-field">
               <div class="field-label">Rack Unit No.</div>
               <q-input v-model="rowEditValues['rack_unit_no']" borderless dense readonly class="field-input" placeholder="랙 배치로 관리" />
             </div>
@@ -1336,7 +1353,7 @@
               <div class="field-label">SN</div>
               <q-input v-model="rowEditValues['SN']" borderless dense class="field-input" />
             </div>
-            <div class="col-6 form-field">
+            <div v-if="(rowEditTarget?.fields?.['자산유형'] || category) !== '소프트웨어'" class="col-6 form-field">
               <div class="field-label">위치</div>
               <q-input
                 v-if="isRowEditLocationLocked"
@@ -1508,6 +1525,7 @@
           </div>
         </q-card-section>
 
+
         <!-- 도입 정보 섹션 -->
         <q-card-section class="q-py-sm">
           <div class="section-title-row">
@@ -1531,7 +1549,7 @@
               <div class="field-label">소속부서/사업</div>
               <q-input v-model="rowEditValues['소속부서']" borderless dense class="field-input" />
             </div>
-            <div class="col-6 form-field">
+            <div v-if="!isExtendedAssetCategory(rowEditTarget?.fields?.['자산유형'] || category) || (rowEditValues['제품명'] && rowEditValues['제품명'] !== rowEditValues['운영체제'])" class="col-6 form-field">
               <div class="field-label">제품명(모델명)</div>
               <q-input v-model="rowEditValues['제품명']" borderless dense class="field-input" />
             </div>
@@ -1729,17 +1747,17 @@
         <q-card-section class="q-pb-sm row items-center" style="flex-shrink: 0;">
           <div class="col">
             <div class="top-field-row">
-              <span class="top-field-label">호스트명:</span>
-              <q-input v-if="detailEditing" v-model="rowEditValues['__name__']" borderless dense class="top-field-input" />
-              <span v-else class="top-field-value">{{ detailTarget.name }}</span>
+              <span class="top-field-label">{{ isSoftwareDetail ? '관리명' : '호스트명' }}:</span>
+              <q-input v-if="detailEditing" v-model="rowEditValues['__name__']" borderless dense class="top-field-input" :aria-label="isSoftwareDetail ? '관리명' : '호스트명'" :disable="rowEditSaving" hide-bottom-space />
+              <span v-else class="top-field-value">{{ isStorageDetail ? storageFormIdentity(detailTarget).__name__ || '-' : detailTarget.name }}</span>
             </div>
-            <div class="top-field-row q-mt-sm asset-detail-ip">
+            <div v-if="!isSoftwareDetail || detailTarget.ip" class="top-field-row q-mt-sm asset-detail-ip">
               <span class="top-field-label">IP:</span>
-              <q-input v-if="detailEditing" v-model="rowEditValues['__ip__']" borderless dense class="top-field-input" />
-              <span v-else class="top-field-value">{{ detailTarget.ip }}</span>
+              <q-input v-if="detailEditing" v-model="rowEditValues['__ip__']" borderless dense class="top-field-input" aria-label="IP" :disable="rowEditSaving" />
+              <span v-else class="top-field-value">{{ detailTarget.ip || '-' }}</span>
             </div>
           </div>
-          <q-btn flat dense round icon="close" class="q-ml-md self-start" @click="closeDetail" />
+          <q-btn flat dense round icon="close" aria-label="상세 닫기" class="q-ml-md self-start" @click="closeDetail" />
         </q-card-section>
 
         <q-tabs
@@ -1758,6 +1776,9 @@
 
         <q-tab-panels v-model="detailTab" animated class="col scroll" style="min-height: 0; overflow-y: auto;">
         <q-tab-panel name="basic" class="q-pa-none">
+          <SoftwareAssetFields v-if="isSoftwareDetail" v-model="typedAssetDetailValues" section="basic" :editing="detailEditing" :disabled="rowEditSaving" :validated="softwareEditValidated" />
+          <StorageAssetFields v-else-if="isStorageDetail" v-model="typedAssetDetailValues" section="basic" :editing="detailEditing" :disabled="rowEditSaving" :validated="storageEditValidated" :own-id="detailTarget.id" />
+          <template v-else>
           <!-- 기본 정보 -->
           <q-card-section class="q-py-sm">
             <div class="section-title-row">
@@ -1773,8 +1794,9 @@
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['서버명']) }}</div>
               </div>
               <div class="col-6 form-field">
-                <div class="field-label">구분</div>
-                <q-input v-if="detailEditing" v-model="rowEditValues['구분']" borderless dense class="field-input" />
+                <div class="field-label">{{ detailTarget.fields?.['자산유형'] === '스토리지' ? '스토리지 유형' : '구분' }}</div>
+                <q-select v-if="detailEditing && detailTarget.fields?.['자산유형'] === '스토리지'" v-model="rowEditValues['구분']" :options="STORAGE_TYPES" use-input new-value-mode="add-unique" borderless dense class="field-input" aria-label="스토리지 유형" />
+                <q-input v-else-if="detailEditing" v-model="rowEditValues['구분']" borderless dense class="field-input" />
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['구분']) }}</div>
               </div>
               <div class="col-6 form-field">
@@ -1792,14 +1814,14 @@
                 <q-input v-if="detailEditing" v-model="rowEditValues['자산번호']" borderless dense class="field-input" />
                 <div v-else class="detail-value">{{ displayValue(detailTarget.assetNo ?? detailTarget.fields?.['자산번호']) }}</div>
               </div>
-              <div class="col-6 form-field">
+              <div v-if="(detailTarget.fields?.['자산유형']) !== '소프트웨어'" class="col-6 form-field">
                 <div class="field-label">RackNo.</div>
                 <div class="detail-value">
                   <template v-if="detailTarget.fields?.['rack_no']">{{ displayValue(detailTarget.fields?.['rack_no']) }}</template>
                   <span v-else class="text-grey-5">랙 배치로 관리 (미배치)</span>
                 </div>
               </div>
-              <div class="col-6 form-field">
+              <div v-if="(detailTarget.fields?.['자산유형']) !== '소프트웨어'" class="col-6 form-field">
                 <div class="field-label">Rack Unit No.</div>
                 <div class="detail-value">
                   <template v-if="detailTarget.fields?.['rack_unit_no']">{{ displayValue(detailTarget.fields?.['rack_unit_no']) }}</template>
@@ -1816,7 +1838,7 @@
                 <q-input v-if="detailEditing" v-model="rowEditValues['SN']" borderless dense class="field-input" />
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['SN']) }}</div>
               </div>
-              <div class="col-6 form-field">
+              <div v-if="(detailTarget.fields?.['자산유형']) !== '소프트웨어'" class="col-6 form-field">
                 <div class="field-label">위치</div>
                 <template v-if="detailEditing">
                   <q-input
@@ -1847,9 +1869,13 @@
               </div>
             </div>
           </q-card-section>
+          </template>
         </q-tab-panel>
 
         <q-tab-panel name="config" class="q-pa-none">
+          <SoftwareAssetFields v-if="isSoftwareDetail" v-model="typedAssetDetailValues" section="config" :editing="detailEditing" :disabled="rowEditSaving" :validated="softwareEditValidated" />
+          <StorageAssetFields v-else-if="isStorageDetail" v-model="typedAssetDetailValues" section="config" :editing="detailEditing" :disabled="rowEditSaving" :validated="storageEditValidated" />
+          <template v-else>
           <!-- 운영체제 / 기종 -->
           <q-card-section class="q-py-sm">
             <div class="section-title-row">
@@ -2057,6 +2083,7 @@
             <CiscoSoftwareLifecycle :fields="detailLifecycleFields" :editable="detailEditing" @change="(key, value) => rowEditValues[key] = value" />
           </q-card-section>
 
+
           <!-- 도입 정보 -->
           <q-card-section class="q-py-sm">
             <div class="section-title-row">
@@ -2079,7 +2106,7 @@
                 <q-input v-if="detailEditing" v-model="rowEditValues['소속부서']" borderless dense class="field-input" />
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['소속부서']) }}</div>
               </div>
-              <div class="col-6 form-field">
+              <div v-if="!isExtendedAssetCategory(detailTarget.fields?.['자산유형']) || (detailTarget.fields?.['제품명'] && detailTarget.fields['제품명'] !== detailTarget.fields['운영체제'])" class="col-6 form-field">
                 <div class="field-label">제품명(모델명)</div>
                 <q-input v-if="detailEditing" v-model="rowEditValues['제품명']" borderless dense class="field-input" />
                 <div v-else class="detail-value">{{ displayValue(detailTarget.fields?.['제품명']) }}</div>
@@ -2254,6 +2281,7 @@
               </div>
             </div>
           </q-card-section>
+          </template>
         </q-tab-panel>
 
         <!-- 패널 순서를 위 탭과 맞춰 슬라이드 방향을 유지한다. -->
@@ -2262,8 +2290,10 @@
             :editing="detailEditing" :disabled="rowEditSaving" @update:model-value="value => rowEditSystemInfo = value" />
         </q-tab-panel>
 
-        <q-tab-panel name="location" class="q-pa-md">
-          <div class="row q-col-gutter-x-lg q-col-gutter-y-md">
+        <q-tab-panel name="location" :class="isSoftwareDetail ? 'q-pa-none' : 'q-pa-md'">
+          <SoftwareAssetFields v-if="isSoftwareDetail" v-model="typedAssetDetailValues" section="usage" :editing="detailEditing" :own-id="detailTarget.id" :disabled="rowEditSaving" :validated="softwareEditValidated" />
+          <p v-if="isStorageDetail" class="text-caption q-mb-lg" style="color: var(--bo-muted)">장비의 물리 위치는 랙 배치도에서 관리합니다.</p>
+          <div v-if="detailTarget.fields?.['자산유형'] !== '소프트웨어'" class="row q-col-gutter-x-lg q-col-gutter-y-md">
             <div class="col-6 form-field">
               <div class="field-label">위치(서버실)</div>
               <div class="detail-value">{{ displayValue(detailTarget.fields?.['위치']) || '-' }}</div>
@@ -2285,6 +2315,10 @@
           </div>
           <q-btn v-if="detailTarget.fields?.['rack_no']" flat dense no-caps color="primary" icon="grid_view"
             label="랙 배치도에서 보기" class="q-mt-md" @click="goToRack()" />
+          <StorageAssetFields v-if="isStorageDetail" v-model="typedAssetDetailValues" section="location" :editing="detailEditing" :disabled="rowEditSaving" :validated="storageEditValidated" :own-id="detailTarget.id" class="storage-location-links" />
+          <AssetSoftwareConnections v-if="['서버', 'VMware'].includes(String(detailTarget.fields?.['자산유형'] || '서버'))"
+            :key="detailTarget.id" :asset-id="detailTarget.id" :category="String(detailTarget.fields?.['자산유형'] || '서버')"
+            :asset-deleted="!!detailTarget.isDeleted" :disabled="detailEditing" @navigate="closeDetail" @updated="onLinkedSoftwareUpdated" />
         </q-tab-panel>
 
         <q-tab-panel name="work-documents" class="q-pa-md">
@@ -2894,6 +2928,13 @@ import {
 } from './assetKeys'
 import { assetCategories, editableAssetCategories } from 'src/services/assetLinks'
 import { CATEGORY_TEMPLATE_COLS, type TemplateCol } from './assetTemplateColumns'
+import AssetCategoryFormDialog from 'src/components/asset/AssetCategoryFormDialog.vue'
+import SoftwareAssetFields from 'src/components/asset/SoftwareAssetFields.vue'
+import StorageAssetFields from 'src/components/asset/StorageAssetFields.vue'
+import { STORAGE_FORM_FIELDS, STORAGE_IDENTITY, storageErrors, storageTextFields, storageCapacityText, storageRecordName, storageFormIdentity } from 'src/utils/storageAssetForm'
+import { SOFTWARE_FORM_FIELDS, SOFTWARE_PRODUCT, softwareCategoryLabel, softwareErrors, softwareTextFields } from 'src/utils/softwareAssetForm'
+import AssetSoftwareConnections from 'src/components/asset/AssetSoftwareConnections.vue'
+import { ALL_DETAIL_FIELDS, DETAIL_FIELD_KEYS, LINKED_ASSET_KEY, STORAGE_TYPES, detailEditValue, detailPayload } from 'src/utils/assetTypeDetails'
 
 const vadaOptions = [
   { label: 'O', value: 'O' },
@@ -3037,6 +3078,8 @@ function fieldLabel(key: string): string {
 }
 
 const FIELD_LABEL_MAP: Record<string, string> = {
+  ...Object.fromEntries(ALL_DETAIL_FIELDS.flatMap(f => [[f.key, f.label], ...(f.unitKey ? [[f.unitKey, `${f.label} 단위`]] : [])])),
+  [LINKED_ASSET_KEY]: '연결 자산 ID',
   '상태': '상태',
   rack_no: 'RackNo.',
   rack_unit_no: 'Rack Unit No.',
@@ -3330,17 +3373,17 @@ function getSortVal(row: ServerAsset, key: string): string {
   // 로케일 정렬 규칙상 '-' 문자 위치(항상 맨 앞/뒤가 아님)에 끼어들어 순서가 뒤섞인다.
   // 정렬용으로는 빈 값을 빈 문자열로 둬서 항상 한쪽 끝에 모이게 한다.
   if (v === null || v === undefined || v === '') return ''
+  if (row.fields?.['자산유형'] === '소프트웨어' && key === '구분') return softwareCategoryLabel(displayValue(v))
   return displayValue(v)
 }
 
 // 검색 대상 컬럼 옵션 — IP, HostName + 현재 보이는 동적 필드
-const filterColOptions = computed(() => [
-  { key: '__ip__',   label: 'IP' },
-  { key: '__name__', label: 'HostName' },
-  ...COLUMN_DISPLAY_ORDER
-    .filter((k) => k !== '__ip__' && k !== '__name__')
-    .map((k) => ({ key: k, label: fieldLabel(k as string) })),
-])
+const filterColOptions = computed(() => {
+  const keys = category.value === '소프트웨어'
+    ? ['__name__', ...SOFTWARE_FORM_FIELDS.map(f => f.key), TAGS_KEY]
+    : category.value === '스토리지' ? [...STORAGE_FORM_FIELDS.map(f => f.key), TAGS_KEY] : ['__ip__', '__name__', ...COLUMN_DISPLAY_ORDER]
+  return [...new Set(keys)].map(key => ({ key, label: assetColumnLabel(key) }))
+})
 
 // 선택된 컬럼의 고유값 목록 (50개 이하일 때만 드롭다운 표시)
 const _filterColAllValues = computed<string[]>(() => {
@@ -3357,7 +3400,8 @@ const _filterColAllValues = computed<string[]>(() => {
       const tags = r.fields?.[TAGS_KEY]
       if (Array.isArray(tags)) (tags as string[]).forEach(t => t && set.add(t))
     } else {
-      const raw = displayValue(r.fields?.[col])
+      const raw = r.fields?.['자산유형'] === '소프트웨어' && col === '구분'
+        ? softwareCategoryLabel(displayValue(r.fields?.[col])) : displayValue(r.fields?.[col])
       if (raw && raw !== '-') set.add(raw)
     }
   }
@@ -3451,6 +3495,19 @@ function colKey(col: unknown): string {
   return ''
 }
 
+function assetColumnLabel(key: string): string {
+  if (category.value === '스토리지') {
+    const field = STORAGE_FORM_FIELDS.find(f => f.key === key)
+    if (field) return field.label
+  }
+  if (category.value === '소프트웨어') {
+    if (key === '__name__' || key === '서버명') return '소프트웨어명'
+    const field = SOFTWARE_FORM_FIELDS.find(f => f.key === key)
+    if (field) return field.label
+  }
+  return key === '__name__' ? 'HostName' : key === '__ip__' ? 'IP' : key === 'createdAt' ? '작성일' : fieldLabel(key)
+}
+
 // 컬럼 표시 순서 — '__ip__'/'__name__'은 IP/HostName 고정 컬럼 위치 마커
 const COLUMN_DISPLAY_ORDER = [
   '상태', 'rack_no', 'rack_unit_no', '구분', '자산번호', '자산관리번호', 'SN', '__ip__', '__name__', '서버명', '설명', '운영체제', 'version', '제조사', '수량', '용도', '소속부서', '위치',
@@ -3464,16 +3521,22 @@ const COL_OPTIONS = [
     if (k === '__name__') return { key: '__name__', label: 'HostName' }
     return { key: k, label: fieldLabel(k) }
   }),
+  ...ALL_DETAIL_FIELDS.map(f => ({ key: f.key, label: f.label })),
   { key: 'createdAt', label: '작성일' },
 ]
 
-const CATEGORY_DEFAULT_COLS: Record<string, string[]> = {}
+const CATEGORY_DEFAULT_COLS: Record<string, string[]> = { '스토리지': ['서버명', '구분', '운영체제', '총물리용량', '사용가능용량', '상태'], '소프트웨어': ['__name__', '구분', 'version', '자산번호', '사용권형태', '사용권만료일', '상태'] }
 const DEFAULT_COL_KEYS = ['__ip__', '__name__', '자산번호', EOS_STATUS_KEY]
 
 function loadColKeys(cat: string): string[] {
   try {
     const saved = localStorage.getItem(`asset-col-vis:${cat}`)
-    if (saved) return JSON.parse(saved) as string[]
+    if (saved) {
+      const keys = JSON.parse(saved) as string[]
+      const oldStorageDefaults = ['__name__', '구분', '운영체제', '총물리용량', '사용가능용량', '상태']
+      if (cat === '스토리지' && JSON.stringify(keys) === JSON.stringify(oldStorageDefaults)) return [...CATEGORY_DEFAULT_COLS['스토리지']!]
+      if (!isExtendedAssetCategory(cat) || JSON.stringify(keys) !== JSON.stringify(DEFAULT_COL_KEYS)) return keys
+    }
   } catch { /* ignore */ }
   return [...(CATEGORY_DEFAULT_COLS[cat] ?? DEFAULT_COL_KEYS)]
 }
@@ -3491,11 +3554,11 @@ function buildColItems(visibleKeys: string[]): ColItem[] {
     .filter((k) => COL_OPTIONS.find((c) => c.key === k))
     .map((k) => {
       const opt = COL_OPTIONS.find((c) => c.key === k)!
-      return { key: k, label: opt.label, visible: true }
+      return { key: k, label: assetColumnLabel(opt.key), visible: true }
     })
   const rest = COL_OPTIONS
     .filter((c) => !visSet.has(c.key))
-    .map((c) => ({ key: c.key, label: c.label, visible: false }))
+    .map((c) => ({ key: c.key, label: assetColumnLabel(c.key), visible: false }))
   return [...ordered, ...rest]
 }
 
@@ -3586,11 +3649,12 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
   function makeFieldCol(k: string) {
     const base = {
       name: 'field',
-      label: fieldLabel(k),
+      label: assetColumnLabel(k),
       field: (row: unknown) => {
         if (typeof row === 'object' && row !== null) {
           const r = row as ServerAsset
           if (k === '자산번호') return r.assetNo ?? r.fields?.[k]
+          if (k === '서버명' && r.fields?.['자산유형'] === '스토리지') return storageFormIdentity(r)['서버명']
           return r.fields?.[k]
         }
         return undefined
@@ -3642,7 +3706,7 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
     if (key === '__ip__') {
       result.push({ name: 'ip', label: 'IP', field: 'ip', align: 'left', sortable: true })
     } else if (key === '__name__') {
-      result.push({ name: 'name', label: 'HostName', field: 'name', align: 'left', sortable: true })
+      result.push({ name: 'name', label: assetColumnLabel('__name__'), field: 'name', align: 'left', sortable: true })
     } else if (key !== 'createdAt') {
       result.push(makeFieldCol(key))
     }
@@ -3722,7 +3786,8 @@ const filteredRows = computed(() => {
           (r.assetId ?? '').toLowerCase().includes(q) ||
           r.ip.toLowerCase().includes(q) ||
           r.name.toLowerCase().includes(q) ||
-          Object.values(r.fields ?? {}).some((v) => displayValue(v).toLowerCase().includes(q))
+          Object.values(r.fields ?? {}).some((v) => displayValue(v).toLowerCase().includes(q)) ||
+          (r.fields?.['자산유형'] === '소프트웨어' && softwareCategoryLabel(displayValue(r.fields?.['구분'])).toLowerCase().includes(q))
       } else if (col === '__asset_id__') {
         matchText = (r.assetId ?? '').toLowerCase().includes(q)
       } else if (col === '__ip__') {
@@ -3735,7 +3800,8 @@ const filteredRows = computed(() => {
           ? (tags as string[]).some(t => t.toLowerCase().includes(q))
           : false
       } else {
-        matchText = displayValue(r.fields?.[col]).toLowerCase().includes(q)
+        matchText = displayValue(r.fields?.[col]).toLowerCase().includes(q) ||
+          (r.fields?.['자산유형'] === '소프트웨어' && col === '구분' && softwareCategoryLabel(displayValue(r.fields?.[col])).toLowerCase().includes(q))
       }
       if (!matchText) return false
     }
@@ -3855,6 +3921,23 @@ function checkDuplicateIp() {
 const createName = ref('')
 const createFields = ref<Record<string, string>>({})
 const createTags = ref<string[]>([])
+const storageCreateValues = computed({
+  get: (): Record<string, string> => ({ ...createFields.value, __name__: createName.value, __ip__: createIp.value }),
+  set: values => {
+    const { __name__, __ip__, ...fields } = values
+    createName.value = __name__ || ''
+    createIp.value = __ip__ || ''
+    createFields.value = fields
+  },
+})
+const softwareCreateValues = computed({
+  get: (): Record<string, string> => ({ ...createFields.value, __name__: createName.value }),
+  set: values => {
+    const { __name__, ...fields } = values
+    createName.value = __name__ || ''
+    createFields.value = fields
+  },
+})
 
 
 // 자산 상태 옵션 (fields['상태'])
@@ -3943,14 +4026,25 @@ watch(
 )
 
 async function doCreate() {
+  if (activeCreateCategory.value === '스토리지') {
+    const error = Object.values(storageErrors(storageCreateValues.value))[0]
+    if (error) { $q.notify({ type: 'warning', message: error }); return }
+  }
+  if (activeCreateCategory.value === '소프트웨어') {
+    const values = softwareCreateValues.value
+    const error = Object.values(softwareErrors(values))[0]
+    if (error) { $q.notify({ type: 'warning', message: error }); return }
+    createFields.value['서버명'] = values['__name__']?.trim() || values['운영체제']?.trim() || ''
+  }
   const ip = createIp.value.trim()
-  const name = createName.value.trim()
-  if (!ip && activeCreateCategory.value !== '소프트웨어') {
+  const name = activeCreateCategory.value === '스토리지' ? storageRecordName(storageCreateValues.value)
+    : createName.value.trim() || (activeCreateCategory.value === '소프트웨어' ? createFields.value['운영체제']?.trim() || '' : '')
+  if (!ip && !isExtendedAssetCategory(activeCreateCategory.value)) {
     $q.notify({ type: 'warning', message: 'IP는 필수입니다.' })
     return
   }
   if (!name) {
-    $q.notify({ type: 'warning', message: '호스트명은 필수입니다.' })
+    $q.notify({ type: 'warning', message: activeCreateCategory.value === '소프트웨어' ? '관리명은 필수입니다.' : '호스트명은 필수입니다.' })
     return
   }
   for (const k of CREATE_REQUIRED_KEYS) {
@@ -3999,10 +4093,13 @@ async function doCreate() {
   try {
     const fields: FieldsMap = {}
     for (const [k, v] of Object.entries(createFields.value)) {
-      if (k === '자산번호') continue  // top-level asset_no field
+      if (k === '자산번호' || (isExtendedAssetCategory(activeCreateCategory.value) && DETAIL_FIELD_KEYS.has(k))) continue  // structured fields are serialized below
       if ([EOS_STATUS_KEY, EOS_DATE_KEY, EOL_STATUS_KEY, EOL_DATE_KEY].some(key => key === k)) continue
       if ((v ?? '').toString().trim()) fields[k] = k.startsWith('Cisco 소프트웨어') || (isExtendedAssetCategory(activeCreateCategory.value) && ['운영체제', 'version'].includes(k)) ? v : parseSmartValue(v)
     }
+    if (activeCreateCategory.value === '소프트웨어') Object.assign(fields, softwareTextFields(softwareCreateValues.value))
+    if (activeCreateCategory.value === '스토리지') Object.assign(fields, storageTextFields(storageCreateValues.value))
+    Object.assign(fields, detailPayload(createFields.value, activeCreateCategory.value))
     if (createTags.value.length) fields[TAGS_KEY] = createTags.value
     // 자산유형을 초기 생성 시부터 전달 → 같은 IP·다른 자산유형 레코드 허용
     const assetNo = (createFields.value['자산번호'] ?? '').toString().trim() || null
@@ -4347,6 +4444,21 @@ async function doBulkRestore(targets: ServerAsset[]) {
 /** Detail view */
 const detailDialog = ref(false)
 const detailTarget = ref<ServerAsset | null>(null)
+function onLinkedSoftwareUpdated(software: ServerAsset) {
+  rows.value = rows.value.map(row => row.id === software.id ? { ...row, ...software } : row)
+}
+const isSoftwareDetail = computed(() => detailTarget.value?.fields?.['자산유형'] === '소프트웨어')
+const softwareEditValidated = ref(false)
+const storageEditValidated = ref(false)
+const isStorageDetail = computed(() => detailTarget.value?.fields?.['자산유형'] === '스토리지')
+const typedAssetDetailValues = computed({
+  get: (): Record<string, string> => detailEditing.value ? rowEditValues.value : {
+    ...Object.fromEntries(Object.entries(detailTarget.value?.fields || {}).map(([key, value]) => [key, detailEditValue(value)])),
+    __ip__: detailTarget.value?.ip || '', __name__: detailTarget.value?.name || '', '자산번호': detailTarget.value?.assetNo || detailEditValue(detailTarget.value?.fields?.['자산번호']),
+    ...(isStorageDetail.value && detailTarget.value ? storageFormIdentity(detailTarget.value) : {}),
+  },
+  set: values => { rowEditValues.value = values },
+})
 const rowEditSystemInfo = ref(copySystemInformation())
 const detailSystemInfo = computed(() => copySystemInformation(detailTarget.value?.systemInfo))
 const canViewSystemInfo = computed(() => !!detailTarget.value
@@ -4454,11 +4566,13 @@ const EDIT_DIALOG_COVERED_KEYS = new Set([
 const rowEditExtraFields = computed(() => {
   if (!rowEditTarget.value) return []
   return Object.keys(rowEditTarget.value.fields ?? {}).filter(
-    k => !EDIT_DIALOG_COVERED_KEYS.has(k)
+    k => !EDIT_DIALOG_COVERED_KEYS.has(k) && !(isExtendedAssetCategory(rowEditTarget.value?.fields?.['자산유형']) && DETAIL_FIELD_KEYS.has(k))
   )
 })
 
 function prepareRowEdit(row: ServerAsset) {
+  softwareEditValidated.value = false
+  storageEditValidated.value = false
   rowEditTarget.value = row
   rowEditSystemInfo.value = copySystemInformation(row.systemInfo)
   const vals: Record<string, string> = {
@@ -4467,8 +4581,10 @@ function prepareRowEdit(row: ServerAsset) {
   }
   for (const [k, v] of Object.entries(row.fields ?? {})) {
     if (k === TAGS_KEY) continue
+    if (isExtendedAssetCategory(row.fields?.['자산유형']) || DETAIL_FIELD_KEYS.has(k)) { vals[k] = detailEditValue(v); continue }
     vals[k] = typeof v === 'string' ? v : displayValue(v)
   }
+  if (row.fields?.['자산유형'] === '스토리지') Object.assign(vals, storageFormIdentity(row))
   // assetNo는 top-level 필드; fields에 없는 경우 대비
   if (row.assetNo != null) vals['자산번호'] = row.assetNo
   rowEditValues.value = vals
@@ -4573,6 +4689,30 @@ watch(
 
 async function doRowEdit() {
   if (!rowEditTarget.value) return
+  if (rowEditTarget.value.fields?.['자산유형'] === '스토리지') {
+    storageEditValidated.value = true
+    const errors = storageErrors(rowEditValues.value)
+    const key = Object.keys(errors)[0]
+    if (key) {
+      detailTab.value = key !== '운영체제' && STORAGE_IDENTITY.some(f => f.key === key) ? 'basic' : 'config'
+      $q.notify({ type: 'warning', message: errors[key] || '입력 내용을 확인하세요.' })
+      await nextTick()
+      document.querySelector<HTMLInputElement>('.asset-detail-drawer .q-field--error input, .asset-detail-drawer .q-field--error textarea')?.focus()
+      return
+    }
+  }
+  if (rowEditTarget.value.fields?.['자산유형'] === '소프트웨어') {
+    softwareEditValidated.value = true
+    const errors = softwareErrors(rowEditValues.value)
+    const key = Object.keys(errors)[0]
+    if (key) {
+      detailTab.value = SOFTWARE_PRODUCT.some(f => f.key === key && f.key !== 'version') ? 'basic' : 'config'
+      $q.notify({ type: 'warning', message: errors[key] || '입력 내용을 확인하세요.' })
+      await nextTick()
+      document.querySelector<HTMLInputElement>('.asset-detail-drawer .q-field--error input, .asset-detail-drawer .q-field--error textarea')?.focus()
+      return
+    }
+  }
   if (systemInfoDirty.value) {
     const error = systemInformationError(rowEditSystemInfo.value)
     if (error) {
@@ -4589,24 +4729,29 @@ async function doRowEdit() {
     await refreshRowEditLifecycle()
     const row = rowEditTarget.value
     const newIp = (rowEditValues.value['__ip__'] ?? '').trim()
-    const newName = (rowEditValues.value['__name__'] ?? '').trim()
-
     const rowCat = ((row.fields?.['자산유형'] as string) || category.value || '서버')
+    const newName = rowCat === '스토리지' ? storageRecordName(rowEditValues.value) : (rowEditValues.value['__name__'] ?? '').trim()
+      || (rowCat === '소프트웨어' ? rowEditValues.value['운영체제']?.trim() || '' : '')
     // 필드 변경
     const newFields: FieldsMap = { ...(row.fields ?? {}) }
     delete newFields['자산번호']  // top-level asset_no 필드로 분리
     for (const { key } of rowEditFields.value) {
-      if (key === '__ip__' || key === '__name__' || key === '자산번호') continue
+      if (key === '__ip__' || key === '__name__' || key === '자산번호' || (isExtendedAssetCategory(rowCat) && DETAIL_FIELD_KEYS.has(key))) continue
       const val = (rowEditValues.value[key] ?? '').toString().trim()
+      // Preserve untouched imported values, including identifiers with leading zeros.
+      if (isExtendedAssetCategory(rowCat) && val === detailEditValue(row.fields?.[key]).trim()) continue
       newFields[key] = val ? (key.startsWith('Cisco 소프트웨어') || (isExtendedAssetCategory(rowCat) && ['운영체제', 'version'].includes(key)) ? val : parseSmartValue(val)) : null
     }
+    if (rowCat === '소프트웨어') Object.assign(newFields, softwareTextFields(rowEditValues.value))
+    if (rowCat === '스토리지') Object.assign(newFields, storageTextFields(rowEditValues.value))
+    Object.assign(newFields, detailPayload(rowEditValues.value, rowCat))
     newFields[TAGS_KEY] = rowEditTags.value.length ? rowEditTags.value : null
     const rowEditAssetNo = (rowEditValues.value['자산번호'] ?? '').trim() || null
     // 기본·구성·시스템 정보를 한 번에 저장해 일부 탭만 저장되는 일을 방지한다.
     const updated = await patchServer(String(row.id), {
       fields: newFields, asset_no: rowEditAssetNo,
       ...(row.version != null ? { version: row.version } : {}),
-      ...(newIp || rowCat === '소프트웨어' ? { ip: newIp } : {}), ...(newName ? { name: newName } : {}),
+      ...(newIp || isExtendedAssetCategory(rowCat) ? { ip: newIp } : {}), ...(newName ? { name: newName } : {}),
       ...(canViewSystemInfo.value && systemInfoDirty.value ? { system_info: systemInformationPayload(rowEditSystemInfo.value) } : {}),
     }, rowCat)
 
@@ -4633,7 +4778,7 @@ async function doExport() {
   exportLoading.value = true
   try {
     const sourceRows = filteredRows.value
-    const colOrder = COL_OPTIONS.map(o => o.key)
+    const colOrder = [...new Set([...COLUMN_DISPLAY_ORDER, 'createdAt', ...sourceRows.flatMap(row => [...DETAIL_FIELD_KEYS].filter(key => key in (row.fields ?? {})))])]
 
     // 전체 탭일 때 맨 앞에 자산 종류 추가
     const finalCols = !category.value ? ['__assetType__', ...colOrder] : colOrder
@@ -5138,6 +5283,8 @@ async function _runImport(buf: ArrayBuffer, password: string) {
     const headerRow = (allRows[0] as unknown[]).map(h => String(h).trim())
 
     const labelToKey: Record<string, string> = {
+      ...Object.fromEntries(ALL_DETAIL_FIELDS.flatMap(f => [[f.label, f.key], ...(f.unitKey ? [[`${f.label} 단위`, f.unitKey]] : [])])),
+      '연결 자산 ID': LINKED_ASSET_KEY,
       'IP': 'ip',
       'HostName': 'name',
       'Asset ID': 'asset_id',
@@ -5701,40 +5848,6 @@ tbody .sticky-actions-col {
   font-size: 13px;
 }
 
-/* ===== Server form dialog styles ===== */
-.server-form-card {
-  width: 660px;
-  max-width: 95vw;
-  border-radius: 8px;
-}
-
-/* 상단 강조 필드 (호스트명, IP) */
-.top-field-row {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-.top-field-label {
-  font-size: 16px;
-  color: #555;
-  white-space: nowrap;
-  min-width: 80px;
-  flex-shrink: 0;
-}
-.top-field-input {
-  flex: 1;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
-  font-size: 16px;
-}
-.top-field-input :deep(.q-field__control) {
-  padding: 0;
-  min-height: 32px;
-}
-.req-star {
-  color: #1976d2;
-  margin-left: 1px;
-}
-
 /* 회색 구분 바 */
 .gray-section-bar {
   background: #f5f5f5;
@@ -5809,18 +5922,6 @@ tbody .sticky-actions-col {
   padding-right: 16px;
 }
 
-/* 생성/저장 버튼 */
-.create-btn {
-  background: #1976d2;
-  color: #fff;
-  font-weight: 600;
-  padding: 6px 28px;
-  border-radius: 4px;
-}
-.create-btn:hover {
-  background: #1565c0;
-}
-
 /* 삭제된 행 스타일 */
 .cell-deleted {
   text-decoration: line-through;
@@ -5850,3 +5951,9 @@ tbody .sticky-actions-col {
 </style>
 
 <style scoped src="../../css/asset-detail-fields.css"></style>
+
+<style scoped>
+.storage-location-links { margin: 16px -16px 0; }
+</style>
+
+<style scoped src="../../css/asset-form-layout.css"></style>

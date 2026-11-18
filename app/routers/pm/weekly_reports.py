@@ -18,6 +18,7 @@ from app.models.pm.reports import (
 from app.models.sr.service_request import SR_STATUS_LABEL, REQUEST_TYPE_LABEL
 from app.routers.auth import get_current_user
 from app.routers.pm.report_agg import aggregate_period
+from app.services.report_attendance import attendance_remaining
 from app.services.report_snapshot import is_live_report, snapshot_filter, sync_report_snapshot
 
 router = APIRouter()
@@ -596,6 +597,11 @@ async def add_manual_item(
 
     now = datetime.now(timezone.utc)
     item_data = body.model_dump(exclude_none=True)
+    if body.section == 'ATTENDANCE':
+        try:
+            item_data['action_plan'] = attendance_remaining(body.category, body.item_type)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error))
     item_data["_id"] = ObjectId()
     item_data["created_by"] = ObjectId(current_user.id)
     item_data["created_at"] = now
@@ -630,6 +636,16 @@ async def update_manual_item(
 
     now = datetime.now(timezone.utc)
     patch = body.model_dump(exclude_unset=True)
+    item = next((item for item in doc.get('manual_items', []) if str(item['_id']) == item_id), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
+    if item.get('section') == 'ATTENDANCE' and {'category', 'item_type', 'action_plan'} & patch.keys():
+        merged = {**item, **patch}
+        try:
+            patch['action_plan'] = attendance_remaining(merged.get('category'), merged.get('item_type'))
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error))
+
     patch["updated_by"] = ObjectId(current_user.id)
     patch["updated_at"] = now
 

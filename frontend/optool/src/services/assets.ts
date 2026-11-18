@@ -18,6 +18,20 @@ export async function getServer(id: string, category?: string): Promise<ServerAs
   return res.data
 }
 
+export async function searchSoftware(search: string): Promise<ServerAsset[]> {
+  const { data } = await api.get<ServerAsset[]>(`${SERVERS}/software/search`, { params: { search } })
+  return data
+}
+
+export async function setServerSoftwareLink(serverId: string, softwareId: string, linked: boolean, category: string): Promise<ServerAsset> {
+  const url = `${SERVERS}/${serverId}/software/${softwareId}`
+  const config = { params: { category } }
+  const { data } = linked
+    ? await api.put<ServerAsset>(url, undefined, config)
+    : await api.delete<ServerAsset>(url, config)
+  return data
+}
+
 export async function createServer(ip: string, name: string, fields?: FieldsMap, assetNo?: string | null, category?: string, assetId?: string | null, importBatchId?: string, autoLifecycle = false, lifecycleSeries?: string): Promise<ServerAsset> {
   const res = await api.post<ServerAsset>(SERVERS, { ip, name, fields: fields ?? {}, asset_id: assetId ?? null, asset_no: assetNo ?? null }, {
     params: { ...(category ? { category } : {}), ...(importBatchId ? { import_batch_id: importBatchId } : {}), ...(autoLifecycle ? { auto_lifecycle: true } : {}), ...(lifecycleSeries ? { lifecycle_series: lifecycleSeries } : {}) },

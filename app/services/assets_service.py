@@ -10,6 +10,7 @@ from pymongo.errors import DuplicateKeyError
 from app.db.mongo import MongoClientManager
 from app.models.asset_system_info import SystemInformation
 from app.services import rack_placement_service
+from app.services.asset_type_details import LINK_KEY, list_value, prepare_details
 from app.utils.mongo import to_out
 from app.utils.time import TimeUtil
 
@@ -137,6 +138,45 @@ class AssetsService:
         await rack_placement_service.enrich_asset_rack_fields([out], self._category)
         return out
 
+    async def set_server_link(self, *, _id: ObjectId, server_id: ObjectId,
+                              server_category: str, linked: bool, actor_email: str) -> Dict[str, Any]:
+        if self._category != '소프트웨어' or server_category not in ('서버', 'VMware'):
+            raise ValueError('서버 또는 VMware 자산에만 소프트웨어를 연결할 수 있습니다.')
+        server = await AssetsService(server_category).get(_id=server_id)
+        if server.get('is_deleted'):
+            raise KeyError('삭제된 서버의 소프트웨어 연결은 변경할 수 없습니다.')
+        col = self._col()
+        existing = await col.find_one({'_id': _id, 'is_deleted': {'$ne': True}})
+        if not existing:
+            raise KeyError('소프트웨어가 삭제되었거나 존재하지 않습니다.')
+        fields = existing.get('fields') or {}
+        previous = list_value(fields.get(LINK_KEY))
+        identifier = str(server_id)
+        if (identifier in previous) == linked:
+            return to_out(existing)
+        links = [*previous, identifier] if linked else [value for value in previous if value != identifier]
+        normalized = await prepare_details({LINK_KEY: links}, '소프트웨어', fields, _id)
+        now = TimeUtil.now_utc()
+        metadata = {'version': int(existing.get('version', 1)) + 1,
+                    'updated_at': now, 'updated_by': actor_email}
+        # Change only this relation; preserve other servers and all product/license data.
+        saved = await col.update_one(
+            {'_id': _id, 'is_deleted': {'$ne': True},
+             'version': existing.get('version', {'$exists': False})},
+            {'$set': {f'fields.{LINK_KEY}': normalized[LINK_KEY], **metadata}},
+        )
+        if not saved.matched_count:
+            raise ValueError('다른 사용자가 먼저 수정했습니다. 새로고침 후 다시 시도해 주세요.')
+        after = {**existing, **metadata, 'fields': {**fields, LINK_KEY: normalized[LINK_KEY]}}
+        before_out, after_out = to_out(existing), to_out(after)
+        await _write_history(
+            asset_id=after_out['id'], action='UPDATE', changed_by=actor_email,
+            before=before_out, after=after_out,
+            patch={'$set': {f'fields.{LINK_KEY}': normalized[LINK_KEY]}},
+            history_col=self._hist(),
+        )
+        return after_out
+
     async def create(
         self,
         *,
@@ -158,6 +198,7 @@ class AssetsService:
         # 컬렉션이 실제 자산 유형의 원본이다. 유형값 누락으로 전체 목록에서
         # 기본 유형인 서버로 잘못 표시되지 않도록 항상 일치시킨다.
         normalized_fields["자산유형"] = self._category
+        normalized_fields = await prepare_details(normalized_fields, self._category)
 
         # 랙은 이름 중복 금지(랙 식별·매칭 기준이므로)
         if self._category == "랙" and name:
@@ -226,6 +267,7 @@ class AssetsService:
 
         normalized_fields = dict(fields or {})
         normalized_fields["자산유형"] = self._category
+        normalized_fields = await prepare_details(normalized_fields, self._category, existing.get('fields'), _id)
         derived = await rack_placement_service.current_asset_rack_fields([(self._category, _id)])
         normalized_fields.update(derived.get((self._category, _id), {}))
         now = TimeUtil.now_utc()
@@ -303,7 +345,7 @@ class AssetsService:
         ip = patch.get("ip")
         if ip is not None and ip != existing["ip"]:
             asset_type = existing.get("fields", {}).get("자산유형", "서버")
-            if not (self._category == '소프트웨어' and not ip) and await col.find_one({**_ip_asset_type_query(ip, asset_type), "_id": {"$ne": _id}}):
+            if not (self._category in ('소프트웨어', '스토리지') and not ip) and await col.find_one({**_ip_asset_type_query(ip, asset_type), "_id": {"$ne": _id}}):
                 raise ValueError(f"자산유형 '{asset_type}'에 동일한 IP가 이미 존재합니다.")
             update["ip"] = ip
 
@@ -338,6 +380,7 @@ class AssetsService:
                 raise ValueError("fields는 객체(object) 형식이어야 합니다.")
             normalized_fields = dict(patch["fields"])
             normalized_fields["자산유형"] = self._category
+            normalized_fields = await prepare_details(normalized_fields, self._category, existing.get('fields'), _id)
             derived = await rack_placement_service.current_asset_rack_fields([(self._category, _id)])
             normalized_fields.update(derived.get((self._category, _id), {}))
             # 랙 전체 U 축소 차단: 현재 배치된 최상단 U 미만으로 줄일 수 없음
