@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 import urllib.parse
 from typing import Dict, List, Optional
 
@@ -23,6 +24,7 @@ from app.models.assets import (
     ServerAssetReplace,
 )
 from app.models.user import UserPublic
+from app.models.asset_link import AssetSelection
 from app.routers.admin import require_admin
 from app.routers.auth import get_current_user
 from app.routers.permissions import require_asset_access
@@ -38,6 +40,36 @@ VALID_CATEGORIES = set(MongoClientManager.CATEGORY_COLLECTIONS)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get('/linked-assets/search')
+async def search_linkable_assets(search: str = '', category: Optional[str] = None,
+                                 current_user: UserPublic = Depends(require_asset_access)):
+    from app.services.asset_links import search_assets
+    return await search_assets(search, category)
+
+
+@router.get('/software/search', response_model=List[ServerAssetOut])
+async def search_software(search: str = Query('', max_length=200),
+                          current_user: UserPublic = Depends(require_asset_access)):
+    from app.utils.mongo import to_out
+    query = {'is_deleted': {'$ne': True}}
+    if search.strip():
+        pattern = {'$regex': re.escape(search.strip()), '$options': 'i'}
+        query['$or'] = [{field: pattern} for field in (
+            'name', 'asset_id', 'asset_no', 'fields.서버명', 'fields.운영체제',
+            'fields.제품명', 'fields.자산번호', 'fields.version',
+        )]
+    cursor = MongoClientManager.get_asset_collection('소프트웨어').find(query).sort([('name', 1), ('_id', 1)]).limit(100)
+    return [ServerAssetOut(**to_out(doc)) async for doc in cursor]
+
+
+@router.post('/linked-assets/resolve')
+async def resolve_linked_assets(body: AssetSelection, current_user: UserPublic = Depends(require_asset_access)):
+    from app.services import asset_catalog
+    found = await asset_catalog.asset_map(body.asset_ids)
+    return [found.get(identifier, {'id': identifier, 'category': '서버', 'name': '삭제된 자산',
+                                   'asset_name': identifier, 'ip': '', 'is_deleted': True}) for identifier in body.asset_ids]
 
 
 def _svc(category: Optional[str]) -> AssetsService:
@@ -121,7 +153,7 @@ async def mcp_asset_schema(current_user: UserPublic = Depends(require_asset_acce
             '서버': '운영체제/배포판 필수, system_info 선택',
             'VMware': '운영체제/배포판 필수',
             '네트워크': '운영체제에 장비 기종 입력',
-            '스토리지': '운영체제에 스토리지 기종 입력, version에 펌웨어 버전 입력 가능',
+            '스토리지': '운영체제에 스토리지 기종 입력, version에 펌웨어 버전 입력 가능. 관리 IP는 선택',
             '소프트웨어': '운영체제에 제품명, version에 버전 입력 가능. IP는 선택',
             '정보보호시스템': '운영체제에 장비 기종, 제조사 필수',
             'DBMS': '운영체제에 DB 종류, version 또는 db_series 필수',
@@ -336,6 +368,47 @@ async def get_history(
 ):
     items = await _svc(category).get_history(server_id=server_id)
     return [AssetHistoryOut(**x) for x in items]
+
+
+@router.get('/{server_id}/software', response_model=List[ServerAssetOut])
+async def get_linked_software(server_id: str, category: Optional[str] = Query(None),
+                              current_user: UserPublic = Depends(require_asset_access)):
+    from app.utils.mongo import to_out
+    try:
+        await _svc(category).get(_id=oid(server_id))
+    except KeyError as error:
+        raise HTTPException(404, detail=str(error))
+    # The software owns the relation, so both screens always read the same links.
+    cursor = MongoClientManager.get_asset_collection('소프트웨어').find({
+        'fields.연결자산': server_id, 'is_deleted': {'$ne': True},
+    }).sort([('name', 1), ('_id', 1)])
+    return [ServerAssetOut(**to_out(doc)) async for doc in cursor]
+
+
+async def _set_software_link(server_id: str, software_id: str, category: Optional[str],
+                             linked: bool, current_user: UserPublic):
+    try:
+        out = await AssetsService('소프트웨어').set_server_link(
+            _id=oid(software_id), server_id=oid(server_id), server_category=category or '서버',
+            linked=linked, actor_email=current_user.email,
+        )
+    except KeyError as error:
+        raise HTTPException(404, detail=str(error))
+    except ValueError as error:
+        raise HTTPException(409, detail=str(error))
+    return ServerAssetOut(**out)
+
+
+@router.put('/{server_id}/software/{software_id}', response_model=ServerAssetOut)
+async def connect_software(server_id: str, software_id: str, category: Optional[str] = Query(None),
+                           current_user: UserPublic = Depends(require_asset_access)):
+    return await _set_software_link(server_id, software_id, category, True, current_user)
+
+
+@router.delete('/{server_id}/software/{software_id}', response_model=ServerAssetOut)
+async def disconnect_software(server_id: str, software_id: str, category: Optional[str] = Query(None),
+                              current_user: UserPublic = Depends(require_asset_access)):
+    return await _set_software_link(server_id, software_id, category, False, current_user)
 
 
 @router.post("/decrypt-xlsx")

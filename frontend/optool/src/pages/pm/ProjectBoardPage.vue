@@ -1,7 +1,7 @@
 <template>
-  <q-page class="q-pa-md project-board-page">
-    <div class="row items-center q-mb-sm q-gutter-sm">
-      <div class="text-h6">{{ project?.name }} — 보드</div>
+  <q-page class="q-pa-md bo-page project-board-page">
+    <div class="row items-center q-mb-sm q-gutter-sm bo-page-heading">
+      <div role="heading" aria-level="1" class="text-h6 bo-page-title">{{ project?.name }} — 보드</div>
       <q-badge v-if="project" color="primary" :label="project.key" />
       <q-space />
       <q-select

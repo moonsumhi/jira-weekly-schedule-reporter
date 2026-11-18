@@ -27,6 +27,7 @@
       v-bind="child"
       :isChild="true"
       :compact="props.compact ?? false"
+      :sibling-links="childLinks"
       @select="$emit('select', $event)"
       @expand-sidebar="emit('expand-sidebar')"
     />
@@ -65,6 +66,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { resolveSidebarIcon, sidebarIcons } from 'src/utils/sidebarIcons'
+import { isSidebarLinkActive } from 'src/utils/sidebarNavigation'
 import { useThemeStore } from 'stores/theme'
 
 export interface EssentialLinkProps {
@@ -77,6 +79,7 @@ export interface EssentialLinkProps {
   children?: EssentialLinkProps[];
   isChild?: boolean;
   compact?: boolean;
+  siblingLinks?: string[];
   badge?: number;
 }
 
@@ -89,6 +92,7 @@ const props = withDefaults(defineProps<EssentialLinkProps>(), {
   children: () => [],
   isChild: false,
   compact: false,
+  siblingLinks: () => [],
   badge: 0,
 })
 
@@ -119,18 +123,12 @@ const menuColorStyle = computed(() => ({ color: menuColorForMode(props.color) })
 const menuIconColorStyle = computed(() => ({ color: menuColorForMode(props.iconColor ?? props.color) }))
 const displayIcon = computed(() => resolveSidebarIcon(props.icon))
 
-const isActive = computed(() => {
-  if (!props.link || props.link === '#') return false
-  const [linkPath, linkQueryStr] = props.link.split('?')
-  if (route.meta.activeMenuLink === linkPath && !linkQueryStr) return true
-  if (route.path !== linkPath && !route.path.startsWith(`${linkPath}/`)) return false
-  if (!linkQueryStr) return true
-  const linkParams = new URLSearchParams(linkQueryStr)
-  for (const [k, v] of linkParams.entries()) {
-    if (route.query[k] !== v) return false
-  }
-  return true
-})
+const childLinks = computed(() => props.children.flatMap(child => child.link ? [child.link] : []))
+const isActive = computed(() => isSidebarLinkActive(props.link, {
+  path: route.path,
+  query: route.query,
+  activeMenuLink: route.meta.activeMenuLink,
+}, props.siblingLinks))
 
 function onExpansionToggle(expanded: boolean) {
   if (props.compact) {

@@ -1,5 +1,6 @@
 // 자산 Import/Export 템플릿 컬럼 정의 (카테고리별). 순수 데이터.
 import { EOS_STATUS_KEY, EOS_DATE_KEY } from 'src/types/assets'
+import { detailFieldsFor, SOFTWARE_USAGE_FIELDS, LINKED_ASSET_KEY } from 'src/utils/assetTypeDetails'
 import {
   ANTIVIRUS_KEY, ELASTIC_KEY, EOL_DATE_KEY, EOL_STATUS_KEY, ISMS_P_KEY, TAGS_KEY, VADA_KEY,
 } from './assetKeys'
@@ -228,16 +229,23 @@ for (const category of ['스토리지', '소프트웨어']) {
     ip: storage ? '192.168.1.10' : '',
     name: storage ? 'storage-01' : 'software-01',
     자산유형: category,
-    구분: storage ? 'SAN' : '업무용 소프트웨어',
+    구분: storage ? 'SAN' : '업무용',
     자산번호: storage ? 'ST-001' : 'SW-001',
     서버명: storage ? '공용 스토리지' : '운영 관리 소프트웨어',
     운영체제: storage ? '스토리지 모델명' : '소프트웨어 제품명',
     version: '1.0',
   }
-  CATEGORY_TEMPLATE_COLS[category] = CATEGORY_TEMPLATE_COLS['VMware']!.map(column => ({
+  CATEGORY_TEMPLATE_COLS[category] = CATEGORY_TEMPLATE_COLS['VMware']!.filter(column => column.key !== '제품명').map(column => ({
     ...column,
     label: column.key === '운영체제' ? (storage ? '운영체제 / 기종' : '운영체제 / 제품명')
       : column.key === 'version' && storage ? '펌웨어 버전' : column.label,
     sample: samples[column.key] ?? column.sample ?? '',
   }))
+  CATEGORY_TEMPLATE_COLS[category].push(
+    ...[...detailFieldsFor(category), ...(storage ? [] : SOFTWARE_USAGE_FIELDS)].flatMap(field => [
+      { key: field.key, label: field.label, sample: '' },
+      ...(field.unitKey ? [{ key: field.unitKey, label: `${field.label} 단위`, sample: 'TB' }] : []),
+    ]),
+    { key: LINKED_ASSET_KEY, label: '연결 자산 ID', sample: '' },
+  )
 }

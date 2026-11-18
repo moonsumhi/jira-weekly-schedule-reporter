@@ -18,7 +18,7 @@
         />
 
         <q-toolbar-title class="workspace-location">
-          <span v-if="auth.isLoggedIn" class="workspace-location-team">데이터운영팀 <span aria-hidden="true">/</span></span>
+          <span v-if="auth.isLoggedIn" class="workspace-location-team">ATOM <span aria-hidden="true">/</span></span>
           <span>{{ auth.isLoggedIn ? currentPageTitle : theme.appName }}</span>
         </q-toolbar-title>
 
