@@ -366,9 +366,10 @@
           :loading="loading"
           :pagination="pagination"
           @update:pagination="onPagination"
+          @row-click="onAssetRowClick"
           flat
           bordered
-          class="sticky-header-table"
+          class="sticky-header-table asset-clickable-table"
           style="max-height: calc(100vh - 200px)"
         >
           <!-- Custom header with sort + checkboxes -->
@@ -434,6 +435,7 @@
                 dense
                 color="negative"
                 @update:model-value="toggleRowSelected(props.row.id)"
+                @click.stop
               />
             </q-td>
           </template>
@@ -457,7 +459,10 @@
           <!-- NAME -->
           <template #body-cell-name="props">
             <q-td :props="props" :class="{ 'cell-deleted': props.row.isDeleted }">
-              <span>{{ props.row.fields?.['자산유형'] === '스토리지' ? storageFormIdentity(props.row).__name__ || '-' : props.row.name }}</span>
+              <span role="button" tabindex="0" :aria-label="`${props.row.name} 상세 열기`"
+                @click.stop="openDetailView(props.row)"
+                @keydown.enter.prevent="openDetailView(props.row)"
+                @keydown.space.prevent="openDetailView(props.row)">{{ props.row.fields?.['자산유형'] === '스토리지' ? storageFormIdentity(props.row).__name__ || '-' : props.row.name }}</span>
             </q-td>
           </template>
 
@@ -562,14 +567,6 @@
           <template #body-cell-actions="props">
             <q-td :props="props" :class="{ 'cell-deleted-actions': props.row.isDeleted, 'sticky-actions-col': true }" style="padding: 4px 8px; white-space: nowrap">
               <div class="row items-center no-wrap q-gutter-xs">
-                <q-btn
-                  dense
-                  outline
-                  size="12px"
-                  icon="info"
-                  label="상세 보기"
-                  @click="openDetailView(props.row)"
-                />
                 <template v-if="props.row.isDeleted">
                   <q-btn
                     dense
@@ -578,7 +575,7 @@
                     icon="restore"
                     color="positive"
                     label="복원"
-                    @click="doRestore(props.row)"
+                    @click.stop="doRestore(props.row)"
                   />
                   <q-btn
                     dense
@@ -587,7 +584,7 @@
                     icon="delete_forever"
                     color="negative"
                     label="영구삭제"
-                    @click="confirmPurge(props.row)"
+                    @click.stop="confirmPurge(props.row)"
                   />
                 </template>
               </div>
@@ -3723,7 +3720,9 @@ const columns = computed<NonNullable<QTableProps['columns']>>(() => {
     })
   }
 
-  result.push({ name: 'actions', label: '', field: 'actions', align: 'right', style: 'width: 1px; white-space: nowrap', headerStyle: 'width: 1px; white-space: nowrap' })
+  if (trashView.value) {
+    result.push({ name: 'actions', label: '', field: 'actions', align: 'right', style: 'width: 1px; white-space: nowrap', headerStyle: 'width: 1px; white-space: nowrap' })
+  }
   return result
 })
 
@@ -4485,6 +4484,12 @@ async function openDetailView(row: ServerAsset) {
     await fetchEosMap()
     enrichEosEol(row)
   }
+}
+
+function onAssetRowClick(event: Event, row: ServerAsset) {
+  const target = event.target
+  if (target instanceof Element && target.closest('button, a, input, [role="button"], .q-checkbox, .q-chip')) return
+  void openDetailView(row)
 }
 
 async function loadDetailHistory() {
@@ -5916,6 +5921,13 @@ tbody .sticky-actions-col {
 
 .asset-detail-drawer .form-field {
   justify-content: flex-end;
+}
+.asset-clickable-table :deep(tbody tr) {
+  cursor: pointer;
+}
+.asset-clickable-table [role='button']:focus-visible {
+  outline: 2px solid var(--q-primary);
+  outline-offset: 2px;
 }
 .asset-detail-drawer .q-tab-panel > .q-card__section {
   padding-left: 16px;
