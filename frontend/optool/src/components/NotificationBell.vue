@@ -83,7 +83,10 @@
               />
             </q-item-section>
             <q-item-section>
-              <q-item-label class="text-caption text-weight-medium">{{ n.title }}</q-item-label>
+              <q-item-label class="text-caption text-weight-medium notification-dropdown-title">
+                {{ n.title }}
+                <q-badge v-if="!n.isRead" class="notification-unread-badge q-ml-xs" label="안 읽음" />
+              </q-item-label>
               <q-item-label caption lines="2" class="text-grey-8">{{ n.message }}</q-item-label>
               <q-item-label caption class="text-grey-5" style="font-size: 10px">
                 {{ formatRelative(n.createdAt) }}

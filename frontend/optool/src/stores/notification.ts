@@ -22,9 +22,15 @@ export const useNotificationStore = defineStore('notification', () => {
     loading.value = true
     dropdownError.value = null
     try {
-      const page = await fetchNotifications({ isArchived: false, limit: 10 })
-      dropdownItems.value = page.items
-      unreadCount.value = page.unreadCount
+      const unreadPage = await fetchNotifications({ isRead: false, isArchived: false, limit: 10 })
+      let items = unreadPage.items
+      if (items.length < 10) {
+        const recentPage = await fetchNotifications({ isArchived: false, limit: 20 })
+        const unreadIds = new Set(items.map((item) => item.id))
+        items = [...items, ...recentPage.items.filter((item) => !unreadIds.has(item.id))].slice(0, 10)
+      }
+      dropdownItems.value = items
+      unreadCount.value = unreadPage.unreadCount
     } catch {
       dropdownItems.value = []
       dropdownError.value = '알림을 불러오지 못했습니다.'

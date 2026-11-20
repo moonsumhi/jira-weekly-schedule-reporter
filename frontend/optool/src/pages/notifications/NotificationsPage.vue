@@ -76,16 +76,13 @@
                 class="cursor-pointer"
                 @click="handleItemClick(n)"
               >
-                <q-item-label class="text-body2 text-weight-medium">{{ n.title }}</q-item-label>
+                <q-item-label class="text-body2 text-weight-medium notification-title">
+                  {{ n.title }}
+                  <q-badge v-if="!n.isRead" class="notification-unread-badge q-ml-xs" label="안 읽음" />
+                </q-item-label>
                 <q-item-label caption class="text-grey-8 q-mt-xs">{{ n.message }}</q-item-label>
                 <q-item-label caption class="text-grey-5 q-mt-xs" style="font-size: 11px">
                   {{ formatDate(n.createdAt) }}
-                  <q-badge
-                    v-if="!n.isRead"
-                    color="blue" label="새 알림"
-                    class="q-ml-xs notification-new-badge"
-                    style="font-size: 9px"
-                  />
                 </q-item-label>
               </q-item-section>
 
