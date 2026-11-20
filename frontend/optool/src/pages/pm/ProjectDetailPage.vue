@@ -23,7 +23,7 @@
             <div class="col">
               <div class="row items-center q-gutter-sm q-mb-xs">
                 <span role="heading" aria-level="1" class="text-weight-bold bo-page-title">{{ project.name }}</span>
-                <q-chip dense color="white" text-color="primary" class="text-weight-bold">
+                <q-chip dense color="white" text-color="primary" class="text-weight-bold project-key-chip">
                   {{ project.key }}
                 </q-chip>
               </div>
@@ -175,7 +175,7 @@
         <q-tab-panel name="members" class="q-pa-none">
           <div class="row items-center q-mb-md">
             <div class="text-subtitle1 text-weight-medium">멤버 목록</div>
-            <q-badge :label="`${members.length}명`" color="grey-5" text-color="grey-8" class="q-ml-sm" />
+            <q-badge :label="`${members.length}명`" color="grey-5" text-color="grey-8" class="q-ml-sm project-member-count-badge" />
             <q-space />
             <q-btn v-if="isAdmin" color="primary" icon="person_add" label="멤버 추가" no-caps @click="openInvite" />
           </div>

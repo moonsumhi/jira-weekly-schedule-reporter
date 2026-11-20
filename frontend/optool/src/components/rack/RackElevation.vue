@@ -5,7 +5,7 @@
       <div class="rk-title-wrap">
         <q-icon name="dns" size="18px" class="q-mr-xs text-grey-6" />
         <span class="rk-title">{{ layout.rack.name }}</span>
-        <q-chip v-if="layout.rack.serverRoom" dense square size="sm" color="grey-3" text-color="grey-8" class="q-ml-sm">
+        <q-chip v-if="layout.rack.serverRoom" dense square size="sm" color="grey-3" text-color="grey-8" class="q-ml-sm rk-room-chip">
           {{ layout.rack.serverRoom }}
         </q-chip>
       </div>
@@ -13,6 +13,7 @@
       <q-btn-toggle
         :model-value="side"
         dense no-caps unelevated size="sm"
+        class="rk-side-toggle"
         toggle-color="primary" color="grey-3" text-color="grey-8"
         :options="[
           { label: '전체', value: 'ALL' },

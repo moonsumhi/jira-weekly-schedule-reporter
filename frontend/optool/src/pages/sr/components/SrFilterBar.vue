@@ -40,6 +40,7 @@
           v-for="s in statusOptions"
           :key="s.value"
           clickable dense
+          :class="['sr-filter-status-chip', `sr-filter-status-chip--${s.value.toLowerCase()}`, `sr-filter-status-chip--${tabChipState(s)}`]"
           :color="tabChipColor(s)"
           :text-color="tabChipTextColor(s)"
           :outline="tabChipState(s) === 'exclude'"
@@ -58,6 +59,7 @@
       <div class="sr-quick-filters row no-wrap" style="gap:4px; flex-shrink:0; padding-top:2px">
         <q-chip
           clickable dense
+          :class="['sr-quick-filter-chip', { 'sr-quick-filter-chip--active': localFilter.isUrgent }]"
           :color="localFilter.isUrgent ? 'negative' : 'grey-2'"
           :text-color="localFilter.isUrgent ? 'white' : 'grey-7'"
           icon="priority_high"
@@ -66,6 +68,7 @@
         >긴급</q-chip>
         <q-chip
           clickable dense
+          :class="['sr-quick-filter-chip', { 'sr-quick-filter-chip--active': localFilter.isDelayed }]"
           :color="localFilter.isDelayed ? 'deep-orange-7' : 'grey-2'"
           :text-color="localFilter.isDelayed ? 'white' : 'grey-7'"
           icon="schedule"
@@ -74,6 +77,7 @@
         >지연</q-chip>
         <q-chip
           clickable dense
+          :class="['sr-quick-filter-chip', { 'sr-quick-filter-chip--active': localFilter.myAssigned }]"
           :color="localFilter.myAssigned ? 'primary' : 'grey-2'"
           :text-color="localFilter.myAssigned ? 'white' : 'grey-7'"
           icon="person_pin"

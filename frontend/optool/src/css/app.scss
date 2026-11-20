@@ -151,6 +151,133 @@
 
 // Keep Jira issue status badges readable when Quasar's standard status colors
 // are shown against the dark application background.
+// Quasar badge colors are shared by project, SR, asset, space, and report views.
+// Keep the semantic hue, but replace light-mode fills and dark text in dark mode.
+body.body--dark .q-badge:is(.bg-white, .bg-grey, [class*="bg-grey-"], .bg-blue-grey, [class*="bg-blue-grey-"]) {
+  background: #303e53 !important;
+  color: #e2eaf4 !important;
+  border: 1px solid #65758b;
+}
+
+body.body--dark .q-badge:is(.bg-primary, .bg-info, .bg-blue, [class*="bg-blue-"], .bg-cyan, [class*="bg-cyan-"]) {
+  background: #1b4569 !important;
+  color: #d1eaff !important;
+  border: 1px solid #4d8ab9;
+}
+
+body.body--dark .q-badge:is(.bg-blue-grey, [class*="bg-blue-grey-"]) {
+  background: #303e53 !important;
+  color: #e2eaf4 !important;
+  border: 1px solid #65758b;
+}
+
+body.body--dark .q-badge:is(.bg-secondary, .bg-teal, [class*="bg-teal-"]) {
+  background: #17484a !important;
+  color: #c4f0ec !important;
+  border: 1px solid #468f91;
+}
+
+body.body--dark .q-badge:is(.bg-warning, .bg-orange, [class*="bg-orange-"], .bg-amber, [class*="bg-amber-"], .bg-yellow, [class*="bg-yellow-"]) {
+  background: #4b371d !important;
+  color: #ffe1a8 !important;
+  border: 1px solid #a77b39;
+}
+
+body.body--dark .q-badge:is(.bg-purple, [class*="bg-purple-"], .bg-deep-purple, [class*="bg-deep-purple-"], .bg-indigo, [class*="bg-indigo-"]) {
+  background: #372b59 !important;
+  color: #e4d8ff !important;
+  border: 1px solid #7863ad;
+}
+
+body.body--dark .q-badge:is(.bg-deep-orange, [class*="bg-deep-orange-"], .bg-brown, [class*="bg-brown-"]) {
+  background: #4b3026 !important;
+  color: #f9d7c4 !important;
+  border: 1px solid #a66b52;
+}
+
+body.body--dark .q-badge:is(.bg-accent, .bg-pink, [class*="bg-pink-"]) {
+  background: #4b2940 !important;
+  color: #ffd5ed !important;
+  border: 1px solid #a4658a;
+}
+
+body.body--dark .q-badge:is(.bg-positive, .bg-green, [class*="bg-green-"]) {
+  background: #19412f !important;
+  color: #c0f0d0 !important;
+  border: 1px solid #3e8e5c;
+}
+
+body.body--dark .q-badge:is(.bg-negative, .bg-red, [class*="bg-red-"]) {
+  background: #4a252c !important;
+  color: #ffd4d7 !important;
+  border: 1px solid #a85a65;
+}
+
+body.body--dark .q-badge.q-badge--outline.text-positive {
+  background: #19412f !important;
+  color: #c0f0d0 !important;
+  border-color: #3e8e5c !important;
+}
+
+body.body--dark .q-badge.q-badge--outline.text-negative {
+  background: #4a252c !important;
+  color: #ffd4d7 !important;
+  border-color: #a85a65 !important;
+}
+
+body.body--dark .q-badge.q-badge--outline {
+  background: #29374d !important;
+  border-color: currentColor !important;
+}
+
+body.body--dark .q-badge.q-badge--outline:is(.text-primary, .text-info, .text-blue, [class*="text-blue-"], .text-cyan, [class*="text-cyan-"]) {
+  color: #b9dfff !important;
+}
+
+body.body--dark .q-badge.q-badge--outline:is(.text-teal, [class*="text-teal-"]) {
+  color: #bcece7 !important;
+}
+
+body.body--dark .q-badge.q-badge--outline:is(.text-green, [class*="text-green-"]) {
+  color: #c0f0d0 !important;
+}
+
+body.body--dark .q-badge.q-badge--outline:is(.text-red, [class*="text-red-"]) {
+  color: #ffd4d7 !important;
+}
+
+body.body--dark .q-badge.q-badge--outline:is(.text-warning, .text-orange, [class*="text-orange-"], .text-amber, [class*="text-amber-"], .text-yellow, [class*="text-yellow-"]) {
+  color: #ffe1a8 !important;
+}
+
+body.body--dark .q-badge.q-badge--outline:is(.text-purple, [class*="text-purple-"], .text-deep-purple, [class*="text-deep-purple-"], .text-indigo, [class*="text-indigo-"]) {
+  color: #e4d8ff !important;
+}
+
+body.body--dark .q-badge.q-badge--outline:is(.text-deep-orange, [class*="text-deep-orange-"], .text-brown, [class*="text-brown-"]) {
+  color: #f9d7c4 !important;
+}
+
+body.body--dark .q-badge.q-badge--outline:is(.text-pink, [class*="text-pink-"]) {
+  color: #ffd5ed !important;
+}
+
+body.body--dark .q-badge.q-badge--outline:is(.text-grey, [class*="text-grey-"], .text-blue-grey, [class*="text-blue-grey-"]) {
+  color: #d8e3f0 !important;
+}
+
+body.body--dark :is(.pm-title-toggle, .appearance-toggle) .q-btn {
+  background: #2b3b51 !important;
+  color: #d3e0ef !important;
+  border: 1px solid #536981;
+}
+
+body.body--dark :is(.pm-title-toggle, .appearance-toggle) .q-btn.bg-primary {
+  background: #1d4d7a !important;
+  color: #f0f7ff !important;
+  border-color: #70a9df;
+}
+
 body.body--dark .pm-issue-status-badge.bg-grey-5 {
   background: #344154 !important;
   color: #e2e8f0 !important;
@@ -2346,6 +2473,24 @@ body.body--dark .asset-page .rack-mgmt {
     border-color: #475569;
   }
 
+  .rk-side-toggle .q-btn {
+    background: #2b3b51 !important;
+    color: #d3e0ef !important;
+    border: 1px solid #536981;
+  }
+
+  .rk-side-toggle .q-btn.bg-primary {
+    background: #1d4d7a !important;
+    color: #f0f7ff !important;
+    border-color: #70a9df;
+  }
+
+  .rk-room-chip {
+    background: #303e53 !important;
+    color: #e2eaf4 !important;
+    border: 1px solid #65758b;
+  }
+
   .rk-unum {
     background: #26364c;
   }
@@ -3112,6 +3257,80 @@ body.body--dark .q-dialog .source-dialog {
   }
 }
 
+// SR management status chips cycle through include, exclude, and neutral states.
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip:is(.sr-filter-status-chip, .sr-quick-filter-chip) {
+  background: #29384d !important;
+  color: #dce7f4 !important;
+  border: 1px solid #5b6f88;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-filter-status-chip--include {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border-color: #6598c7;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-filter-status-chip--include:is(.sr-filter-status-chip--all, .sr-filter-status-chip--cancelled) {
+  background: #344155 !important;
+  color: #e1e9f4 !important;
+  border-color: #7f91a9;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-filter-status-chip--include:is(.sr-filter-status-chip--reviewing, .sr-filter-status-chip--pending_info) {
+  background: #624720 !important;
+  color: #ffe4b5 !important;
+  border-color: #c49a59;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-filter-status-chip--include.sr-filter-status-chip--approved {
+  background: #1c504c !important;
+  color: #ddfff8 !important;
+  border-color: #58a9a0;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-filter-status-chip--include:is(.sr-filter-status-chip--completed, .sr-filter-status-chip--closed) {
+  background: #204c3a !important;
+  color: #dcfce7 !important;
+  border-color: #4b9b70;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-filter-status-chip--include.sr-filter-status-chip--confirming {
+  background: #4a3663 !important;
+  color: #f0e1ff !important;
+  border-color: #a282bf;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-filter-status-chip--include.sr-filter-status-chip--on_hold {
+  background: #4a3a31 !important;
+  color: #f4dfd1 !important;
+  border-color: #a68b7b;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-filter-status-chip--include.sr-filter-status-chip--rejected,
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-quick-filter-chip--active.bg-negative {
+  background: #632b35 !important;
+  color: #ffe2e6 !important;
+  border-color: #bd6b7b;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-filter-status-chip--exclude {
+  background: #392b35 !important;
+  color: #ffd4dd !important;
+  border-color: #ba7e93;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-quick-filter-chip--active.bg-deep-orange-7 {
+  background: #604323 !important;
+  color: #ffe9c8 !important;
+  border-color: #bf9159;
+}
+
+body.body--dark .sr-manage-page .sr-filter-bar .q-chip.sr-quick-filter-chip--active.bg-primary {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border-color: #6598c7;
+}
+
 // Badges on the four day-to-day views keep their status meaning in dark mode.
 body.body--dark .sr-my-page .sr-status-tone {
   color: #edf3fb !important;
@@ -3257,6 +3476,18 @@ body.body--dark .pm-project-list-page .pm-project-count-badge {
   color: #e2e8f0 !important;
   border: 1px solid #7f91a9;
 }
+body.body--dark .project-detail-page .project-member-count-badge {
+  background: #29415d !important;
+  color: #d6e8fa !important;
+  border: 1px solid #507396;
+}
+
+body.body--dark .project-detail-page .project-key-chip {
+  background: #29415d !important;
+  color: #d6e8fa !important;
+  border: 1px solid #507396;
+}
+
 body.body--dark .pm-project-list-page .pm-project-key-badge,
 body.body--dark .pm-project-list-page .pm-project-search-count-badge {
   background: #234c75 !important;

@@ -12,6 +12,7 @@
         <div class="text-body2 text-grey-7 q-mb-md">라이트 모드와 다크 모드 중 원하는 화면을 선택하세요.</div>
         <q-btn-toggle
           v-model="appearanceMode"
+          class="appearance-toggle"
           :options="appearanceOptions"
           color="grey-3"
           text-color="dark"

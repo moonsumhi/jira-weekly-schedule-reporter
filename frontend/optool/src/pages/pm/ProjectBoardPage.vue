@@ -16,6 +16,7 @@
       <q-btn-toggle
         v-model="titleClamp"
         dense unelevated
+        class="pm-title-toggle"
         toggle-color="primary"
         color="white"
         text-color="grey-7"
