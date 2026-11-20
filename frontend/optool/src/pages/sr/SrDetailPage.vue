@@ -654,7 +654,7 @@
                 <template v-else>
                   <!-- 연결된 스케줄 관리 이슈 -->
                   <q-banner v-if="sr.convertedIssueId && sr.convertedProjectId"
-                    class="bg-indigo-1 rounded-borders cursor-pointer" dense
+                    class="sr-linked-issue-banner bg-indigo-1 rounded-borders cursor-pointer" dense
                     @click="openLinkedIssue">
                     <template #avatar><q-icon name="link" color="indigo-7" /></template>
                     <span class="text-indigo-9 text-weight-medium">연결된 스케줄 관리 태스크</span>
@@ -1127,7 +1127,7 @@
 
     <!-- 취소 -->
     <q-dialog v-model="cancelDialog">
-      <q-card class="dialog-card">
+      <q-card class="dialog-card sr-cancel-dialog">
         <div class="dialog-header dialog-header--negative">
           <div class="dialog-header__title">SR 취소</div>
           <div class="dialog-header__sub">{{ sr?.srNo }}</div>

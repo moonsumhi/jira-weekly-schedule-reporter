@@ -266,6 +266,37 @@ body.body--dark .q-badge.q-badge--outline:is(.text-grey, [class*="text-grey-"], 
   color: #d8e3f0 !important;
 }
 
+// Quasar chips with pale light-mode fills need the same dark palette as badges.
+body.body--dark .q-chip:is(.bg-white, .bg-grey-1, .bg-grey-2, .bg-grey-3, .bg-grey-4) {
+  background: #303e53 !important;
+  color: #e2eaf4 !important;
+  border: 1px solid #65758b;
+}
+
+body.body--dark .q-chip:is(.bg-blue-1, .bg-blue-2, .bg-cyan-1, .bg-cyan-2) {
+  background: #234c75 !important;
+  color: #e0f0ff !important;
+  border: 1px solid #6598c7;
+}
+
+body.body--dark .q-chip:is(.bg-red-1, .bg-red-2) {
+  background: #4a252c !important;
+  color: #ffd4d7 !important;
+  border: 1px solid #a85a65;
+}
+
+body.body--dark .q-chip:is(.bg-orange-1, .bg-orange-2, .bg-amber-1, .bg-amber-2, .bg-yellow-1, .bg-yellow-2) {
+  background: #4b371d !important;
+  color: #ffe1a8 !important;
+  border: 1px solid #a77b39;
+}
+
+body.body--dark .q-chip:is(.bg-green-1, .bg-green-2, .bg-teal-1, .bg-teal-2) {
+  background: #19412f !important;
+  color: #c0f0d0 !important;
+  border: 1px solid #3e8e5c;
+}
+
 body.body--dark :is(.pm-title-toggle, .appearance-toggle) .q-btn {
   background: #2b3b51 !important;
   color: #d3e0ef !important;
@@ -2573,6 +2604,21 @@ body.body--dark .asset-page .rack-mgmt {
 body.body--dark .sr-detail-page {
   color: #e2e8f0;
 
+  .sr-linked-issue-banner {
+    background: #253858 !important;
+    color: #dce9ff !important;
+    border: 1px solid #526fa3;
+
+    .text-indigo-9,
+    .q-icon {
+      color: #dce9ff !important;
+    }
+
+    &:hover {
+      background: #30466b !important;
+    }
+  }
+
   > .row > [class*='col-'] > .q-card,
   .q-card,
   .q-tab-panels,
@@ -2717,6 +2763,34 @@ body.body--dark .q-dialog {
   .q-field__label,
   .q-field__marginal {
     color: #dbe5f1 !important;
+  }
+}
+
+body.body--dark .q-dialog .sr-cancel-dialog {
+  background: #182334 !important;
+  color: #e2e8f0;
+
+  .dialog-header--negative {
+    background: #42272f !important;
+    color: #ffd4d7 !important;
+    border-bottom-color: #83505c;
+  }
+
+  .dialog-header__sub,
+  .field-label {
+    color: #c5d1df !important;
+  }
+
+  .q-field__control {
+    background: #111b2a;
+  }
+
+  .q-field__control::before {
+    border-color: #64748b;
+  }
+
+  .dialog-footer {
+    background: #182334;
   }
 }
 
