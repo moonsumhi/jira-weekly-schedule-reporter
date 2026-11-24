@@ -89,9 +89,11 @@
         type="textarea"
         outlined
         autogrow
+        @paste="onMemoPaste"
         label="조치 내용"
         placeholder="확인한 내용과 수행한 조치를 작성해 주세요."
-        :disable="saving"
+        hint="이미지를 붙여넣으면 아래 증빙 이미지에 추가됩니다."
+        :disable="saving || processingImages"
       />
       <div class="action-upload">
         <q-btn
@@ -101,13 +103,13 @@
           icon="add_photo_alternate"
           label="증빙 이미지 추가"
           color="primary"
-          :disable="saving"
+          :disable="saving || processingImages"
           @click="triggerImgInput"
         />
         <input
           ref="imgInput"
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
           multiple
           class="hidden"
           @change="onImgChange"
@@ -126,19 +128,19 @@
             text-color="grey-8"
             class="img-remove"
             :aria-label="`증빙 이미지 ${i + 1} 삭제`"
-            :disable="saving"
+            :disable="saving || processingImages"
             @click="removeImg(i)"
           />
         </div>
       </div>
       <div class="action-editor-footer">
-        <q-btn flat no-caps label="취소" :disable="saving" @click="cancelEdit" /><q-btn
+        <q-btn flat no-caps label="취소" :disable="saving || processingImages" @click="cancelEdit" /><q-btn
           unelevated
           no-caps
           color="primary"
           label="저장"
           @click="save"
-          :loading="saving"
+          :loading="saving || processingImages"
         />
       </div>
     </div>
@@ -176,6 +178,8 @@ const isInternal = computed(() => auth.me?.isInternal !== false);
 const action = ref<ActionOut | null>(null);
 const editing = ref(false);
 const saving = ref(false);
+const imageLoads = ref(0);
+const processingImages = computed(() => imageLoads.value > 0);
 const deleting = ref(false);
 const loading = ref(false),
   loadError = ref(false);
@@ -232,6 +236,7 @@ function cancelEdit() {
 }
 
 async function save() {
+  if (processingImages.value) return;
   saving.value = true;
   try {
     const res = await api.post<ActionOut>(
@@ -280,13 +285,48 @@ async function onImgChange(e: Event) {
   const input = e.target as HTMLInputElement;
   const files = Array.from(input.files ?? []);
   input.value = '';
-  for (const file of files) {
-    if (file.size > 3 * 1024 * 1024) {
-      $q.notify({ type: 'warning', message: `${file.name}: 3MB 이하 이미지만 업로드 가능합니다.` });
-      continue;
+  await addImages(files);
+}
+
+function onMemoPaste(event: ClipboardEvent) {
+  const clipboard = event.clipboardData;
+  if (!clipboard) return;
+  const itemFiles = Array.from(clipboard.items)
+    .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => file !== null);
+  const files = itemFiles.length
+    ? itemFiles
+    : Array.from(clipboard.files).filter((file) => file.type.startsWith('image/'));
+  if (!files.length) return;
+  event.preventDefault();
+  void addImages(files);
+}
+
+const acceptedImageTypes = new Set([
+  'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp',
+]);
+
+async function addImages(files: File[]) {
+  imageLoads.value += 1;
+  try {
+    for (const file of files) {
+      if (!acceptedImageTypes.has(file.type)) {
+        $q.notify({ type: 'warning', message: `${file.name || '붙여넣은 이미지'}: 지원하지 않는 이미지 형식입니다.` });
+        continue;
+      }
+      if (file.size > 3 * 1024 * 1024) {
+        $q.notify({ type: 'warning', message: `${file.name || '붙여넣은 이미지'}: 3MB 이하 이미지만 업로드 가능합니다.` });
+        continue;
+      }
+      try {
+        form.value.images.push(await toBase64(file));
+      } catch {
+        $q.notify({ type: 'negative', message: `${file.name || '붙여넣은 이미지'}: 이미지를 읽지 못했습니다.` });
+      }
     }
-    const b64 = await toBase64(file);
-    form.value.images.push(b64);
+  } finally {
+    imageLoads.value -= 1;
   }
 }
 
@@ -481,5 +521,54 @@ button.action-thumb:focus-visible {
   .action-editor {
     padding: 16px;
   }
+}
+</style>
+
+<style>
+body.body--dark .action-panel {
+  color: #e2e8f0;
+}
+body.body--dark .action-heading {
+  border-bottom-color: #334155;
+}
+body.body--dark .action-byline,
+body.body--dark .action-feedback,
+body.body--dark .action-evidence h4 {
+  color: #aebed0;
+}
+body.body--dark .action-status {
+  background: #46331e;
+  color: #f5cc8f;
+}
+body.body--dark .action-status.resolved {
+  background: #173b33;
+  color: #9de2c3;
+}
+body.body--dark .action-evidence h4 span {
+  color: #9bc9f1;
+}
+body.body--dark .action-thumb {
+  background: #182334;
+  border-color: #46566d;
+}
+body.body--dark .action-thumb > span {
+  background: #26364b;
+  color: #d5e2f0;
+}
+body.body--dark .img-remove {
+  background: #334155 !important;
+  color: #f1f5f9 !important;
+}
+body.body--dark .action-editor .q-field__control {
+  background: #182334;
+  color: #e2e8f0;
+}
+body.body--dark .action-editor .q-field__control::before {
+  border-color: #53657d;
+}
+body.body--dark .action-editor .q-field__native,
+body.body--dark .action-editor .q-field__label,
+body.body--dark .action-editor .q-field__bottom {
+  color: #d3deeb;
 }
 </style>

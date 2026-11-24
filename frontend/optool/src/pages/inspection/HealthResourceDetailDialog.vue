@@ -944,3 +944,80 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+<style>
+body.body--dark .resource-detail {
+  background: #182334;
+  color: #e2e8f0;
+}
+body.body--dark .resource-detail-header,
+body.body--dark .resource-detail-tabs {
+  background: #182334;
+}
+body.body--dark .resource-detail-tabs {
+  border-color: #34445a;
+}
+body.body--dark .resource-detail-body {
+  background: #111b2a;
+}
+body.body--dark .resource-detail .detail-section,
+body.body--dark .resource-detail .detail-metric {
+  background: #1b293b;
+  border-color: #3c4d63;
+}
+body.body--dark .resource-detail .detail-section-heading,
+body.body--dark .resource-detail .detail-table th,
+body.body--dark .resource-detail .detail-table td,
+body.body--dark .resource-detail .service-list li,
+body.body--dark .resource-detail .inspection-notes article + article {
+  border-color: #34445a;
+}
+body.body--dark .resource-detail .detail-table thead th,
+body.body--dark .resource-detail .detail-code {
+  background: #223248;
+  color: #c6d5e6;
+}
+body.body--dark .resource-detail .detail-eyebrow,
+body.body--dark .resource-detail .detail-server-meta,
+body.body--dark .resource-detail .detail-section-heading > span,
+body.body--dark .resource-detail .detail-table thead th,
+body.body--dark .resource-detail .metric-delta,
+body.body--dark .resource-detail .metric-measurement,
+body.body--dark .resource-detail .detail-threshold,
+body.body--dark .resource-detail .detail-extra-values dt,
+body.body--dark .resource-detail .inspection-notes h4,
+body.body--dark .resource-detail .detail-inspection-info dt,
+body.body--dark .resource-detail .detail-empty {
+  color: #aebed0;
+}
+body.body--dark .resource-detail .detail-inspection-info {
+  border-color: #3c4d63;
+}
+body.body--dark .resource-detail .usage-track {
+  background: #34445a;
+}
+body.body--dark .resource-detail .normal {
+  --metric-color: #9de2c3;
+  --metric-bg: #173b33;
+}
+body.body--dark .resource-detail .warning {
+  --metric-color: #f5cc8f;
+  --metric-bg: #46331e;
+}
+body.body--dark .resource-detail .danger {
+  --metric-color: #f7a7ad;
+  --metric-bg: #4a242b;
+}
+body.body--dark .resource-detail .missing {
+  --metric-color: #bdc9d9;
+  --metric-bg: #2c394b;
+}
+body.body--dark .resource-detail .detail-findings {
+  background: #382f22;
+  border-color: #6a5538;
+}
+body.body--dark .resource-detail .detail-findings > div,
+body.body--dark .resource-detail .detail-findings ul {
+  color: #f1d8a8;
+}
+</style>
