@@ -85,15 +85,19 @@
         <div style="display: flex; flex-direction: column; gap: 12px">
           <div style="display: flex; gap: 12px">
             <q-select
+              ref="assigneeSelectRef"
               v-model="form.assigneeId"
-              :options="memberOptions"
+              :options="filteredMemberOptions"
               :label="form.type === 'TASK' ? '담당자 *' : '담당자'"
-              outlined dense emit-value map-options clearable
+              outlined dense emit-value map-options clearable use-input input-debounce="0"
+              @filter="filterMembers"
+              @keydown.enter.capture="selectMemberOnEnter"
               style="flex: 1"
             >
               <template #prepend>
                 <q-icon name="person" color="grey-6" size="18px" />
               </template>
+              <template #no-option><q-item><q-item-section>일치하는 담당자가 없습니다.</q-item-section></q-item></template>
             </q-select>
             <q-input
               :model-value="reporterName"
@@ -108,15 +112,19 @@
           </div>
           <div v-if="form.type !== 'EPIC'" style="display: flex; gap: 12px">
             <q-select
+              ref="epicSelectRef"
               v-model="form.epicId"
-              :options="epicOptions"
+              :options="filteredEpicOptions"
               :label="form.type === 'TASK' ? '상위 Epic *' : '상위 Epic'"
-              outlined dense emit-value map-options clearable
+              outlined dense emit-value map-options clearable use-input input-debounce="0"
+              @filter="filterEpics"
+              @keydown.enter.capture="selectEpicOnEnter"
               style="flex: 1"
             >
               <template #prepend>
                 <q-icon name="bolt" color="purple" size="18px" />
               </template>
+              <template #no-option><q-item><q-item-section>일치하는 Epic이 없습니다.</q-item-section></q-item></template>
             </q-select>
             <q-input
               v-model.number="form.storyPoints"
@@ -341,7 +349,7 @@
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import MarkdownEditor from 'src/components/MarkdownEditor.vue'
-import { Dialog, Notify, type QInput } from 'quasar'
+import { Dialog, Notify, type QInput, type QSelect } from 'quasar'
 import {
   createIssue, updateIssue, searchIssueAssets, listIssues, listLabels, uploadAttachment,
   ISSUE_STATUSES, STATUS_LABEL,
@@ -481,13 +489,71 @@ const statusOptions = ISSUE_STATUSES.map(s => ({ label: STATUS_LABEL[s], value: 
 const sprintOptions = ref<{ label: string; value: string }[]>([])
 
 const memberOptions = computed(() =>
-  members.value.map(m => ({ label: m.userName || m.userEmail, value: m.userId }))
+  members.value.map(m => ({
+    label: m.userName || m.userEmail,
+    value: m.userId,
+    searchText: `${m.userName ?? ''} ${m.userEmail ?? ''}`.toLowerCase(),
+  }))
 )
 const epicOptions = computed(() =>
   [...epics.value]
     .sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
-    .map(e => ({ label: `#${e.number} ${e.title}`, value: e.id }))
+    .map(e => ({ label: `#${e.number} ${e.title}`, value: e.id, searchText: `${e.number} ${e.title}`.toLowerCase() }))
 )
+const filteredMemberOptions = ref<{ label: string; value: string }[]>([])
+const filteredEpicOptions = ref<{ label: string; value: string }[]>([])
+const assigneeSelectRef = ref<QSelect | null>(null)
+const epicSelectRef = ref<QSelect | null>(null)
+const memberSearchQuery = ref('')
+const epicSearchQuery = ref('')
+watch(memberOptions, options => { filteredMemberOptions.value = options }, { immediate: true })
+watch(epicOptions, options => { filteredEpicOptions.value = options }, { immediate: true })
+
+function filterMembers(search: string, update: (callback: () => void) => void) {
+  const query = search.trim().toLowerCase()
+  memberSearchQuery.value = query
+  update(() => {
+    filteredMemberOptions.value = query
+      ? memberOptions.value.filter(option => option.searchText.includes(query))
+      : memberOptions.value
+  })
+}
+
+function filterEpics(search: string, update: (callback: () => void) => void) {
+  const query = search.trim().toLowerCase()
+  epicSearchQuery.value = query
+  update(() => {
+    filteredEpicOptions.value = query
+      ? epicOptions.value.filter(option => option.searchText.includes(query))
+      : epicOptions.value
+  })
+}
+
+function selectMemberOnEnter(event: KeyboardEvent) {
+  if (event.isComposing || event.keyCode === 229 || !memberSearchQuery.value) return
+  const exactMatches = memberOptions.value.filter(option => option.label.toLowerCase() === memberSearchQuery.value)
+  const matches = exactMatches.length ? exactMatches : filteredMemberOptions.value
+  if (matches.length !== 1) return
+  event.preventDefault()
+  event.stopPropagation()
+  form.value.assigneeId = matches[0]!.value
+  memberSearchQuery.value = ''
+  assigneeSelectRef.value?.updateInputValue('', true)
+  assigneeSelectRef.value?.hidePopup()
+}
+
+function selectEpicOnEnter(event: KeyboardEvent) {
+  if (event.isComposing || event.keyCode === 229 || !epicSearchQuery.value) return
+  const exactMatches = epicOptions.value.filter(option => option.label.toLowerCase() === epicSearchQuery.value)
+  const matches = exactMatches.length ? exactMatches : filteredEpicOptions.value
+  if (matches.length !== 1) return
+  event.preventDefault()
+  event.stopPropagation()
+  form.value.epicId = matches[0]!.value
+  epicSearchQuery.value = ''
+  epicSelectRef.value?.updateInputValue('', true)
+  epicSelectRef.value?.hidePopup()
+}
 const labelOptions = computed(() =>
   labelsData.value.map(l => ({ label: l.name, value: l.id, color: l.color }))
 )
@@ -505,22 +571,14 @@ function priorityColor(p: IssuePriority) {
   return { HIGHEST: 'red-9', HIGH: 'orange', MEDIUM: 'grey-6', LOW: 'blue-3', LOWEST: 'blue-2' }[p] ?? 'grey'
 }
 
-onMounted(async () => {
-  try {
-    const [sp, lbls, mems, eps] = await Promise.all([
-      listSprints(props.projectId),
-      listLabels(props.projectId),
-      listProjectMembers(props.projectId),
-      listIssues(props.projectId, { type: 'EPIC' }),
-    ])
+onMounted(() => {
+  void listSprints(props.projectId).then(sp => {
     sprints.value = sp
     sprintOptions.value = sp.map(s => ({ label: s.name, value: s.id }))
-    labelsData.value = lbls
-    members.value = mems
-    epics.value = eps
-  } catch {
-    // ignore
-  }
+  }).catch(() => undefined)
+  void listLabels(props.projectId).then(lbls => { labelsData.value = lbls }).catch(() => undefined)
+  void listProjectMembers(props.projectId).then(mems => { members.value = mems }).catch(() => undefined)
+  void listIssues(props.projectId, { type: 'EPIC' }).then(eps => { epics.value = eps }).catch(() => undefined)
 })
 
 watch(() => props.modelValue, async (open) => {
