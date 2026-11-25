@@ -159,9 +159,12 @@
               </div></q-menu>
             </q-btn>
           </div>
-          <div class="row justify-end q-mt-sm">
+          <div class="row justify-end items-center q-mt-sm q-gutter-sm">
+            <span class="text-caption" :class="commentDraft.trim().length > 10000 ? 'text-negative' : 'text-grey-6'">
+              {{ commentDraft.trim().length.toLocaleString() }} / 10,000자
+            </span>
             <q-btn color="primary" icon="send" label="댓글 등록" :loading="commentSubmitting"
-              :disable="!commentDraft.trim()" @click="submitComment" />
+              :disable="!commentDraft.trim() || commentDraft.trim().length > 10000" @click="submitComment" />
           </div>
         </div>
       </q-card-section>
@@ -190,6 +193,7 @@ import { formatKst } from 'src/utils/time/kst'
 import { downloadAttachment } from 'src/utils/attachment'
 import AttachmentPreviewDialog from 'src/components/AttachmentPreviewDialog.vue'
 import { listPmUsers } from 'src/services/pm/users'
+import { getErrorMessage } from 'src/utils/http/error'
 
 const route = useRoute()
 const router = useRouter()
@@ -358,8 +362,8 @@ async function submitComment() {
     comments.value.push(await boardService.createComment(boardId.value, postId.value, content, mentionedIds))
     commentDraft.value = ''
     commentMentionedUsers.value = []
-  } catch {
-    $q.notify({ type: 'negative', message: '댓글을 등록하지 못했습니다.' })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: getErrorMessage(error, '댓글을 등록하지 못했습니다.') })
   } finally {
     commentSubmitting.value = false
   }
