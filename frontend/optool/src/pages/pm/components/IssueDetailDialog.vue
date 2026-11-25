@@ -1,25 +1,38 @@
 <template>
-  <q-dialog :model-value="modelValue" maximized transition-show="slide-up" transition-hide="slide-down"
+  <q-dialog :model-value="modelValue" :maximized="isMaximized" :full-height="!isMaximized"
+    class="issue-detail-dialog"
+    :position="isMaximized ? 'standard' : 'right'"
+    :transition-show="isMaximized ? 'slide-up' : 'slide-left'" :transition-hide="isMaximized ? 'slide-down' : 'slide-right'"
     @update:model-value="$emit('update:modelValue', $event)" @hide="dialogHistory.restoreScroll">
-    <q-card class="column" style="width: 100%; height: 100%">
+    <q-card class="column issue-detail-card" :class="{ 'issue-detail-card--compact': !isMaximized }">
       <!-- Header -->
-      <q-toolbar class="bg-primary text-white">
-        <template v-if="issueStack.length > 0">
-          <q-btn flat round dense icon="arrow_back" @click="goBack" class="q-mr-xs" />
-          <span class="text-caption opacity-60 q-mr-sm" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px">
-            {{ issueStack[issueStack.length - 1]?.title }}
-          </span>
-          <q-icon name="chevron_right" size="xs" class="opacity-60 q-mr-xs" />
-        </template>
-        <q-icon :name="TYPE_ICON[localIssue?.type ?? 'TASK']" class="q-mr-sm" />
-        <span class="text-caption opacity-70 q-mr-sm" style="white-space: nowrap; flex-shrink: 0">{{ displayProjectKey }}-{{ localIssue?.number }}</span>
-        <q-toolbar-title class="text-body1" style="min-width: 0">
-          {{ localIssue?.title }}
-        </q-toolbar-title>
+      <q-toolbar class="issue-detail-header">
+        <div class="issue-detail-heading col">
+          <div class="issue-detail-heading-meta">
+            <template v-if="issueStack.length > 0">
+              <q-btn flat round dense icon="arrow_back" aria-label="상위 일감으로 돌아가기" @click="goBack" />
+              <span class="issue-detail-parent ellipsis">{{ issueStack[issueStack.length - 1]?.title }}</span>
+              <q-icon name="chevron_right" size="xs" />
+            </template>
+            <q-icon :name="TYPE_ICON[localIssue?.type ?? 'TASK']" size="16px" />
+            <span>{{ displayProjectKey }}-{{ localIssue?.number }}</span>
+          </div>
+          <div class="issue-detail-heading-title ellipsis">{{ localIssue?.title }}</div>
+        </div>
+        <q-btn flat round dense :icon="isMaximized ? 'fullscreen_exit' : 'fullscreen'"
+          :aria-label="isMaximized ? '오른쪽 패널로 보기' : '전체 화면으로 보기'"
+          @click="toggleDisplayMode">
+          <q-tooltip>{{ isMaximized ? '오른쪽 패널로 보기' : '전체 화면으로 보기' }}</q-tooltip>
+        </q-btn>
         <q-btn flat round dense icon="close" @click="$emit('update:modelValue', false)" />
       </q-toolbar>
 
-      <div class="col issue-detail-body">
+      <q-tabs v-if="!isMaximized" v-model="compactSection" dense align="left" class="issue-detail-compact-tabs">
+        <q-tab name="content" label="내용" />
+        <q-tab name="properties" label="속성" />
+      </q-tabs>
+
+      <div class="col issue-detail-body" :class="{ 'issue-detail-body--compact': !isMaximized, 'issue-detail-body--properties': !isMaximized && compactSection === 'properties' }">
         <!-- 메인 콘텐츠 -->
         <div class="q-pa-md issue-detail-content">
           <div class="issue-detail-navigation q-mb-md">
@@ -630,6 +643,8 @@ onBeforeRouteLeave(closeBeforeNavigation)
 onBeforeRouteUpdate(closeBeforeNavigation)
 onBeforeUnmount(() => dialogHistory.dispose())
 const tab = ref('detail')
+const isMaximized = ref(true)
+const compactSection = ref<'content' | 'properties'>('content')
 
 async function openLinkedSr() {
   const srId = localIssue.value?.linkedSrId
@@ -760,6 +775,32 @@ function toggleReply(commentId: string) {
 const REACTION_EMOJIS = ['👍', '❤️', '😄', '🎉', '👀', '🙏', '✅']
 const authStore = useAuthStore()
 const currentUserId = computed(() => String(authStore.me?.id ?? ''))
+const displayModeStoragePrefix = 'pm-issue-detail-display-mode:'
+
+watch(currentUserId, userId => {
+  if (!userId) {
+    isMaximized.value = true
+    return
+  }
+  try {
+    isMaximized.value = localStorage.getItem(`${displayModeStoragePrefix}${userId}`) !== 'compact'
+  } catch {
+    isMaximized.value = true
+  }
+}, { immediate: true })
+
+function toggleDisplayMode() {
+  isMaximized.value = !isMaximized.value
+  if (!currentUserId.value) return
+  try {
+    localStorage.setItem(
+      `${displayModeStoragePrefix}${currentUserId.value}`,
+      isMaximized.value ? 'maximized' : 'compact',
+    )
+  } catch {
+    // The dialog remains usable when browser storage is unavailable.
+  }
+}
 
 function hasReacted(reaction: CommentReaction): boolean {
   return reaction.users.some(u => u.userId === currentUserId.value)
@@ -1275,6 +1316,21 @@ function confirmDelete() {
 
 <style scoped>
 .issue-detail-body { position: relative; overflow: hidden; min-height: 0; }
+.issue-detail-header { min-height: 76px; padding: 10px 18px; gap: 4px; flex-shrink: 0; background: var(--bo-surface); color: var(--bo-text); border-bottom: 1px solid var(--bo-border); }
+.issue-detail-heading { min-width: 0; }
+.issue-detail-heading-meta { display: flex; align-items: center; gap: 6px; min-height: 22px; color: var(--bo-muted); font-size: 12px; font-weight: 600; }
+.issue-detail-heading-meta > .q-icon:last-of-type { color: var(--q-primary); }
+.issue-detail-parent { max-width: min(220px, 32vw); font-weight: 500; }
+.issue-detail-heading-title { margin-top: 3px; color: var(--bo-text); font-size: 17px; line-height: 1.4; font-weight: 700; }
+.issue-detail-header > .q-btn { flex-shrink: 0; color: var(--bo-secondary); }
+.issue-detail-card { width: 100%; height: 100%; }
+.issue-detail-card--compact { width: min(780px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+.issue-detail-compact-tabs { flex-shrink: 0; border-bottom: 1px solid rgba(128, 128, 128, 0.25); }
+.issue-detail-body--compact .issue-detail-content,
+.issue-detail-body--compact .sidebar-panel { position: absolute; inset: 0; width: 100%; border: 0; }
+.issue-detail-body--compact .sidebar-panel { display: none; }
+.issue-detail-body--compact.issue-detail-body--properties .issue-detail-content { display: none; }
+.issue-detail-body--compact.issue-detail-body--properties .sidebar-panel { display: block; }
 .issue-detail-content { position: absolute; inset: 0 320px 0 0; overflow-y: auto; overflow-x: hidden; }
 .sidebar-panel { position: absolute; inset: 0 0 0 auto; width: 320px; overflow-y: auto; overflow-x: hidden; border-left: 1px solid #e0e0e0; }
 .issue-detail-navigation { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -1419,5 +1475,15 @@ function confirmDelete() {
 .description-view:hover {
   border-color: rgba(0, 0, 0, 0.15);
   background: rgba(0, 0, 0, 0.03);
+}
+</style>
+
+<style>
+.q-dialog__inner--right:has(> .issue-detail-card--compact) {
+  padding: 0 !important;
+}
+.q-dialog__inner--right > .issue-detail-card--compact {
+  max-width: 100vw;
+  max-height: 100dvh !important;
 }
 </style>
