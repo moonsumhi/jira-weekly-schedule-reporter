@@ -265,3 +265,34 @@ const tooltipLeftPct = computed(() => {
   font-size: 12px;
 }
 </style>
+
+<style>
+body.body--dark .trend-chart .legend-item,
+body.body--dark .trend-chart .grid-label,
+body.body--dark .trend-chart .x-label {
+  color: #b9c8da;
+  fill: #b9c8da;
+}
+body.body--dark .trend-chart .end-label {
+  fill: #e2e8f0;
+}
+body.body--dark .trend-chart .grid-line {
+  stroke: #42536a;
+}
+body.body--dark .trend-chart .crosshair {
+  stroke: #8da4bf;
+}
+body.body--dark .trend-chart .trend-tooltip {
+  background: #223248;
+  border-color: #53657d;
+  color: #e2e8f0;
+}
+body.body--dark .trend-chart .tooltip-date {
+  color: #b9c8da;
+}
+body.body--dark .trend-chart .trend-table,
+body.body--dark .trend-chart .trend-table thead tr {
+  background: #1b293b !important;
+  color: #e2e8f0;
+}
+</style>
