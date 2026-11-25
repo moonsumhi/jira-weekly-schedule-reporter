@@ -13,11 +13,11 @@ from app.models.pm.project import (
     ProjectCreate, ProjectPatch, ProjectOut,
     ProjectMemberAdd, ProjectMemberOut, ProjectMemberRolePatch,
     FavoriteOrderPatch,
-    ProjectIssueSearchItem, ProjectIssueSearchOut,
+    ProjectIssueSearchItem, ProjectIssueSearchOut, ProjectAccessRequestOut,
 )
 from app.models.pm.issue import canonical_issue_status
 from app.routers.auth import get_current_user
-from app.services.pm.permission import require_pm_admin
+from app.services.pm.permission import require_pm_admin, require_pm_member
 
 router = APIRouter()
 
@@ -49,19 +49,31 @@ async def _favorite_orders(user_id: str) -> dict[str, float]:
 
 @router.get("", response_model=List[ProjectOut])
 async def list_projects(current_user: UserPublic = Depends(get_current_user)):
-    """프로젝트 목록. 시스템 관리자는 전체, 일반 사용자는 멤버인 프로젝트만."""
+    """프로젝트 이름은 모두 공개하되 미가입 프로젝트의 상세 정보는 제한한다."""
     projects_col = MongoClientManager.get_pm_projects_collection()
-    if current_user.is_admin:
-        docs = await projects_col.find({}).sort("created_at", -1).to_list(None)
-    else:
-        members_col = MongoClientManager.get_pm_project_members_collection()
-        member_docs = await members_col.find(
-            {"user_id": ObjectId(current_user.id)}, {"project_id": 1}
-        ).to_list(None)
-        project_ids = [m["project_id"] for m in member_docs]
-        docs = await projects_col.find({"_id": {"$in": project_ids}}).sort("created_at", -1).to_list(None)
+    docs = await projects_col.find({}).sort("created_at", -1).to_list(None)
+    uid = ObjectId(current_user.id)
+    member_docs = await MongoClientManager.get_pm_project_members_collection().find(
+        {"user_id": uid}, {"project_id": 1}
+    ).to_list(None)
+    member_ids = {m["project_id"] for m in member_docs}
+    request_docs = await MongoClientManager.get_pm_project_access_requests_collection().find(
+        {"user_id": uid}, {"project_id": 1, "status": 1}
+    ).to_list(None)
+    request_status = {r["project_id"]: r["status"] for r in request_docs}
     favorite_orders = await _favorite_orders(current_user.id)
-    return [_proj_to_out(d, favorite_orders) for d in docs]
+    result = []
+    for doc in docs:
+        has_access = current_user.is_admin or doc["_id"] in member_ids
+        project = _proj_to_out(doc, favorite_orders if has_access else None)
+        project.has_access = has_access
+        if not has_access:
+            project.description = None
+            project.is_sr_default = False
+            status_value = request_status.get(doc["_id"])
+            project.access_request_status = status_value if status_value in ("PENDING", "REJECTED") else None
+        result.append(project)
+    return result
 
 
 @router.get("/search/issues", response_model=ProjectIssueSearchOut)
@@ -176,8 +188,114 @@ async def create_project(
     return _proj_to_out(doc)
 
 
+def _access_request_to_out(doc: dict) -> ProjectAccessRequestOut:
+    return ProjectAccessRequestOut(
+        id=str(doc["_id"]),
+        project_id=str(doc["project_id"]),
+        user_id=str(doc["user_id"]),
+        user_name=doc.get("user_name", ""),
+        user_email=doc.get("user_email", ""),
+        status=doc["status"],
+        created_at=doc["created_at"],
+    )
+
+
+@router.post("/{project_id}/access-requests", response_model=ProjectAccessRequestOut)
+async def request_project_access(project_id: str, current_user: UserPublic = Depends(get_current_user)):
+    if not ObjectId.is_valid(project_id):
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    pid, uid = ObjectId(project_id), ObjectId(current_user.id)
+    if not await MongoClientManager.get_pm_projects_collection().find_one({"_id": pid}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    members = MongoClientManager.get_pm_project_members_collection()
+    if current_user.is_admin or await members.find_one({"project_id": pid, "user_id": uid}):
+        raise HTTPException(status_code=409, detail="이미 프로젝트에 접근할 수 있습니다.")
+    requests = MongoClientManager.get_pm_project_access_requests_collection()
+    existing = await requests.find_one({"project_id": pid, "user_id": uid})
+    if existing and existing["status"] == "PENDING":
+        return _access_request_to_out(existing)
+    user = await MongoClientManager.get_users_collection().find_one(
+        {"_id": uid}, {"full_name": 1, "email": 1}
+    )
+    now = datetime.now(timezone.utc)
+    doc = await requests.find_one_and_update(
+        {"project_id": pid, "user_id": uid},
+        {"$set": {
+            "status": "PENDING", "created_at": now,
+            "user_name": (user or {}).get("full_name") or "",
+            "user_email": (user or {}).get("email") or current_user.email,
+        }},
+        upsert=True,
+        return_document=True,
+    )
+    return _access_request_to_out(doc)
+
+
+@router.get("/{project_id}/access-requests", response_model=List[ProjectAccessRequestOut])
+async def list_project_access_requests(
+    project_id: str, current_user: UserPublic = Depends(get_current_user),
+):
+    await require_pm_admin(current_user, project_id)
+    docs = await MongoClientManager.get_pm_project_access_requests_collection().find(
+        {"project_id": ObjectId(project_id), "status": "PENDING"}
+    ).sort("created_at", 1).to_list(None)
+    return [_access_request_to_out(doc) for doc in docs]
+
+
+@router.post("/{project_id}/access-requests/{request_id}/approve", response_model=ProjectMemberOut)
+async def approve_project_access_request(
+    project_id: str, request_id: str, current_user: UserPublic = Depends(get_current_user),
+):
+    await require_pm_admin(current_user, project_id)
+    if not ObjectId.is_valid(request_id):
+        raise HTTPException(status_code=404, detail="신청을 찾을 수 없습니다.")
+    requests = MongoClientManager.get_pm_project_access_requests_collection()
+    doc = await requests.find_one_and_update(
+        {"_id": ObjectId(request_id), "project_id": ObjectId(project_id), "status": "PENDING"},
+        {"$set": {"status": "APPROVED", "reviewed_at": datetime.now(timezone.utc),
+                  "reviewed_by": ObjectId(current_user.id)}},
+        return_document=True,
+    )
+    if not doc:
+        raise HTTPException(status_code=409, detail="처리할 대기 신청이 없습니다.")
+    members = MongoClientManager.get_pm_project_members_collection()
+    now = datetime.now(timezone.utc)
+    member = await members.find_one_and_update(
+        {"project_id": ObjectId(project_id), "user_id": doc["user_id"]},
+        {"$setOnInsert": {
+            "user_name": doc["user_name"], "user_email": doc["user_email"],
+            "role": "VIEWER", "joined_at": now,
+        }},
+        upsert=True, return_document=True,
+    )
+    return ProjectMemberOut(
+        id=str(member["_id"]), project_id=project_id, user_id=str(doc["user_id"]),
+        user_name=member.get("user_name", ""), user_email=member.get("user_email", ""),
+        role=member["role"], joined_at=member["joined_at"],
+    )
+
+
+@router.post("/{project_id}/access-requests/{request_id}/reject", response_model=ProjectAccessRequestOut)
+async def reject_project_access_request(
+    project_id: str, request_id: str, current_user: UserPublic = Depends(get_current_user),
+):
+    await require_pm_admin(current_user, project_id)
+    if not ObjectId.is_valid(request_id):
+        raise HTTPException(status_code=404, detail="신청을 찾을 수 없습니다.")
+    doc = await MongoClientManager.get_pm_project_access_requests_collection().find_one_and_update(
+        {"_id": ObjectId(request_id), "project_id": ObjectId(project_id), "status": "PENDING"},
+        {"$set": {"status": "REJECTED", "reviewed_at": datetime.now(timezone.utc),
+                  "reviewed_by": ObjectId(current_user.id)}},
+        return_document=True,
+    )
+    if not doc:
+        raise HTTPException(status_code=409, detail="처리할 대기 신청이 없습니다.")
+    return _access_request_to_out(doc)
+
+
 @router.get("/{project_id}", response_model=ProjectOut)
 async def get_project(project_id: str, current_user: UserPublic = Depends(get_current_user)):
+    await require_pm_member(current_user, project_id)
     doc = await MongoClientManager.get_pm_projects_collection().find_one({"_id": ObjectId(project_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
@@ -188,6 +306,7 @@ async def get_project(project_id: str, current_user: UserPublic = Depends(get_cu
 @router.post("/{project_id}/favorite", response_model=ProjectOut)
 async def toggle_project_favorite(project_id: str, current_user: UserPublic = Depends(get_current_user)):
     """즐겨찾기는 사용자별 개인 설정 — 로그인한 사용자 자신에게만 적용된다."""
+    await require_pm_member(current_user, project_id)
     doc = await MongoClientManager.get_pm_projects_collection().find_one({"_id": ObjectId(project_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
@@ -271,6 +390,7 @@ async def delete_project(project_id: str, current_user: UserPublic = Depends(get
     await issues_col.delete_many({"project_id": pid})
     await MongoClientManager.get_pm_project_members_collection().delete_many({"project_id": pid})
     await MongoClientManager.get_pm_project_favorites_collection().delete_many({"project_id": pid})
+    await MongoClientManager.get_pm_project_access_requests_collection().delete_many({"project_id": pid})
     await MongoClientManager.get_pm_sprints_collection().delete_many({"project_id": pid})
     await MongoClientManager.get_pm_labels_collection().delete_many({"project_id": pid})
     await MongoClientManager.get_pm_projects_collection().delete_one({"_id": pid})
@@ -289,6 +409,7 @@ async def delete_project(project_id: str, current_user: UserPublic = Depends(get
 
 @router.get("/{project_id}/members", response_model=List[ProjectMemberOut])
 async def list_project_members(project_id: str, current_user: UserPublic = Depends(get_current_user)):
+    await require_pm_member(current_user, project_id)
     members_col = MongoClientManager.get_pm_project_members_collection()
     users_col = MongoClientManager.get_users_collection()
 

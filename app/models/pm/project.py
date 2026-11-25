@@ -35,6 +35,8 @@ class ProjectOut(BaseModel):
     is_sr_default: bool = False
     is_favorite: bool = False
     favorite_order: Optional[float] = None
+    has_access: bool = True
+    access_request_status: Optional[Literal["PENDING", "REJECTED"]] = None
     created_at: datetime
     updated_at: datetime
 
@@ -73,6 +75,16 @@ class ProjectMemberAdd(BaseModel):
 
 class ProjectMemberRolePatch(BaseModel):
     role: ProjectRole
+
+
+class ProjectAccessRequestOut(BaseModel):
+    id: str
+    project_id: str
+    user_id: str
+    user_name: str
+    user_email: str
+    status: Literal["PENDING", "REJECTED", "APPROVED"]
+    created_at: datetime
 
 
 class FavoriteOrderPatch(BaseModel):

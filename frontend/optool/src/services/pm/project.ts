@@ -14,6 +14,18 @@ export type Project = {
   favoriteOrder: number | null
   createdAt: string
   updatedAt: string
+  hasAccess: boolean
+  accessRequestStatus: 'PENDING' | 'REJECTED' | null
+}
+
+export type ProjectAccessRequest = {
+  id: string
+  projectId: string
+  userId: string
+  userName: string
+  userEmail: string
+  status: 'PENDING' | 'REJECTED' | 'APPROVED'
+  createdAt: string
 }
 
 export type ProjectMember = {
@@ -26,9 +38,27 @@ export type ProjectMember = {
   joinedAt: string
 }
 
-export async function listProjects() {
+export async function listProjectCatalog() {
   const { data } = await api.get<Project[]>('/pm/projects')
   return data
+}
+
+export async function listProjects() {
+  return (await listProjectCatalog()).filter(project => project.hasAccess)
+}
+
+export async function requestProjectAccess(projectId: string) {
+  const { data } = await api.post<ProjectAccessRequest>(`/pm/projects/${projectId}/access-requests`)
+  return data
+}
+
+export async function listProjectAccessRequests(projectId: string) {
+  const { data } = await api.get<ProjectAccessRequest[]>(`/pm/projects/${projectId}/access-requests`)
+  return data
+}
+
+export async function reviewProjectAccessRequest(projectId: string, requestId: string, decision: 'approve' | 'reject') {
+  await api.post(`/pm/projects/${projectId}/access-requests/${requestId}/${decision}`)
 }
 
 export type ProjectIssueSearchItem = {

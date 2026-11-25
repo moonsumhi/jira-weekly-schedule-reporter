@@ -173,6 +173,21 @@
 
         <!-- 멤버 탭 -->
         <q-tab-panel name="members" class="q-pa-none">
+          <q-card v-if="isAdmin && accessRequests.length" flat bordered class="q-mb-md">
+            <q-card-section>
+              <div class="text-subtitle1 text-weight-medium q-mb-sm">권한 신청 {{ accessRequests.length }}건</div>
+              <div v-for="request in accessRequests" :key="request.id" class="row items-center q-gutter-sm q-py-xs">
+                <div class="col">
+                  <div>{{ request.userName || request.userEmail }}</div>
+                  <div class="text-caption text-grey-6">{{ request.userEmail }}</div>
+                </div>
+                <q-btn flat dense color="negative" label="거절" :loading="reviewingRequestId === request.id"
+                  @click="void reviewAccess(request, 'reject')" />
+                <q-btn color="primary" dense label="승인" :loading="reviewingRequestId === request.id"
+                  @click="void reviewAccess(request, 'approve')" />
+              </div>
+            </q-card-section>
+          </q-card>
           <div class="row items-center q-mb-md">
             <div class="text-subtitle1 text-weight-medium">멤버 목록</div>
             <q-badge :label="`${members.length}명`" color="grey-5" text-color="grey-8" class="q-ml-sm project-member-count-badge" />
@@ -453,7 +468,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { Notify, Dialog, type QInput } from 'quasar'
 import { useAuthStore } from 'src/stores/auth'
 import {
-  getProject, listProjectMembers, addProjectMember,
+  getProject, listProjectMembers, addProjectMember, listProjectAccessRequests, reviewProjectAccessRequest,
+  type ProjectAccessRequest,
   changeProjectMemberRole, removeProjectMember,
   updateProject, deleteProject,
   type Project, type ProjectMember, type ProjectRole,
@@ -497,6 +513,8 @@ const projectId = route.params.projectId as string
 
 const project = ref<Project | null>(null)
 const members = ref<ProjectMember[]>([])
+const accessRequests = ref<ProjectAccessRequest[]>([])
+const reviewingRequestId = ref('')
 const allUsers = ref<PmUser[]>([])
 const sprints = ref<Sprint[]>([])
 const labels = ref<Label[]>([])
@@ -571,6 +589,7 @@ onMounted(async () => {
     ])
     project.value = proj
     members.value = mems
+    if (isAdmin.value) accessRequests.value = await listProjectAccessRequests(projectId)
     allUsers.value = users
     sprints.value = sp
     labels.value = lbls
@@ -712,6 +731,20 @@ async function submitInvite() {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '추가 실패') })
   } finally {
     inviteDialog.value.loading = false
+  }
+}
+
+async function reviewAccess(request: ProjectAccessRequest, decision: 'approve' | 'reject') {
+  reviewingRequestId.value = request.id
+  try {
+    await reviewProjectAccessRequest(projectId, request.id, decision)
+    accessRequests.value = accessRequests.value.filter(item => item.id !== request.id)
+    if (decision === 'approve') members.value = await listProjectMembers(projectId)
+    Notify.create({ type: 'positive', message: decision === 'approve' ? '권한 신청을 승인했습니다.' : '권한 신청을 거절했습니다.' })
+  } catch (error) {
+    Notify.create({ type: 'negative', message: getErrorMessage(error, '권한 신청 처리에 실패했습니다.') })
+  } finally {
+    reviewingRequestId.value = ''
   }
 }
 

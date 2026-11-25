@@ -144,14 +144,16 @@
     <div v-if="favoriteProjects.length && otherProjects.length" class="text-caption text-grey-6 text-weight-medium q-mb-xs">전체</div>
     <div class="row q-col-gutter-md">
       <div v-for="project in otherProjects" :key="project.id" class="col-12 col-sm-6 col-md-4">
-        <q-card flat bordered class="cursor-pointer project-card" @click="goToProject(project)">
+        <q-card flat bordered class="project-card" :class="{ 'cursor-pointer': project.hasAccess }" @click="project.hasAccess && goToProject(project)">
           <q-card-section>
             <div class="row items-center q-gutter-sm q-mb-xs">
               <q-badge color="primary" :label="project.key" class="pm-project-key-badge" />
               <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" class="pm-project-sr-badge" />
+              <q-badge v-if="!project.hasAccess" outline color="grey-6" label="접근 권한 없음" />
             </div>
             <div class="row items-start no-wrap q-gutter-x-xs">
               <q-btn
+                v-if="project.hasAccess"
                 flat dense round size="sm"
                 :icon="project.isFavorite ? 'star' : 'star_border'"
                 :color="project.isFavorite ? 'amber-8' : 'grey-5'"
@@ -162,13 +164,18 @@
               </q-btn>
               <div class="col" style="min-width: 0">
                 <div class="text-h6 ellipsis">{{ project.name }}</div>
-                <div class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
+                <div v-if="project.hasAccess" class="text-caption text-grey-6 ellipsis-2-lines">{{ project.description || '설명 없음' }}</div>
               </div>
             </div>
           </q-card-section>
-          <q-card-actions align="right">
+          <q-card-actions v-if="project.hasAccess" align="right">
             <q-btn flat dense icon="view_kanban" label="보드" @click.stop="goToBoard(project)" />
             <q-btn flat dense icon="format_list_bulleted" label="백로그" @click.stop="goToBacklog(project)" />
+          </q-card-actions>
+          <q-card-actions v-else align="right">
+            <q-btn flat dense color="primary" :label="project.accessRequestStatus === 'PENDING' ? '승인 대기 중' : '권한 신청하기'"
+              :disable="project.accessRequestStatus === 'PENDING' || requestingProjectId === project.id"
+              :loading="requestingProjectId === project.id" @click.stop="void requestAccess(project)" />
           </q-card-actions>
         </q-card>
       </div>
@@ -226,7 +233,7 @@ import { useRouter } from 'vue-router'
 import { Notify, Dialog } from 'quasar'
 import draggable from 'vuedraggable'
 import {
-  listProjects, createProject, toggleProjectFavorite, reorderFavoriteProjects, clearFavoriteProjects,
+  listProjectCatalog, createProject, toggleProjectFavorite, reorderFavoriteProjects, clearFavoriteProjects, requestProjectAccess,
   searchProjectIssues, type Project, type ProjectIssueSearchItem,
 } from 'src/services/pm/project'
 import { getIssue, STATUS_COLOR, STATUS_LABEL, TYPE_COLOR, TYPE_ICON, type Issue } from 'src/services/pm/issue'
@@ -239,6 +246,7 @@ const pmStore = usePmStore()
 const IssueDetailDialog = defineAsyncComponent(() => import('./components/IssueDetailDialog.vue'))
 
 const projects = ref<Project[]>([])
+const requestingProjectId = ref('')
 const orgs = ref<Organization[]>([])
 const loading = ref(false)
 const search = ref('')
@@ -412,7 +420,7 @@ const dialog = ref({
 onMounted(async () => {
   loading.value = true
   try {
-    const [p, o] = await Promise.all([listProjects(), listOrganizations()])
+    const [p, o] = await Promise.all([listProjectCatalog(), listOrganizations()])
     projects.value = p
     orgs.value = o
     if (o.length) dialog.value.orgId = o[0]!.id
@@ -456,6 +464,19 @@ async function toggleFavorite(project: Project) {
     projects.value = projects.value.map(p => p.id === updated.id ? updated : p)
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '즐겨찾기 처리 실패') })
+  }
+}
+
+async function requestAccess(project: Project) {
+  requestingProjectId.value = project.id
+  try {
+    await requestProjectAccess(project.id)
+    projects.value = projects.value.map(p => p.id === project.id ? { ...p, accessRequestStatus: 'PENDING' } : p)
+    Notify.create({ type: 'positive', message: '프로젝트 권한 신청을 보냈습니다.' })
+  } catch (e) {
+    Notify.create({ type: 'negative', message: getErrorMessage(e, '권한 신청에 실패했습니다.') })
+  } finally {
+    requestingProjectId.value = ''
   }
 }
 

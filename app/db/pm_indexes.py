@@ -22,6 +22,13 @@ async def create_pm_indexes() -> None:
     )
     await db[MongoClientManager.PM_PROJECT_MEMBERS].create_index("user_id")
 
+    await db[MongoClientManager.PM_PROJECT_ACCESS_REQUESTS].create_index(
+        [("project_id", 1), ("user_id", 1)], unique=True
+    )
+    await db[MongoClientManager.PM_PROJECT_ACCESS_REQUESTS].create_index(
+        [("project_id", 1), ("status", 1)]
+    )
+
     await db[MongoClientManager.PM_ISSUES].create_index(
         [("project_id", 1), ("number", 1)], unique=True
     )

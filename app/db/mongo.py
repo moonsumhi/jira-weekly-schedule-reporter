@@ -106,6 +106,7 @@ class MongoClientManager:
     PM_PROJECTS = "pm_projects"
     PM_PROJECT_MEMBERS = "pm_project_members"
     PM_PROJECT_FAVORITES = "pm_project_favorites"
+    PM_PROJECT_ACCESS_REQUESTS = "pm_project_access_requests"
     PM_ISSUES = "pm_issues"
     PM_SPRINTS = "pm_sprints"
     PM_LABELS = "pm_labels"
@@ -299,6 +300,10 @@ class MongoClientManager:
     @classmethod
     def get_pm_project_favorites_collection(cls):
         return cls.get_db()[cls.PM_PROJECT_FAVORITES]
+
+    @classmethod
+    def get_pm_project_access_requests_collection(cls):
+        return cls.get_db()[cls.PM_PROJECT_ACCESS_REQUESTS]
 
     @classmethod
     def get_pm_issues_collection(cls):
