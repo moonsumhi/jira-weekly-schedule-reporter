@@ -65,7 +65,9 @@
       <div class="project-tabs">
         <q-tabs v-model="tab" dense align="left" indicator-color="primary" active-color="primary">
           <q-tab name="overview" label="개요" icon="info" />
-          <q-tab name="members" label="멤버" icon="group" />
+          <q-tab name="members" label="멤버" icon="group">
+            <q-badge v-if="isAdmin && accessRequests.length" floating color="negative" label="!" />
+          </q-tab>
           <q-tab name="settings" label="설정" icon="settings" />
         </q-tabs>
       </div>
@@ -180,6 +182,7 @@
                 <div class="col">
                   <div>{{ request.userName || request.userEmail }}</div>
                   <div class="text-caption text-grey-6">{{ request.userEmail }}</div>
+                  <div class="text-body2 q-mt-xs" style="white-space: pre-wrap; overflow-wrap: anywhere">신청 사유: {{ request.reason || '기존 신청 (사유 미입력)' }}</div>
                 </div>
                 <q-btn flat dense color="negative" label="거절" :loading="reviewingRequestId === request.id"
                   @click="void reviewAccess(request, 'reject')" />

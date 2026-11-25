@@ -113,6 +113,7 @@
                   />
                   <q-badge color="primary" :label="project.key" class="pm-project-key-badge" />
                   <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" class="pm-project-sr-badge" />
+                  <q-badge v-if="project.pendingAccessRequestCount" color="negative" :label="`! 접근 신청 ${project.pendingAccessRequestCount}건`" />
                 </div>
                 <div class="row items-start no-wrap q-gutter-x-xs">
                   <q-btn
@@ -149,6 +150,7 @@
             <div class="row items-center q-gutter-sm q-mb-xs">
               <q-badge color="primary" :label="project.key" class="pm-project-key-badge" />
               <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" class="pm-project-sr-badge" />
+              <q-badge v-if="project.pendingAccessRequestCount" color="negative" :label="`! 접근 신청 ${project.pendingAccessRequestCount}건`" />
               <q-badge v-if="!project.hasAccess" outline color="grey-6" label="접근 권한 없음" />
             </div>
             <div class="row items-start no-wrap q-gutter-x-xs">
@@ -175,7 +177,7 @@
           <q-card-actions v-else align="right">
             <q-btn flat dense color="primary" :label="project.accessRequestStatus === 'PENDING' ? '승인 대기 중' : '권한 신청하기'"
               :disable="project.accessRequestStatus === 'PENDING' || requestingProjectId === project.id"
-              :loading="requestingProjectId === project.id" @click.stop="void requestAccess(project)" />
+              :loading="requestingProjectId === project.id" @click.stop="openAccessDialog(project)" />
           </q-card-actions>
         </q-card>
       </div>
@@ -191,6 +193,25 @@
       @updated="issueSearchDirty = true"
       @deleted="issueSearchDirty = true"
     />
+
+    <q-dialog v-model="accessDialog.open" persistent>
+      <q-card style="width: 480px; max-width: 90vw">
+        <q-card-section>
+          <div class="text-h6">프로젝트 접근 권한 신청</div>
+          <div class="text-body2 text-grey-6 q-mt-xs">{{ accessDialog.project?.name }}</div>
+        </q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input v-model="accessDialog.reason" type="textarea" outlined autofocus
+            label="신청 사유 *" hint="프로젝트에 접근해야 하는 이유를 입력해 주세요."
+            :maxlength="500" counter :disable="!!requestingProjectId" />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="취소" :disable="!!requestingProjectId" v-close-popup />
+          <q-btn color="primary" label="신청" :disable="!accessDialog.reason.trim() || !!requestingProjectId"
+            :loading="!!requestingProjectId" @click="void requestAccess()" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- 프로젝트 생성 다이얼로그 -->
     <q-dialog v-model="dialog.open" no-backdrop-dismiss no-route-dismiss>
@@ -247,6 +268,7 @@ const IssueDetailDialog = defineAsyncComponent(() => import('./components/IssueD
 
 const projects = ref<Project[]>([])
 const requestingProjectId = ref('')
+const accessDialog = ref<{ open: boolean; project: Project | null; reason: string }>({ open: false, project: null, reason: '' })
 const orgs = ref<Organization[]>([])
 const loading = ref(false)
 const search = ref('')
@@ -467,11 +489,19 @@ async function toggleFavorite(project: Project) {
   }
 }
 
-async function requestAccess(project: Project) {
+function openAccessDialog(project: Project) {
+  accessDialog.value = { open: true, project, reason: '' }
+}
+
+async function requestAccess() {
+  const project = accessDialog.value.project
+  const reason = accessDialog.value.reason.trim()
+  if (!project || !reason) return
   requestingProjectId.value = project.id
   try {
-    await requestProjectAccess(project.id)
+    await requestProjectAccess(project.id, reason)
     projects.value = projects.value.map(p => p.id === project.id ? { ...p, accessRequestStatus: 'PENDING' } : p)
+    accessDialog.value.open = false
     Notify.create({ type: 'positive', message: '프로젝트 권한 신청을 보냈습니다.' })
   } catch (e) {
     Notify.create({ type: 'negative', message: getErrorMessage(e, '권한 신청에 실패했습니다.') })

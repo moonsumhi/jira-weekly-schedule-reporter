@@ -16,6 +16,7 @@ export type Project = {
   updatedAt: string
   hasAccess: boolean
   accessRequestStatus: 'PENDING' | 'REJECTED' | null
+  pendingAccessRequestCount: number
 }
 
 export type ProjectAccessRequest = {
@@ -25,6 +26,7 @@ export type ProjectAccessRequest = {
   userName: string
   userEmail: string
   status: 'PENDING' | 'REJECTED' | 'APPROVED'
+  reason: string | null
   createdAt: string
 }
 
@@ -47,8 +49,8 @@ export async function listProjects() {
   return (await listProjectCatalog()).filter(project => project.hasAccess)
 }
 
-export async function requestProjectAccess(projectId: string) {
-  const { data } = await api.post<ProjectAccessRequest>(`/pm/projects/${projectId}/access-requests`)
+export async function requestProjectAccess(projectId: string, reason: string) {
+  const { data } = await api.post<ProjectAccessRequest>(`/pm/projects/${projectId}/access-requests`, { reason })
   return data
 }
 

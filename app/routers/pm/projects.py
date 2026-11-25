@@ -13,7 +13,7 @@ from app.models.pm.project import (
     ProjectCreate, ProjectPatch, ProjectOut,
     ProjectMemberAdd, ProjectMemberOut, ProjectMemberRolePatch,
     FavoriteOrderPatch,
-    ProjectIssueSearchItem, ProjectIssueSearchOut, ProjectAccessRequestOut,
+    ProjectIssueSearchItem, ProjectIssueSearchOut, ProjectAccessRequestCreate, ProjectAccessRequestOut,
 )
 from app.models.pm.issue import canonical_issue_status
 from app.routers.auth import get_current_user
@@ -54,9 +54,19 @@ async def list_projects(current_user: UserPublic = Depends(get_current_user)):
     docs = await projects_col.find({}).sort("created_at", -1).to_list(None)
     uid = ObjectId(current_user.id)
     member_docs = await MongoClientManager.get_pm_project_members_collection().find(
-        {"user_id": uid}, {"project_id": 1}
+        {"user_id": uid}, {"project_id": 1, "role": 1}
     ).to_list(None)
     member_ids = {m["project_id"] for m in member_docs}
+    managed_ids = {m["project_id"] for m in member_docs if m.get("role") in ("ADMIN", "PROJECT_MANAGER")}
+    if current_user.is_admin:
+        managed_ids = {doc["_id"] for doc in docs}
+    pending_counts: dict[ObjectId, int] = {}
+    if managed_ids:
+        pending = await MongoClientManager.get_pm_project_access_requests_collection().aggregate([
+            {"$match": {"project_id": {"$in": list(managed_ids)}, "status": "PENDING"}},
+            {"$group": {"_id": "$project_id", "count": {"$sum": 1}}},
+        ]).to_list(None)
+        pending_counts = {item["_id"]: item["count"] for item in pending}
     request_docs = await MongoClientManager.get_pm_project_access_requests_collection().find(
         {"user_id": uid}, {"project_id": 1, "status": 1}
     ).to_list(None)
@@ -67,6 +77,7 @@ async def list_projects(current_user: UserPublic = Depends(get_current_user)):
         has_access = current_user.is_admin or doc["_id"] in member_ids
         project = _proj_to_out(doc, favorite_orders if has_access else None)
         project.has_access = has_access
+        project.pending_access_request_count = pending_counts.get(doc["_id"], 0)
         if not has_access:
             project.description = None
             project.is_sr_default = False
@@ -196,12 +207,16 @@ def _access_request_to_out(doc: dict) -> ProjectAccessRequestOut:
         user_name=doc.get("user_name", ""),
         user_email=doc.get("user_email", ""),
         status=doc["status"],
+        reason=doc.get("reason"),
         created_at=doc["created_at"],
     )
 
 
 @router.post("/{project_id}/access-requests", response_model=ProjectAccessRequestOut)
-async def request_project_access(project_id: str, current_user: UserPublic = Depends(get_current_user)):
+async def request_project_access(
+    project_id: str, payload: ProjectAccessRequestCreate,
+    current_user: UserPublic = Depends(get_current_user),
+):
     if not ObjectId.is_valid(project_id):
         raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
     pid, uid = ObjectId(project_id), ObjectId(current_user.id)
@@ -222,6 +237,7 @@ async def request_project_access(project_id: str, current_user: UserPublic = Dep
         {"project_id": pid, "user_id": uid},
         {"$set": {
             "status": "PENDING", "created_at": now,
+            "reason": payload.reason,
             "user_name": (user or {}).get("full_name") or "",
             "user_email": (user or {}).get("email") or current_user.email,
         }},

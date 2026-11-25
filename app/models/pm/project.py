@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.pm.issue import IssueStatus, IssueType
 
@@ -37,6 +37,7 @@ class ProjectOut(BaseModel):
     favorite_order: Optional[float] = None
     has_access: bool = True
     access_request_status: Optional[Literal["PENDING", "REJECTED"]] = None
+    pending_access_request_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -77,6 +78,18 @@ class ProjectMemberRolePatch(BaseModel):
     role: ProjectRole
 
 
+class ProjectAccessRequestCreate(BaseModel):
+    reason: str = Field(..., max_length=500)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str) -> str:
+        reason = value.strip()
+        if not reason:
+            raise ValueError("신청 사유를 입력해 주세요.")
+        return reason
+
+
 class ProjectAccessRequestOut(BaseModel):
     id: str
     project_id: str
@@ -84,6 +97,7 @@ class ProjectAccessRequestOut(BaseModel):
     user_name: str
     user_email: str
     status: Literal["PENDING", "REJECTED", "APPROVED"]
+    reason: Optional[str] = None
     created_at: datetime
 
 
