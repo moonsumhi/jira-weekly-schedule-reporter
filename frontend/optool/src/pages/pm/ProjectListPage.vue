@@ -113,7 +113,7 @@
                   />
                   <q-badge color="primary" :label="project.key" class="pm-project-key-badge" />
                   <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" class="pm-project-sr-badge" />
-                  <q-badge v-if="project.pendingAccessRequestCount" color="negative" :label="`! 접근 신청 ${project.pendingAccessRequestCount}건`" />
+                  <q-badge v-if="project.pendingAccessRequestCount" color="negative" :label="`접근 신청 ${project.pendingAccessRequestCount}건`" />
                 </div>
                 <div class="row items-start no-wrap q-gutter-x-xs">
                   <q-btn
@@ -150,7 +150,7 @@
             <div class="row items-center q-gutter-sm q-mb-xs">
               <q-badge color="primary" :label="project.key" class="pm-project-key-badge" />
               <q-badge v-if="project.isSrDefault" color="teal-6" label="SR 기본" class="pm-project-sr-badge" />
-              <q-badge v-if="project.pendingAccessRequestCount" color="negative" :label="`! 접근 신청 ${project.pendingAccessRequestCount}건`" />
+              <q-badge v-if="project.pendingAccessRequestCount" color="negative" :label="`접근 신청 ${project.pendingAccessRequestCount}건`" />
               <q-badge v-if="!project.hasAccess" outline color="grey-6" label="접근 권한 없음" />
             </div>
             <div class="row items-start no-wrap q-gutter-x-xs">

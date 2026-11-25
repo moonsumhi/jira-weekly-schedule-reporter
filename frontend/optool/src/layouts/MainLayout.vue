@@ -346,6 +346,7 @@ import { useQuasar } from 'quasar'
 import { fetchLinks, createLink, patchLink, deleteLink, type Link } from 'src/services/links'
 import { SLUG_PERM } from 'src/constants/menuPermissions'
 import { api } from 'boot/axios'
+import { listProjectCatalog } from 'src/services/pm/project'
 
 const auth = useAuthStore()
 const menuStore = useMenuStore()
@@ -437,6 +438,7 @@ function menuChildren(menu: MenuOut, badgeLink?: string): EssentialLinkProps[] {
       color: menu.subColors?.[s.link] ?? menu.color ?? '#000000',
       iconColor: menu.subIconColors?.[s.link] ?? menu.iconColor ?? menu.subColors?.[s.link] ?? menu.color ?? '#000000',
       badge: badgeLink === s.link ? pendingCount.value : 0,
+      indicator: s.link.split('?')[0] === '/pm/projects' && projectPendingCount.value > 0,
     }))
   return applySubOrder(items, menu)
 }
@@ -504,6 +506,28 @@ const currentPageTitle = computed(() => {
 
 const pendingCount = computed(() => auth.pendingCount)
 let pendingTimer: ReturnType<typeof setInterval> | null = null
+const projectPendingCount = ref(0)
+let projectPendingTimer: ReturnType<typeof setInterval> | null = null
+
+async function refreshProjectPendingCount() {
+  if (!auth.isLoggedIn || !hasPerm('pm')) return
+  try {
+    const projects = await listProjectCatalog()
+    if (auth.isLoggedIn) projectPendingCount.value = projects.reduce((sum, project) => sum + project.pendingAccessRequestCount, 0)
+  } catch {
+    // The menu remains usable if the project catalog is temporarily unavailable.
+  }
+}
+
+function onProjectAccessRequestsChanged() {
+  void refreshProjectPendingCount()
+}
+
+function startProjectPendingPolling() {
+  if (!hasPerm('pm')) return
+  void refreshProjectPendingCount()
+  if (!projectPendingTimer) projectPendingTimer = setInterval(() => void refreshProjectPendingCount(), 30000)
+}
 
 const leftDrawerOpen = ref(false)
 const rightDrawerOpen = ref(false)
@@ -772,9 +796,12 @@ watch(
       leftDrawerOpen.value = false
       auth.pendingCount = 0
       if (pendingTimer) { clearInterval(pendingTimer); pendingTimer = null }
+      projectPendingCount.value = 0
+      if (projectPendingTimer) { clearInterval(projectPendingTimer); projectPendingTimer = null }
       notifStore.stopPolling()
     } else {
       await auth.fetchMe()
+      startProjectPendingPolling()
       void theme.loadSidebarTheme()
       void menuStore.refresh()
       if (auth.me?.isAdmin) {
@@ -787,8 +814,10 @@ watch(
 )
 
 onMounted(async () => {
+  window.addEventListener('project-access-requests-changed', onProjectAccessRequestsChanged)
   if (auth.isLoggedIn) {
     await auth.fetchMe()
+    startProjectPendingPolling()
     void theme.loadSidebarTheme()
     void menuStore.refresh()
     if (auth.me?.isAdmin) {
@@ -804,6 +833,9 @@ watch(
   () => route.path,
   (newPath, oldPath) => {
     if ($q.screen.width < 1024) leftDrawerOpen.value = false
+    if (auth.isLoggedIn && (newPath.startsWith('/pm/projects') || oldPath.startsWith('/pm/projects'))) {
+      void refreshProjectPendingCount()
+    }
     if (auth.isLoggedIn && oldPath === '/admin/menus' && newPath !== '/admin/menus') {
       void menuStore.refresh()
     }
@@ -811,8 +843,10 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  window.removeEventListener('project-access-requests-changed', onProjectAccessRequestsChanged)
   if (navigationRevealTimer) clearTimeout(navigationRevealTimer)
   if (pendingTimer) clearInterval(pendingTimer)
+  if (projectPendingTimer) clearInterval(projectPendingTimer)
   notifStore.stopPolling()
 })
 </script>

@@ -742,6 +742,7 @@ async function reviewAccess(request: ProjectAccessRequest, decision: 'approve' |
   try {
     await reviewProjectAccessRequest(projectId, request.id, decision)
     accessRequests.value = accessRequests.value.filter(item => item.id !== request.id)
+    window.dispatchEvent(new Event('project-access-requests-changed'))
     if (decision === 'approve') members.value = await listProjectMembers(projectId)
     Notify.create({ type: 'positive', message: decision === 'approve' ? '권한 신청을 승인했습니다.' : '권한 신청을 거절했습니다.' })
   } catch (error) {

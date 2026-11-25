@@ -18,6 +18,9 @@
       <q-item-section side v-if="badge && badge > 0">
         <q-badge color="negative" :label="badge" rounded />
       </q-item-section>
+      <q-item-section side v-else-if="indicator">
+        <q-badge color="negative" label="!" rounded aria-label="접근 신청 대기" />
+      </q-item-section>
       <q-tooltip v-if="compact" anchor="center right" self="center left">{{ title }}</q-tooltip>
     </template>
     <div class="sidebar-children">
@@ -58,6 +61,9 @@
     <q-item-section side v-if="badge && badge > 0">
       <q-badge color="negative" :label="badge" rounded />
     </q-item-section>
+    <q-item-section side v-else-if="indicator">
+      <q-badge color="negative" label="!" rounded aria-label="접근 신청 대기" />
+    </q-item-section>
     <q-tooltip v-if="compact" anchor="center right" self="center left">{{ title }}</q-tooltip>
   </q-item>
 </template>
@@ -81,6 +87,7 @@ export interface EssentialLinkProps {
   compact?: boolean;
   siblingLinks?: string[];
   badge?: number;
+  indicator?: boolean;
 }
 
 const props = withDefaults(defineProps<EssentialLinkProps>(), {
@@ -94,6 +101,7 @@ const props = withDefaults(defineProps<EssentialLinkProps>(), {
   compact: false,
   siblingLinks: () => [],
   badge: 0,
+  indicator: false,
 })
 
 const emit = defineEmits<{
