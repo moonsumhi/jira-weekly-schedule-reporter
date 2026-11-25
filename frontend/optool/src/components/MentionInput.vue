@@ -12,6 +12,12 @@
       @update:model-value="onInput"
       @blur="onBlur"
     />
+    <div v-if="mentionedUsers.length" class="row items-center q-gutter-xs q-mt-xs" aria-label="확정된 멘션 대상">
+      <span class="text-caption text-grey-7">멘션 대상</span>
+      <q-chip v-for="user in mentionedUsers" :key="user.userId" dense outline color="primary" icon="alternate_email">
+        {{ user.displayName }}
+      </q-chip>
+    </div>
 
     <Teleport to="body">
       <div
@@ -89,6 +95,7 @@ const mentionActive = ref(false)
 const dropdownStyle = ref<Record<string, string>>({})
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let reqSeq = 0
+let inputSeq = 0
 
 // body로 teleport하므로 다이얼로그/스크롤 영역의 overflow에 잘리지 않도록
 // textarea 위치 기준 fixed 좌표를 직접 계산한다.
@@ -129,8 +136,9 @@ function getMentionStart(text: string, cursorPos: number): number {
   return before.lastIndexOf('@')
 }
 
-function onInput(val: string | number | null) {
+async function onInput(val: string | number | null) {
   const text = String(val ?? '')
+  const seq = ++inputSeq
   emit('update:modelValue', text)
 
   const stillPresent = props.mentionedUsers.filter(m => text.includes(`@${m.displayName}`))
@@ -138,6 +146,10 @@ function onInput(val: string | number | null) {
     emit('update:mentionedUsers', stillPresent)
   }
 
+  // QInput emits the new text before the native textarea selection is updated.
+  // Reading selectionStart immediately can search "@" instead of "@홍길".
+  await nextTick()
+  if (seq !== inputSeq) return
   const el = getTextarea()
   const cursorPos = el?.selectionStart ?? text.length
   const query = getMentionQuery(text, cursorPos)
@@ -156,10 +168,11 @@ function onInput(val: string | number | null) {
 
 function triggerSearch(q: string) {
   if (debounceTimer) clearTimeout(debounceTimer)
+  const seq = ++reqSeq
+  searching.value = true
+  showMenu.value = true
+  searchResults.value = []
   debounceTimer = setTimeout(() => void (async () => {
-    const seq = ++reqSeq
-    searching.value = true
-    showMenu.value = true
     await nextTick()
     updateDropdownPosition()
     try {
@@ -213,10 +226,12 @@ function onKeydown(e: KeyboardEvent) {
   } else if (e.key === 'ArrowUp') {
     e.preventDefault()
     activeIdx.value = Math.max(activeIdx.value - 1, 0)
-  } else if (e.key === 'Enter' && searchResults.value.length > 0) {
-    e.preventDefault()
+  } else if ((e.key === 'Enter' || e.key === 'Tab') && searchResults.value.length > 0) {
     const u = searchResults.value[activeIdx.value]
-    if (u && u.hasProjectAccess !== false) selectUser(u)
+    if (u && u.hasProjectAccess !== false) {
+      e.preventDefault()
+      selectUser(u)
+    }
   } else if (e.key === 'Escape') {
     showMenu.value = false
     mentionActive.value = false
