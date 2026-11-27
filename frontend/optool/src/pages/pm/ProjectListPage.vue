@@ -9,19 +9,11 @@
 
     <!-- 검색 + 정렬 -->
     <div class="bo-filterbar">
-      <q-input
-        v-model="search"
-        dense outlined
-        placeholder="프로젝트명 · 키 · 설명 · 일감 제목 검색"
-        :maxlength="200"
+      <ProjectSearchInput
+        ref="searchInput"
         style="flex: 1; min-width: 0"
-        class="bo-search"
-      >
-        <template #prepend><q-icon name="search" color="grey-5" /></template>
-        <template v-if="search" #append>
-          <q-icon name="close" color="grey-5" class="cursor-pointer" @click="search = ''" />
-        </template>
-      </q-input>
+        @search="search = $event"
+      />
       <q-select
         v-model="sortKey"
         :options="sortOptions"
@@ -43,10 +35,11 @@
       </div>
       <q-banner v-if="issueSearchError" dense rounded class="issue-search-error q-mb-sm">
         {{ issueSearchError }}
-        <template #action><q-btn flat dense label="다시 시도" @click="void fetchIssueMatches(issueMatches.length > 0)" /></template>
+        <template #action><q-btn flat dense label="다시 시도" @click="void fetchIssueMatches()" /></template>
       </q-banner>
       <q-list v-if="issueMatches.length" bordered separator class="rounded-borders">
-        <q-item v-for="issue in issueMatches" :key="issue.id" clickable @click="void openSearchIssue(issue)">
+        <q-item v-for="issue in issueMatches" :key="issue.id" clickable :disable="issueSearchLoading || !!issueSearchError"
+          @mousedown="preserveSearchResultClick($event, searchInput?.nativeEl)" @click="void openSearchIssue(issue)">
           <q-item-section avatar class="issue-search-icon">
             <q-icon :name="TYPE_ICON[issue.type]" :color="TYPE_COLOR[issue.type]" size="18px" />
           </q-item-section>
@@ -77,7 +70,7 @@
       <q-icon name="search_off" size="4rem" class="q-mb-md" />
       <div class="text-h6">검색 결과가 없습니다</div>
       <div class="text-caption">다른 검색어를 입력하거나 검색을 초기화하세요.</div>
-      <q-btn flat dense color="primary" label="검색 초기화" class="q-mt-sm" @click="search = ''" />
+      <q-btn flat dense color="primary" label="검색 초기화" class="q-mt-sm" @click="clearSearch" />
     </div>
 
     <!-- 즐겨찾기 (드래그로 순서 변경 가능) -->
@@ -101,7 +94,8 @@
       >
         <template #item="{ element: project }">
           <div class="col-12 col-sm-6 col-md-4">
-            <q-card flat bordered class="cursor-pointer project-card" @click="goToProject(project)">
+            <q-card flat bordered class="cursor-pointer project-card"
+              @mousedown="preserveSearchResultClick($event, searchInput?.nativeEl)" @click="goToProject(project)">
               <q-card-section>
                 <div class="row items-center q-gutter-sm q-mb-xs">
                   <q-icon
@@ -145,7 +139,8 @@
     <div v-if="favoriteProjects.length && otherProjects.length" class="text-caption text-grey-6 text-weight-medium q-mb-xs">전체</div>
     <div class="row q-col-gutter-md">
       <div v-for="project in otherProjects" :key="project.id" class="col-12 col-sm-6 col-md-4">
-        <q-card flat bordered class="project-card" :class="{ 'cursor-pointer': project.hasAccess }" @click="project.hasAccess && goToProject(project)">
+        <q-card flat bordered class="project-card" :class="{ 'cursor-pointer': project.hasAccess }"
+          @mousedown="preserveSearchResultClick($event, searchInput?.nativeEl)" @click="project.hasAccess && goToProject(project)">
           <q-card-section>
             <div class="row items-center q-gutter-sm q-mb-xs">
               <q-badge color="primary" :label="project.key" class="pm-project-key-badge" />
@@ -252,6 +247,7 @@
 import { ref, onMounted, onBeforeUnmount, computed, watch, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { Notify, Dialog } from 'quasar'
+import ProjectSearchInput from './components/ProjectSearchInput.vue'
 import draggable from 'vuedraggable'
 import {
   listProjectCatalog, createProject, toggleProjectFavorite, reorderFavoriteProjects, clearFavoriteProjects, requestProjectAccess,
@@ -261,6 +257,7 @@ import { getIssue, STATUS_COLOR, STATUS_LABEL, TYPE_COLOR, TYPE_ICON, type Issue
 import { listOrganizations, type Organization } from 'src/services/pm/organization'
 import { usePmStore } from 'src/stores/pm'
 import { getErrorMessage } from 'src/utils/http/error'
+import { preserveSearchResultClick } from 'src/utils/searchResultClick'
 
 const router = useRouter()
 const pmStore = usePmStore()
@@ -272,6 +269,14 @@ const accessDialog = ref<{ open: boolean; project: Project | null; reason: strin
 const orgs = ref<Organization[]>([])
 const loading = ref(false)
 const search = ref('')
+const searchInput = ref<{
+  nativeEl?: HTMLInputElement | HTMLTextAreaElement
+  clear: () => void
+} | null>(null)
+function clearSearch() {
+  searchInput.value?.clear()
+  search.value = ''
+}
 const issueMatches = ref<ProjectIssueSearchItem[]>([])
 const issueSearchLoading = ref(false)
 const issueSearchError = ref('')
@@ -292,7 +297,9 @@ watch(() => search.value.trim(), query => {
   clearTimeout(issueSearchTimer)
   issueSearchController?.abort()
   ++issueSearchRequest
-  issueMatches.value = []
+  // Keep the previous results in place until the replacement arrives, so IME
+  // confirmation does not collapse the list above the project being clicked.
+  if (!query) issueMatches.value = []
   issueHasMore.value = false
   issueSearchError.value = ''
   issueSearchLoading.value = !!query
