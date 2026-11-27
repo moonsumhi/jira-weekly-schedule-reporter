@@ -309,6 +309,8 @@ class SRListItem(BaseModel):
     requester_name: str
     requester_department: str
     related_system: Optional[str] = None
+    related_project_id: Optional[str] = None
+    converted_project_id: Optional[str] = None
     priority: SRPriority
     is_urgent: bool
     desired_due_date: Optional[datetime] = None

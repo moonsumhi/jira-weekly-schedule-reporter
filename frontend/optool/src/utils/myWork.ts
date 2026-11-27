@@ -10,7 +10,7 @@ type WorkDeadline = {
   urgency: 'overdue' | 'today' | 'upcoming' | 'paused' | 'undated'
   deadlineLabel: string
 }
-type WorkIdentity = { id: string; key: string; title: string; context: string; status: string }
+type WorkIdentity = { id: string; key: string; title: string; context: string; status: string; projectIds: string[] }
 export type MyWorkItem = WorkIdentity & WorkDeadline & (
   { kind: 'issue'; issue: Issue } | { kind: 'sr'; sr: SRListItem }
 )
@@ -41,7 +41,7 @@ export function buildMyWork(issues: Issue[], srs: SRListItem[], userId: string |
     .filter(issue => issue.assigneeId === userId && issue.status !== 'DONE' && issue.status !== 'IMPLEMENTED'
       && !(issue.linkedSrId && linkedSrs.has(issue.linkedSrId)))
     .map(issue => ({
-      id: `issue-${issue.id}`, kind: 'issue', issue,
+      id: `issue-${issue.id}`, kind: 'issue', issue, projectIds: [issue.projectId],
       key: issue.projectKey ? `${issue.projectKey}-${issue.number}` : `#${issue.number}`,
       title: issue.title, context: issue.projectName || '스케줄 관리', status: issue.status,
       ...workDeadline(issue.dueDate, today),
@@ -49,6 +49,11 @@ export function buildMyWork(issues: Issue[], srs: SRListItem[], userId: string |
   rows.push(...ownSrs.map(sr => ({
     id: `sr-${sr.id}`, kind: 'sr' as const, sr, key: sr.srNo,
     title: sr.title, context: sr.relatedSystem ? `SR · ${sr.relatedSystem}` : 'SR', status: sr.status,
+    projectIds: [...new Set([
+      sr.relatedProjectId, sr.convertedProjectId,
+      ...issues.filter(issue => issue.linkedSrId === sr.id)
+        .map(issue => issue.projectId),
+    ].filter((id): id is string => !!id))],
     ...workDeadline(sr.plannedDueDate || sr.desiredDueDate, today, sr.status === 'ON_HOLD'),
   })))
   const rank = { overdue: 0, today: 1, upcoming: 2, paused: 3, undated: 4 }

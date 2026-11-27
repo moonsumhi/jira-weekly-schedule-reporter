@@ -123,8 +123,12 @@
         </div>
 
         <div class="dash-card-body">
-          <MyWorkList :items="myWorkItems" :loading="pmLoading || srLoading" :errors="myWorkErrors"
-            @open="openMyWork" @retry="retryMyWork" />
+          <MyWorkList :items="filteredMyWorkItems" :loading="pmLoading || srLoading" :errors="myWorkErrors"
+            :filtered="!!myWorkProjectId" @open="openMyWork" @retry="retryMyWork">
+            <template #filters>
+              <ProjectFilter v-model="myWorkProjectId" :issues="pmMyIssues" />
+            </template>
+          </MyWorkList>
         </div>
       </div>
 
@@ -217,6 +221,7 @@ import CardSizePicker from 'src/components/CardSizePicker.vue'
 import FavoriteProjectBacklogs from 'src/components/dashboard/FavoriteProjectBacklogs.vue'
 import DDayCalendar, { type CalendarDDay } from 'src/components/dashboard/DDayCalendar.vue'
 import MyWorkList from 'src/components/dashboard/MyWorkList.vue'
+import ProjectFilter from 'src/components/ProjectFilter.vue'
 import { buildMyWork, MY_WORK_SR_STATUSES, type MyWorkItem } from 'src/utils/myWork'
 import { DUTY_RANGE_DAYS, groupDutyPeriods, loadDashboardDuties, nextDutyPeriod, type DutyAssignment } from 'src/utils/dutyPeriods'
 import { resolveDashboardLayout } from 'src/utils/dashboardLayout'
@@ -714,6 +719,10 @@ const hasSrPerm = computed(() => auth.me?.isAdmin || (auth.me?.permissions ?? []
 const hasSrWorkPerm = computed(() => hasSrPerm.value && (auth.me?.isAdmin
   || (auth.me?.permissions ?? []).some(permission => permission === 'sr_operator' || permission === 'sr_manager')))
 const myWorkItems = computed(() => buildMyWork(pmMyIssues.value, mySrList.value, auth.me?.id?.toString(), todayISO.value))
+const myWorkProjectId = ref<string | null>(null)
+const filteredMyWorkItems = computed(() => myWorkProjectId.value
+  ? myWorkItems.value.filter(item => item.projectIds.includes(myWorkProjectId.value!))
+  : myWorkItems.value)
 const myWorkErrors = computed(() => [pmLoadFailed.value ? '담당 이슈' : '', srLoadFailed.value ? '담당 SR' : ''].filter(Boolean))
 
 function openMyWork(item: MyWorkItem) {
@@ -931,6 +940,9 @@ onUnmounted(() => {
   margin-bottom: 16px;
   flex-shrink: 0;
 }
+
+.pm-card.card-h-1 .card-header { margin-bottom: 8px; }
+.pm-card.card-h-1 :deep(.my-work-toolbar) { position: static; }
 
 /* 모든 대시보드 카드: sticky 대신 헤더를 스크롤 영역 밖으로 분리해서
    스크롤 시 내용이 헤더에 겹쳐 보이던 문제를 근본적으로 제거 */

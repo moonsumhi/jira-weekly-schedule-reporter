@@ -5,13 +5,15 @@
       <q-btn flat dense no-caps color="primary" label="다시 불러오기" :loading="loading" @click="$emit('retry')" />
     </div>
     <div v-if="loading" class="my-work-empty" role="status">내 일감을 불러오는 중입니다.</div>
-    <div v-if="items.length" class="my-work-summary" aria-label="내 일감 현황">
-      <span>{{ loading || errors.length ? '불러온' : '전체' }} <strong>{{ items.length }}</strong>건</span>
-      <span v-if="overdueCount" class="my-work-overdue-count">지연 <strong>{{ overdueCount }}</strong>건</span>
-      <span v-if="todayCount" class="my-work-today-count">오늘 마감 <strong>{{ todayCount }}</strong>건</span>
-      <span class="my-work-sort">지연 · 마감일순</span>
+    <div v-if="items.length || $slots.filters" class="my-work-toolbar">
+      <div v-if="items.length" class="my-work-summary" aria-label="내 일감 현황" aria-live="polite">
+        <span>{{ loading || errors.length ? '불러온' : filtered ? '선택한 프로젝트' : '전체' }} <strong>{{ items.length }}</strong>건</span>
+        <span v-if="overdueCount" class="my-work-overdue-count">지연 <strong>{{ overdueCount }}</strong>건</span>
+        <span v-if="todayCount" class="my-work-today-count">오늘 마감 <strong>{{ todayCount }}</strong>건</span>
+      </div>
+      <slot name="filters" />
     </div>
-    <p v-if="!loading && !errors.length && !items.length" class="my-work-empty">담당 중인 미완료 일감이 없습니다.</p>
+    <p v-if="!loading && !errors.length && !items.length" class="my-work-empty" role="status">{{ filtered ? '선택한 프로젝트에 담당 중인 미완료 일감이 없습니다.' : '담당 중인 미완료 일감이 없습니다.' }}</p>
     <ul v-if="items.length" class="my-work-rows">
       <li v-for="item in items" :key="item.id">
         <button type="button" class="my-work-row" :class="`my-work-row--${item.urgency}`" @click="$emit('open', item)">
@@ -40,7 +42,7 @@ import { STATUS_LABEL } from 'src/services/pm/issue'
 import { SR_STATUS_LABEL } from 'src/services/sr'
 import type { MyWorkItem } from 'src/utils/myWork'
 
-const props = defineProps<{ items: MyWorkItem[]; loading: boolean; errors: string[] }>()
+const props = defineProps<{ items: MyWorkItem[]; loading: boolean; errors: string[]; filtered?: boolean }>()
 defineEmits<{ open: [item: MyWorkItem]; retry: [] }>()
 const overdueCount = computed(() => props.items.filter(item => item.urgency === 'overdue').length)
 const todayCount = computed(() => props.items.filter(item => item.urgency === 'today').length)
@@ -48,11 +50,11 @@ const todayCount = computed(() => props.items.filter(item => item.urgency === 't
 
 <style scoped>
 .my-work-list { container-type: inline-size; }
-.my-work-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; position: sticky; top: 0; z-index: 1; padding: 4px 0 10px; background: var(--bo-surface); color: var(--bo-muted); font-size: 12px; line-height: 1.5; }
+.my-work-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; position: sticky; top: 0; z-index: 1; padding: 0 0 10px; background: var(--bo-surface); }
+.my-work-summary { display: flex; flex: 1; align-items: center; flex-wrap: wrap; gap: 6px 16px; color: var(--bo-muted); font-size: 12px; line-height: 1.5; }
 .my-work-summary strong { font-weight: 600; }
 .my-work-overdue-count { color: #b42318; }
 .my-work-today-count { color: #93370d; }
-.my-work-sort { margin-left: auto; }
 .my-work-rows { margin: 0; padding: 0; list-style: none; }
 .my-work-row { display: grid; grid-template-columns: minmax(0, 1fr) 130px 76px; align-items: center; gap: 16px; width: 100%; padding: 12px; border: 0; border-bottom: 1px solid var(--bo-border); background: transparent; color: var(--bo-text); font: inherit; text-align: left; cursor: pointer; }
 .my-work-row--overdue { background: #fff4f2; }
@@ -71,9 +73,9 @@ const todayCount = computed(() => props.items.filter(item => item.urgency === 't
 .my-work-empty { margin: 0; padding: 20px 12px; color: var(--bo-muted); font-size: 13px; text-align: center; }
 .my-work-notice { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--bo-muted); font-size: 12px; line-height: 1.5; }
 @container (max-width: 480px) {
+  .my-work-summary { flex-basis: 100%; order: 1; }
   .my-work-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 12px 8px; }
   .my-work-copy { grid-column: 1 / -1; }
   .my-work-deadline { flex-direction: row; flex-wrap: wrap; gap: 4px 10px; }
-  .my-work-sort { width: 100%; margin-left: 0; }
 }
 </style>

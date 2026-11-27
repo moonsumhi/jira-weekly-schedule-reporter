@@ -57,3 +57,29 @@ test('many recent issues cannot push an older overdue issue out of the list', ()
   assert.equal(rows.length, 61)
   assert.equal(rows[0].id, 'issue-old')
 })
+
+test('project filtering keeps a linked SR once and follows related, converted and legacy issue projects', () => {
+  const rows = buildMyWork([
+    issue('a', { projectId: 'ops', dueDate: '2026-11-01' }),
+    issue('b', { projectId: 'infra' }),
+    issue('linked', { projectId: 'ops', linkedSrId: 'legacy' }),
+  ], [
+    sr('related', { relatedProjectId: 'ops', plannedDueDate: '2026-11-02' }),
+    sr('converted', { convertedProjectId: 'infra' }),
+    sr('legacy'), sr('unlinked'),
+  ], 'me', today)
+  assert.deepEqual(rows.filter(row => row.projectIds.includes('ops')).map(row => row.id),
+    ['issue-a', 'sr-related', 'sr-legacy'])
+  assert.deepEqual(rows.filter(row => row.projectIds.includes('infra')).map(row => row.id),
+    ['issue-b', 'sr-converted'])
+  assert.equal(rows.some(row => row.id === 'issue-linked'), false)
+  assert.deepEqual(rows.find(row => row.id === 'sr-unlinked').projectIds, [])
+  assert.equal(rows.length, 6)
+})
+
+test('SR project membership survives issue deduplication and supports multiple linked project references', () => {
+  const [row] = buildMyWork([issue('legacy', { projectId: 'legacy-project', linkedSrId: 'linked' })], [
+    sr('linked', { relatedProjectId: 'ops', convertedProjectId: 'ops', relatedIssueId: 'legacy' }),
+  ], 'me', today)
+  assert.deepEqual(row.projectIds, ['ops', 'legacy-project'])
+})
