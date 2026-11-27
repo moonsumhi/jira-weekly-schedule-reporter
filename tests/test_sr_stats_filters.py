@@ -93,3 +93,17 @@ class SRStatsFilterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(results['items'][0]['sr_no'], 'SR-0')
         none = await self.fetch('/stats/summary', {'my_assigned': 'true', 'assignee_id': str(self.other)})
         self.assertEqual(none['total'], 0)
+
+    async def test_assigned_list_keeps_project_links_for_dashboard_filtering(self):
+        related, converted = ObjectId(), ObjectId()
+        await self.db[M.SERVICE_REQUESTS].update_one({'sr_no': 'SR-0'}, {'$set': {
+            'related_project_id': related, 'converted_project_id': converted,
+        }})
+        for extra in ({}, {'is_delayed': 'true'}):
+            result = await self.fetch('', {'my_assigned': 'true', 'status': 'IN_PROGRESS', **extra})
+            self.assertEqual(result['total'], 1)
+            self.assertEqual(result['items'][0]['related_project_id'], str(related))
+            self.assertEqual(result['items'][0]['converted_project_id'], str(converted))
+        legacy = await self.fetch('', {'my_assigned': 'true', 'status': 'ON_HOLD'})
+        self.assertIsNone(legacy['items'][0]['related_project_id'])
+        self.assertIsNone(legacy['items'][0]['converted_project_id'])

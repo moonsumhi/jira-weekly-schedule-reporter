@@ -190,6 +190,8 @@ export type SRListItem = {
   requesterName: string
   requesterDepartment: string
   relatedSystem: string | null
+  relatedProjectId?: string | null
+  convertedProjectId?: string | null
   priority: SRPriority
   isUrgent: boolean
   desiredDueDate: string | null

@@ -13,60 +13,34 @@
         </div>
       </div>
 
-      <!-- 담당자 필터 -->
+      <!-- 캘린더와 필터 -->
       <div class="col-12">
         <q-card flat bordered>
-          <q-card-section class="q-py-sm">
-            <div class="row items-center wrap q-gutter-xs">
-              <span class="text-caption text-grey-5 q-mr-xs" style="line-height: 28px">담당자</span>
-
-              <!-- 전체 칩 -->
-              <q-chip
-                clickable
-                dense
-                :color="selectedIds.size === 0 ? 'primary' : undefined"
-                :text-color="selectedIds.size === 0 ? 'white' : 'grey-7'"
-                :outline="selectedIds.size > 0"
-                size="sm"
-                @click="clearSelection"
-              >전체</q-chip>
-
-              <!-- 담당자 칩 (다중 선택) -->
-              <q-chip
-                v-for="a in allAssignees"
-                :key="a.id"
-                clickable
-                dense
-                size="sm"
-                :outline="!selectedIds.has(a.id)"
-                :text-color="selectedIds.has(a.id) ? 'white' : 'grey-8'"
-                :style="selectedIds.has(a.id)
-                  ? `background:${getAssigneeColor(a.id)};border-color:${getAssigneeColor(a.id)}`
-                  : `border-color:${getAssigneeColor(a.id)}`"
-                @click="toggleAssignee(a.id)"
-              >
-                <q-avatar
-                  :style="`background:${getAssigneeColor(a.id)};color:#fff;font-size:10px`"
-                  size="18px"
-                >{{ a.name.charAt(0).toUpperCase() }}</q-avatar>
-                {{ a.name }}
-              </q-chip>
-
-              <!-- 선택 수 표시 -->
-              <span
-                v-if="selectedIds.size > 0"
-                class="text-caption text-grey-5 q-ml-xs"
-                style="line-height: 28px"
-              >{{ selectedIds.size }}명 선택</span>
+          <q-card-section class="work-status-filters">
+            <ProjectFilter v-model="selectedProjectId" :issues="allIssues" class="work-status-select" />
+            <div class="work-status-assignees" role="group" aria-label="담당자 필터">
+              <button type="button" class="assignee-toggle" :class="{ 'assignee-toggle--active': selectedIds.size === 0 }"
+                :aria-pressed="selectedIds.size === 0" @click="clearAssignees">
+                <span class="assignee-name">전체 담당자</span>
+                <q-icon name="check" size="14px" class="assignee-check" aria-hidden="true" />
+              </button>
+              <button v-for="assignee in assigneeFilters" :key="assignee.id" type="button" class="assignee-toggle"
+                :class="{ 'assignee-toggle--active': selectedIds.has(assignee.id) }"
+                :aria-pressed="selectedIds.has(assignee.id)" @click="toggleAssignee(assignee.id)">
+                <span class="assignee-color" :style="{ backgroundColor: getAssigneeColor(assignee.id) }" aria-hidden="true" />
+                <span class="assignee-name">{{ assignee.name }}</span>
+                <q-icon name="check" size="14px" class="assignee-check" aria-hidden="true" />
+              </button>
             </div>
+            <q-btn v-if="hasFilters" flat dense no-caps icon="restart_alt" label="초기화" aria-label="프로젝트와 담당자 필터 초기화"
+              class="work-status-reset" @click="resetFilters" />
           </q-card-section>
-        </q-card>
-      </div>
-
-      <!-- 캘린더 -->
-      <div class="col-12">
-        <q-card flat bordered>
+          <q-separator />
           <q-card-section>
+            <div v-if="loading || loadFailed || (hasFilters && !filteredEvents.length)" class="work-status-notice" role="status">
+              <span>{{ loading ? '일정을 불러오는 중입니다.' : loadFailed ? '일정을 불러오지 못했습니다.' : '선택한 조건에 표시할 일정이 없습니다.' }}</span>
+              <q-btn v-if="loadFailed && !loading" flat dense no-caps label="다시 시도" @click="retryIssues" />
+            </div>
             <FullCalendar ref="calendarRef" :options="calendarOptions" />
           </q-card-section>
         </q-card>
@@ -98,6 +72,7 @@ import type { CalendarOptions, EventContentArg, EventInput, EventSourceFuncArg }
 import type FullCalendarComponent from '@fullcalendar/vue3'
 
 import IssueDetailDialog from './components/IssueDetailDialog.vue'
+import ProjectFilter from 'src/components/ProjectFilter.vue'
 import {
   getWorkStatus,
   TYPE_ICON,
@@ -153,6 +128,10 @@ function getContrastingTextColor(color: string): string {
 const calendarRef = ref<InstanceType<typeof FullCalendarComponent> | null>(null)
 const allIssues   = ref<Issue[]>([])
 const selectedIds = ref(new Set<string>())
+const selectedProjectId = ref<string | null>(null)
+const loading = ref(false)
+const loadFailed = ref(false)
+const hasFilters = computed(() => !!selectedProjectId.value || selectedIds.value.size > 0)
 
 const detailOpen  = ref(false)
 const detailIssue = ref<Issue | null>(null)
@@ -181,7 +160,23 @@ const allAssignees = computed(() => {
     .sort((a, b) => Number(a.id === NO_ASSIGNEE_KEY) - Number(b.id === NO_ASSIGNEE_KEY))
 })
 
-// ── 다중 선택 토글 ────────────────────────────────────────────────────
+// ── 담당자 다중 선택 ────────────────────────────────────────────────────
+const knownAssigneeNames = ref(new Map<string, string>())
+watch(allAssignees, assignees => {
+  for (const assignee of assignees) knownAssigneeNames.value.set(assignee.id, assignee.name)
+}, { immediate: true })
+
+const assigneeFilters = computed(() => {
+  const choices = new Map(allAssignees.value.map(assignee => [assignee.id, assignee]))
+  // Keep selected people available for deselection when moving to an empty period.
+  for (const id of selectedIds.value) {
+    if (!choices.has(id)) choices.set(id, { id, name: knownAssigneeNames.value.get(id) ?? '선택한 담당자' })
+  }
+  return [...choices.values()]
+    .sort((a, b) => Number(a.id === NO_ASSIGNEE_KEY) - Number(b.id === NO_ASSIGNEE_KEY)
+      || a.name.localeCompare(b.name, 'ko'))
+})
+
 function toggleAssignee(id: string) {
   const next = new Set(selectedIds.value)
   if (next.has(id)) next.delete(id)
@@ -189,8 +184,13 @@ function toggleAssignee(id: string) {
   selectedIds.value = next
 }
 
-function clearSelection() {
+function clearAssignees() {
   selectedIds.value = new Set()
+}
+
+function resetFilters() {
+  selectedProjectId.value = null
+  clearAssignees()
 }
 
 function calendarIssueTitle(issue: Issue): string {
@@ -226,7 +226,8 @@ const filteredEvents = computed<EventInput[]>(() => {
     : allIssues.value.filter(i => selectedIds.value.has(workStatusAssigneeId(i)))
 
   return base
-    .filter(i => isWorkStatusIssue(i) && (i.dueDate ?? i.startDate))
+    .filter(i => (!selectedProjectId.value || i.projectId === selectedProjectId.value)
+      && isWorkStatusIssue(i) && (i.dueDate ?? i.startDate))
     .map(i => {
       const assigneeId = workStatusAssigneeId(i)
       const color = getAssigneeColor(assigneeId)
@@ -254,13 +255,27 @@ const filteredEvents = computed<EventInput[]>(() => {
 
 // ── 이슈 로드 ─────────────────────────────────────────────────────────
 let lastFetchKey = ''
+let fetchSequence = 0
+
+function retryIssues() {
+  lastFetchKey = ''
+  calendarRef.value?.getApi()?.refetchEvents()
+}
 
 async function loadIssues(startDate: string, endDate: string): Promise<void> {
+  const sequence = ++fetchSequence
+  loading.value = true
+  loadFailed.value = false
   try {
-    allIssues.value = await getWorkStatus({ start_date: startDate, end_date: endDate })
+    const issues = await getWorkStatus({ start_date: startDate, end_date: endDate })
+    if (sequence === fetchSequence) allIssues.value = issues
   } catch (e) {
+    if (sequence !== fetchSequence) return
+    loadFailed.value = true
     Notify.create({ type: 'negative', message: getErrorMessage(e, '이슈 로드 실패') })
     allIssues.value = []
+  } finally {
+    if (sequence === fetchSequence) loading.value = false
   }
 }
 
@@ -312,8 +327,8 @@ const calendarOptions = ref<CalendarOptions>({
   },
 })
 
-// ── 담당자 선택 변경 → 캘린더 재렌더 (API 재호출 없음) ────────────────
-watch(selectedIds, () => {
+// ── 필터·조회 결과 변경 → 캘린더 재렌더 (API 재호출 없음) ────────────────
+watch(filteredEvents, () => {
   calendarRef.value?.getApi()?.refetchEvents()
 })
 
@@ -338,7 +353,26 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
 </script>
 
 <style scoped>
+.work-status-filters { display: grid; grid-template-columns: 220px minmax(0, 1fr) auto; align-items: start; gap: 12px 16px; padding: 12px 16px; }
+.work-status-select { width: 220px; min-width: 0; max-width: 100%; }
+.work-status-select :deep(.q-field__control), .work-status-select :deep(.q-field__marginal) { min-height: 38px; height: 38px; }
+.work-status-assignees { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; padding: 2px 0; }
+.work-status-reset { grid-column: 3; grid-row: 1; min-height: 38px; color: var(--bo-muted); }
+.assignee-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; max-width: 100%; padding: 6px 10px; border: 1px solid var(--bo-border-strong); border-radius: var(--bo-radius-control, 8px); background: var(--bo-surface); color: var(--bo-secondary); font: inherit; font-size: 13px; line-height: 20px; cursor: pointer; }
+.assignee-toggle:hover { background: var(--bo-accent-soft); }
+.assignee-toggle:focus-visible { outline: 2px solid var(--bo-accent-ink); outline-offset: 2px; }
+.assignee-toggle--active { border-color: var(--bo-accent-ink); background: var(--bo-accent-soft); color: var(--bo-accent-ink); }
+.assignee-name { min-width: 0; overflow-wrap: anywhere; }
+.assignee-check { flex-shrink: 0; visibility: hidden; }
+.assignee-toggle--active .assignee-check { visibility: visible; }
+.assignee-color { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; }
+.work-status-notice { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; color: var(--bo-muted); font-size: 13px; }
 :deep(.work-status-event-content) { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; }
 :deep(.work-status-event-content i) { flex: none; width: 14px; font-size: 11px; text-align: center; }
 :deep(.work-status-event-title) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 899px) {
+  .work-status-filters { grid-template-columns: minmax(0, 1fr) auto; }
+  .work-status-assignees { grid-column: 1 / -1; grid-row: 2; }
+  .work-status-reset { grid-column: 2; }
+}
 </style>
