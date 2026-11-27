@@ -1,13 +1,17 @@
 <template>
-  <div class="issue-asset-links">
-    <AssetLinks v-if="linked.length" :model-value="linked" :search-assets="searchAssets" hint=""
+  <section class="issue-asset-links" aria-label="연결 자산">
+    <div class="issue-assets-heading">
+      <h2 class="issue-assets-title">연결 자산 <span>{{ linked.length }}개</span></h2>
+      <q-btn outline no-caps class="issue-assets-action" :icon="linked.length ? 'edit' : 'add_link'"
+        :label="linked.length ? '자산 추가·변경' : '자산 연결'" @click="startEdit" />
+    </div>
+    <AssetLinks v-if="linked.length" :model-value="linked" :search-assets="searchAssets" hint="" expanded
       @navigate="emit('navigate')" />
-    <q-btn flat dense no-caps color="grey-7" :icon="linked.length ? 'edit' : 'inventory_2'"
-      :label="linked.length ? '자산 변경' : '자산 연결'" @click="startEdit" />
-    <q-dialog :model-value="open" @update:model-value="close">
+    <p v-else class="issue-assets-empty">연결된 자산이 없습니다. 이슈 생성 후에도 자산을 추가할 수 있습니다.</p>
+    <q-dialog :model-value="open" :persistent="saving" @update:model-value="close">
       <q-card class="issue-assets-editor">
         <q-card-section class="row items-center q-pb-sm">
-          <strong>자산 선택</strong><q-space /><q-btn flat round dense icon="close" aria-label="자산 연결 닫기" :disable="saving" @click="close" />
+          <strong>이슈에 자산 연결</strong><q-space /><q-btn flat round dense icon="close" aria-label="자산 연결 닫기" :disable="saving" @click="close" />
         </q-card-section>
         <q-card-section class="q-pt-none">
           <AssetLinks v-model="selected" editing :search-assets="searchAssets" :disable="saving"
@@ -16,11 +20,11 @@
         </q-card-section>
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat label="취소" :disable="saving" @click="close" />
-          <q-btn color="primary" label="저장" :loading="saving" :disable="!changed" @click="save" />
+          <q-btn color="primary" label="연결 저장" :loading="saving" :disable="!changed" @click="save" />
         </q-card-actions>
       </q-card>
     </q-dialog>
-  </div>
+  </section>
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
@@ -65,8 +69,20 @@ watch(() => props.issue.id, () => { ++request; open.value = false; saving.value 
 onBeforeUnmount(() => { ++request })
 </script>
 <style scoped>
-.issue-asset-links { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 8px 0 16px; }
+.issue-asset-links {
+  margin: 12px 0 20px;
+  padding: 16px;
+  border: 1px solid var(--bo-border);
+  border-radius: var(--bo-radius, 12px);
+  background: var(--bo-surface);
+  color: var(--bo-text);
+}
+.issue-assets-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.issue-assets-action { color: var(--bo-accent-ink); }
+.issue-assets-title { margin: 0; font-size: 15px; line-height: 1.5; font-weight: 600; }
+.issue-assets-title span { margin-left: 4px; font-size: 13px; font-weight: 400; color: var(--bo-secondary); }
+.issue-assets-empty { margin: 12px 0 0; font-size: 13px; line-height: 1.6; color: var(--bo-secondary); }
 .issue-asset-links > .asset-links { margin: 0; max-width: 100%; }
-.issue-asset-links > .q-btn { font-size: 12px; }
+.issue-asset-links :deep(.linked-assets-inline .q-item:last-child) { padding-bottom: 0; }
 .issue-assets-editor { width: 560px; max-width: calc(100vw - 32px); max-height: 85vh; overflow: auto; }
 </style>
