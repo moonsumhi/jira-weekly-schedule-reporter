@@ -106,6 +106,26 @@ class IssueAssetTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stored['title'], '서버 작업')
         self.assertEqual(stored['asset_ids'], [str(self.aid)])
 
+    async def test_link_assets_after_creation_without_changing_issue_fields(self):
+        for status in ('TODO', 'DONE'):
+            with self.subTest(status=status):
+                issue = await self.create(status=status, description='기존 설명', due_date='2026-11-30T00:00:00Z')
+                # Older issues may predate the asset fields entirely.
+                await M.get_pm_issues_collection().update_one({'_id': ObjectId(issue['id'])},
+                    {'$unset': {'asset_ids': '', 'linked_assets': ''}})
+                response = await self.client.patch(self.url + '/' + issue['id'], json={'asset_ids': [str(self.aid), str(self.bid)]})
+                self.assertEqual(response.status_code, 200, response.text)
+                saved = response.json()
+                self.assertEqual([asset['id'] for asset in saved['linked_assets']], [str(self.aid), str(self.bid)])
+                for field in ('title', 'description', 'status', 'type', 'due_date', 'created_at'):
+                    self.assertEqual(saved[field], issue[field], field)
+                reloaded = (await self.client.get(self.url + '/' + issue['id'])).json()
+                self.assertEqual(reloaded['linked_assets'], saved['linked_assets'])
+                history = await M.get_pm_issue_history_collection().find_one({'issue_id': ObjectId(issue['id']), 'field': 'asset_ids'})
+                self.assertIsNotNone(history)
+                self.assertEqual(history['new_value'], 'web-01, db-01')
+                self.assertIn(issue['id'], [row['id'] for row in (await self.history())['items']])
+
     async def test_patch_omission_detach_deleted_asset_and_human_history(self):
         issue = await self.create(asset_ids=[str(self.aid)])
         url = self.url + '/' + issue['id']
